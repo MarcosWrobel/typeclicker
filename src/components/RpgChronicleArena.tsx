@@ -97,6 +97,7 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
   const [showCenterTelegraph, setShowCenterTelegraph] = useState(false);
   const [showCenterDebuff, setShowCenterDebuff] = useState(false);
   const centerDebuffTimeoutRef = useRef<number | null>(null);
+  const telegraphTimeoutRef = useRef<number | null>(null);
 
   // Refs para prevenir race conditions e closures desatualizadas na digitação veloz
   const charIndexRef = useRef(0);
@@ -140,6 +141,13 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
 
   // Limpa debuffs ativos e timers associados
   const clearDebuff = useCallback(() => {
+    if (telegraphTimeoutRef.current) {
+      clearTimeout(telegraphTimeoutRef.current);
+      telegraphTimeoutRef.current = null;
+    }
+    setShowCenterTelegraph(false);
+    setTelegraphSpell(null);
+
     if (centerDebuffTimeoutRef.current) {
       clearTimeout(centerDebuffTimeoutRef.current);
       centerDebuffTimeoutRef.current = null;
@@ -149,6 +157,14 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
     activeStatusEffectRef.current = null;
     setDebuffSecondsLeft(0);
     debuffSecondsLeftRef.current = 0;
+  }, []);
+
+  // Limpeza no ciclo de desmontagem do componente
+  useEffect(() => {
+    return () => {
+      if (telegraphTimeoutRef.current) clearTimeout(telegraphTimeoutRef.current);
+      if (centerDebuffTimeoutRef.current) clearTimeout(centerDebuffTimeoutRef.current);
+    };
   }, []);
 
   // Spawna número flutuante de dano RPG
@@ -174,7 +190,10 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
     setShowCenterTelegraph(true);
     sound.playGlitch();
 
-    setTimeout(() => {
+    if (telegraphTimeoutRef.current) {
+      clearTimeout(telegraphTimeoutRef.current);
+    }
+    telegraphTimeoutRef.current = window.setTimeout(() => {
       setShowCenterTelegraph(false);
       setTelegraphSpell(null);
       setActiveStatusEffect(effect);
@@ -285,11 +304,11 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
     return () => clearInterval(interval);
   }, [isOpen, status]);
 
-  // Mantém o cursor visível com scroll suave
+  // Mantém o cursor visível no scroll (modo 'auto' instantâneo evita layout thrashing na digitação veloz)
   useEffect(() => {
     if (currentSpanRef.current) {
       currentSpanRef.current.scrollIntoView({
-        behavior: 'smooth',
+        behavior: 'auto',
         block: 'nearest',
         inline: 'nearest'
       });

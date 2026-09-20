@@ -320,7 +320,6 @@ export default function App() {
     return () => unsubSettings();
   }, [isAdmin]);
 
-  const [isSavedRecently, setIsSavedRecently] = useState<boolean>(false);
   const [pendingAccent, setPendingAccent] = useState<string | null>(null);
   const [recentWordComplete, setRecentWordComplete] = useState<boolean>(false);
   const [recentUpgradeBought, setRecentUpgradeBought] = useState<string | null>(null);
@@ -348,8 +347,7 @@ export default function App() {
     state,
     throttleIntervalMs: 60000,
     onSyncSuccess: () => {
-      setIsSavedRecently(true);
-      setTimeout(() => setIsSavedRecently(false), 800);
+      // Sincronização concluída com sucesso
     },
     onSyncError: (msg) => {
       console.warn('Erro de sincronização:', msg);
@@ -1386,13 +1384,11 @@ export default function App() {
     return () => clearInterval(secTimer);
   }, []);
 
-  // Auto-save to localStorage periodically (every 2.5s)
+  // Auto-save to localStorage periodically (a cada 5s sem forçar re-render da árvore inteira)
   useEffect(() => {
     const saveTimer = setInterval(() => {
-      saveState(stateRef.current);
-      setIsSavedRecently(true);
-      setTimeout(() => setIsSavedRecently(false), 800);
-    }, 2500);
+      saveState(stateRef.current, auth.currentUser?.uid);
+    }, 5000);
 
     return () => clearInterval(saveTimer);
   }, []);

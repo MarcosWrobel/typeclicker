@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Trophy, Medal, Loader2, Users, Search, Filter, Sparkles, GraduationCap } from 'lucide-react';
-import { getGlobalLeaderboard, LeaderboardEntry } from '../services/firebaseService';
+import { getGlobalLeaderboard, LeaderboardEntry, isStaffMember } from '../services/firebaseService';
 import { formatBytes } from '../utils/formatting';
 import { ALL_LEVELS } from '../data/levels';
 import {
@@ -36,17 +36,19 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      loadLeaderboard();
+      loadLeaderboard(false);
       // Se o aluno possui turma cadastrada, podemos opcionalmente deixá-lo no geral ou manter 'geral'
     }
   }, [isOpen]);
 
-  const loadLeaderboard = async () => {
+  const loadLeaderboard = async (force: boolean = false) => {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await getGlobalLeaderboard();
-      setRankings(data);
+      const data = await getGlobalLeaderboard(force);
+      // Garantia estrita: nenhum professor ou admin aparece nos rankings
+      const cleanStudentsOnly = data.filter((player) => !isStaffMember(player));
+      setRankings(cleanStudentsOnly);
     } catch (err: any) {
       setError(err.message || 'Erro ao carregar ranking escolar.');
     } finally {
@@ -330,7 +332,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                   </span>
                   <button
                     type="button"
-                    onClick={loadLeaderboard}
+                    onClick={() => loadLeaderboard(true)}
                     className="px-4 py-2 bg-zinc-800 rounded-lg text-sm hover:bg-zinc-700 text-white font-bold cursor-pointer"
                   >
                     Tentar Novamente

@@ -133,6 +133,8 @@ export interface LeaderboardEntry {
   updatedAt: string;
   flaggedForReview?: boolean;
   flagReason?: string;
+  email?: string;
+  isStaff?: boolean;
 }
 
 export interface CloudResponse {
@@ -301,6 +303,8 @@ export async function saveProgressToCloud(
     flaggedForReview: isFlagged
   };
   
+  const isStaff = await checkIsAdminAsync(user);
+
   if (apelido) savePayload.apelido = apelido;
   if (user.email) savePayload.email = user.email;
   if (flagReason) savePayload.flagReason = flagReason;
@@ -315,7 +319,9 @@ export async function saveProgressToCloud(
     accuracy: accuracy || 0,
     avatar,
     updatedAt: new Date().toISOString(),
-    flaggedForReview: isFlagged
+    flaggedForReview: isFlagged,
+    email: user.email || undefined,
+    isStaff: isStaff || undefined
   };
 
   if (apelido) leaderboardPayload.apelido = apelido;
@@ -328,9 +334,17 @@ export async function saveProgressToCloud(
     const saveRef = doc(db, 'saves', saveId);
     await setDoc(saveRef, cleanSavePayload);
     
-    // Alvo para o rank público
+    // Alvo para o rank público: Professores e Administradores NUNCA aparecem nos ranks
     const leaderboardRef = doc(db, 'leaderboard', saveId);
-    await setDoc(leaderboardRef, cleanLeaderboardPayload);
+    if (isStaff) {
+      try {
+        await deleteDoc(leaderboardRef);
+      } catch (e) {
+        // Ignora caso o documento não exista
+      }
+    } else {
+      await setDoc(leaderboardRef, cleanLeaderboardPayload);
+    }
     
     return {
       success: true,
@@ -400,25 +414,93 @@ export async function loadProgressFromCloud(): Promise<CloudLoadResponse> {
   }
 }
 
-export async function getGlobalLeaderboard(): Promise<LeaderboardEntry[]> {
+// Cache em memória para o ranking escolar (evita leituras redundantes na cota Spark)
+let cachedLeaderboard: { timestamp: number; data: LeaderboardEntry[] } | null = null;
+const LEADERBOARD_CACHE_TTL_MS = 40000; // 40 segundos de cache
+
+export function isStaffMember(
+  entry: { email?: string; isStaff?: boolean; turma?: string; userId?: string; nome?: string },
+  staffEmailsSet?: Set<string>,
+  staffUserIdsSet?: Set<string>
+): boolean {
+  if (entry.isStaff) return true;
+
+  if (entry.email) {
+    const cleanEmail = entry.email.trim().toLowerCase();
+    if (staffEmailsSet && staffEmailsSet.has(cleanEmail)) return true;
+    if (ADMIN_EMAILS.some((adm) => adm.toLowerCase() === cleanEmail)) return true;
+  }
+
+  if (entry.userId && staffUserIdsSet && staffUserIdsSet.has(entry.userId)) {
+    return true;
+  }
+
+  // Verifica se a turma registrada indica professor/coordenação/admin
+  if (entry.turma) {
+    const t = entry.turma.trim().toLowerCase();
+    if (/^(prof|professor|professora|admin|superadmin|docente|direcao|coordenacao)/i.test(t)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+export async function getGlobalLeaderboard(forceRefresh: boolean = false): Promise<LeaderboardEntry[]> {
   const user = auth.currentUser;
   if (!user) {
     throw new Error('Você precisa estar logado para ver o ranking.');
+  }
+
+  const now = Date.now();
+  if (!forceRefresh && cachedLeaderboard && now - cachedLeaderboard.timestamp < LEADERBOARD_CACHE_TTL_MS) {
+    return cachedLeaderboard.data;
   }
 
   try {
     const q = query(collection(db, 'leaderboard'), orderBy('points', 'desc'), limit(250));
     const querySnapshot = await getDocs(q);
     
+    // Lista unificada de e-mails de staff (Super Admins + Professores autorizados)
+    const staffEmails = new Set<string>(ADMIN_EMAILS.map((e) => e.trim().toLowerCase()));
+    try {
+      const settings = await getSystemSettings();
+      if (settings?.allowedTeachers) {
+        settings.allowedTeachers.forEach((e) => staffEmails.add(e.trim().toLowerCase()));
+      }
+    } catch (e) {
+      // Ignora falha de settings offline
+    }
+
+    const currentUserId = user.uid;
+    const isCurrentUserStaff = await checkIsAdminAsync(user);
+
     const rankings: LeaderboardEntry[] = [];
-    querySnapshot.forEach((doc) => {
-      rankings.push(doc.data() as LeaderboardEntry);
+    querySnapshot.forEach((docSnap) => {
+      const entry = docSnap.data() as LeaderboardEntry;
+      
+      // Se o usuário logado for staff, garante que ele nunca apareça no próprio ranking
+      if (isCurrentUserStaff && (entry.userId === currentUserId || docSnap.id === currentUserId)) {
+        return;
+      }
+
+      // Regra estrita: Professores e Administradores não aparecem nos ranks
+      if (isStaffMember(entry, staffEmails)) {
+        return;
+      }
+
+      rankings.push(entry);
     });
     
+    cachedLeaderboard = {
+      timestamp: now,
+      data: rankings
+    };
+
     return rankings;
   } catch (error: any) {
     handleFirestoreError(error, OperationType.LIST, `leaderboard`);
-    return [];
+    return cachedLeaderboard ? cachedLeaderboard.data : [];
   }
 }
 
@@ -442,9 +524,19 @@ export async function getAdminDashboardData(turmaFilter?: string): Promise<Leade
 
     const querySnapshot = await getDocs(q);
     
+    const settings = await getSystemSettings();
+    const staffEmails = new Set<string>(ADMIN_EMAILS.map((e) => e.trim().toLowerCase()));
+    if (settings?.allowedTeachers) {
+      settings.allowedTeachers.forEach((e) => staffEmails.add(e.trim().toLowerCase()));
+    }
+
     const rankings: LeaderboardEntry[] = [];
-    querySnapshot.forEach((doc) => {
-      rankings.push(doc.data() as LeaderboardEntry);
+    querySnapshot.forEach((docSnap) => {
+      const entry = docSnap.data() as LeaderboardEntry;
+      // Painel do Professor monitora estritamente alunos, ocultando contas de teste de professores/admins
+      if (!isStaffMember(entry, staffEmails)) {
+        rankings.push(entry);
+      }
     });
     
     // Garante ordenação decrescente por pontuação
@@ -454,6 +546,64 @@ export async function getAdminDashboardData(turmaFilter?: string): Promise<Leade
   } catch (error: any) {
     handleFirestoreError(error, OperationType.LIST, `leaderboard (admin)`);
     return [];
+  }
+}
+
+/**
+ * Higieniza o ranking público expurgando quaisquer registros remanescentes de professores ou administradores.
+ */
+export async function sanitizeStaffFromLeaderboard(): Promise<{ removedCount: number; checkedCount: number }> {
+  const user = auth.currentUser;
+  const isAdmin = await checkIsAdminAsync(user);
+  if (!isAdmin) {
+    throw new Error('Não autorizado: Somente professores e administradores podem higienizar os rankings.');
+  }
+
+  try {
+    const settings = await getSystemSettings();
+    const staffEmails = new Set<string>(
+      [...ADMIN_EMAILS, ...(settings?.allowedTeachers || [])].map((e) => e.trim().toLowerCase())
+    );
+
+    const boardSnap = await getDocs(collection(db, 'leaderboard'));
+    let removedCount = 0;
+    const batch = writeBatch(db);
+    let batchCount = 0;
+
+    // Também cruza com UIDs em 'saves' para detectar professores que não tenham o e-mail no doc do leaderboard
+    const savesSnap = await getDocs(collection(db, 'saves'));
+    const staffUserIds = new Set<string>();
+    savesSnap.forEach((sDoc) => {
+      const sData = sDoc.data() as FirebaseSavePayload;
+      if (sData.email && staffEmails.has(sData.email.trim().toLowerCase())) {
+        staffUserIds.add(sDoc.id);
+      }
+    });
+
+    boardSnap.forEach((docSnap) => {
+      const data = docSnap.data() as LeaderboardEntry;
+      const isStaffDoc =
+        data.isStaff ||
+        (data.email && staffEmails.has(data.email.trim().toLowerCase())) ||
+        staffUserIds.has(docSnap.id) ||
+        (data.turma && /^(prof|professor|professora|admin|superadmin|docente|direcao|coordenacao)/i.test(data.turma.trim().toLowerCase()));
+
+      if (isStaffDoc) {
+        batch.delete(docSnap.ref);
+        removedCount++;
+        batchCount++;
+      }
+    });
+
+    if (batchCount > 0) {
+      await batch.commit();
+      cachedLeaderboard = null;
+    }
+
+    return { removedCount, checkedCount: boardSnap.size };
+  } catch (err: any) {
+    handleFirestoreError(err, OperationType.WRITE, 'leaderboard/sanitize');
+    return { removedCount: 0, checkedCount: 0 };
   }
 }
 
