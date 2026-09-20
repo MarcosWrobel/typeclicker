@@ -29,6 +29,7 @@ import { SessionLockOverlay } from './components/SessionLockOverlay';
 import { LevelUpOverlay } from './components/LevelUpOverlay';
 import { PauseOverlay } from './components/PauseOverlay';
 import { ChallengeArena } from './components/ChallengeArena';
+import { FocusDrillModal } from './components/FocusDrillModal';
 import { QuantumConverterModal } from './components/QuantumConverterModal';
 import { calculatePlayerRank, formatBytes } from './utils/formatting';
 import { auth, loginWithGoogle, logoutUser, subscribeToAuthChanges, loadProgressFromCloud, saveProgressToCloud, checkIsAdminAsync, checkIsSuperAdmin, getSystemSettings, subscribeToSystemSettings, claimPendingTestGrants } from './services/firebaseService';
@@ -55,6 +56,7 @@ export default function App() {
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [activeChallengeLevel, setActiveChallengeLevel] = useState<number | null>(null);
   const [drillSession, setDrillSession] = useState<DrillSession | null>(null);
+  const [activeFocusDrill, setActiveFocusDrill] = useState<{ targetKey: string; words: string[] } | null>(null);
   
   const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
   const [isAppLocked, setIsAppLocked] = useState<boolean>(true);
@@ -294,6 +296,8 @@ export default function App() {
   drillSessionRef.current = drillSession;
 
   const lastKeyTimestampRef = useRef<number>(performance.now());
+  const lastMissedCharRef = useRef<string>('');
+  const sameCharMissCountRef = useRef<number>(0);
 
   const typingInputRef = useRef<HTMLInputElement>(null);
 
@@ -461,6 +465,34 @@ export default function App() {
     spawnFloatingText('Treino encerrado', 'error');
   }, [spawnFloatingText]);
 
+  // Handlers para o Modo Foco de Calibração (Sem tempo limite)
+  const handleFocusDrillSuccess = useCallback((reward: number) => {
+    setState((prev) => ({
+      ...prev,
+      bytes: prev.bytes + reward,
+      totalBytesEarned: prev.totalBytesEarned + reward
+    }));
+    setConsecutiveErrors(0);
+    consecutiveErrorsRef.current = 0;
+    setIsOverloaded(false);
+    isOverloadedRef.current = false;
+    setOverloadRecoveryCount(0);
+    overloadRecoveryRef.current = 0;
+    setActiveFocusDrill(null);
+    spawnFloatingText(`⚡ CIRCUITO RESTABELECIDO! +${reward} B`, 'success');
+  }, [spawnFloatingText]);
+
+  const handleFocusDrillSkip = useCallback(() => {
+    setConsecutiveErrors(0);
+    consecutiveErrorsRef.current = 0;
+    setIsOverloaded(false);
+    isOverloadedRef.current = false;
+    setOverloadRecoveryCount(0);
+    overloadRecoveryRef.current = 0;
+    setActiveFocusDrill(null);
+    spawnFloatingText('Modo foco dispensado', 'error');
+  }, [spawnFloatingText]);
+
   // Processador central de caracteres digitados (com suporte a acentos ABNT2 e composição)
   const handleTypeChar = useCallback((rawChar: string) => {
     if (isPausedRef.current) return;
@@ -492,6 +524,10 @@ export default function App() {
 
     if (typedChar === expectedChar) {
       // --- HIT (CORRECT KEY) ---
+      // Reset de rastreamento de repetição de erros
+      lastMissedCharRef.current = '';
+      sameCharMissCountRef.current = 0;
+
       // Atualiza telemetria da tecla correta
       const currentTelem = currState.keyTelemetry || {};
       const keyStats = currentTelem[expectedChar] || { hits: 0, misses: 0, totalTimeMs: 0 };
@@ -630,6 +666,14 @@ export default function App() {
       }
     } else {
       // --- MISS (ERROR) ---
+      // Rastreia erros repetidos na mesma tecla
+      if (expectedChar === lastMissedCharRef.current) {
+        sameCharMissCountRef.current += 1;
+      } else {
+        lastMissedCharRef.current = expectedChar;
+        sameCharMissCountRef.current = 1;
+      }
+
       // Atualiza telemetria da tecla esperada com erro
       const currentTelem = currState.keyTelemetry || {};
       const keyStats = currentTelem[expectedChar] || { hits: 0, misses: 0, totalTimeMs: 0 };
@@ -679,8 +723,27 @@ export default function App() {
         multiplier: nextErrors >= 3 ? 0.5 : 1.0,
         keyTelemetry: updatedTelem
       }));
+
+      // Disparo do Modo Foco (quando o aluno erra sucessivamente a mesma tecla ou sobrecarga persistente)
+      if (
+        !activeFocusDrill &&
+        (sameCharMissCountRef.current >= 3 || (sameCharMissCountRef.current >= 2 && nextErrors >= 3))
+      ) {
+        const session = gerarTreinoAdaptativo(updatedTelem, currState.selectedCategory, [expectedChar]);
+        const focusWords = session && session.drillWords.length > 0
+          ? session.drillWords.slice(0, 3)
+          : [`${expectedChar}${expectedChar}${expectedChar}`, `${expectedChar}a${expectedChar}`, `${expectedChar}o${expectedChar}`];
+
+        setActiveFocusDrill({
+          targetKey: expectedChar,
+          words: focusWords
+        });
+        sameCharMissCountRef.current = 0;
+        lastMissedCharRef.current = '';
+        sound.playGlitch();
+      }
     }
-  }, [spawnFloatingText]);
+  }, [spawnFloatingText, activeFocusDrill]);
 
   const handleDeadKey = useCallback((accent: string) => {
     if (isPausedRef.current) return;
@@ -716,7 +779,8 @@ export default function App() {
         isCosmeticsOpen ||
         isConverterOpen ||
         isAdminOpen ||
-        activeChallengeLevel !== null
+        activeChallengeLevel !== null ||
+        activeFocusDrill !== null
       ) {
         return;
       }
@@ -1428,6 +1492,17 @@ export default function App() {
           reducedAlerts={isReducedAlerts}
           onSuccess={handleChallengeSuccess}
           onFail={handleChallengeFail}
+        />
+      )}
+
+      {/* Modo Foco de Reabilitação Motora (Sem limite de tempo) */}
+      {activeFocusDrill !== null && (
+        <FocusDrillModal
+          isOpen={true}
+          targetKey={activeFocusDrill.targetKey}
+          words={activeFocusDrill.words}
+          onComplete={handleFocusDrillSuccess}
+          onSkip={handleFocusDrillSkip}
         />
       )}
 
