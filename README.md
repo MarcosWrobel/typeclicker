@@ -1,8 +1,8 @@
 # ⌨️ TypeClicker Educa — Colégio Leopoldina
 
-> **Plataforma educacional gamificada de digitação pedagógica e velocidade motora, desenvolvida sob medida para o laboratório de informática do Colégio Estadual Leopoldina Bittencourt Pedroso sob orientação do Professor Marcos Wrobel.**
+> **Plataforma educacional gamificada de digitação pedagógica, velocidade motora e RPG cibernético, desenvolvida sob medida para o laboratório de informática do Colégio Estadual Leopoldina Bittencourt Pedroso sob orientação do Professor Marcos Wrobel.**
 
-[![React](https://img.shields.io/badge/React-18.x-61DAFB?logo=react&logoColor=black)](https://react.dev/)
+[![React](https://img.shields.io/badge/React-19.x-61DAFB?logo=react&logoColor=black)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![TailwindCSS](https://img.shields.io/badge/TailwindCSS-v4-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
 [![Firebase](https://img.shields.io/badge/Firebase-Firestore%20%26%20Auth-FFCA28?logo=firebase&logoColor=black)](https://firebase.google.com/)
@@ -12,9 +12,9 @@
 
 ## 📖 Visão Geral do Projeto
 
-O **TypeClicker Educa** transforma o aprendizado e o aperfeiçoamento da digitação no padrão brasileiro **ABNT2** em uma experiência instigante e divertida. Inspirado nas mecânicas aditivas de jogos *incrementais* (*idle / clicker games* como *Cookie Clicker*), o projeto une treino motor sério, vocabulário curricular e progressão constante.
+O **TypeClicker Educa** transforma o aprendizado e o aperfeiçoamento da digitação no padrão brasileiro **ABNT2** em uma experiência instigante e imersiva. Unindo as mecânicas aditivas de jogos *incrementais* (*idle / clicker games*) à profundidade narrativa de um **RPG cibernético em masmorras procedurais**, o projeto integra treino motor sério, vocabulário curricular e progressão constante.
 
-Diferente de softwares de digitação tradicionais (muitas vezes repetitivos e desengajadores), no **TypeClicker** cada palavra digitada corretamente rende **Bytes** virtuais. Com essa moeda, os estudantes equipam melhorias de hardware e software, enfrentam desafios de segurança cibernética, desbloqueiam temas retrô de terminal e competem em arenas em tempo real com os colegas de turma.
+Diferente de softwares de digitação tradicionais, no **TypeClicker** cada palavra digitada rende **Bytes virtuais**, **Fichas de Duelo** e **Fragmentos Quânticos**. Com esses recursos, os estudantes adquirem melhorias de hardware e software, desarmam vírus de rede, enfrentam chefes com mecânicas de controle de grupo em arenas literárias, desbloqueiam cosméticos exclusivos e competem em rankings escolares em tempo real.
 
 ---
 
@@ -32,6 +32,73 @@ Diferente de softwares de digitação tradicionais (muitas vezes repetitivos e d
 ### 3. Combos e Sobrecarga de Circuito
 - **Multiplicador de Combo:** Acertos consecutivos elevam o multiplicador até **5.0x**.
 - **Mecânica de Sobrecarga (Overload):** Erros sucessivos causam superaquecimento do circuito, reduzindo o rendimento pela metade até que o estudante recupere a compostura e acerte 3 palavras seguidas.
+
+---
+
+## 🏰 Crônicas da Masmorra RPG (Batalhas de Chefes & Expedições)
+
+Uma das maiores expansões da plataforma é o módulo **Crônicas da Masmorra**, um ambiente de batalha épico contra guardiões cibernéticos utilizando textos literários e científicos completos em língua portuguesa.
+
+### 1. Sistema de Andares & Chefes Procedurais
+- **Andares Crescentes com Escala Matemática:** Vida, armadura e frequência de feitiços dos guardiões escalam com curvas balanceadas (`floorData.boss`).
+- **Textos Literários Contínuos:** Em vez de palavras isoladas, os estudantes digitam parágrafos densos e contextualizados (250 a 450 caracteres), exigindo pontuação, maiúsculas e fluência com o teclado ABNT2.
+- **Armadura e Fraquezas Biomecânicas (`weaknessKeys`):** Os guardiões possuem resistência a dano comum, mas teclas específicas causam dano crítico massivo e ignoram 100% da armadura do chefe.
+- **Minigame QTE — Sobrecarga do Núcleo:** Eventos dinâmicos em que uma sequência rápida de teclas deve ser golpeada para atordoar o guardião e abrir brechas de dano crítico.
+
+### 2. Efeitos de Controle de Grupo (Debuffs de RPG)
+Para simular a intensidade de combate dos RPGs e exigir domínio de teclado sob pressão, os chefes conjuram feitiços de interferência:
+- **👁️ Cegueira Glifada (Blind):** Os caracteres à frente do cursor são ocultados e embaçados por névoa digital. Para dissipar o debuff, o aluno precisa confiar estritamente na **memória muscular e motora**, acertando 4 caracteres consecutivos às cegas.
+- **❄️ Paralisia de Buffer (Hold / Freeze):** O cursor de digitação é completamente congelado e o escudo é atacado. O estudante precisa golpear rapidamente a **barra de [ESPAÇO] 3 vezes** para estilhaçar o gelo e retomar o controle.
+- **🌀 Terror Psíquico (Fear):** O terminal entra em sobrecarga com pulsações visuais roxas e áudio dissonante. A digitação exige atenção redobrada para estabilizar o sistema.
+
+### 3. Avisos em Duas Etapas (Spotlight Central $\rightarrow$ HUD Acoplada)
+- **Fase 1 (Spotlight Central):** Assim que o feitiço é conjurado, um card neon com backdrop blur surge no **centro exato da tela**, exibindo um ícone gigante animado, o nome do debuff e a instrução clara em destaque: `👉 COMO QUEBRAR: [Ação necessária com contador dinâmico em tempo real]`. O foco do input é 100% preservado via `pointer-events-none`.
+- **Fase 2 (Transição & Ancoragem):** Após 2 segundos, o card central sobe suavemente com física de mola e se acopla à barra de status fixada logo acima do texto de digitação.
+
+### 4. Temporizadores Decrescentes & Penalidades Severas
+- Cada debuff possui um **timer decrescente de 8 segundos** com barra de progresso colorida (verde $\rightarrow$ amarela $\rightarrow$ vermelha pulsante).
+- **Tempo Esgotado:** Se o debuff não for quebrado a tempo, o aluno sofre **-25 de dano direto** ao escudo.
+- **Dano Amplificado por Erro (2x):** Erros cometidos enquanto o jogador estiver sob debuff causam o dobro de penalidade ao escudo.
+
+### 5. Sistema de Chaves de Expedição (`🔑`)
+- A entrada na masmorra e a reinicialização de andares após derrota consomem **Chaves de Expedição** (limite de 5 chaves).
+- Se as chaves zerarem, o botão de tentar novamente é bloqueado, orientando o aluno a retornar ao terminal principal para digitar palavras ou concluir Treinos Adaptativos e forjar novas chaves.
+
+### 6. Minigame Baú Criptográfico & Árvore de Perks
+- **Baús Secretos:** Ao explorar a masmorra, o aluno pode desarmar fechaduras criptográficas e resgatar Bytes, Fichas de Duelo, XP da Masmorra e Chaves de Expedição extras.
+- **Perks Permanentes:** Reinvestimento de Fragmentos Quânticos em *Reforço de Escudo*, *Força Cibernética*, *Regeneração Nanotecnológica* e *Percepção Acelerada*.
+
+---
+
+## 🎯 Missões, Quests & Treinos Adaptativos
+
+- **Quests Diárias & Semanais:** Metas dinâmicas como atingir determinada precisão média, manter sequências de combo ou derrotar chefes de andares específicos.
+- **Motor de Identificação de Erros & Treino Adaptativo:** Monitoramento contínuo das teclas em que o aluno apresenta hesitação ou erro frequente. O sistema gera automaticamente sessões de calibração biomecânica personalizadas com as teclas fracas detectadas.
+- **Sistema de Conquistas de Alta Dificuldade:** Desafios avançados voltados a alunos que buscam maestria motora, premiando com **Fragmentos Quânticos** raros e títulos honoríficos.
+
+---
+
+## 🚀 Desempenho de Alto Nível (Chromebooks & Cotas de Banco de Dados)
+
+O TypeClicker foi rigorosamente auditado para garantir fluidez máxima em computadores escolares modestos (Chromebooks e desktops antigos) e operação com **custo zero** no Firebase Spark:
+
+### 1. Otimizações de Cliente (Low-End Hardware)
+- **Eliminação de Layout Thrashing de Scroll:** O alinhamento do cursor de digitação utiliza `behavior: 'auto', block: 'nearest'`, prevenindo acúmulo de animações de scroll da engine na GPU integrada durante digitação em alta velocidade (>100 PPM).
+- **Eliminação de Re-renderizações Cíclicas na Raiz:** Salvamento periódico em `localStorage` otimizado para operação estritamente silenciosa (a cada 5s) e indexada pelo UID do aluno, sem estados intermediários forçando reconciliações na árvore React.
+- **Isolamento da Batalha RPG:** Toda a execução de batalha, cálculo de dano, escudos e debuffs opera **100% no cliente sem chamadas de rede por caractere**.
+
+### 2. Otimizações no Banco de Dados (Firebase Firestore Spark)
+- **Throttling Inteligente (`useGameSync`):** Ciclo periódico de 60 segundos com disparos imediatos apenas em marcos decisivos (subida de nível, prestige, logout). Consumo de ~13.500 escritas diárias para 300 alunos, com folga de ~32% do teto gratuito (20.000 writes/dia).
+- **Cache de Leitura do Ranking Escolar:** Implementado cache em memória de **40 segundos** em `getGlobalLeaderboard()`, evitando leituras repetidas na nuvem quando alunos abrem e fecham a tabela de classificação na mesma aula.
+
+---
+
+## 🏆 Exclusão Estrita de Professores e Admins dos Rankings
+
+Para assegurar a integridade pedagógica e motivar os estudantes na disputa pelo pódio:
+1. **Camada de Gravação (`saveProgressToCloud`):** Contas de professores (cadastradas em `system/settings.allowedTeachers`) e administradores (`ADMIN_EMAILS`) **nunca gravam dados na coleção `/leaderboard`**. Se houver registro legado, o sistema executa a exclusão automática via `deleteDoc`. O progresso pessoal é mantido em segurança no `/saves/{userId}`.
+2. **Camada de Consulta e Visualização:** Tanto o `LeaderboardModal` quanto o painel administrativo filtram registros com `isStaff: true`, e-mails do corpo docente e turmas com identificação de professor/coordenação.
+3. **Ferramenta de Higienização de Rankings:** Botão **`[ 🧹 Higienizar Rankings ]`** integrado ao Painel do Professor (`AdminPanel.tsx`), permitindo purgar do Firestore registros legados de qualquer conta da equipe escolar com um clique.
 
 ---
 
@@ -124,8 +191,8 @@ O TypeClicker Educa foi desenhado para operar com **zero custo de infraestrutura
 
 ## 💻 Tecnologias Empregadas
 
-- **Front-end:** [React 18](https://react.dev/) com [TypeScript](https://www.typescriptlang.org/)
-- **Build & Dev:** [Vite](https://vitejs.dev/)
+- **Front-end:** [React 19](https://react.dev/) com [TypeScript 5](https://www.typescriptlang.org/)
+- **Build & Dev:** [Vite 6](https://vitejs.dev/)
 - **Estilização:** [Tailwind CSS v4](https://tailwindcss.com/)
 - **Animações:** [Motion (Framer Motion)](https://motion.dev/)
 - **Ícones:** [Lucide React](https://lucide.dev/)
