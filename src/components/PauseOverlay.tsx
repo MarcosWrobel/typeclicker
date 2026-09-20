@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Pause, Play, Shield, Timer, Keyboard, ShoppingBag, Gauge, Lock } from 'lucide-react';
 import { CategoryId } from '../types';
@@ -22,22 +22,6 @@ export const PauseOverlay: React.FC<PauseOverlayProps> = ({
   onSelectCategory,
   playerRankLevel
 }) => {
-  // Allow resuming with Escape, but never block button/input interaction
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        onResume();
-        return;
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown, true);
-    return () => window.removeEventListener('keydown', handleKeyDown, true);
-  }, [isOpen, onResume]);
-
   return (
     <AnimatePresence>
       {isOpen && (

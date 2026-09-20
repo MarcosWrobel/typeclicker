@@ -316,21 +316,31 @@ export default function App() {
   }, []);
 
   const handlePauseGame = useCallback(() => {
-    setIsPaused(true);
-    sound.playPause();
+    setIsPaused((prev) => {
+      if (!prev) sound.playPause();
+      return true;
+    });
   }, []);
 
   const handleResumeGame = useCallback(() => {
-    setIsPaused(false);
-    sound.playResume();
+    setIsPaused((prev) => {
+      if (prev) sound.playResume();
+      return false;
+    });
   }, []);
 
-  // Global keyboard shortcut to pause or resume STRICTLY with Esc anywhere on the page
+  // Global keyboard shortcut to pause or resume STRICTLY with Esc or Pause key anywhere on the page
   // (Ignoring when typing inside text inputs, textareas or when modal dialogs are open)
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      // Se houver acento pendente (tecla morta ABNT2 como ~, ´, ^), não pausa
+      if (e.key !== 'Escape' && e.code !== 'Pause') {
+        return;
+      }
+
+      // Se houver acento pendente (tecla morta ABNT2 como ~, ´, ^), o Escape cancela o acento e NÃO altera a pausa
       if (pendingAccentRef.current) {
+        e.preventDefault();
+        setPendingAccent(null);
         return;
       }
 
@@ -360,11 +370,8 @@ export default function App() {
         return;
       }
 
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        handleTogglePause();
-        return;
-      }
+      e.preventDefault();
+      handleTogglePause();
     };
 
     window.addEventListener('keydown', handleGlobalKeyDown);
@@ -585,13 +592,8 @@ export default function App() {
   // Global keydown typing listener (ABNT2 Linux fallback)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Se estiver em pausa, a tecla de atalho estrita (Escape) retoma o jogo
+      // Se estiver em pausa, a digitação fica suspensa (Escape para despausar é gerido pelo listener unificado)
       if (isPausedRef.current) {
-        if (e.key === 'Escape') {
-          e.preventDefault();
-          setIsPaused(false);
-          sound.playResume();
-        }
         return;
       }
 
@@ -623,16 +625,8 @@ export default function App() {
         return;
       }
 
-      // Tecla de pausa rápida (Escape ou tecla Pause)
+      // Teclas de pausa (Escape / Pause): já processadas de forma unificada no handleGlobalKeyDown
       if (e.key === 'Escape' || e.code === 'Pause') {
-        if (pendingAccentRef.current) {
-          e.preventDefault();
-          setPendingAccent(null);
-          return;
-        }
-        e.preventDefault();
-        setIsPaused(true);
-        sound.playPause();
         return;
       }
 

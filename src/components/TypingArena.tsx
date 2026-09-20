@@ -172,21 +172,14 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
     e.target.value = '';
   };
 
-  // Captura eventos de teclas mortas (Dead) e atalhos de pausa/cancelamento
+  // Captura eventos de teclas mortas (Dead) e cancelamento de acentuação
   const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    // Tecla Escape: se tiver acento pendente limpa; se não tiver e estiver despausado, pausa o jogo
+    // Tecla Escape: se tiver acento pendente, cancela o acento (ABNT2).
+    // Se não tiver acento pendente, permite a propagação para o listener unificado do App.tsx.
     if (e.key === 'Escape') {
-      e.preventDefault();
       if (pendingAccent) {
+        e.preventDefault();
         onClearPendingAccent();
-        return;
-      }
-      if (!isPaused && onPause) {
-        onPause();
-        return;
-      }
-      if (isPaused && onResume) {
-        onResume();
         return;
       }
       return;
