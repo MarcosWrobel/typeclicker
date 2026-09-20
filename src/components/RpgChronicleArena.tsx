@@ -93,6 +93,11 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
   const [fearTriggered, setFearTriggered] = useState(false);
   const [holdTriggered, setHoldTriggered] = useState(false);
 
+  // Estados de Splash Central (Aparece no meio da tela e depois volta ao topo)
+  const [showCenterTelegraph, setShowCenterTelegraph] = useState(false);
+  const [showCenterDebuff, setShowCenterDebuff] = useState(false);
+  const centerDebuffTimeoutRef = useRef<number | null>(null);
+
   // Refs para prevenir race conditions e closures desatualizadas na digitação veloz
   const charIndexRef = useRef(0);
   const bossHpRef = useRef(floorData.boss.maxHp);
@@ -133,6 +138,19 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
     activeStatusEffectRef.current = activeStatusEffect;
   }, [activeStatusEffect]);
 
+  // Limpa debuffs ativos e timers associados
+  const clearDebuff = useCallback(() => {
+    if (centerDebuffTimeoutRef.current) {
+      clearTimeout(centerDebuffTimeoutRef.current);
+      centerDebuffTimeoutRef.current = null;
+    }
+    setShowCenterDebuff(false);
+    setActiveStatusEffect(null);
+    activeStatusEffectRef.current = null;
+    setDebuffSecondsLeft(0);
+    debuffSecondsLeftRef.current = 0;
+  }, []);
+
   // Spawna número flutuante de dano RPG
   const spawnDamage = useCallback((amount: number, isCrit: boolean, label?: string) => {
     const id = Date.now() + Math.random();
@@ -146,22 +164,32 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
     }, 850);
   }, []);
 
-  // Telegrafa e conjura um debuff de RPG no jogador com aviso prévio ultralegível
+  // Telegrafa e conjura um debuff de RPG no jogador com aviso prévio ultralegível centralizado
   const castStatusEffect = useCallback((effect: RpgActiveStatusEffect) => {
     setTelegraphSpell({
       label: effect.label,
       icon: effect.icon,
       breakInstruction: effect.breakInstruction
     });
+    setShowCenterTelegraph(true);
     sound.playGlitch();
 
     setTimeout(() => {
+      setShowCenterTelegraph(false);
       setTelegraphSpell(null);
       setActiveStatusEffect(effect);
       activeStatusEffectRef.current = effect;
       setDebuffSecondsLeft(effect.durationSeconds);
       debuffSecondsLeftRef.current = effect.durationSeconds;
+      setShowCenterDebuff(true);
       sound.playChallengeFail();
+
+      if (centerDebuffTimeoutRef.current) {
+        clearTimeout(centerDebuffTimeoutRef.current);
+      }
+      centerDebuffTimeoutRef.current = window.setTimeout(() => {
+        setShowCenterDebuff(false);
+      }, 2000);
     }, 1800);
   }, []);
 
@@ -200,8 +228,7 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
             return nextShield;
           });
 
-          setActiveStatusEffect(null);
-          activeStatusEffectRef.current = null;
+          clearDebuff();
         }
 
         return next;
@@ -209,7 +236,7 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
     }, 100);
 
     return () => clearInterval(interval);
-  }, [activeStatusEffect, dungeon, spawnDamage]);
+  }, [activeStatusEffect, clearDebuff, dungeon, spawnDamage]);
 
   // Reinicia o estado ao abrir um novo andar
   useEffect(() => {
@@ -230,10 +257,8 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
       overloadSequenceRef.current = [];
       setOverloadIndex(0);
       overloadIndexRef.current = 0;
-      setActiveStatusEffect(null);
-      activeStatusEffectRef.current = null;
-      setDebuffSecondsLeft(0);
-      debuffSecondsLeftRef.current = 0;
+      setShowCenterTelegraph(false);
+      clearDebuff();
       setTelegraphSpell(null);
       setBlindTriggered(false);
       setFearTriggered(false);
@@ -243,7 +268,7 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
         inputRef.current?.focus({ preventScroll: true });
       }, 80);
     }
-  }, [isOpen, floorData, maxShield]);
+  }, [isOpen, floorData, maxShield, clearDebuff]);
 
   // Mantém foco ininterrupto no input de digitação durante a batalha
   useEffect(() => {
@@ -297,8 +322,7 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
             // Gelo quebrado!
             sound.playChallengeSuccess();
             spawnDamage(0, false, '❄️ GELO ESTILHAÇADO!');
-            setActiveStatusEffect(null);
-            activeStatusEffectRef.current = null;
+            clearDebuff();
           } else {
             const updated = { ...activeStatusEffectRef.current, progress: nextProgress };
             activeStatusEffectRef.current = updated;
@@ -379,8 +403,7 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
           if (nextProg >= activeStatusEffectRef.current.maxProgress) {
             sound.playUpgrade();
             spawnDamage(0, false, '👁️ VISÃO RESTAURADA!');
-            setActiveStatusEffect(null);
-            activeStatusEffectRef.current = null;
+            clearDebuff();
           } else {
             const updated = { ...activeStatusEffectRef.current, progress: nextProg };
             activeStatusEffectRef.current = updated;
@@ -424,8 +447,7 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
             if (activeStatusEffectRef.current?.type === 'fear') {
               sound.playUpgrade();
               spawnDamage(0, false, '✨ CORAGEM RESTAURADA!');
-              setActiveStatusEffect(null);
-              activeStatusEffectRef.current = null;
+              clearDebuff();
             }
 
             // Perk: Combo Crítico
@@ -660,10 +682,8 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
     overloadSequenceRef.current = [];
     setOverloadIndex(0);
     overloadIndexRef.current = 0;
-    setActiveStatusEffect(null);
-    activeStatusEffectRef.current = null;
-    setDebuffSecondsLeft(0);
-    debuffSecondsLeftRef.current = 0;
+    setShowCenterTelegraph(false);
+    clearDebuff();
     setTelegraphSpell(null);
     setBlindTriggered(false);
     setFearTriggered(false);
@@ -672,7 +692,7 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
     statusRef.current = 'playing';
     wordCleanRef.current = true;
     setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 100);
-  }, [floorData, maxShield]);
+  }, [clearDebuff, floorData, maxShield]);
 
   if (!isOpen) return null;
 
@@ -708,6 +728,122 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
           exit={{ opacity: 0, scale: 0.96 }}
           className="relative w-full max-w-6xl h-[92vh] max-h-[94vh] flex flex-col bg-gradient-to-b from-[#111624] via-[#0d121c] to-[#080b12] border-2 border-cyan-500/50 rounded-2xl shadow-[0_0_70px_rgba(6,182,212,0.25)] overflow-hidden text-zinc-100"
         >
+          {/* Splash Central de Alerta de Telegrafia do Chefe */}
+          <AnimatePresence>
+            {showCenterTelegraph && telegraphSpell && (
+              <motion.div
+                key="center-telegraph"
+                initial={{ scale: 0.6, y: 30, opacity: 0 }}
+                animate={{ scale: [0.6, 1.05, 1], y: 0, opacity: 1 }}
+                exit={{ scale: 0.75, y: -180, opacity: 0 }}
+                transition={{ duration: 0.35, ease: 'easeOut' }}
+                className="absolute inset-0 z-50 flex items-center justify-center p-4 pointer-events-none select-none bg-black/50 backdrop-blur-[3px]"
+              >
+                <div className="relative w-full max-w-md sm:max-w-lg p-6 sm:p-8 rounded-3xl border-4 border-rose-500 bg-gradient-to-b from-[#3a0c18] via-[#20050d] to-[#0d0105] shadow-[0_0_90px_rgba(244,63,94,0.85)] flex flex-col items-center text-center font-mono text-white animate-pulse">
+                  <div className="w-20 h-20 rounded-2xl bg-rose-600/30 border-2 border-rose-400 flex items-center justify-center text-5xl mb-3 shadow-lg animate-bounce">
+                    {telegraphSpell.icon}
+                  </div>
+
+                  <span className="px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-rose-600 text-black mb-2 animate-bounce">
+                    ⚠️ CONJURAÇÃO DO CHEFE!
+                  </span>
+
+                  <span className="text-xs text-rose-300 font-bold mb-1">
+                    {floorData.boss.name} ESTÁ PREPARANDO:
+                  </span>
+                  <h3 className="text-2xl sm:text-3xl font-black text-amber-300 uppercase tracking-wide mb-3">
+                    {telegraphSpell.label}
+                  </h3>
+
+                  <div className="w-full bg-black/85 rounded-2xl p-4 border-2 border-amber-400 shadow-inner">
+                    <span className="text-[11px] font-black text-amber-300 uppercase tracking-wider block mb-1">
+                      👉 PREPARE-SE PARA QUEBRAR:
+                    </span>
+                    <span className="text-base sm:text-lg font-black text-white">
+                      {telegraphSpell.breakInstruction}
+                    </span>
+                  </div>
+
+                  <span className="mt-3 text-xs font-bold text-rose-300 animate-pulse">
+                    ⚡ Impacto em instantes...
+                  </span>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Splash Central de Instrução do Debuff (Destaque Central -> Volta ao Topo) */}
+          <AnimatePresence>
+            {showCenterDebuff && activeStatusEffect && (
+              <motion.div
+                key="center-debuff"
+                initial={{ scale: 0.6, y: 40, opacity: 0 }}
+                animate={{ scale: [0.6, 1.05, 1], y: 0, opacity: 1 }}
+                exit={{ scale: 0.75, y: -220, opacity: 0 }}
+                transition={{ duration: 0.45, ease: 'easeInOut' }}
+                className="absolute inset-0 z-50 flex items-center justify-center p-4 pointer-events-none select-none bg-black/50 backdrop-blur-[3px]"
+              >
+                <div
+                  className={`relative w-full max-w-md sm:max-w-lg p-6 sm:p-8 rounded-3xl border-4 shadow-2xl flex flex-col items-center text-center font-mono ${
+                    activeStatusEffect.type === 'hold'
+                      ? 'bg-gradient-to-b from-[#0e2238] via-[#091524] to-[#040a12] border-cyan-400 shadow-[0_0_90px_rgba(6,182,212,0.7)] text-cyan-100'
+                      : activeStatusEffect.type === 'fear'
+                      ? 'bg-gradient-to-b from-[#2b0c38] via-[#1a0724] to-[#0a0212] border-purple-400 shadow-[0_0_90px_rgba(168,85,247,0.7)] text-purple-100 animate-pulse'
+                      : 'bg-gradient-to-b from-[#381c08] via-[#241105] to-[#120802] border-amber-400 shadow-[0_0_90px_rgba(245,158,11,0.7)] text-amber-100'
+                  }`}
+                >
+                  <div className="w-20 h-20 rounded-2xl bg-black/70 border-2 border-current flex items-center justify-center text-5xl mb-3 shadow-[0_0_30px_rgba(255,255,255,0.2)] animate-bounce">
+                    {activeStatusEffect.icon}
+                  </div>
+
+                  <span className="px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-rose-600 text-black mb-2 animate-pulse">
+                    ⚠️ DEBUFF ATIVO!
+                  </span>
+
+                  <h3 className="text-2xl sm:text-3xl font-black text-white uppercase tracking-wider mb-1">
+                    {activeStatusEffect.label}
+                  </h3>
+                  <p className="text-xs sm:text-sm text-zinc-300 mb-4 max-w-sm">
+                    {activeStatusEffect.description}
+                  </p>
+
+                  <div className="w-full bg-black/85 rounded-2xl p-4 border-2 border-amber-400 shadow-[0_0_30px_rgba(245,158,11,0.4)] mb-4">
+                    <span className="text-[11px] font-black text-amber-300 uppercase tracking-widest block mb-1">
+                      👉 COMO QUEBRAR:
+                    </span>
+                    <span className="text-base sm:text-lg font-black text-white leading-snug block">
+                      {activeStatusEffect.breakInstruction}
+                    </span>
+
+                    {activeStatusEffect.type === 'hold' && (
+                      <div className="mt-2 text-sm font-bold text-cyan-300">
+                        [ESPAÇO] pressionado: <strong className="text-white text-base">{activeStatusEffect.progress || 0}</strong> / {activeStatusEffect.maxProgress}
+                      </div>
+                    )}
+                    {activeStatusEffect.type === 'blind' && (
+                      <div className="mt-2 text-sm font-bold text-amber-300">
+                        Acertos pela memória motora: <strong className="text-white text-base">{activeStatusEffect.progress || 0}</strong> / {activeStatusEffect.maxProgress}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between w-full text-xs font-bold pt-2 border-t border-white/10">
+                    <span className="flex items-center gap-1.5 text-amber-300">
+                      <Clock className="w-4 h-4 animate-spin" />
+                      <span>TEMPO: {debuffSecondsLeft.toFixed(1)}s</span>
+                    </span>
+                    <span className="text-rose-400">⚠️ -25 Dano Direto se zerar!</span>
+                  </div>
+
+                  <div className="mt-3 text-[11px] text-zinc-400 font-bold flex items-center gap-1.5 animate-pulse">
+                    <span>⬆️</span>
+                    <span>Fixando no painel superior...</span>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {/* Header Superior */}
           <div className="flex items-center justify-between px-6 py-3 border-b border-zinc-800/80 bg-[#121826]/90">
             <div className="flex items-center gap-3">
