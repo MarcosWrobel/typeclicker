@@ -75,7 +75,18 @@ export function sanitizeCosmetics(rawCosmetics?: Partial<PlayerCosmetics> | null
     'sith_darkside',
     'super_saiyan',
     'nether_magma',
-    'spider_verse'
+    'spider_verse',
+    // Temas Míticos / Quânticos
+    'infinite_void',
+    'gear_second',
+    'bad_time_retro',
+    'sandevistan_overdrive',
+    'sun_breathing',
+    'electric_thunder',
+    'serious_punch',
+    'abyssal_vessel',
+    'supersonic_speed',
+    'dark_detective'
   ];
   const validSkins = [
     'classic',
@@ -92,7 +103,18 @@ export function sanitizeCosmetics(rawCosmetics?: Partial<PlayerCosmetics> | null
     'jedi_master',
     'miner_diamond',
     'saiyan_warrior',
-    'arachnid_hero'
+    'arachnid_hero',
+    // Skins Míticas / Quânticas
+    'blindfolded_sorcerer',
+    'rubber_pirate',
+    'hoodie_skeleton',
+    'urban_cyborg',
+    'demon_slayer',
+    'electric_rodent',
+    'bored_hero',
+    'needle_knight',
+    'supersonic_hedgehog',
+    'shadow_crusader'
   ];
   const validSounds = [
     'mechanical',
@@ -101,7 +123,18 @@ export function sanitizeCosmetics(rawCosmetics?: Partial<PlayerCosmetics> | null
     'soft_click',
     'lightsaber_clash',
     'pixel_block_jump',
-    'ki_blast'
+    'ki_blast',
+    // Sons Míticos / Quânticos
+    'void_pulse',
+    'rubber_gatling',
+    'gaster_blaster',
+    'sandevistan_click',
+    'water_slash',
+    'thunder_spark',
+    'serious_strike',
+    'soul_nail',
+    'spin_dash',
+    'sonar_batarang'
   ];
 
   const validAnimations = [
@@ -117,7 +150,18 @@ export function sanitizeCosmetics(rawCosmetics?: Partial<PlayerCosmetics> | null
     'bubble_magic',
     'hyperspace_warp',
     'kamehameha_energy',
-    'diamond_rain'
+    'diamond_rain',
+    // Efeitos Míticos / Quânticos
+    'infinite_void_burst',
+    'gear_second_steam',
+    'gaster_bone_barrage',
+    'sandevistan_afterimage',
+    'water_flame_dragon',
+    'thunder_storm_vfx',
+    'serious_shockwave',
+    'soul_vessel_burst',
+    'golden_ring_burst',
+    'bat_swarm_vfx'
   ];
 
   const validLayouts = [
@@ -135,7 +179,18 @@ export function sanitizeCosmetics(rawCosmetics?: Partial<PlayerCosmetics> | null
     'star_wars_cockpit',
     'minecraft_block',
     'shonen_combat',
-    'mushroom_kingdom'
+    'mushroom_kingdom',
+    // Layouts Míticos / Quânticos
+    'infinite_void_realm',
+    'pirate_deck',
+    'judgment_hall',
+    'edgerunner_rig',
+    'slayer_dojo',
+    'pocket_console',
+    'manga_action',
+    'hollow_ruins',
+    'green_hills_zone',
+    'bat_cave_tactical'
   ];
 
   const unlockedLayouts = Array.isArray(rawCosmetics.unlockedLayouts) && rawCosmetics.unlockedLayouts.length > 0

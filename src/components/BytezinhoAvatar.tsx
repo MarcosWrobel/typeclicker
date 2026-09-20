@@ -2,37 +2,48 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { BytezinhoSkinId } from '../types/cosmetics';
 
+export type BytezinhoState = 'idle' | 'typing' | 'combo' | 'error' | 'overload';
+
 export interface BytezinhoAvatarProps {
   skin?: BytezinhoSkinId;
   mood?: 'normal' | 'happy' | 'fire' | 'oops' | 'upgrade' | 'glitch' | 'warning' | 'leak';
+  state?: BytezinhoState;
   size?: 'sm' | 'md' | 'lg' | 'xl';
   className?: string;
   isOverloaded?: boolean;
   isOverheating?: boolean;
   isTyping?: boolean;
   interactive?: boolean;
+  comboCount?: number;
 }
 
 export const BytezinhoAvatar: React.FC<BytezinhoAvatarProps> = ({
   skin = 'classic',
   mood = 'normal',
+  state,
   size = 'md',
   className = '',
   isOverloaded = false,
   isOverheating = false,
   isTyping = false,
-  interactive = false
+  interactive = false,
+  comboCount = 0
 }) => {
   const [isBlinking, setIsBlinking] = useState<boolean>(false);
 
-  // Ciclo natural de piscada de olhos a cada 3.5 a 6 segundos
+  // Ciclo natural de piscada de olhos a cada 3.5 a 6 segundos com cancelamento seguro
   useEffect(() => {
-    let blinkTimeout: NodeJS.Timeout;
+    let timer1: ReturnType<typeof setTimeout> | null = null;
+    let timer2: ReturnType<typeof setTimeout> | null = null;
+    let isMounted = true;
+
     const scheduleBlink = () => {
       const delay = Math.random() * 2500 + 3500;
-      blinkTimeout = setTimeout(() => {
+      timer1 = setTimeout(() => {
+        if (!isMounted) return;
         setIsBlinking(true);
-        setTimeout(() => {
+        timer2 = setTimeout(() => {
+          if (!isMounted) return;
           setIsBlinking(false);
           scheduleBlink();
         }, 160);
@@ -40,7 +51,11 @@ export const BytezinhoAvatar: React.FC<BytezinhoAvatarProps> = ({
     };
 
     scheduleBlink();
-    return () => clearTimeout(blinkTimeout);
+    return () => {
+      isMounted = false;
+      if (timer1) clearTimeout(timer1);
+      if (timer2) clearTimeout(timer2);
+    };
   }, []);
 
   const sizeDimensions = {
@@ -50,8 +65,50 @@ export const BytezinhoAvatar: React.FC<BytezinhoAvatarProps> = ({
     xl: 'w-32 h-32 sm:w-36 sm:h-36'
   };
 
-  const isGlitch = isOverloaded || mood === 'glitch';
-  const isHot = mood === 'fire' || isGlitch || isOverheating;
+  // Resolução unificada de estado (idle, typing, combo, error, overload)
+  const effectiveState: BytezinhoState = state || (
+    isOverloaded ? 'overload' :
+    mood === 'oops' ? 'error' :
+    (comboCount >= 8 || mood === 'fire') ? 'combo' :
+    (isTyping || comboCount > 0) ? 'typing' :
+    'idle'
+  );
+
+  const isGlitch = isOverloaded || mood === 'glitch' || effectiveState === 'overload';
+  const isHot = mood === 'fire' || isGlitch || isOverheating || effectiveState === 'combo';
+  const isCombo = effectiveState === 'combo' || comboCount >= 8;
+  const isTypingActive = isTyping || effectiveState === 'typing' || isCombo;
+  const isError = effectiveState === 'error' || mood === 'oops';
+
+  // Nível procedural da aura vetorial baseado no combo (0 a 2.2)
+  const auraLevel = Math.min(Math.max((comboCount || 0) / 10, isCombo ? 0.9 : 0), 2.2);
+
+  const getAuraGradient = () => {
+    switch (skin) {
+      case 'blindfolded_sorcerer':
+        return 'radial-gradient(circle, rgba(56,189,248,0.85) 0%, rgba(129,140,248,0.45) 50%, transparent 75%)';
+      case 'rubber_pirate':
+        return 'radial-gradient(circle, rgba(251,113,133,0.85) 0%, rgba(245,158,11,0.5) 50%, transparent 75%)';
+      case 'hoodie_skeleton':
+        return 'radial-gradient(circle, rgba(6,182,212,0.85) 0%, rgba(30,58,138,0.5) 50%, transparent 75%)';
+      case 'urban_cyborg':
+        return 'radial-gradient(circle, rgba(250,204,21,0.85) 0%, rgba(6,182,212,0.5) 50%, transparent 75%)';
+      case 'demon_slayer':
+        return 'radial-gradient(circle, rgba(249,115,22,0.85) 0%, rgba(56,189,248,0.45) 50%, transparent 75%)';
+      case 'electric_rodent':
+        return 'radial-gradient(circle, rgba(250,204,21,0.95) 0%, rgba(254,240,138,0.5) 50%, transparent 75%)';
+      case 'bored_hero':
+        return 'radial-gradient(circle, rgba(239,68,68,0.85) 0%, rgba(234,179,8,0.5) 50%, transparent 75%)';
+      case 'needle_knight':
+        return 'radial-gradient(circle, rgba(224,242,254,0.85) 0%, rgba(56,189,248,0.5) 50%, transparent 75%)';
+      case 'supersonic_hedgehog':
+        return 'radial-gradient(circle, rgba(59,130,246,0.9) 0%, rgba(34,197,94,0.5) 50%, transparent 75%)';
+      case 'shadow_crusader':
+        return 'radial-gradient(circle, rgba(245,158,11,0.8) 0%, rgba(15,23,42,0.65) 50%, transparent 75%)';
+      default:
+        return 'radial-gradient(circle, rgba(16,185,129,0.75) 0%, rgba(5,150,105,0.4) 50%, transparent 75%)';
+    }
+  };
 
   // Cor do fósforo / tela CRT interna
   const getScreenBg = () => {
@@ -74,6 +131,17 @@ export const BytezinhoAvatar: React.FC<BytezinhoAvatarProps> = ({
       case 'miner_diamond': return '#081820';
       case 'saiyan_warrior': return '#1a1202';
       case 'arachnid_hero': return '#180407';
+      // Míticos / Quânticos
+      case 'blindfolded_sorcerer': return '#020617';
+      case 'rubber_pirate': return '#1a0505';
+      case 'hoodie_skeleton': return '#000000';
+      case 'urban_cyborg': return '#0f1406';
+      case 'demon_slayer': return '#120502';
+      case 'electric_rodent': return '#141405';
+      case 'bored_hero': return '#0f0f12';
+      case 'needle_knight': return '#050a12';
+      case 'supersonic_hedgehog': return '#040d22';
+      case 'shadow_crusader': return '#050508';
       case 'classic':
       default: return '#09140c';
     }
@@ -102,6 +170,17 @@ export const BytezinhoAvatar: React.FC<BytezinhoAvatarProps> = ({
       case 'miner_diamond': return '#06b6d4';
       case 'saiyan_warrior': return '#22d3ee';
       case 'arachnid_hero': return '#ffffff';
+      // Míticos / Quânticos
+      case 'blindfolded_sorcerer': return '#38bdf8';
+      case 'rubber_pirate': return '#ffffff';
+      case 'hoodie_skeleton': return '#06b6d4';
+      case 'urban_cyborg': return '#06b6d4';
+      case 'demon_slayer': return '#f97316';
+      case 'electric_rodent': return '#facc15';
+      case 'bored_hero': return '#ffffff';
+      case 'needle_knight': return '#e0f2fe';
+      case 'supersonic_hedgehog': return '#22c55e';
+      case 'shadow_crusader': return '#ffffff';
       case 'classic':
       default: return '#10b981';
     }
@@ -124,6 +203,17 @@ export const BytezinhoAvatar: React.FC<BytezinhoAvatarProps> = ({
       case 'miner_diamond': return '#292524';
       case 'saiyan_warrior': return '#1e1b4b';
       case 'arachnid_hero': return '#991b1b';
+      // Míticos / Quânticos
+      case 'blindfolded_sorcerer': return '#0b0f19';
+      case 'rubber_pirate': return '#b91c1c';
+      case 'hoodie_skeleton': return '#1e3a8a';
+      case 'urban_cyborg': return '#1c1917';
+      case 'demon_slayer': return '#0f172a';
+      case 'electric_rodent': return '#ca8a04';
+      case 'bored_hero': return '#eab308';
+      case 'needle_knight': return '#1e293b';
+      case 'supersonic_hedgehog': return '#1d4ed8';
+      case 'shadow_crusader': return '#09090b';
       case 'classic':
       default: return '#1c2230';
     }
@@ -146,6 +236,17 @@ export const BytezinhoAvatar: React.FC<BytezinhoAvatarProps> = ({
       case 'miner_diamond': return '#06b6d4';
       case 'saiyan_warrior': return '#eab308';
       case 'arachnid_hero': return '#0284c7';
+      // Míticos / Quânticos
+      case 'blindfolded_sorcerer': return '#38bdf8';
+      case 'rubber_pirate': return '#f59e0b';
+      case 'hoodie_skeleton': return '#38bdf8';
+      case 'urban_cyborg': return '#eab308';
+      case 'demon_slayer': return '#22c55e';
+      case 'electric_rodent': return '#facc15';
+      case 'bored_hero': return '#ef4444';
+      case 'needle_knight': return '#cbd5e1';
+      case 'supersonic_hedgehog': return '#38bdf8';
+      case 'shadow_crusader': return '#f59e0b';
       case 'classic':
       default: return '#10b981';
     }
@@ -165,8 +266,28 @@ export const BytezinhoAvatar: React.FC<BytezinhoAvatarProps> = ({
         transition: { duration: 0.35, repeat: Infinity, ease: 'easeInOut' as const }
       };
     }
-    if (isTyping) {
+    if (isTypingActive) {
       switch (skin) {
+        case 'blindfolded_sorcerer':
+          return {
+            animate: { y: [-2, -7, -2], scale: [1, 1.05, 1], rotate: [-1, 1, -1] },
+            transition: { duration: 0.32, repeat: Infinity, ease: 'easeInOut' as const }
+          };
+        case 'rubber_pirate':
+          return {
+            animate: { y: [0, -5, 0], scaleY: [1, 1.1, 0.95, 1], scaleX: [1, 0.95, 1.05, 1] },
+            transition: { duration: 0.2, repeat: Infinity, ease: 'easeInOut' as const }
+          };
+        case 'urban_cyborg':
+          return {
+            animate: { x: [-1.5, 1.5, -1, 1, 0], y: [0, -2, 0] },
+            transition: { duration: 0.14, repeat: Infinity, ease: 'linear' as const }
+          };
+        case 'supersonic_hedgehog':
+          return {
+            animate: { y: [0, -4, 0], rotate: [-2.5, 2.5, -2.5] },
+            transition: { duration: 0.12, repeat: Infinity, ease: 'linear' as const }
+          };
         case 'ninja':
           return {
             animate: { y: [0, -4, 0], x: [-1.5, 1.5, 0], scale: [1, 1.05, 0.98, 1] },
@@ -312,6 +433,24 @@ export const BytezinhoAvatar: React.FC<BytezinhoAvatarProps> = ({
       transition={animConfig.transition}
       whileHover={interactive ? { scale: 1.1, rotate: [-2, 2, 0] } : undefined}
     >
+      {/* ==================================================== */}
+      {/* AURA VETORIAL PROCEDURAL (Intensidade modulada por combo) */}
+      {/* ==================================================== */}
+      {auraLevel > 0 && (
+        <motion.div
+          className="absolute -inset-3 rounded-full pointer-events-none -z-10 blur-md"
+          style={{
+            background: getAuraGradient(),
+            opacity: Math.min(0.25 + auraLevel * 0.32, 0.9),
+          }}
+          animate={{
+            scale: [1 + auraLevel * 0.08, 1 + auraLevel * 0.16, 1 + auraLevel * 0.08],
+            opacity: [0.35 + auraLevel * 0.2, 0.6 + auraLevel * 0.28, 0.35 + auraLevel * 0.2],
+          }}
+          transition={{ duration: Math.max(0.5, 1.3 - auraLevel * 0.3), repeat: Infinity, ease: 'easeInOut' }}
+        />
+      )}
+
       <svg
         viewBox="0 0 120 120"
         className="w-full h-full drop-shadow-md overflow-visible"
@@ -321,6 +460,67 @@ export const BytezinhoAvatar: React.FC<BytezinhoAvatarProps> = ({
         {/* ==================================================== */}
         {/* ACESSÓRIOS ATRÁS / TOPO DO MONITOR (Antenas, Chapéus, etc) */}
         {/* ==================================================== */}
+
+        {/* 0. FEITICEIRO VENDADO: Cabelo arrepiado prateado */}
+        {skin === 'blindfolded_sorcerer' && (
+          <g id="sorcerer-hair-back">
+            <polygon
+              points="20,26 8,10 22,14 30,-6 46,6 58,-12 70,6 86,-6 96,14 112,10 100,26"
+              fill="#f8fafc"
+              stroke="#cbd5e1"
+              strokeWidth="2"
+              strokeLinejoin="round"
+            />
+            <polygon points="34,12 44,-2 52,8 60,-8 68,8 78,-2 86,14" fill="#e2e8f0" />
+          </g>
+        )}
+
+        {/* 0. PIRATA EMBORRACHADO: Chapéu de palha com fita vermelha */}
+        {skin === 'rubber_pirate' && (
+          <g id="pirate-straw-hat">
+            <ellipse cx="60" cy="24" rx="48" ry="10" fill="#facc15" stroke="#ca8a04" strokeWidth="2" />
+            <path d="M38 24 Q38 4 60 4 Q82 4 82 24 Z" fill="#eab308" stroke="#ca8a04" strokeWidth="2" />
+            <path d="M38 24 Q60 21 82 24 L82 19 Q60 16 38 19 Z" fill="#dc2626" stroke="#991b1b" strokeWidth="0.8" />
+          </g>
+        )}
+
+        {/* 0. ROEDOR ELÉTRICO: Orelhas longas com pontas pretas e cauda em raio */}
+        {skin === 'electric_rodent' && (
+          <g id="electric-rodent-ears">
+            <polygon points="32,26 14,-10 24,-12 42,22" fill="#facc15" stroke="#ca8a04" strokeWidth="1.8" strokeLinejoin="round" />
+            <polygon points="14,-10 24,-12 21,-2 16,0" fill="#09090b" />
+            <polygon points="88,26 106,-10 96,-12 78,22" fill="#facc15" stroke="#ca8a04" strokeWidth="1.8" strokeLinejoin="round" />
+            <polygon points="106,-10 96,-12 99,-2 104,0" fill="#09090b" />
+            <polygon points="104,78 116,68 110,64 122,50 114,48 126,30 118,34 110,54 114,56 102,72" fill="#eab308" stroke="#ca8a04" strokeWidth="1.5" />
+          </g>
+        )}
+
+        {/* 0. BESOURO AGULHEIRO: Chifres curvados de cavaleiro */}
+        {skin === 'needle_knight' && (
+          <g id="needle-knight-horns">
+            <path d="M42 26 Q30 4 22 -4 Q28 8 36 24" fill="#f8fafc" stroke="#94a3b8" strokeWidth="1.8" />
+            <path d="M78 26 Q90 4 98 -4 Q92 8 84 24" fill="#f8fafc" stroke="#94a3b8" strokeWidth="1.8" />
+          </g>
+        )}
+
+        {/* 0. OURIÇO SUPERSÔNICO: Espinhos aerodinâmicos azuis para trás */}
+        {skin === 'supersonic_hedgehog' && (
+          <g id="hedgehog-quills">
+            <polygon points="26,26 4,14 20,38" fill="#1d4ed8" stroke="#1e40af" strokeWidth="2" strokeLinejoin="round" />
+            <polygon points="20,40 -2,38 18,58" fill="#1d4ed8" stroke="#1e40af" strokeWidth="2" strokeLinejoin="round" />
+            <polygon points="94,26 116,14 100,38" fill="#1d4ed8" stroke="#1e40af" strokeWidth="2" strokeLinejoin="round" />
+            <polygon points="100,40 122,38 102,58" fill="#1d4ed8" stroke="#1e40af" strokeWidth="2" strokeLinejoin="round" />
+            <polygon points="40,20 60,-6 80,20" fill="#2563eb" stroke="#1d4ed8" strokeWidth="2" />
+          </g>
+        )}
+
+        {/* 0. CAVALEIRO DAS SOMBRAS: Orelhas pontiagudas de morcego */}
+        {skin === 'shadow_crusader' && (
+          <g id="bat-ears">
+            <polygon points="24,26 18,-4 36,18" fill="#09090b" stroke="#27272a" strokeWidth="2" strokeLinejoin="round" />
+            <polygon points="96,26 102,-4 84,18" fill="#09090b" stroke="#27272a" strokeWidth="2" strokeLinejoin="round" />
+          </g>
+        )}
 
         {/* 1. CLÁSSICO: Antena única com bolinha pulsante */}
         {skin === 'classic' && (
@@ -764,6 +964,160 @@ export const BytezinhoAvatar: React.FC<BytezinhoAvatarProps> = ({
             <ellipse cx="60" cy="94" rx="2" ry="3" fill="#0f172a" />
             <line x1="56" y1="92" x2="64" y2="96" stroke="#0f172a" strokeWidth="1" />
             <line x1="56" y1="96" x2="64" y2="92" stroke="#0f172a" strokeWidth="1" />
+          </g>
+        )}
+
+        {/* ==================================================== */}
+        {/* ACESSÓRIOS FRONTAIS MÍTICOS / QUÂNTICOS DE ENDGAME */}
+        {/* ==================================================== */}
+
+        {/* 10. O FEITICEIRO VENDADO (Gojo / Jujutsu Kaisen) */}
+        {skin === 'blindfolded_sorcerer' && (
+          <g id="sorcerer-attire">
+            {/* Casaco preto com gola alta estruturada */}
+            <path d="M24 82 L18 104 L102 104 L96 82 L82 88 L60 80 L38 88 Z" fill="#020617" stroke="#1e293b" strokeWidth="2" />
+            <path d="M42 80 L52 94 L68 94 L78 80" stroke="#38bdf8" strokeWidth="1.2" fill="none" opacity="0.8" />
+            
+            {/* Venda nos Olhos vs. Revelação dos Seis Olhos Azuis no Combo */}
+            {(isCombo || comboCount >= 6) ? (
+              <g id="sorcerer-unveiled">
+                {/* Faixa preta levantada acima da linha dos olhos */}
+                <path d="M26 38 L94 38 L92 30 L28 30 Z" fill="#09090b" stroke="#1e293b" strokeWidth="1.8" />
+                <line x1="28" y1="34" x2="92" y2="34" stroke="#38bdf8" strokeWidth="1" strokeDasharray="3 2" />
+
+                {/* Olhos Azuis Cósmicos Radiantes (Six Eyes) */}
+                <g id="cosmic-eyes">
+                  {/* Olho Esquerdo */}
+                  <ellipse cx="44" cy="54" rx="8" ry="7" fill="#0284c7" />
+                  <circle cx="44" cy="54" r="5" fill="#38bdf8" className="animate-pulse" />
+                  <circle cx="44" cy="54" r="2" fill="#ffffff" />
+                  <circle cx="44" cy="54" r="8.5" stroke="#7dd3fc" strokeWidth="1" opacity="0.8" strokeDasharray="2 2" />
+
+                  {/* Olho Direito */}
+                  <ellipse cx="76" cy="54" rx="8" ry="7" fill="#0284c7" />
+                  <circle cx="76" cy="54" r="5" fill="#38bdf8" className="animate-pulse" />
+                  <circle cx="76" cy="54" r="2" fill="#ffffff" />
+                  <circle cx="76" cy="54" r="8.5" stroke="#7dd3fc" strokeWidth="1" opacity="0.8" strokeDasharray="2 2" />
+
+                  {/* Lampejos do Vazio Infinito */}
+                  <line x1="44" y1="42" x2="44" y2="66" stroke="#e0f2fe" strokeWidth="1" opacity="0.6" />
+                  <line x1="32" y1="54" x2="56" y2="54" stroke="#e0f2fe" strokeWidth="1" opacity="0.6" />
+                  <line x1="76" y1="42" x2="76" y2="66" stroke="#e0f2fe" strokeWidth="1" opacity="0.6" />
+                  <line x1="64" y1="54" x2="88" y2="54" stroke="#e0f2fe" strokeWidth="1" opacity="0.6" />
+                </g>
+              </g>
+            ) : (
+              <g id="sorcerer-blindfold">
+                {/* Faixa cobrindo os olhos totalmente */}
+                <path d="M24 46 L96 46 L94 64 L26 64 Z" fill="#09090b" stroke="#1e293b" strokeWidth="2" />
+                <line x1="26" y1="55" x2="94" y2="55" stroke="#1e293b" strokeWidth="1.2" strokeDasharray="4 2" />
+                <circle cx="92" cy="55" r="2" fill="#38bdf8" opacity="0.7" />
+              </g>
+            )}
+          </g>
+        )}
+
+        {/* 11. O PIRATA EMBORRACHADO (Luffy / One Piece) */}
+        {skin === 'rubber_pirate' && (
+          <g id="pirate-vest">
+            <path d="M22 84 L18 104 L44 104 L48 88 Z" fill="#b91c1c" stroke="#991b1b" strokeWidth="1.5" />
+            <path d="M98 84 L102 104 L76 104 L72 88 Z" fill="#b91c1c" stroke="#991b1b" strokeWidth="1.5" />
+            {/* Cicatriz em meia-lua sob o olho esquerdo */}
+            <path d="M38 64 Q42 67 46 64" stroke="#7f1d1d" strokeWidth="1.5" strokeLinecap="round" fill="none" />
+            <line x1="42" y1="63" x2="42" y2="67" stroke="#7f1d1d" strokeWidth="1" />
+          </g>
+        )}
+
+        {/* 12. O ESQUELETO DE MOLETOM (Sans / Undertale) */}
+        {skin === 'hoodie_skeleton' && (
+          <g id="skeleton-hoodie">
+            <path d="M14 36 Q18 16 60 14 Q102 16 106 36 Q100 24 60 22 Q20 24 14 36 Z" fill="#1e3a8a" stroke="#172554" strokeWidth="2" />
+            <path d="M14 36 Q10 60 18 96 Q22 54 22 36 Z" fill="#1e40af" opacity="0.95" />
+            <path d="M106 36 Q110 60 102 96 Q98 54 98 36 Z" fill="#1e40af" opacity="0.95" />
+            {/* Sorriso esquelético largo com dentes verticais */}
+            <path d="M46 72 Q60 76 74 72" stroke="#0f172a" strokeWidth="2" fill="none" />
+            <line x1="52" y1="69" x2="52" y2="74" stroke="#0f172a" strokeWidth="1.5" />
+            <line x1="60" y1="70" x2="60" y2="75" stroke="#0f172a" strokeWidth="1.5" />
+            <line x1="68" y1="69" x2="68" y2="74" stroke="#0f172a" strokeWidth="1.5" />
+            {/* Chama azul-ciano espectral na órbita esquerda em combo */}
+            {(isCombo || comboCount > 0) && (
+              <g id="bad-time-eye">
+                <circle cx="44" cy="54" r="5" fill="#06b6d4" className="animate-ping" style={{ animationDuration: '1.2s' }} />
+                <circle cx="44" cy="54" r="3.5" fill="#22d3ee" />
+                <path d="M44 54 Q40 42 42 36 Q46 44 44 54 Z" fill="#67e8f9" opacity="0.8" />
+              </g>
+            )}
+          </g>
+        )}
+
+        {/* 13. O CIBORGUE URBANO (David Martinez / Cyberpunk: Edgerunners) */}
+        {skin === 'urban_cyborg' && (
+          <g id="cyborg-jacket">
+            <path d="M22 84 L16 106 L104 106 L98 84 L80 90 L60 82 L40 90 Z" fill="#eab308" stroke="#ca8a04" strokeWidth="2" />
+            <line x1="60" y1="82" x2="60" y2="106" stroke="#0f172a" strokeWidth="2" />
+            {/* Implante neural com LEDs azuis */}
+            <rect x="94" y="44" width="5" height="24" rx="2" fill="#0f172a" stroke="#06b6d4" strokeWidth="1" />
+            <circle cx="96.5" cy="48" r="1.5" fill="#22d3ee" className="animate-pulse" />
+            <circle cx="96.5" cy="56" r="1.5" fill="#06b6d4" />
+            <circle cx="96.5" cy="64" r="1.5" fill="#22d3ee" className="animate-pulse" />
+          </g>
+        )}
+
+        {/* 14. O CAÇADOR DO QUIMONO XADREZ (Tanjiro / Demon Slayer) */}
+        {skin === 'demon_slayer' && (
+          <g id="demon-slayer-gear">
+            <path d="M22 86 L18 104 L102 104 L98 86 Z" fill="#0f172a" stroke="#16a34a" strokeWidth="1.5" />
+            <rect x="36" y="88" width="12" height="12" fill="#16a34a" />
+            <rect x="48" y="88" width="12" height="12" fill="#09090b" />
+            <rect x="60" y="88" width="12" height="12" fill="#16a34a" />
+            <rect x="72" y="88" width="12" height="12" fill="#09090b" />
+            {/* Brincos hanafuda nos dois lados */}
+            <rect x="18" y="60" width="6" height="14" rx="1" fill="#f8fafc" stroke="#dc2626" strokeWidth="0.8" />
+            <circle cx="21" cy="65" r="1.5" fill="#dc2626" />
+            <rect x="96" y="60" width="6" height="14" rx="1" fill="#f8fafc" stroke="#dc2626" strokeWidth="0.8" />
+            <circle cx="99" cy="65" r="1.5" fill="#dc2626" />
+          </g>
+        )}
+
+        {/* 15. O ROEDOR ELÉTRICO (Pikachu / Pokémon) */}
+        {skin === 'electric_rodent' && (
+          <g id="electric-rodent-cheeks">
+            <circle cx="34" cy="66" r="6" fill="#ef4444" stroke="#dc2626" strokeWidth="1" />
+            <circle cx="86" cy="66" r="6" fill="#ef4444" stroke="#dc2626" strokeWidth="1" />
+            {(isCombo || isTypingActive) && (
+              <g stroke="#fef08a" strokeWidth="1.2" fill="none">
+                <path d="M28 66 L22 62 L26 68 L20 68" />
+                <path d="M92 66 L98 62 L94 68 L100 68" />
+              </g>
+            )}
+          </g>
+        )}
+
+        {/* 16. O HERÓI ENTEDIADO (Saitama / One Punch Man) */}
+        {skin === 'bored_hero' && (
+          <g id="bored-hero-gear">
+            <path d="M22 84 L14 106 L106 106 L98 84 Z" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="1.5" />
+            <circle cx="32" cy="86" r="4.5" fill="#dc2626" stroke="#991b1b" strokeWidth="1" />
+            <circle cx="88" cy="86" r="4.5" fill="#dc2626" stroke="#991b1b" strokeWidth="1" />
+            <ellipse cx="48" cy="30" rx="6" ry="2.5" fill="#ffffff" opacity="0.7" />
+          </g>
+        )}
+
+        {/* 17. O BESOURO AGULHEIRO (Hollow Knight) */}
+        {skin === 'needle_knight' && (
+          <g id="needle-knight-cloak">
+            <path d="M22 80 Q60 74 98 80 L102 106 L18 106 Z" fill="#334155" stroke="#1e293b" strokeWidth="1.5" />
+            <line x1="102" y1="96" x2="114" y2="40" stroke="#e2e8f0" strokeWidth="2" strokeLinecap="round" />
+            <ellipse cx="114" cy="40" rx="1.5" ry="3" fill="#cbd5e1" />
+          </g>
+        )}
+
+        {/* 18. O CAVALEIRO DAS SOMBRAS (Batman) */}
+        {skin === 'shadow_crusader' && (
+          <g id="shadow-crusader-gear">
+            <path d="M20 84 Q14 106 28 106 Q40 96 60 102 Q80 96 92 106 Q106 106 100 84 Z" fill="#09090b" stroke="#27272a" strokeWidth="2" />
+            <polygon points="36,52 48,56 46,62 36,58" fill="#ffffff" />
+            <polygon points="84,52 72,56 74,62 84,58" fill="#ffffff" />
           </g>
         )}
       </svg>

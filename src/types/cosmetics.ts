@@ -1,4 +1,29 @@
 export type CosmeticCurrency = 'tokens' | 'duel_coins' | 'quantum_fragments';
+export type CosmeticRarity = 'common' | 'rare' | 'epic' | 'legendary' | 'mythic' | 'quantum';
+
+export interface QuantumPrerequisite {
+  minLevel: number;             // Ex: 100
+  totalWordsTyped: number;      // Ex: 25.000+
+  minAccuracyAvg: number;       // Ex: 95
+  totalBytesEarned?: number;
+}
+
+export interface QuantumCosmeticItem {
+  id: string;
+  name: string;
+  subtitle: string;
+  archetype: string;
+  description: string;
+  category: 'layouts' | 'themes' | 'skins' | 'sounds' | 'animations';
+  rarity: 'mythic' | 'quantum';
+  price: number; // Em Fragmentos Quânticos (🌌)
+  currency: CosmeticCurrency;
+  currencyType?: 'quantum_fragment' | 'tokens' | 'duel_coins';
+  badge: string;
+  icon: string;
+  prerequisites: QuantumPrerequisite;
+  loreQuote: string;
+}
 
 export type TerminalThemeId =
   | 'matrix'
@@ -16,7 +41,18 @@ export type TerminalThemeId =
   | 'sith_darkside'
   | 'super_saiyan'
   | 'nether_magma'
-  | 'spider_verse';
+  | 'spider_verse'
+  // Novos Temas Míticos / Quânticos de Endgame (3ª Moeda 🌌)
+  | 'infinite_void'
+  | 'gear_second'
+  | 'bad_time_retro'
+  | 'sandevistan_overdrive'
+  | 'sun_breathing'
+  | 'electric_thunder'
+  | 'serious_punch'
+  | 'abyssal_vessel'
+  | 'supersonic_speed'
+  | 'dark_detective';
 
 export type BytezinhoSkinId =
   | 'classic'
@@ -34,7 +70,18 @@ export type BytezinhoSkinId =
   | 'jedi_master'
   | 'miner_diamond'
   | 'saiyan_warrior'
-  | 'arachnid_hero';
+  | 'arachnid_hero'
+  // Novas Skins Míticas / Quânticas de Endgame (3ª Moeda 🌌)
+  | 'blindfolded_sorcerer'
+  | 'rubber_pirate'
+  | 'hoodie_skeleton'
+  | 'urban_cyborg'
+  | 'demon_slayer'
+  | 'electric_rodent'
+  | 'bored_hero'
+  | 'needle_knight'
+  | 'supersonic_hedgehog'
+  | 'shadow_crusader';
 
 export type LayoutSkinId =
   | 'default_terminal'
@@ -52,7 +99,18 @@ export type LayoutSkinId =
   | 'star_wars_cockpit'
   | 'minecraft_block'
   | 'shonen_combat'
-  | 'mushroom_kingdom';
+  | 'mushroom_kingdom'
+  // Novos Layouts Míticos / Quânticos de Endgame (3ª Moeda 🌌)
+  | 'infinite_void_realm'
+  | 'pirate_deck'
+  | 'judgment_hall'
+  | 'edgerunner_rig'
+  | 'slayer_dojo'
+  | 'pocket_console'
+  | 'manga_action'
+  | 'hollow_ruins'
+  | 'green_hills_zone'
+  | 'bat_cave_tactical';
 
 export type AnimationEffectId =
   | 'confetti_classic'
@@ -68,7 +126,18 @@ export type AnimationEffectId =
   // Efeitos VFX da Cultura Pop (Arena 1x1)
   | 'hyperspace_warp'
   | 'kamehameha_energy'
-  | 'diamond_rain';
+  | 'diamond_rain'
+  // Novos Efeitos VFX Míticos / Quânticos de Endgame (3ª Moeda 🌌)
+  | 'infinite_void_burst'
+  | 'gear_second_steam'
+  | 'gaster_bone_barrage'
+  | 'sandevistan_afterimage'
+  | 'water_flame_dragon'
+  | 'thunder_storm_vfx'
+  | 'serious_shockwave'
+  | 'soul_vessel_burst'
+  | 'golden_ring_burst'
+  | 'bat_swarm_vfx';
 
 export type LevelUpEffectId = 'confetti' | 'matrix_rain' | 'glitch';
 
@@ -80,7 +149,18 @@ export type KeySoundThemeId =
   // Sons de Teclado da Cultura Pop (Arena 1x1)
   | 'lightsaber_clash'
   | 'pixel_block_jump'
-  | 'ki_blast';
+  | 'ki_blast'
+  // Novos Sons de Teclado Míticos / Quânticos de Endgame (3ª Moeda 🌌)
+  | 'void_pulse'
+  | 'rubber_gatling'
+  | 'gaster_blaster'
+  | 'sandevistan_click'
+  | 'water_slash'
+  | 'thunder_spark'
+  | 'serious_strike'
+  | 'soul_nail'
+  | 'spin_dash'
+  | 'sonar_batarang';
 
 export interface PlayerCosmetics {
   levelTokens: number;

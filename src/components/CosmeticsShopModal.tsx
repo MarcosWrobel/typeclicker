@@ -310,8 +310,8 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
               </div>
             </div>
 
-            {/* Saldos Duplos (Tokens de Nível e Moedas de Duelo) e Botão Fechar */}
-            <div className="flex items-center gap-2 sm:gap-3">
+            {/* Saldos Triplos (Tokens de Nível, Moedas de Duelo e Fragmentos Quânticos) e Botão Fechar */}
+            <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-end">
               {/* Saldo de Level Tokens */}
               <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 font-mono font-bold text-xs sm:text-sm shadow-[0_0_12px_rgba(245,158,11,0.2)]">
                 <Coins className="w-4 h-4 text-amber-400 animate-pulse" />
@@ -324,6 +324,13 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                 <Swords className="w-4 h-4 text-rose-400 animate-pulse" />
                 <span>{currentDuelTokens}</span>
                 <span className="text-[10px] text-rose-400/80 hidden sm:inline">Moedas de Duelo</span>
+              </div>
+
+              {/* Saldo de Fragmentos Quânticos */}
+              <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-cyan-500/15 border border-cyan-500/40 text-cyan-300 font-mono font-bold text-xs sm:text-sm shadow-[0_0_12px_rgba(6,182,212,0.25)]">
+                <Sparkles className="w-4 h-4 text-cyan-400 animate-spin" style={{ animationDuration: '8s' }} />
+                <span>{currentQuantumFragments}</span>
+                <span className="text-[10px] text-cyan-300/80 hidden sm:inline">Quânticos</span>
               </div>
 
               <button
@@ -353,7 +360,7 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                   type="button"
                   onClick={handleAdminUnlockAll}
                   className="px-3 py-1 rounded-lg bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-zinc-950 text-xs font-black transition shadow-[0_0_12px_rgba(245,158,11,0.4)] flex items-center gap-1.5 cursor-pointer"
-                  title="Desbloquear todos os 14 layouts, temas, skins, sons e animações"
+                  title="Desbloquear todos os cosméticos (incluindo Quânticos)"
                 >
                   <Sparkles className="w-3.5 h-3.5 fill-current" />
                   <span>Desbloquear Tudo (ADM)</span>
@@ -362,10 +369,10 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                   type="button"
                   onClick={handleAdminAddTokens}
                   className="px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-amber-300 text-xs font-bold transition border border-amber-500/40 flex items-center gap-1.5 cursor-pointer"
-                  title="Adicionar 5.000 Level Tokens e 5.000 Moedas de Duelo"
+                  title="Adicionar +5.000 Tokens, +5.000 Moedas e +500 Fragmentos Quânticos"
                 >
                   <Coins className="w-3.5 h-3.5 text-amber-400" />
-                  <span>+5.000 Moedas</span>
+                  <span>+5k Moedas / +500 🌌</span>
                 </button>
               </div>
             </div>
@@ -376,7 +383,7 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
             <span className="flex items-center gap-1.5 min-w-0 truncate">
               <span>💡</span>
               <span className="truncate">
-                <strong>🪙 Tokens:</strong> mérito ao subir de nível | <strong>⚔️ Moedas:</strong> vitórias na Arena 1x1!
+                <strong>🪙 Tokens:</strong> nível escolar | <strong>⚔️ Moedas:</strong> Arena 1x1 | <strong>🌌 Fragmentos:</strong> Endgame Quântico
               </span>
             </span>
 
@@ -414,6 +421,17 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                 }`}
               >
                 ⚔️ Arena 1x1
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrencyFilter('quantum_fragments')}
+                className={`px-2 py-0.5 rounded text-[10px] font-mono cursor-pointer transition flex items-center gap-1 ${
+                  currencyFilter === 'quantum_fragments'
+                    ? 'bg-cyan-500 text-black font-bold shadow-[0_0_8px_rgba(6,182,212,0.4)]'
+                    : 'bg-zinc-800 text-zinc-400 hover:text-white'
+                }`}
+              >
+                🌌 Quântico
               </button>
             </div>
           </div>
@@ -513,16 +531,22 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 {Object.values(LAYOUT_CONFIGS)
                   .filter(layout => {
-                    const isDuel = layout.currency === 'duel_coins';
-                    if (currencyFilter === 'tokens') return !isDuel;
-                    if (currencyFilter === 'duel_coins') return isDuel;
+                    const itemCurrency = layout.currency || 'tokens';
+                    if (currencyFilter === 'tokens') return itemCurrency === 'tokens';
+                    if (currencyFilter === 'duel_coins') return itemCurrency === 'duel_coins';
+                    if (currencyFilter === 'quantum_fragments') return itemCurrency === 'quantum_fragments';
                     return true;
                   })
                   .map(layout => {
                     const isUnlocked = cosmetics.unlockedLayouts?.includes(layout.id) ?? (layout.id === 'default_terminal');
                     const isEquipped = (cosmetics.equippedLayout || 'default_terminal') === layout.id;
+                    const isQuantumCurrency = layout.currency === 'quantum_fragments';
                     const isDuelCurrency = layout.currency === 'duel_coins';
-                    const canAfford = isAdmin || (isDuelCurrency ? currentDuelTokens >= layout.price : currentTokens >= layout.price);
+                    const canAfford = isAdmin || (
+                      isQuantumCurrency ? currentQuantumFragments >= layout.price :
+                      isDuelCurrency ? currentDuelTokens >= layout.price :
+                      currentTokens >= layout.price
+                    );
 
                     return (
                       <div
@@ -553,10 +577,13 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                           </div>
 
                           <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border flex items-center gap-1 ${
-                            isDuelCurrency
+                            isQuantumCurrency
+                              ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40 font-bold shadow-[0_0_8px_rgba(6,182,212,0.25)]'
+                              : isDuelCurrency
                               ? 'bg-rose-500/15 text-rose-300 border-rose-500/40 font-bold'
                               : 'bg-zinc-800 text-zinc-300 border-zinc-700/60'
                           }`}>
+                            {isQuantumCurrency && <Sparkles className="w-3 h-3 text-cyan-400" />}
                             {isDuelCurrency && <Swords className="w-3 h-3 text-rose-400" />}
                             {layout.badge}
                           </span>
@@ -804,6 +831,179 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                               <div className="text-[6px] text-yellow-300 text-center font-bold">THANK YOU MARIO!</div>
                             </div>
                           )}
+
+                          {layout.id === 'infinite_void_realm' && (
+                            <div className="w-full h-full bg-[#02040d] rounded border border-sky-400/60 p-1 flex flex-col justify-between text-sky-200 font-mono text-[8px] relative overflow-hidden shadow-[0_0_10px_rgba(56,189,248,0.2)]">
+                              <div className="bg-[#050c20] px-1 py-0.5 rounded border border-sky-500/40 flex items-center justify-between text-[7px]">
+                                <span className="text-sky-300 font-bold truncate">VAZIO INFINITO 領域</span>
+                                <span className="text-cyan-300 font-bold">100% ILIMITADO</span>
+                              </div>
+                              <div className="flex gap-1 flex-1 my-0.5 items-stretch">
+                                <div className="w-1/4 bg-sky-950/40 rounded border border-sky-500/30" />
+                                <div className="w-2/4 bg-black/80 rounded border border-sky-400/50 flex items-center justify-center text-sky-200 text-[8px] font-black shadow-[0_0_12px_rgba(56,189,248,0.4)]">
+                                  SINGULARIDADE
+                                </div>
+                                <div className="w-1/4 bg-indigo-950/40 rounded border border-indigo-500/30" />
+                              </div>
+                              <div className="text-[6px] text-sky-400 text-center font-bold">HORIZONTE DE EVENTOS</div>
+                            </div>
+                          )}
+
+                          {layout.id === 'pirate_deck' && (
+                            <div className="w-full h-full bg-[#120306] rounded border border-rose-500/60 p-1 flex flex-col justify-between text-rose-200 font-mono text-[8px] relative overflow-hidden shadow-[0_0_10px_rgba(244,63,94,0.2)]">
+                              <div className="bg-[#1c0508] px-1 py-0.5 rounded border border-rose-500/40 flex items-center justify-between text-[7px]">
+                                <span className="text-amber-400 font-bold truncate">CONVÉS PIRATA</span>
+                                <span className="text-rose-400 font-bold">MARCHA 2</span>
+                              </div>
+                              <div className="flex gap-1 flex-1 my-0.5 items-stretch">
+                                <div className="w-1/4 bg-rose-950/40 rounded border border-rose-500/30" />
+                                <div className="w-2/4 bg-[#1e0509] rounded border border-rose-400/50 flex items-center justify-center text-rose-300 text-[8px] font-black shadow-[0_0_10px_rgba(244,63,94,0.3)]">
+                                  VAPOR OVERDRIVE
+                                </div>
+                                <div className="w-1/4 bg-amber-950/40 rounded border border-amber-500/30" />
+                              </div>
+                              <div className="text-[6px] text-amber-400 text-center font-bold">ROTA: GRAND LINE</div>
+                            </div>
+                          )}
+
+                          {layout.id === 'judgment_hall' && (
+                            <div className="w-full h-full bg-[#030a10] rounded border border-cyan-400/60 p-1 flex flex-col justify-between text-cyan-200 font-mono text-[8px] relative overflow-hidden shadow-[0_0_10px_rgba(6,182,212,0.2)]">
+                              <div className="bg-[#020e18] px-1 py-0.5 rounded border border-cyan-500/40 flex items-center justify-between text-[7px]">
+                                <span className="text-white font-bold truncate">SALÃO DO JULGAMENTO</span>
+                                <span className="text-cyan-400 font-bold">BAD TIME</span>
+                              </div>
+                              <div className="flex gap-1 flex-1 my-0.5 items-stretch">
+                                <div className="w-1/4 bg-cyan-950/40 rounded border border-cyan-500/30" />
+                                <div className="w-2/4 bg-black rounded border border-cyan-400/60 flex items-center justify-center text-cyan-300 text-[8px] font-bold shadow-[0_0_10px_rgba(6,182,212,0.4)]">
+                                  💀 GASTER BLASTER
+                                </div>
+                                <div className="w-1/4 bg-cyan-950/40 rounded border border-cyan-500/30" />
+                              </div>
+                              <div className="text-[6px] text-cyan-400 text-center font-bold">RETRIBUIÇÃO KÁRMICA</div>
+                            </div>
+                          )}
+
+                          {layout.id === 'edgerunner_rig' && (
+                            <div className="w-full h-full bg-[#0d0f04] rounded border border-yellow-400/70 p-1 flex flex-col justify-between text-yellow-200 font-mono text-[8px] relative overflow-hidden shadow-[0_0_10px_rgba(234,179,8,0.25)]">
+                              <div className="bg-[#191c04] px-1 py-0.5 rounded border border-yellow-400/40 flex items-center justify-between text-[7px]">
+                                <span className="text-yellow-400 font-bold truncate">SANDEVISTAN 2077</span>
+                                <span className="text-cyan-400 font-bold">-85% SLOW</span>
+                              </div>
+                              <div className="flex gap-1 flex-1 my-0.5 items-stretch">
+                                <div className="w-1/4 bg-yellow-950/40 rounded border border-yellow-400/30" />
+                                <div className="w-2/4 bg-black/80 rounded border border-cyan-400/50 flex items-center justify-center text-yellow-300 text-[8px] font-black">
+                                  120+ PPM WARP
+                                </div>
+                                <div className="w-1/4 bg-cyan-950/40 rounded border border-cyan-400/30" />
+                              </div>
+                              <div className="text-[6px] text-yellow-400 text-center font-bold">EDGERUNNER PROTOCOL</div>
+                            </div>
+                          )}
+
+                          {layout.id === 'slayer_dojo' && (
+                            <div className="w-full h-full bg-[#140602] rounded border border-orange-500/70 p-1 flex flex-col justify-between text-orange-200 font-mono text-[8px] relative overflow-hidden shadow-[0_0_10px_rgba(249,115,22,0.2)]">
+                              <div className="bg-[#1c0803] px-1 py-0.5 rounded border border-orange-500/40 flex items-center justify-between text-[7px]">
+                                <span className="text-amber-400 font-bold truncate">DOJO SOLAR</span>
+                                <span className="text-orange-400 font-bold">HINOKAMI</span>
+                              </div>
+                              <div className="flex gap-1 flex-1 my-0.5 items-stretch">
+                                <div className="w-1/4 bg-orange-950/40 rounded border border-orange-500/30" />
+                                <div className="w-2/4 bg-[#1f0903] rounded border border-amber-500/50 flex items-center justify-center text-amber-300 text-[8px] font-bold">
+                                  DRAGÃO SOLAR
+                                </div>
+                                <div className="w-1/4 bg-sky-950/40 rounded border border-sky-500/30" />
+                              </div>
+                              <div className="text-[6px] text-orange-400 text-center font-bold">RESPIRAÇÃO DA ÁGUA</div>
+                            </div>
+                          )}
+
+                          {layout.id === 'pocket_console' && (
+                            <div className="w-full h-full bg-[#141203] rounded border border-yellow-300/70 p-1 flex flex-col justify-between text-yellow-200 font-mono text-[8px] relative overflow-hidden shadow-[0_0_10px_rgba(253,224,71,0.2)]">
+                              <div className="bg-[#1c1904] px-1 py-0.5 rounded border border-yellow-400/40 flex items-center justify-between text-[7px]">
+                                <span className="text-yellow-300 font-bold truncate">CONSOLE 1996</span>
+                                <span className="text-emerald-400 font-bold">BAT 99%</span>
+                              </div>
+                              <div className="flex gap-1 flex-1 my-0.5 items-stretch">
+                                <div className="w-1/4 bg-yellow-950/40 rounded border border-yellow-400/30 flex items-center justify-center text-[7px] text-yellow-300 font-black">+</div>
+                                <div className="w-2/4 bg-[#8b956d]/30 rounded border border-[#8b956d] flex items-center justify-center text-yellow-200 text-[8px] font-bold">
+                                  100.000 VOLTS
+                                </div>
+                                <div className="w-1/4 bg-yellow-950/40 rounded border border-yellow-400/30 flex items-center justify-center gap-0.5">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                                  <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                                </div>
+                              </div>
+                              <div className="text-[6px] text-yellow-400 text-center font-bold">CHOQUE DO TROVÃO</div>
+                            </div>
+                          )}
+
+                          {layout.id === 'manga_action' && (
+                            <div className="w-full h-full bg-[#120303] rounded border-2 border-red-500/80 p-1 flex flex-col justify-between text-red-200 font-mono text-[8px] relative overflow-hidden shadow-[0_0_10px_rgba(239,68,68,0.25)]">
+                              <div className="bg-[#1c0404] px-1 py-0.5 rounded border border-red-500/50 flex items-center justify-between text-[7px]">
+                                <span className="text-yellow-300 font-black truncate">MANGÁ HEROICO</span>
+                                <span className="text-red-400 font-bold">POW!!</span>
+                              </div>
+                              <div className="flex gap-1 flex-1 my-0.5 items-stretch">
+                                <div className="w-1/4 bg-red-950/40 rounded border border-red-500/30" />
+                                <div className="w-2/4 bg-white/10 rounded border-2 border-white/60 flex items-center justify-center text-white text-[8px] font-black tracking-wider">
+                                  SOCO SÉRIO
+                                </div>
+                                <div className="w-1/4 bg-red-950/40 rounded border border-red-500/30" />
+                              </div>
+                              <div className="text-[6px] text-yellow-300 text-center font-bold">ONDA DE CHOQUE SÍSMICA</div>
+                            </div>
+                          )}
+
+                          {layout.id === 'hollow_ruins' && (
+                            <div className="w-full h-full bg-[#030912] rounded border border-sky-300/60 p-1 flex flex-col justify-between text-sky-200 font-mono text-[8px] relative overflow-hidden shadow-[0_0_10px_rgba(125,211,252,0.2)]">
+                              <div className="bg-[#040e1b] px-1 py-0.5 rounded border border-sky-400/40 flex items-center justify-between text-[7px]">
+                                <span className="text-sky-200 font-bold truncate">HALLOWNEST</span>
+                                <span className="text-teal-300 font-bold">ALMA CHEIA</span>
+                              </div>
+                              <div className="flex gap-1 flex-1 my-0.5 items-stretch">
+                                <div className="w-1/4 bg-sky-950/40 rounded border border-sky-400/30" />
+                                <div className="w-2/4 bg-black/70 rounded border border-sky-300/50 flex items-center justify-center text-sky-100 text-[8px] font-bold shadow-[0_0_8px_rgba(125,211,252,0.3)]">
+                                  AGULHA PURA
+                                </div>
+                                <div className="w-1/4 bg-sky-950/40 rounded border border-sky-400/30" />
+                              </div>
+                              <div className="text-[6px] text-sky-300 text-center font-bold">CIDADE DAS LÁGRIMAS</div>
+                            </div>
+                          )}
+
+                          {layout.id === 'green_hills_zone' && (
+                            <div className="w-full h-full bg-[#030e1c] rounded border border-sky-400/70 p-1 flex flex-col justify-between text-sky-200 font-mono text-[8px] relative overflow-hidden shadow-[0_0_10px_rgba(56,189,248,0.2)]">
+                              <div className="bg-[#04152a] px-1 py-0.5 rounded border border-sky-400/40 flex items-center justify-between text-[7px]">
+                                <span className="text-emerald-400 font-bold truncate">COLINAS TROPICAIS</span>
+                                <span className="text-yellow-300 font-bold">🪙 999</span>
+                              </div>
+                              <div className="flex gap-1 flex-1 my-0.5 items-stretch">
+                                <div className="w-1/4 bg-emerald-950/40 rounded border border-emerald-500/30" />
+                                <div className="w-2/4 bg-[#081b36] rounded border border-yellow-400/50 flex items-center justify-center text-yellow-300 text-[8px] font-black">
+                                  MACH 3 SPEED
+                                </div>
+                                <div className="w-1/4 bg-amber-950/40 rounded border border-amber-500/30" />
+                              </div>
+                              <div className="text-[6px] text-yellow-400 text-center font-bold">LOOP-DE-LOOP 16-BIT</div>
+                            </div>
+                          )}
+
+                          {layout.id === 'bat_cave_tactical' && (
+                            <div className="w-full h-full bg-[#090703] rounded border border-amber-500/60 p-1 flex flex-col justify-between text-amber-200 font-mono text-[8px] relative overflow-hidden shadow-[0_0_10px_rgba(245,158,11,0.2)]">
+                              <div className="bg-[#140e04] px-1 py-0.5 rounded border border-amber-500/40 flex items-center justify-between text-[7px]">
+                                <span className="text-amber-400 font-bold truncate">BATCOMPUTADOR</span>
+                                <span className="text-yellow-300 font-bold">SONAR 360°</span>
+                              </div>
+                              <div className="flex gap-1 flex-1 my-0.5 items-stretch">
+                                <div className="w-1/4 bg-amber-950/40 rounded border border-amber-500/30" />
+                                <div className="w-2/4 bg-black/90 rounded border border-amber-500/50 flex items-center justify-center text-amber-300 text-[8px] font-bold">
+                                  🦇 TÁTICO NOTURNO
+                                </div>
+                                <div className="w-1/4 bg-amber-950/40 rounded border border-amber-500/30" />
+                              </div>
+                              <div className="text-[6px] text-amber-400 text-center font-bold">VIGILÂNCIA DE GOTHAM</div>
+                            </div>
+                          )}
                         </div>
 
                         {/* Descrição */}
@@ -828,6 +1028,11 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                           <span className="text-xs font-mono font-semibold flex items-center gap-1">
                             {layout.price === 0 ? (
                               <span className="text-emerald-400 font-bold">Grátis</span>
+                            ) : isQuantumCurrency ? (
+                              <>
+                                <Sparkles className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
+                                <span className="text-cyan-300 font-bold">{layout.price} Fragmentos</span>
+                              </>
                             ) : isDuelCurrency ? (
                               <>
                                 <Swords className="w-3.5 h-3.5 text-rose-400" />
@@ -851,7 +1056,9 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                                 : isUnlocked
                                 ? 'bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-600'
                                 : canAfford
-                                ? isDuelCurrency
+                                ? isQuantumCurrency
+                                  ? 'bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-black shadow-[0_0_12px_rgba(6,182,212,0.4)]'
+                                  : isDuelCurrency
                                   ? 'bg-rose-600 hover:bg-rose-500 text-white font-black shadow-[0_0_12px_rgba(244,63,94,0.35)]'
                                   : 'bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black shadow-[0_0_12px_rgba(245,158,11,0.3)]'
                                 : 'bg-zinc-900 text-zinc-500 border border-zinc-800 opacity-60'
@@ -867,12 +1074,24 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                             ) : canAfford ? (
                               <>
                                 <Sparkles className="w-3.5 h-3.5 fill-current" />
-                                <span>{isAdmin ? 'Desbloquear (ADM)' : `Desbloquear (${layout.price} ${isDuelCurrency ? 'Moedas' : 'Tks'})`}</span>
+                                <span>
+                                  {isAdmin
+                                    ? 'Desbloquear (ADM)'
+                                    : `Desbloquear (${layout.price} ${
+                                        isQuantumCurrency ? 'Fragmentos' : isDuelCurrency ? 'Moedas' : 'Tks'
+                                      })`}
+                                </span>
                               </>
                             ) : (
                               <>
                                 <Lock className="w-3 h-3 text-zinc-500" />
-                                <span>{isDuelCurrency ? 'Faltam Moedas' : 'Faltam Tokens'}</span>
+                                <span>
+                                  {isQuantumCurrency
+                                    ? 'Faltam Fragmentos'
+                                    : isDuelCurrency
+                                    ? 'Faltam Moedas'
+                                    : 'Faltam Tokens'}
+                                </span>
                               </>
                             )}
                           </button>
@@ -888,16 +1107,22 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 {Object.values(TERMINAL_THEMES)
                   .filter(theme => {
-                    const isDuel = theme.currency === 'duel_coins';
-                    if (currencyFilter === 'tokens') return !isDuel;
-                    if (currencyFilter === 'duel_coins') return isDuel;
+                    const itemCurrency = theme.currency || 'tokens';
+                    if (currencyFilter === 'tokens') return itemCurrency === 'tokens';
+                    if (currencyFilter === 'duel_coins') return itemCurrency === 'duel_coins';
+                    if (currencyFilter === 'quantum_fragments') return itemCurrency === 'quantum_fragments';
                     return true;
                   })
                   .map(theme => {
                     const isUnlocked = cosmetics.unlockedThemes.includes(theme.id);
                     const isEquipped = cosmetics.equippedTheme === theme.id;
+                    const isQuantumCurrency = theme.currency === 'quantum_fragments';
                     const isDuelCurrency = theme.currency === 'duel_coins';
-                    const canAfford = isAdmin || (isDuelCurrency ? currentDuelTokens >= theme.price : currentTokens >= theme.price);
+                    const canAfford = isAdmin || (
+                      isQuantumCurrency ? currentQuantumFragments >= theme.price :
+                      isDuelCurrency ? currentDuelTokens >= theme.price :
+                      currentTokens >= theme.price
+                    );
 
                     return (
                       <div
@@ -920,6 +1145,11 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                               {isEquipped && (
                                 <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40 flex items-center gap-1">
                                   <Check className="w-3 h-3" /> Ativo
+                                </span>
+                              )}
+                              {isQuantumCurrency && (
+                                <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 flex items-center gap-1 shadow-[0_0_8px_rgba(6,182,212,0.25)]">
+                                  <Sparkles className="w-3 h-3 text-cyan-400" /> Quântico 🌌
                                 </span>
                               )}
                               {isDuelCurrency && (
@@ -956,6 +1186,11 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                           <span className="text-xs font-mono font-semibold flex items-center gap-1">
                             {theme.price === 0 ? (
                               <span className="text-emerald-400 font-bold">Grátis</span>
+                            ) : isQuantumCurrency ? (
+                              <>
+                                <Sparkles className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
+                                <span className="text-cyan-300 font-bold">{theme.price} Fragmentos</span>
+                              </>
                             ) : isDuelCurrency ? (
                               <>
                                 <Swords className="w-3.5 h-3.5 text-rose-400" />
@@ -979,7 +1214,9 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                                 : isUnlocked
                                 ? 'bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-600'
                                 : canAfford
-                                ? isDuelCurrency
+                                ? isQuantumCurrency
+                                  ? 'bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-black shadow-[0_0_12px_rgba(6,182,212,0.4)]'
+                                  : isDuelCurrency
                                   ? 'bg-rose-600 hover:bg-rose-500 text-white font-black shadow-[0_0_12px_rgba(244,63,94,0.35)]'
                                   : 'bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black shadow-[0_0_12px_rgba(245,158,11,0.3)]'
                                 : 'bg-zinc-900 text-zinc-500 border border-zinc-800 opacity-60'
@@ -995,12 +1232,24 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                             ) : canAfford ? (
                               <>
                                 <Sparkles className="w-3.5 h-3.5 fill-current" />
-                                <span>{isAdmin ? 'Desbloquear (ADM)' : `Desbloquear (${theme.price} ${isDuelCurrency ? 'Moedas' : 'Tks'})`}</span>
+                                <span>
+                                  {isAdmin
+                                    ? 'Desbloquear (ADM)'
+                                    : `Desbloquear (${theme.price} ${
+                                        isQuantumCurrency ? 'Fragmentos' : isDuelCurrency ? 'Moedas' : 'Tks'
+                                      })`}
+                                </span>
                               </>
                             ) : (
                               <>
                                 <Lock className="w-3 h-3 text-zinc-500" />
-                                <span>{isDuelCurrency ? 'Faltam Moedas' : 'Faltam Tokens'}</span>
+                                <span>
+                                  {isQuantumCurrency
+                                    ? 'Faltam Fragmentos'
+                                    : isDuelCurrency
+                                    ? 'Faltam Moedas'
+                                    : 'Faltam Tokens'}
+                                </span>
                               </>
                             )}
                           </button>
@@ -1016,16 +1265,22 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
                 {Object.values(BYTEZINHO_SKINS)
                   .filter(skin => {
-                    const isDuel = skin.currency === 'duel_coins';
-                    if (currencyFilter === 'tokens') return !isDuel;
-                    if (currencyFilter === 'duel_coins') return isDuel;
+                    const itemCurrency = skin.currency || 'tokens';
+                    if (currencyFilter === 'tokens') return itemCurrency === 'tokens';
+                    if (currencyFilter === 'duel_coins') return itemCurrency === 'duel_coins';
+                    if (currencyFilter === 'quantum_fragments') return itemCurrency === 'quantum_fragments';
                     return true;
                   })
                   .map(skin => {
                     const isUnlocked = cosmetics.unlockedSkins.includes(skin.id);
                     const isEquipped = cosmetics.equippedSkin === skin.id;
+                    const isQuantumCurrency = skin.currency === 'quantum_fragments';
                     const isDuelCurrency = skin.currency === 'duel_coins';
-                    const canAfford = isAdmin || (isDuelCurrency ? currentDuelTokens >= skin.price : currentTokens >= skin.price);
+                    const canAfford = isAdmin || (
+                      isQuantumCurrency ? currentQuantumFragments >= skin.price :
+                      isDuelCurrency ? currentDuelTokens >= skin.price :
+                      currentTokens >= skin.price
+                    );
 
                     return (
                       <div
@@ -1042,10 +1297,13 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                         <div className="relative w-full h-28 bg-[#090b10] rounded-lg border border-zinc-800/80 flex items-center justify-center overflow-hidden">
                           <BytezinhoAvatar skin={skin.id} size="lg" interactive />
                           <span className={`absolute top-2 right-2 text-[10px] font-mono px-2 py-0.5 rounded-full border flex items-center gap-1 ${
-                            isDuelCurrency
+                            isQuantumCurrency
+                              ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40 font-bold shadow-[0_0_8px_rgba(6,182,212,0.25)]'
+                              : isDuelCurrency
                               ? 'bg-rose-500/20 text-rose-300 border-rose-500/40 font-bold'
                               : 'bg-zinc-800/90 text-zinc-300 border-zinc-700/60'
                           }`}>
+                            {isQuantumCurrency && <Sparkles className="w-3 h-3 text-cyan-400" />}
                             {isDuelCurrency && <Swords className="w-3 h-3 text-rose-400" />}
                             {skin.tag}
                           </span>
@@ -1074,6 +1332,11 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                           <span className="text-xs font-mono font-semibold flex items-center gap-1">
                             {skin.price === 0 ? (
                               <span className="text-emerald-400 font-bold">Padrão</span>
+                            ) : isQuantumCurrency ? (
+                              <>
+                                <Sparkles className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
+                                <span className="text-cyan-300 font-bold">{skin.price} Fragmentos</span>
+                              </>
                             ) : isDuelCurrency ? (
                               <>
                                 <Swords className="w-3.5 h-3.5 text-rose-400" />
@@ -1097,7 +1360,9 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                                 : isUnlocked
                                 ? 'bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-600'
                                 : canAfford
-                                ? isDuelCurrency
+                                ? isQuantumCurrency
+                                  ? 'bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-black shadow-[0_0_12px_rgba(6,182,212,0.4)]'
+                                  : isDuelCurrency
                                   ? 'bg-rose-600 hover:bg-rose-500 text-white font-black shadow-[0_0_12px_rgba(244,63,94,0.35)]'
                                   : 'bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black shadow-[0_0_12px_rgba(245,158,11,0.3)]'
                                 : 'bg-zinc-900 text-zinc-500 border border-zinc-800 opacity-60'
@@ -1113,12 +1378,24 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                             ) : canAfford ? (
                               <>
                                 <Sparkles className="w-3.5 h-3.5 fill-current" />
-                                <span>{isAdmin ? 'Desbloquear (ADM)' : `Desbloquear (${skin.price} ${isDuelCurrency ? 'Moedas' : 'Tks'})`}</span>
+                                <span>
+                                  {isAdmin
+                                    ? 'Desbloquear (ADM)'
+                                    : `Desbloquear (${skin.price} ${
+                                        isQuantumCurrency ? 'Fragmentos' : isDuelCurrency ? 'Moedas' : 'Tks'
+                                      })`}
+                                </span>
                               </>
                             ) : (
                               <>
                                 <Lock className="w-3 h-3 text-zinc-500" />
-                                <span>{isDuelCurrency ? 'Faltam Moedas' : 'Faltam Tokens'}</span>
+                                <span>
+                                  {isQuantumCurrency
+                                    ? 'Faltam Fragmentos'
+                                    : isDuelCurrency
+                                    ? 'Faltam Moedas'
+                                    : 'Faltam Tokens'}
+                                </span>
                               </>
                             )}
                           </button>
@@ -1134,16 +1411,22 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 {Object.values(KEY_SOUNDS)
                   .filter(sound => {
-                    const isDuel = sound.currency === 'duel_coins';
-                    if (currencyFilter === 'tokens') return !isDuel;
-                    if (currencyFilter === 'duel_coins') return isDuel;
+                    const itemCurrency = sound.currency || 'tokens';
+                    if (currencyFilter === 'tokens') return itemCurrency === 'tokens';
+                    if (currencyFilter === 'duel_coins') return itemCurrency === 'duel_coins';
+                    if (currencyFilter === 'quantum_fragments') return itemCurrency === 'quantum_fragments';
                     return true;
                   })
                   .map(sound => {
                     const isUnlocked = cosmetics.unlockedSounds.includes(sound.id);
                     const isEquipped = cosmetics.equippedSound === sound.id;
+                    const isQuantumCurrency = sound.currency === 'quantum_fragments';
                     const isDuelCurrency = sound.currency === 'duel_coins';
-                    const canAfford = isAdmin || (isDuelCurrency ? currentDuelTokens >= sound.price : currentTokens >= sound.price);
+                    const canAfford = isAdmin || (
+                      isQuantumCurrency ? currentQuantumFragments >= sound.price :
+                      isDuelCurrency ? currentDuelTokens >= sound.price :
+                      currentTokens >= sound.price
+                    );
                     const isTesting = playingPreview === sound.id;
 
                     return (
@@ -1165,6 +1448,11 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                               {isEquipped && (
                                 <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40">
                                   Ativo
+                                </span>
+                              )}
+                              {isQuantumCurrency && (
+                                <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 flex items-center gap-1 shadow-[0_0_8px_rgba(6,182,212,0.25)]">
+                                  <Sparkles className="w-3 h-3 text-cyan-400" /> Quântico 🌌
                                 </span>
                               )}
                               {isDuelCurrency && (
@@ -1205,6 +1493,11 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                           <span className="text-xs font-mono font-semibold flex items-center gap-1">
                             {sound.price === 0 ? (
                               <span className="text-emerald-400 font-bold">Padrão</span>
+                            ) : isQuantumCurrency ? (
+                              <>
+                                <Sparkles className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
+                                <span className="text-cyan-300 font-bold">{sound.price} Fragmentos</span>
+                              </>
                             ) : isDuelCurrency ? (
                               <>
                                 <Swords className="w-3.5 h-3.5 text-rose-400" />
@@ -1228,7 +1521,9 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                                 : isUnlocked
                                 ? 'bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-600'
                                 : canAfford
-                                ? isDuelCurrency
+                                ? isQuantumCurrency
+                                  ? 'bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-black shadow-[0_0_12px_rgba(6,182,212,0.4)]'
+                                  : isDuelCurrency
                                   ? 'bg-rose-600 hover:bg-rose-500 text-white font-black shadow-[0_0_12px_rgba(244,63,94,0.35)]'
                                   : 'bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black shadow-[0_0_12px_rgba(245,158,11,0.3)]'
                                 : 'bg-zinc-900 text-zinc-500 border border-zinc-800 opacity-60'
@@ -1244,12 +1539,24 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                             ) : canAfford ? (
                               <>
                                 <Sparkles className="w-3.5 h-3.5 fill-current" />
-                                <span>{isAdmin ? 'Desbloquear (ADM)' : `Desbloquear (${sound.price} ${isDuelCurrency ? 'Moedas' : 'Tks'})`}</span>
+                                <span>
+                                  {isAdmin
+                                    ? 'Desbloquear (ADM)'
+                                    : `Desbloquear (${sound.price} ${
+                                        isQuantumCurrency ? 'Fragmentos' : isDuelCurrency ? 'Moedas' : 'Tks'
+                                      })`}
+                                </span>
                               </>
                             ) : (
                               <>
                                 <Lock className="w-3 h-3 text-zinc-500" />
-                                <span>{isDuelCurrency ? 'Faltam Moedas' : 'Faltam Tokens'}</span>
+                                <span>
+                                  {isQuantumCurrency
+                                    ? 'Faltam Fragmentos'
+                                    : isDuelCurrency
+                                    ? 'Faltam Moedas'
+                                    : 'Faltam Tokens'}
+                                </span>
                               </>
                             )}
                           </button>
@@ -1265,16 +1572,22 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 {Object.values(ANIMATION_CONFIGS)
                   .filter(anim => {
-                    const isDuel = anim.currency === 'duel_coins';
-                    if (currencyFilter === 'tokens') return !isDuel;
-                    if (currencyFilter === 'duel_coins') return isDuel;
+                    const itemCurrency = anim.currency || 'tokens';
+                    if (currencyFilter === 'tokens') return itemCurrency === 'tokens';
+                    if (currencyFilter === 'duel_coins') return itemCurrency === 'duel_coins';
+                    if (currencyFilter === 'quantum_fragments') return itemCurrency === 'quantum_fragments';
                     return true;
                   })
                   .map((anim) => {
                     const isUnlocked = cosmetics.unlockedAnimations?.includes(anim.id) ?? (anim.id === 'confetti_classic');
                     const isEquipped = (cosmetics.equippedAnimation || 'confetti_classic') === anim.id;
+                    const isQuantumCurrency = anim.currency === 'quantum_fragments';
                     const isDuelCurrency = anim.currency === 'duel_coins';
-                    const canAfford = isAdmin || (isDuelCurrency ? currentDuelTokens >= anim.price : currentTokens >= anim.price);
+                    const canAfford = isAdmin || (
+                      isQuantumCurrency ? currentQuantumFragments >= anim.price :
+                      isDuelCurrency ? currentDuelTokens >= anim.price :
+                      currentTokens >= anim.price
+                    );
                     const isTesting = testingAnimationId === anim.id;
 
                     return (
@@ -1299,6 +1612,11 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                               {isEquipped && (
                                 <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40 flex items-center gap-1">
                                   <Check className="w-3 h-3" /> Ativo
+                                </span>
+                              )}
+                              {isQuantumCurrency && (
+                                <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 flex items-center gap-1 shadow-[0_0_8px_rgba(6,182,212,0.25)]">
+                                  <Sparkles className="w-3 h-3 text-cyan-400" /> Quântico 🌌
                                 </span>
                               )}
                               {isDuelCurrency && (
@@ -1368,6 +1686,11 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                           <span className="text-xs font-mono font-semibold flex items-center gap-1">
                             {anim.price === 0 ? (
                               <span className="text-emerald-400 font-bold">Padrão Grátis</span>
+                            ) : isQuantumCurrency ? (
+                              <>
+                                <Sparkles className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
+                                <span className="text-cyan-300 font-bold">{anim.price} Fragmentos</span>
+                              </>
                             ) : isDuelCurrency ? (
                               <>
                                 <Swords className="w-3.5 h-3.5 text-rose-400" />
@@ -1391,7 +1714,9 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                                 : isUnlocked
                                 ? 'bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-600'
                                 : canAfford
-                                ? isDuelCurrency
+                                ? isQuantumCurrency
+                                  ? 'bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-black shadow-[0_0_12px_rgba(6,182,212,0.4)]'
+                                  : isDuelCurrency
                                   ? 'bg-rose-600 hover:bg-rose-500 text-white font-black shadow-[0_0_12px_rgba(244,63,94,0.35)]'
                                   : 'bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black shadow-[0_0_12px_rgba(245,158,11,0.3)]'
                                 : 'bg-zinc-900 text-zinc-500 border border-zinc-800 opacity-60'
@@ -1407,12 +1732,24 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                             ) : canAfford ? (
                               <>
                                 <Sparkles className="w-3.5 h-3.5 fill-current" />
-                                <span>{isAdmin ? 'Desbloquear (ADM)' : `Desbloquear (${anim.price} ${isDuelCurrency ? 'Moedas' : 'Tks'})`}</span>
+                                <span>
+                                  {isAdmin
+                                    ? 'Desbloquear (ADM)'
+                                    : `Desbloquear (${anim.price} ${
+                                        isQuantumCurrency ? 'Fragmentos' : isDuelCurrency ? 'Moedas' : 'Tks'
+                                      })`}
+                                </span>
                               </>
                             ) : (
                               <>
                                 <Lock className="w-3 h-3 text-zinc-500" />
-                                <span>{isDuelCurrency ? 'Faltam Moedas' : 'Faltam Tokens'}</span>
+                                <span>
+                                  {isQuantumCurrency
+                                    ? 'Faltam Fragmentos'
+                                    : isDuelCurrency
+                                    ? 'Faltam Moedas'
+                                    : 'Faltam Tokens'}
+                                </span>
                               </>
                             )}
                           </button>

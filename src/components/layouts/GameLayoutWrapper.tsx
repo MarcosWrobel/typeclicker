@@ -15,6 +15,7 @@ import { StarWarsCockpitLayout } from './StarWarsCockpitLayout';
 import { MinecraftBlockLayout } from './MinecraftBlockLayout';
 import { ShonenCombatLayout } from './ShonenCombatLayout';
 import { MushroomKingdomLayout } from './MushroomKingdomLayout';
+import { QuantumMythicLayout } from './QuantumMythicLayout';
 
 export interface GameLayoutWrapperProps extends BaseLayoutProps {
   layoutId?: LayoutSkinId;
@@ -25,6 +26,33 @@ export const GameLayoutWrapper: React.FC<GameLayoutWrapperProps> = ({
   footer,
   ...props
 }) => {
+  const isCustomThemedLayout = [
+    'arcade_cabinet',
+    'zen_focus',
+    'bios_dos',
+    'cyber_deck',
+    'ide_developer',
+    'space_station',
+    'steampunk_lab',
+    'retro_mac_classic',
+    'speedrun_arena',
+    'school_chalkboard',
+    'star_wars_cockpit',
+    'minecraft_block',
+    'shonen_combat',
+    'mushroom_kingdom',
+    'infinite_void_realm',
+    'pirate_deck',
+    'judgment_hall',
+    'edgerunner_rig',
+    'slayer_dojo',
+    'pocket_console',
+    'manga_action',
+    'hollow_ruins',
+    'green_hills_zone',
+    'bat_cave_tactical',
+  ].includes(layoutId);
+
   const renderLayout = () => {
     switch (layoutId) {
       case 'arcade_cabinet':
@@ -55,13 +83,24 @@ export const GameLayoutWrapper: React.FC<GameLayoutWrapperProps> = ({
         return <ShonenCombatLayout {...props} />;
       case 'mushroom_kingdom':
         return <MushroomKingdomLayout {...props} />;
+      case 'infinite_void_realm':
+      case 'pirate_deck':
+      case 'judgment_hall':
+      case 'edgerunner_rig':
+      case 'slayer_dojo':
+      case 'pocket_console':
+      case 'manga_action':
+      case 'hollow_ruins':
+      case 'green_hills_zone':
+      case 'bat_cave_tactical':
+        return <QuantumMythicLayout layoutId={layoutId} {...props} />;
       case 'default_terminal':
       default:
         return <TerminalLayout footer={footer} {...props} />;
     }
   };
 
-  if (layoutId === 'default_terminal') {
+  if (!isCustomThemedLayout) {
     return renderLayout();
   }
 

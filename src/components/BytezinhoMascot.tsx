@@ -136,10 +136,12 @@ export const BytezinhoMascot: React.FC<BytezinhoMascotProps> = ({
         <BytezinhoAvatar
           skin={skin}
           mood={mood}
+          state={isOverloaded ? 'overload' : mood === 'oops' ? 'error' : comboStreak >= 8 ? 'combo' : comboStreak > 0 ? 'typing' : 'idle'}
           size="md"
           isOverloaded={isOverloaded}
           isOverheating={isOverheating || isOverloaded || isDraining}
           isTyping={comboStreak > 0}
+          comboCount={comboStreak}
         />
 
         {/* Badge do Nome */}

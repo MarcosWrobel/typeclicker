@@ -265,6 +265,212 @@ export const TerminalThemeEffects: React.FC<TerminalThemeEffectsProps> = ({
           <div className="absolute inset-0 opacity-[0.03] bg-[radial-gradient(#87cf3e_1px,transparent_1px)] [background-size:12px_12px]" />
         </div>
       )}
+
+      {/* 12. TEMAS QUÂNTICOS / ENDGAME */}
+      {themeId === 'infinite_void' && (
+        <div className="absolute inset-0 overflow-hidden">
+          <motion.div
+            className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(168,85,247,0.18),transparent_50%),radial-gradient(circle_at_bottom,rgba(59,130,246,0.18),transparent_60%)]"
+            animate={{ opacity: [0.35, 0.75, 0.35], scale: [1, 1.08, 1] }}
+            transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
+          />
+          {[...Array(14)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute h-20 w-20 rounded-full border border-violet-300/40 bg-violet-400/10 blur-sm"
+              style={{ left: `${(i * 7) % 100}%`, top: `${(i * 11) % 100}%` }}
+              animate={{
+                x: [0, (i % 2 === 0 ? 18 : -18), 0],
+                y: [0, (i % 3 === 0 ? -20 : 20), 0],
+                scale: [0.9, 1.25, 0.9],
+                opacity: [0.2, 0.7, 0.2],
+              }}
+              transition={{ duration: 4 + (i % 4), repeat: Infinity, ease: 'easeInOut', delay: i * 0.2 }}
+            />
+          ))}
+        </div>
+      )}
+
+      {themeId === 'gear_second' && (
+        <div className="absolute inset-0 overflow-hidden">
+          <motion.div
+            className="absolute -inset-x-8 bottom-0 h-28 bg-gradient-to-t from-amber-500/10 via-red-500/10 to-transparent"
+            animate={{ opacity: [0.25, 0.7, 0.25] }}
+            transition={{ duration: 2.8, repeat: Infinity }}
+          />
+          {[...Array(10)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute bottom-2 w-24 h-0.5 rounded-full bg-gradient-to-r from-transparent via-amber-400 to-transparent"
+              style={{ left: `${i * 10}%` }}
+              animate={{
+                scaleX: [0.4, 1.3, 0.4],
+                opacity: [0.15, 0.8, 0.15],
+                y: [0, -12, 0],
+              }}
+              transition={{ duration: 1.6 + i * 0.15, repeat: Infinity, ease: 'easeInOut', delay: i * 0.15 }}
+            />
+          ))}
+        </div>
+      )}
+
+      {themeId === 'bad_time_retro' && (
+        <div className="absolute inset-0 overflow-hidden">
+          <motion.div
+            className="absolute inset-0 opacity-20 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),transparent_30%,rgba(255,255,255,0.05)_60%,transparent)]"
+            animate={{ x: [-20, 20, -20] }}
+            transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
+          />
+          <div className="absolute inset-0 opacity-[0.09] bg-[repeating-linear-gradient(0deg,#000,#000_2px,transparent_2px,transparent_4px)]" />
+          {[...Array(9)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute w-24 h-0.5 bg-white/50"
+              style={{ left: `${i * 11}%`, top: `${(i * 13) % 100}%` }}
+              animate={{
+                rotate: [0, 14, -12, 0],
+                opacity: [0.15, 0.8, 0.15],
+                x: [0, i % 2 === 0 ? 20 : -20, 0],
+              }}
+              transition={{ duration: 2.5 + i * 0.2, repeat: Infinity, ease: 'easeInOut' }}
+            />
+          ))}
+        </div>
+      )}
+
+      {themeId === 'sandevistan_overdrive' && (
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute inset-0 opacity-25 bg-[linear-gradient(90deg,transparent,rgba(34,211,238,0.4),transparent)]" />
+          <div className="absolute inset-0 opacity-20 bg-[linear-gradient(to_right,rgba(34,211,238,0.35)_1px,transparent_1px),linear-gradient(to_bottom,rgba(34,211,238,0.25)_1px,transparent_1px)] [background-size:18px_18px]" />
+          {[...Array(12)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute w-16 h-1 rounded-full bg-cyan-300/70 blur-[1px]"
+              style={{ left: `${i * 8}%`, top: `${(i * 9 + 8) % 100}%` }}
+              animate={{
+                x: [0, 30, 0],
+                opacity: [0.2, 0.9, 0.2],
+                scaleX: [0.5, 1.4, 0.5],
+              }}
+              transition={{ duration: 1.8 + i * 0.15, repeat: Infinity, ease: 'easeInOut' }}
+            />
+          ))}
+        </div>
+      )}
+
+      {themeId === 'sun_breathing' && (
+        <div className="absolute inset-0 overflow-hidden">
+          {[...Array(14)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute h-16 w-16 rounded-full bg-gradient-to-r from-red-500/15 via-orange-400/20 to-yellow-300/0 blur-xl"
+              style={{ left: `${(i * 7 + 5) % 100}%`, top: `${(i * 11 + 8) % 100}%` }}
+              animate={{
+                scale: [0.8, 1.5, 0.8],
+                opacity: [0.2, 0.75, 0.2],
+                y: [0, -30, 0],
+              }}
+              transition={{ duration: 2.8 + i * 0.2, repeat: Infinity, ease: 'easeInOut' }}
+            />
+          ))}
+        </div>
+      )}
+
+      {themeId === 'electric_thunder' && (
+        <div className="absolute inset-0 overflow-hidden">
+          {[...Array(16)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute h-12 w-24 rounded-full bg-gradient-to-r from-cyan-200/0 via-cyan-300/70 to-cyan-200/0"
+              style={{
+                left: `${(i * 6.5) % 100}%`,
+                top: `${(i * 11 + 10) % 100}%`,
+                transform: `rotate(${(i % 4) * 18 - 28}deg)`,
+              }}
+              animate={{
+                opacity: [0.1, 0.95, 0.1],
+                scaleX: [0.2, 1.2, 0.2],
+                scaleY: [0.8, 1.1, 0.8],
+              }}
+              transition={{ duration: 1.5 + i * 0.08, repeat: Infinity, ease: 'easeInOut' }}
+            />
+          ))}
+        </div>
+      )}
+
+      {themeId === 'serious_punch' && (
+        <div className="absolute inset-0 overflow-hidden">
+          {[...Array(8)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute left-1/2 top-1/2 h-32 w-32 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/30 bg-white/5"
+              animate={{
+                scale: [0.6, 1.5, 0.8],
+                opacity: [0.1, 0.8, 0.1],
+              }}
+              transition={{ duration: 1.9 + i * 0.18, repeat: Infinity, ease: 'easeOut', delay: i * 0.18 }}
+            />
+          ))}
+        </div>
+      )}
+
+      {themeId === 'abyssal_vessel' && (
+        <div className="absolute inset-0 overflow-hidden">
+          {[...Array(18)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute w-2 h-2 rounded-full bg-sky-200/80 shadow-[0_0_12px_rgba(125,211,252,0.9)]"
+              style={{ left: `${(i * 11 + 4) % 100}%`, top: `${(i * 9 + 7) % 100}%` }}
+              animate={{
+                y: [0, -18, 0],
+                opacity: [0.2, 0.9, 0.2],
+                scale: [0.6, 1.4, 0.6],
+              }}
+              transition={{ duration: 2.8 + i * 0.12, repeat: Infinity, ease: 'easeInOut' }}
+            />
+          ))}
+        </div>
+      )}
+
+      {themeId === 'supersonic_speed' && (
+        <div className="absolute inset-0 overflow-hidden">
+          {[...Array(8)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute left-1/2 top-1/2 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-yellow-300/50"
+              animate={{
+                scale: [0.7, 1.8, 0.7],
+                opacity: [0.15, 0.9, 0.15],
+                rotate: [0, 180, 360],
+              }}
+              transition={{ duration: 2.4 + i * 0.2, repeat: Infinity, ease: 'linear' }}
+            />
+          ))}
+        </div>
+      )}
+
+      {themeId === 'dark_detective' && (
+        <div className="absolute inset-0 overflow-hidden">
+          <motion.div
+            className="absolute inset-y-0 left-1/2 w-48 -translate-x-1/2 bg-[radial-gradient(circle_at_center,rgba(245,158,11,0.18),transparent_55%)]"
+            animate={{ opacity: [0.15, 0.55, 0.15], scaleX: [0.7, 1.2, 0.7] }}
+            transition={{ duration: 3.6, repeat: Infinity, ease: 'easeInOut' }}
+          />
+          {[...Array(12)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute w-1.5 h-1.5 rounded-full bg-amber-300/80"
+              style={{ left: `${(i * 8 + 6) % 100}%`, top: `${(i * 12 + 8) % 100}%` }}
+              animate={{
+                scale: [0.5, 1.5, 0.5],
+                opacity: [0.15, 0.9, 0.15],
+                x: [0, i % 2 === 0 ? 16 : -16, 0],
+              }}
+              transition={{ duration: 2.2 + i * 0.18, repeat: Infinity, ease: 'easeInOut' }}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 };
