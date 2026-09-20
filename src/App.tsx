@@ -28,6 +28,7 @@ import { SessionLockOverlay } from './components/SessionLockOverlay';
 import { LevelUpOverlay } from './components/LevelUpOverlay';
 import { PauseOverlay } from './components/PauseOverlay';
 import { ChallengeArena } from './components/ChallengeArena';
+import { QuantumConverterModal } from './components/QuantumConverterModal';
 import { calculatePlayerRank, formatBytes } from './utils/formatting';
 import { auth, loginWithGoogle, logoutUser, subscribeToAuthChanges, loadProgressFromCloud, saveProgressToCloud, checkIsAdminAsync, checkIsSuperAdmin, getSystemSettings, subscribeToSystemSettings, claimPendingTestGrants } from './services/firebaseService';
 import { isCategoryAllowed, getMinAllowedCategoryLevel } from './utils/difficulty';
@@ -49,6 +50,7 @@ export default function App() {
   const [isStudentModalOpen, setIsStudentModalOpen] = useState<boolean>(false);
   const [isCosmeticsOpen, setIsCosmeticsOpen] = useState<boolean>(false);
   const [isArenaOpen, setIsArenaOpen] = useState<boolean>(false);
+  const [isConverterOpen, setIsConverterOpen] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [activeChallengeLevel, setActiveChallengeLevel] = useState<number | null>(null);
   
@@ -363,6 +365,7 @@ export default function App() {
         isStudentModalOpen ||
         isCosmeticsOpen ||
         isArenaOpen ||
+        isConverterOpen ||
         isAdminOpen ||
         activeChallengeLevel !== null ||
         (isAppLocked && !isAdmin)
@@ -386,6 +389,7 @@ export default function App() {
     isStudentModalOpen,
     isCosmeticsOpen,
     isArenaOpen,
+    isConverterOpen,
     isAdminOpen,
     activeChallengeLevel,
     isAppLocked,
@@ -612,6 +616,7 @@ export default function App() {
         isLeaderboardOpen ||
         isStudentModalOpen ||
         isCosmeticsOpen ||
+        isConverterOpen ||
         isAdminOpen ||
         activeChallengeLevel !== null
       ) {
@@ -685,6 +690,7 @@ export default function App() {
     isLeaderboardOpen,
     isStudentModalOpen,
     isCosmeticsOpen,
+    isConverterOpen,
     isAdminOpen,
     activeChallengeLevel
   ]);
@@ -994,6 +1000,31 @@ export default function App() {
     spawnFloatingText('DESAFIO FALHOU!', 'error');
   }, [spawnFloatingText]);
 
+  // Handler de Conversão de Bytes para Fragmentos Quânticos (3ª Moeda • Nível 100)
+  const handleConvertBytesToFragments = useCallback((bytesSpent: number, fragmentsGained: number) => {
+    setState((prev) => {
+      if (prev.bytes < bytesSpent) return prev;
+      const currentCosmetics = prev.cosmetics || { ...DEFAULT_COSMETICS };
+      const updatedCosmetics: PlayerCosmetics = {
+        ...currentCosmetics,
+        quantumFragments: (currentCosmetics.quantumFragments || 0) + fragmentsGained
+      };
+
+      const newState: GameState = {
+        ...prev,
+        bytes: Math.max(0, prev.bytes - bytesSpent),
+        cosmetics: updatedCosmetics
+      };
+
+      if (user) {
+        saveState(newState, user.uid);
+      }
+      return newState;
+    });
+
+    spawnFloatingText(`🌌 +${fragmentsGained} FRAGMENTO${fragmentsGained > 1 ? 'S' : ''} QUÂNTICO${fragmentsGained > 1 ? 'S' : ''}!`, 'bonus');
+  }, [user, spawnFloatingText]);
+
   const handleArenaReward = useCallback((
     isWinner: boolean,
     highestWpm: number,
@@ -1206,7 +1237,9 @@ export default function App() {
             onOpenCosmetics={() => setIsCosmeticsOpen(true)}
             onOpenLeaderboard={() => setIsLeaderboardOpen(true)}
             onOpenArena={() => setIsArenaOpen(true)}
+            onOpenConverter={() => setIsConverterOpen(true)}
             levelTokens={state.cosmetics?.levelTokens ?? 0}
+            quantumFragments={state.cosmetics?.quantumFragments ?? 0}
             isAdmin={isAdmin}
           />
         }
@@ -1323,6 +1356,17 @@ export default function App() {
         duelTokens={currentCosmetics.duelTokens ?? 0}
         isAdmin={isAdmin}
         onMatchReward={handleArenaReward}
+      />
+
+      {/* Forja Quântica (Conversão de Bytes para 3ª Moeda • Nível 100) */}
+      <QuantumConverterModal
+        isOpen={isConverterOpen}
+        onClose={() => setIsConverterOpen(false)}
+        playerRankLevel={playerRank.level}
+        currentBytes={state.bytes}
+        quantumFragments={currentCosmetics.quantumFragments ?? 0}
+        onConvertBytes={handleConvertBytesToFragments}
+        isAdmin={isAdmin}
       />
 
       {/* Admin Panel */}

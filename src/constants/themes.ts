@@ -343,7 +343,8 @@ export const TERMINAL_THEMES: Record<TerminalThemeId, TerminalThemeConfig> = {
     name: 'Mestre Dourado',
     subtitle: 'Glória Real Nível 100',
     description: 'Ouro nobre cintilante com partículas de pó estelar ascendentes reservado aos grandes mestres.',
-    price: 6,
+    price: 15,
+    currency: 'quantum_fragments',
     effectType: 'golden_sparkles',
     previewColors: {
       bg: '#120f06',
@@ -634,9 +635,10 @@ export const BYTEZINHO_SKINS: Record<BytezinhoSkinId, SkinItemConfig> = {
     name: 'Rei dos Bytes',
     subtitle: 'Coroa Imperial Nível 100',
     description: 'Coroa de ouro nobre com rubis lapidados, aura de realeza e brilho de prestígio imperial.',
-    price: 5,
+    price: 20,
+    currency: 'quantum_fragments',
     icon: '👑',
-    tag: 'Real',
+    tag: 'Quântico',
     animationDescription: 'Halo de luz dourada e postura majestosa',
   },
   diver: {

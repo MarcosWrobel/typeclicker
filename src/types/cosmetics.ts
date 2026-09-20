@@ -1,4 +1,4 @@
-export type CosmeticCurrency = 'tokens' | 'duel_coins';
+export type CosmeticCurrency = 'tokens' | 'duel_coins' | 'quantum_fragments';
 
 export type TerminalThemeId =
   | 'matrix'
@@ -85,6 +85,7 @@ export type KeySoundThemeId =
 export interface PlayerCosmetics {
   levelTokens: number;
   duelTokens: number; // Moedas de Duelo (Arena Coins ⚔️)
+  quantumFragments: number; // Fragmentos Quânticos / Matéria Escura (Endgame Lvl 100 🌌)
   unlockedLayouts: LayoutSkinId[];
   unlockedThemes: TerminalThemeId[];
   unlockedSkins: BytezinhoSkinId[];
@@ -102,6 +103,7 @@ export interface PlayerCosmetics {
 export const DEFAULT_COSMETICS: PlayerCosmetics = {
   levelTokens: 0,
   duelTokens: 0,
+  quantumFragments: 0,
   unlockedLayouts: ['default_terminal'],
   unlockedThemes: ['matrix'],
   unlockedSkins: ['classic'],

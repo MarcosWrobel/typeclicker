@@ -203,9 +203,14 @@ export function sanitizeCosmetics(rawCosmetics?: Partial<PlayerCosmetics> | null
     ? Math.floor(rawCosmetics.duelTokens as number)
     : 0;
 
+  const quantumFragments = Number.isFinite(rawCosmetics.quantumFragments) && (rawCosmetics.quantumFragments as number) >= 0
+    ? Math.floor(rawCosmetics.quantumFragments as number)
+    : 0;
+
   return {
     levelTokens,
     duelTokens,
+    quantumFragments,
     unlockedLayouts,
     unlockedThemes,
     unlockedSkins,

@@ -44,7 +44,9 @@ interface TypingArenaProps {
   onOpenCosmetics?: () => void;
   onOpenLeaderboard?: () => void;
   onOpenArena?: () => void;
+  onOpenConverter?: () => void;
   levelTokens?: number;
+  quantumFragments?: number;
   isAdmin?: boolean;
 }
 
@@ -120,7 +122,9 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
   onOpenCosmetics,
   onOpenLeaderboard,
   onOpenArena,
+  onOpenConverter,
   levelTokens = 0,
+  quantumFragments = 0,
   isAdmin = false
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -692,6 +696,43 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
               <span>RANKING</span>
             </button>
           )}
+
+          {/* FORJA QUÂNTICA (3ª Moeda • Nível 100) */}
+          {onOpenConverter && (() => {
+            const isConverterUnlocked = playerRankLevel >= 100 || isAdmin;
+            return (
+              <button
+                type="button"
+                onClick={onOpenConverter}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition cursor-pointer group ${
+                  isConverterUnlocked
+                    ? 'bg-gradient-to-r from-cyan-950/80 via-indigo-950/70 to-purple-950/80 hover:from-cyan-900 hover:to-indigo-900 text-cyan-200 hover:text-white border-cyan-500/60 shadow-[0_0_15px_rgba(6,182,212,0.3)]'
+                    : 'bg-zinc-900/70 hover:bg-zinc-800 text-zinc-400 border-zinc-700/60 hover:text-zinc-200'
+                }`}
+                title={
+                  isAdmin
+                    ? '🌌 Forja Quântica (Acesso Liberado para ADM: Converter Bytes em Fragmentos Quânticos)'
+                    : playerRankLevel >= 100
+                    ? '🌌 Forja Quântica (Desbloqueado para Lendas Leopoldina: Converta Bytes em Fragmentos Quânticos!)'
+                    : `🔒 Forja Quântica (Requer Nível 100 • Seu Nível: ${playerRankLevel}/100)`
+                }
+              >
+                <span className={`text-xs ${isConverterUnlocked ? 'animate-pulse' : 'opacity-60'}`}>🌌</span>
+                <span className="tracking-wide">FORJA</span>
+                {quantumFragments > 0 ? (
+                  <span className="flex items-center gap-0.5 px-1.5 py-0.2 rounded-full bg-cyan-500/25 text-cyan-300 border border-cyan-500/40 text-[10px] font-mono font-bold">
+                    <span>{quantumFragments}</span>
+                  </span>
+                ) : isConverterUnlocked ? (
+                  <span className="flex items-center px-1.5 py-0.2 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 text-[9px] font-mono font-bold">
+                    100
+                  </span>
+                ) : (
+                  <Lock className="w-3.5 h-3.5 text-zinc-500 group-hover:text-cyan-400 transition-colors" />
+                )}
+              </button>
+            );
+          })()}
 
           {/* ARENA 1x1 */}
           {onOpenArena && (() => {

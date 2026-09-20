@@ -28,12 +28,13 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
   const [activeTab, setActiveTab] = useState<ShopTab>('themes');
   const [playingPreview, setPlayingPreview] = useState<KeySoundThemeId | null>(null);
   const [testingAnimationId, setTestingAnimationId] = useState<AnimationEffectId | null>(null);
-  const [currencyFilter, setCurrencyFilter] = useState<'all' | 'tokens' | 'duel_coins'>('all');
+  const [currencyFilter, setCurrencyFilter] = useState<'all' | 'tokens' | 'duel_coins' | 'quantum_fragments'>('all');
 
   if (!isOpen) return null;
 
   const currentTokens = cosmetics.levelTokens ?? 0;
   const currentDuelTokens = cosmetics.duelTokens ?? 0;
+  const currentQuantumFragments = cosmetics.quantumFragments ?? 0;
 
   // Ações Exclusivas de Administrador (Marcos Wrobel)
   const handleAdminUnlockAll = () => {
@@ -47,6 +48,7 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
       ...cosmetics,
       levelTokens: (cosmetics.levelTokens ?? 0) + 5000,
       duelTokens: (cosmetics.duelTokens ?? 0) + 5000,
+      quantumFragments: (cosmetics.quantumFragments ?? 0) + 500,
     });
     audioSynthesizer.playUnlockJingle();
   };
@@ -63,7 +65,16 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
       return;
     }
 
-    if (currency === 'duel_coins') {
+    if (currency === 'quantum_fragments') {
+      if (!isAdmin && currentQuantumFragments < price) return;
+      audioSynthesizer.playUnlockJingle();
+      onUpdateCosmetics({
+        ...cosmetics,
+        quantumFragments: isAdmin ? currentQuantumFragments : Math.max(0, currentQuantumFragments - price),
+        unlockedLayouts: [...(cosmetics.unlockedLayouts || ['default_terminal']), layoutId],
+        equippedLayout: layoutId
+      });
+    } else if (currency === 'duel_coins') {
       if (!isAdmin && currentDuelTokens < price) return;
       audioSynthesizer.playUnlockJingle();
       onUpdateCosmetics({
@@ -96,7 +107,16 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
       return;
     }
 
-    if (currency === 'duel_coins') {
+    if (currency === 'quantum_fragments') {
+      if (!isAdmin && currentQuantumFragments < price) return;
+      audioSynthesizer.playUnlockJingle();
+      onUpdateCosmetics({
+        ...cosmetics,
+        quantumFragments: isAdmin ? currentQuantumFragments : Math.max(0, currentQuantumFragments - price),
+        unlockedThemes: [...cosmetics.unlockedThemes, themeId],
+        equippedTheme: themeId
+      });
+    } else if (currency === 'duel_coins') {
       if (!isAdmin && currentDuelTokens < price) return;
       audioSynthesizer.playUnlockJingle();
       onUpdateCosmetics({
@@ -128,7 +148,16 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
       return;
     }
 
-    if (currency === 'duel_coins') {
+    if (currency === 'quantum_fragments') {
+      if (!isAdmin && currentQuantumFragments < price) return;
+      audioSynthesizer.playUnlockJingle();
+      onUpdateCosmetics({
+        ...cosmetics,
+        quantumFragments: isAdmin ? currentQuantumFragments : Math.max(0, currentQuantumFragments - price),
+        unlockedSkins: [...cosmetics.unlockedSkins, skinId],
+        equippedSkin: skinId
+      });
+    } else if (currency === 'duel_coins') {
       if (!isAdmin && currentDuelTokens < price) return;
       audioSynthesizer.playUnlockJingle();
       onUpdateCosmetics({
@@ -161,7 +190,16 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
       return;
     }
 
-    if (currency === 'duel_coins') {
+    if (currency === 'quantum_fragments') {
+      if (!isAdmin && currentQuantumFragments < price) return;
+      audioSynthesizer.playUnlockJingle();
+      onUpdateCosmetics({
+        ...cosmetics,
+        quantumFragments: isAdmin ? currentQuantumFragments : Math.max(0, currentQuantumFragments - price),
+        unlockedSounds: [...cosmetics.unlockedSounds, soundId],
+        equippedSound: soundId
+      });
+    } else if (currency === 'duel_coins') {
       if (!isAdmin && currentDuelTokens < price) return;
       audioSynthesizer.playUnlockJingle();
       onUpdateCosmetics({
@@ -202,7 +240,16 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
       return;
     }
 
-    if (currency === 'duel_coins') {
+    if (currency === 'quantum_fragments') {
+      if (!isAdmin && currentQuantumFragments < price) return;
+      audioSynthesizer.playUnlockJingle();
+      onUpdateCosmetics({
+        ...cosmetics,
+        quantumFragments: isAdmin ? currentQuantumFragments : Math.max(0, currentQuantumFragments - price),
+        unlockedAnimations: [...(cosmetics.unlockedAnimations || ['confetti_classic']), animationId],
+        equippedAnimation: animationId
+      });
+    } else if (currency === 'duel_coins') {
       if (!isAdmin && currentDuelTokens < price) return;
       audioSynthesizer.playUnlockJingle();
       onUpdateCosmetics({

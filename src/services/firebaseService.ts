@@ -60,6 +60,7 @@ export interface TestGrantConfig {
   email: string;
   addLevelTokens?: number;
   addDuelTokens?: number;
+  addQuantumFragments?: number;
   levelAction?: 'add_levels' | 'set_level';
   levelAmount?: number;
   unlockAllCosmetics?: boolean;
@@ -72,12 +73,14 @@ export interface TestGrantConfig {
   resultingLevel?: number;
   resultingLevelTokens?: number;
   resultingDuelTokens?: number;
+  resultingQuantumFragments?: number;
 }
 
 export interface TestGrantPayload {
   email: string;
   addLevelTokens?: number;
   addDuelTokens?: number;
+  addQuantumFragments?: number;
   levelAction?: 'add_levels' | 'set_level';
   levelAmount?: number;
   unlockAllCosmetics?: boolean;
@@ -970,6 +973,7 @@ export async function applyTestResourcesToEmail(
   let resultingLevel = 1;
   let resultingTokens = 0;
   let resultingDuelTokens = 0;
+  let resultingQuantumFragments = 0;
   let appliedDirectly = false;
 
   if (existingSave) {
@@ -997,6 +1001,11 @@ export async function applyTestResourcesToEmail(
   // Adiciona Moedas de Duelo (Arena Coins)
   if (grant.addDuelTokens && grant.addDuelTokens > 0) {
     cosmetics.duelTokens = (cosmetics.duelTokens || 0) + grant.addDuelTokens;
+  }
+
+  // Adiciona Fragmentos Quânticos (Moeda Endgame Nível 100)
+  if (grant.addQuantumFragments && grant.addQuantumFragments > 0) {
+    cosmetics.quantumFragments = (cosmetics.quantumFragments || 0) + grant.addQuantumFragments;
   }
 
   // Desbloqueio completo de cosméticos se solicitado
@@ -1041,6 +1050,7 @@ export async function applyTestResourcesToEmail(
   resultingLevel = finalRank.level;
   resultingTokens = targetSaveState.cosmetics?.levelTokens || 0;
   resultingDuelTokens = targetSaveState.cosmetics?.duelTokens || 0;
+  resultingQuantumFragments = targetSaveState.cosmetics?.quantumFragments || 0;
 
   // Se o save do aluno já existe no Firestore, atualiza imediatamente na nuvem
   if (existingSave) {
@@ -1075,6 +1085,7 @@ export async function applyTestResourcesToEmail(
     email: cleanEmail,
     addLevelTokens: grant.addLevelTokens,
     addDuelTokens: grant.addDuelTokens,
+    addQuantumFragments: grant.addQuantumFragments,
     levelAction: grant.levelAction,
     levelAmount: grant.levelAmount,
     unlockAllCosmetics: grant.unlockAllCosmetics,
@@ -1086,7 +1097,8 @@ export async function applyTestResourcesToEmail(
     appliedDirectlyToSave: appliedDirectly,
     resultingLevel,
     resultingLevelTokens: resultingTokens,
-    resultingDuelTokens: resultingDuelTokens
+    resultingDuelTokens: resultingDuelTokens,
+    resultingQuantumFragments: resultingQuantumFragments
   };
 
   // Atualiza system/settings com a concessão pendente e histórico (audit trail)
@@ -1151,6 +1163,10 @@ export async function claimPendingTestGrants(
     }
     if (grant.addDuelTokens && grant.addDuelTokens > 0) {
       updatedState.cosmetics!.duelTokens = (updatedState.cosmetics!.duelTokens || 0) + grant.addDuelTokens;
+      modified = true;
+    }
+    if (grant.addQuantumFragments && grant.addQuantumFragments > 0) {
+      updatedState.cosmetics!.quantumFragments = (updatedState.cosmetics!.quantumFragments || 0) + grant.addQuantumFragments;
       modified = true;
     }
 
