@@ -33,7 +33,7 @@ import { FocusDrillModal } from './components/FocusDrillModal';
 import { QuantumConverterModal } from './components/QuantumConverterModal';
 import { AchievementToast } from './components/AchievementToast';
 import { AchievementsModal } from './components/AchievementsModal';
-import { checkPendingAchievements, getOverallAchievementsStats } from './services/achievementEngine';
+import { checkPendingAchievements, getOverallAchievementsStats, syncRetroactiveAchievements } from './services/achievementEngine';
 import { AchievementDef, AchievementContext } from './types/achievements';
 import { calculatePlayerRank, formatBytes } from './utils/formatting';
 import { auth, loginWithGoogle, logoutUser, subscribeToAuthChanges, loadProgressFromCloud, saveProgressToCloud, checkIsAdminAsync, checkIsSuperAdmin, getSystemSettings, subscribeToSystemSettings, claimPendingTestGrants } from './services/firebaseService';
@@ -48,6 +48,19 @@ export default function App() {
   const [charIndex, setCharIndex] = useState<number>(0);
   const [isErrorShaking, setIsErrorShaking] = useState<boolean>(false);
   const [floatingTexts, setFloatingTexts] = useState<FloatingText[]>([]);
+
+  // Spawn floating feedback particle
+  const spawnFloatingText = useCallback((text: string, type: 'success' | 'error' | 'bonus' | 'level') => {
+    const id = Date.now() + Math.random();
+    const x = 50 + (Math.random() * 20 - 10);
+    const y = 45 + (Math.random() * 10 - 5);
+    setFloatingTexts((prev) => [...prev.slice(-8), { id, text, x, y, type }]);
+
+    setTimeout(() => {
+      setFloatingTexts((prev) => prev.filter((item) => item.id !== id));
+    }, 900);
+  }, []);
+
   const [isMetricsOpen, setIsMetricsOpen] = useState<boolean>(false);
   const [isPrestigeOpen, setIsPrestigeOpen] = useState<boolean>(false);
   const [isLevelsModalOpen, setIsLevelsModalOpen] = useState<boolean>(false);
@@ -128,6 +141,25 @@ export default function App() {
             }
           }
 
+          // Sincronização retroativa de conquistas na carga da nuvem
+          const retroCloud = syncRetroactiveAchievements(finalState);
+          if (retroCloud.unlockedList.length > 0) {
+            finalState = retroCloud.updatedState;
+            setAchievementQueue((prev) => {
+              const existing = new Set(prev.map((a) => a.id));
+              const fresh = retroCloud.unlockedList.filter((a) => !existing.has(a.id));
+              return [...prev, ...fresh.slice(0, 3)];
+            });
+            sound.playAchievement();
+            if (retroCloud.unlockedList.length > 3) {
+              spawnFloatingText(`🏆 +${retroCloud.unlockedList.length} CONQUISTAS ANTERIORES SINCRONIZADAS!`, 'bonus');
+            }
+            if (retroCloud.bonusFragments > 0) {
+              spawnFloatingText(`✨ +${retroCloud.bonusFragments} Frag. Quânticos!`, 'bonus');
+            }
+            await saveProgressToCloud(finalState);
+          }
+
           setState(finalState);
           saveState(finalState, currentUser.uid);
           setCharIndex(0);
@@ -169,6 +201,24 @@ export default function App() {
             }
           }
 
+          // Sincronização retroativa no carregamento local do aluno
+          const retroLocal = syncRetroactiveAchievements(activeState);
+          if (retroLocal.unlockedList.length > 0) {
+            activeState = retroLocal.updatedState;
+            setAchievementQueue((prev) => {
+              const existing = new Set(prev.map((a) => a.id));
+              const fresh = retroLocal.unlockedList.filter((a) => !existing.has(a.id));
+              return [...prev, ...fresh.slice(0, 3)];
+            });
+            sound.playAchievement();
+            if (retroLocal.unlockedList.length > 3) {
+              spawnFloatingText(`🏆 +${retroLocal.unlockedList.length} CONQUISTAS ANTERIORES SINCRONIZADAS!`, 'bonus');
+            }
+            if (retroLocal.bonusFragments > 0) {
+              spawnFloatingText(`✨ +${retroLocal.bonusFragments} Frag. Quânticos!`, 'bonus');
+            }
+          }
+
           setState(activeState);
           saveState(activeState, currentUser.uid);
           setCharIndex(0);
@@ -189,6 +239,29 @@ export default function App() {
     });
     return () => unsubscribe();
   }, []);
+
+  // Sincronização retroativa de conquistas na inicialização local
+  useEffect(() => {
+    setState((curr) => {
+      const retro = syncRetroactiveAchievements(curr);
+      if (retro.unlockedList.length === 0) return curr;
+
+      setAchievementQueue((prev) => {
+        const existing = new Set(prev.map((a) => a.id));
+        const fresh = retro.unlockedList.filter((a) => !existing.has(a.id));
+        return [...prev, ...fresh.slice(0, 3)];
+      });
+      sound.playAchievement();
+      if (retro.unlockedList.length > 3) {
+        spawnFloatingText(`🏆 +${retro.unlockedList.length} CONQUISTAS ANTERIORES SINCRONIZADAS!`, 'bonus');
+      }
+      if (retro.bonusFragments > 0) {
+        spawnFloatingText(`✨ +${retro.bonusFragments} Frag. Quânticos!`, 'bonus');
+      }
+      saveState(retro.updatedState, auth.currentUser?.uid);
+      return retro.updatedState;
+    });
+  }, [spawnFloatingText]);
 
   // Monitora a sessão globalmente em tempo real
   useEffect(() => {
@@ -312,18 +385,6 @@ export default function App() {
   useEffect(() => {
     sound.setEnabled(state.soundEnabled);
   }, [state.soundEnabled]);
-
-  // Spawn floating feedback particle
-  const spawnFloatingText = useCallback((text: string, type: 'success' | 'error' | 'bonus' | 'level') => {
-    const id = Date.now() + Math.random();
-    const x = 50 + (Math.random() * 20 - 10);
-    const y = 45 + (Math.random() * 10 - 5);
-    setFloatingTexts((prev) => [...prev.slice(-8), { id, text, x, y, type }]);
-
-    setTimeout(() => {
-      setFloatingTexts((prev) => prev.filter((item) => item.id !== id));
-    }, 900);
-  }, []);
 
   // Centralized pause toggling with audio and feedback
   const handleTogglePause = useCallback(() => {
@@ -455,7 +516,15 @@ export default function App() {
 
     sound.playAchievement();
 
-    setAchievementQueue((prev) => [...prev, ...newlyUnlocked]);
+    setAchievementQueue((prev) => {
+      const existing = new Set(prev.map((a) => a.id));
+      const fresh = newlyUnlocked.filter((a) => !existing.has(a.id));
+      return [...prev, ...fresh];
+    });
+
+    if (newlyUnlocked.some((a) => a.isHardcore)) {
+      spawnFloatingText('🔥 DESAFIO ÉPICO CONCLUÍDO!', 'bonus');
+    }
 
     const currentCosmetics = targetState.cosmetics || { ...DEFAULT_COSMETICS };
 
@@ -470,7 +539,7 @@ export default function App() {
         quantumFragments: (currentCosmetics.quantumFragments || 0) + bonusFragments
       }
     };
-  }, []);
+  }, [spawnFloatingText]);
 
   const handleMascotClick = useCallback(() => {
     setState((prev) => {
@@ -1160,10 +1229,29 @@ export default function App() {
       const { bytesPerChar, autoBytesPerSec } = computeBaseRates(next.upgrades);
       next.bytesPerChar = bytesPerChar;
       next.autoBytesPerSec = autoBytesPerSec;
-      saveState(next, auth.currentUser?.uid);
-      return next;
+
+      // Sincronização retroativa de conquistas do save importado
+      const retro = syncRetroactiveAchievements(next);
+      const finalNext = retro.updatedState;
+      if (retro.unlockedList.length > 0) {
+        setAchievementQueue((q) => {
+          const existing = new Set(q.map((a) => a.id));
+          const fresh = retro.unlockedList.filter((a) => !existing.has(a.id));
+          return [...q, ...fresh.slice(0, 3)];
+        });
+        sound.playAchievement();
+        if (retro.unlockedList.length > 3) {
+          spawnFloatingText(`🏆 +${retro.unlockedList.length} CONQUISTAS DO BACKUP SINCRONIZADAS!`, 'bonus');
+        }
+        if (retro.bonusFragments > 0) {
+          spawnFloatingText(`✨ +${retro.bonusFragments} Frag. Quânticos!`, 'bonus');
+        }
+      }
+
+      saveState(finalNext, auth.currentUser?.uid);
+      return finalNext;
     });
-  }, [computeBaseRates]);
+  }, [computeBaseRates, spawnFloatingText]);
 
   // Auto-save silencioso em nuvem (Google Sheets) ao atingir novo nível / marco importante
   const playerRank = calculatePlayerRank(state.totalBytesEarned);

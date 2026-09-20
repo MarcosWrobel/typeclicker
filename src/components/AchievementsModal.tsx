@@ -12,8 +12,9 @@ interface AchievementsModalProps {
   state: GameState;
 }
 
-const CATEGORY_TABS: { id: 'all' | AchievementCategory; label: string; icon: string }[] = [
+const CATEGORY_TABS: { id: 'all' | 'hardcore' | AchievementCategory; label: string; icon: string }[] = [
   { id: 'all', label: 'Todas', icon: '🏆' },
+  { id: 'hardcore', label: 'Desafios Épicos', icon: '🔥' },
   { id: 'speed', label: 'Velocidade & Combo', icon: '⚡' },
   { id: 'volume', label: 'Volume & Dedicação', icon: '📚' },
   { id: 'economy', label: 'Economia & Upgrades', icon: '💰' },
@@ -27,7 +28,7 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({
   onClose,
   state
 }) => {
-  const [selectedCategory, setSelectedCategory] = useState<'all' | AchievementCategory>('all');
+  const [selectedCategory, setSelectedCategory] = useState<'all' | 'hardcore' | AchievementCategory>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
   // ESC para fechar modal
@@ -48,7 +49,9 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({
     return ACHIEVEMENTS_CATALOG.filter((ach) => {
       // Filtro de Categoria
       if (selectedCategory !== 'all') {
-        if (selectedCategory === 'secret') {
+        if (selectedCategory === 'hardcore') {
+          if (!ach.isHardcore) return false;
+        } else if (selectedCategory === 'secret') {
           if (!ach.isSecret) return false;
         } else {
           if (ach.category !== selectedCategory) return false;
@@ -134,6 +137,8 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({
             {CATEGORY_TABS.map((tab) => {
               const count = tab.id === 'all'
                 ? ACHIEVEMENTS_CATALOG.length
+                : tab.id === 'hardcore'
+                ? ACHIEVEMENTS_CATALOG.filter(a => a.isHardcore).length
                 : tab.id === 'secret'
                 ? ACHIEVEMENTS_CATALOG.filter(a => a.isSecret).length
                 : ACHIEVEMENTS_CATALOG.filter(a => a.category === tab.id).length;
@@ -194,9 +199,13 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({
                     key={def.id}
                     className={`relative overflow-hidden rounded-2xl p-4 border transition-all duration-200 flex flex-col justify-between ${
                       prog.isUnlocked
-                        ? 'bg-gradient-to-br from-amber-950/20 via-[#131720] to-[#0c0f16] border-amber-500/50 shadow-[0_0_15px_rgba(245,158,11,0.1)]'
+                        ? def.isHardcore
+                          ? 'bg-gradient-to-br from-cyan-950/30 via-[#121622] to-[#0c0f16] border-cyan-400/60 shadow-[0_0_20px_rgba(6,182,212,0.18)]'
+                          : 'bg-gradient-to-br from-amber-950/20 via-[#131720] to-[#0c0f16] border-amber-500/50 shadow-[0_0_15px_rgba(245,158,11,0.1)]'
                         : isSecretLocked
                         ? 'bg-[#0f0c18]/80 border-purple-900/40 text-zinc-400'
+                        : def.isHardcore
+                        ? 'bg-[#0b121e]/70 border-cyan-900/40 text-zinc-400 hover:border-cyan-700/50'
                         : 'bg-[#10141d]/70 border-zinc-800/80 text-zinc-400 hover:border-zinc-700'
                     }`}
                   >
@@ -205,9 +214,13 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({
                       <div
                         className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl select-none flex-shrink-0 border ${
                           prog.isUnlocked
-                            ? 'bg-gradient-to-br from-amber-500/25 to-amber-600/10 border-amber-400/60 shadow-[0_0_15px_rgba(245,158,11,0.3)] text-3xl'
+                            ? def.isHardcore
+                              ? 'bg-gradient-to-br from-cyan-500/30 to-indigo-600/20 border-cyan-400/70 shadow-[0_0_20px_rgba(6,182,212,0.4)] text-3xl'
+                              : 'bg-gradient-to-br from-amber-500/25 to-amber-600/10 border-amber-400/60 shadow-[0_0_15px_rgba(245,158,11,0.3)] text-3xl'
                             : isSecretLocked
                             ? 'bg-purple-950/30 border-purple-800/40 text-purple-400 text-xl'
+                            : def.isHardcore
+                            ? 'bg-cyan-950/30 border-cyan-800/40 text-cyan-400 text-2xl opacity-80'
                             : 'bg-zinc-800/50 border-zinc-700/50 grayscale opacity-70'
                         }`}
                       >
@@ -215,16 +228,25 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({
                       </div>
 
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-1">
-                          <span className={`text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.2 rounded-full border ${
-                            prog.isUnlocked
-                              ? 'bg-amber-950/60 text-amber-400 border-amber-500/40'
-                              : isSecretLocked
-                              ? 'bg-purple-950/60 text-purple-400 border-purple-800/40'
-                              : 'bg-zinc-800 text-zinc-400 border-zinc-700/40'
-                          }`}>
-                            {isSecretLocked ? 'Secreta' : def.category}
-                          </span>
+                        <div className="flex items-center justify-between gap-1 flex-wrap">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className={`text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.2 rounded-full border ${
+                              prog.isUnlocked
+                                ? 'bg-amber-950/60 text-amber-400 border-amber-500/40'
+                                : isSecretLocked
+                                ? 'bg-purple-950/60 text-purple-400 border-purple-800/40'
+                                : 'bg-zinc-800 text-zinc-400 border-zinc-700/40'
+                            }`}>
+                              {isSecretLocked ? 'Secreta' : def.category}
+                            </span>
+
+                            {def.isHardcore && (
+                              <span className="flex items-center gap-1 text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.2 rounded-full bg-cyan-950/80 text-cyan-300 border border-cyan-500/50 shadow-[0_0_10px_rgba(6,182,212,0.25)]">
+                                <Sparkles className="w-2.5 h-2.5 text-cyan-400 animate-pulse" />
+                                <span>Épica</span>
+                              </span>
+                            )}
+                          </div>
 
                           {prog.isUnlocked && (
                             <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-400 font-mono">
@@ -235,7 +257,9 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({
                         </div>
 
                         <h4 className={`text-sm font-black mt-1 truncate ${
-                          prog.isUnlocked ? 'text-white' : isSecretLocked ? 'text-purple-300' : 'text-zinc-300'
+                          prog.isUnlocked
+                            ? def.isHardcore ? 'text-cyan-200' : 'text-white'
+                            : isSecretLocked ? 'text-purple-300' : 'text-zinc-300'
                         }`}>
                           {isSecretLocked ? 'Conquista Misteriosa' : def.title}
                         </h4>

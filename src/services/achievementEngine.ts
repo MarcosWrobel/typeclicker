@@ -1,6 +1,7 @@
 import { GameState } from '../types';
 import { AchievementDef, AchievementContext } from '../types/achievements';
 import { ACHIEVEMENTS_CATALOG } from '../constants/achievementsCatalog';
+import { DEFAULT_COSMETICS } from '../types/cosmetics';
 
 /**
  * Avalia o catálogo e retorna apenas as conquistas que foram atingidas
@@ -85,3 +86,63 @@ export function getOverallAchievementsStats(state: GameState): {
 
   return { unlocked, total, percent };
 }
+
+export interface RetroactiveSyncResult {
+  updatedState: GameState;
+  unlockedList: AchievementDef[];
+  bonusBytes: number;
+  bonusTokens: number;
+  bonusFragments: number;
+}
+
+/**
+ * Varre o histórico acumulado do aluno (nível, palavras, teclas, combos, cosméticos, duelos)
+ * e registra retroativamente quaisquer conquistas cujos critérios já foram alcançados,
+ * garantindo que alunos antigos ou saves recuperados recebam seus troféus e recompensas.
+ */
+export function syncRetroactiveAchievements(state: GameState): RetroactiveSyncResult {
+  const pending = checkPendingAchievements(state);
+  if (pending.length === 0) {
+    return {
+      updatedState: state,
+      unlockedList: [],
+      bonusBytes: 0,
+      bonusTokens: 0,
+      bonusFragments: 0
+    };
+  }
+
+  let bonusBytes = 0;
+  let bonusTokens = 0;
+  let bonusFragments = 0;
+  const updatedMap = { ...(state.achievements || {}) };
+  const now = Date.now();
+
+  pending.forEach((ach) => {
+    updatedMap[ach.id] = now;
+    if (ach.reward.bytes) bonusBytes += ach.reward.bytes;
+    if (ach.reward.levelTokens) bonusTokens += ach.reward.levelTokens;
+    if (ach.reward.quantumFragments) bonusFragments += ach.reward.quantumFragments;
+  });
+
+  const currentCosmetics = { ...(state.cosmetics || DEFAULT_COSMETICS) };
+  currentCosmetics.levelTokens = (currentCosmetics.levelTokens || 0) + bonusTokens;
+  currentCosmetics.quantumFragments = (currentCosmetics.quantumFragments || 0) + bonusFragments;
+
+  const updatedState: GameState = {
+    ...state,
+    bytes: state.bytes + bonusBytes,
+    totalBytesEarned: state.totalBytesEarned + bonusBytes,
+    achievements: updatedMap,
+    cosmetics: currentCosmetics
+  };
+
+  return {
+    updatedState,
+    unlockedList: pending,
+    bonusBytes,
+    bonusTokens,
+    bonusFragments
+  };
+}
+

@@ -117,6 +117,55 @@ export const ACHIEVEMENTS_CATALOG: AchievementDef[] = [
       };
     }
   },
+  {
+    id: 'combo_500',
+    title: 'Combo Cósmico',
+    description: 'Atinja um combo titânico de 500 caracteres sem errar nenhuma tecla.',
+    category: 'speed',
+    icon: '⚡',
+    isHardcore: true,
+    reward: { bytes: 10000, levelTokens: 2, quantumFragments: 5 },
+    maxProgress: 500,
+    evaluate: (s) => ({
+      unlocked: s.maxCombo >= 500 || s.comboStreak >= 500,
+      currentProgress: Math.min(Math.max(s.maxCombo, s.comboStreak), 500)
+    })
+  },
+  {
+    id: 'speed_130_ppm',
+    title: 'Velocidade da Luz',
+    description: 'Alcance a marca insana de 130 Palavras Por Minuto (PPM) de ritmo de digitação.',
+    category: 'speed',
+    icon: '🚀',
+    isHardcore: true,
+    reward: { bytes: 15000, levelTokens: 3, quantumFragments: 8 },
+    maxProgress: 130,
+    evaluate: (s, ctx) => {
+      const wpm = ctx?.wpm ?? (s.totalActiveSeconds > 5 ? Math.round((s.correctKeys / 5) / (s.totalActiveSeconds / 60)) : 0);
+      return {
+        unlocked: wpm >= 130,
+        currentProgress: Math.min(wpm, 130)
+      };
+    }
+  },
+  {
+    id: 'iron_accuracy_2000',
+    title: 'Precisão de Diamante',
+    description: 'Mantenha precisão superior a 99% com mais de 2.000 teclas digitadas.',
+    category: 'speed',
+    icon: '💠',
+    isHardcore: true,
+    reward: { bytes: 10000, quantumFragments: 5 },
+    maxProgress: 2000,
+    evaluate: (s) => {
+      const total = s.correctKeys + s.wrongKeys;
+      const acc = total > 0 ? (s.correctKeys / total) * 100 : 0;
+      return {
+        unlocked: s.correctKeys >= 2000 && acc >= 99,
+        currentProgress: Math.min(s.correctKeys, 2000)
+      };
+    }
+  },
 
   // --- B. VOLUME & DEDICAÇÃO ---
   {
@@ -251,6 +300,7 @@ export const ACHIEVEMENTS_CATALOG: AchievementDef[] = [
     description: 'Alcance o lendário Nível Máximo 100!',
     category: 'volume',
     icon: '👑',
+    isHardcore: true,
     reward: { bytes: 25000, quantumFragments: 10 },
     maxProgress: 100,
     evaluate: (s) => {
@@ -260,6 +310,34 @@ export const ACHIEVEMENTS_CATALOG: AchievementDef[] = [
         currentProgress: Math.min(lvl, 100)
       };
     }
+  },
+  {
+    id: 'words_5000',
+    title: 'Enciclopédia Humana',
+    description: 'Complete 5.000 palavras digitadas com maestria no terminal.',
+    category: 'volume',
+    icon: '📜',
+    isHardcore: true,
+    reward: { bytes: 20000, quantumFragments: 6 },
+    maxProgress: 5000,
+    evaluate: (s) => ({
+      unlocked: s.wordsCompleted >= 5000,
+      currentProgress: Math.min(s.wordsCompleted, 5000)
+    })
+  },
+  {
+    id: 'keystrokes_50000',
+    title: 'Cinquenta Mil Toques',
+    description: 'Acumule 50.000 teclas corretas digitadas no laboratório.',
+    category: 'volume',
+    icon: '⌨️',
+    isHardcore: true,
+    reward: { bytes: 25000, quantumFragments: 8 },
+    maxProgress: 50000,
+    evaluate: (s) => ({
+      unlocked: s.correctKeys >= 50000,
+      currentProgress: Math.min(s.correctKeys, 50000)
+    })
   },
 
   // --- C. ECONOMIA & UPGRADES ---
@@ -314,11 +392,25 @@ export const ACHIEVEMENTS_CATALOG: AchievementDef[] = [
     description: 'Acumule um total de 1.000.000.000 Bytes ganhos no histórico.',
     category: 'economy',
     icon: '💎',
-    reward: { bytes: 50000, levelTokens: 5 },
+    reward: { bytes: 50000, levelTokens: 5, quantumFragments: 3 },
     maxProgress: 1000000000,
     evaluate: (s) => ({
       unlocked: s.totalBytesEarned >= 1000000000,
       currentProgress: Math.min(s.totalBytesEarned, 1000000000)
+    })
+  },
+  {
+    id: 'trillionaire',
+    title: 'Singularidade dos Dados',
+    description: 'Acumule a colossal marca de 1 Trilhão (1.000.000.000.000) de Bytes.',
+    category: 'economy',
+    icon: '🌌',
+    isHardcore: true,
+    reward: { bytes: 100000, levelTokens: 5, quantumFragments: 15 },
+    maxProgress: 1000000000000,
+    evaluate: (s) => ({
+      unlocked: s.totalBytesEarned >= 1000000000000,
+      currentProgress: Math.min(s.totalBytesEarned, 1000000000000)
     })
   },
   {
@@ -461,6 +553,65 @@ export const ACHIEVEMENTS_CATALOG: AchievementDef[] = [
       };
     }
   },
+  {
+    id: 'boss_slayer_all',
+    title: 'Pesadelo dos Chefes',
+    description: 'Derrote 8 desafios de Boss de Nível contra o relógio.',
+    category: 'collection',
+    icon: '🗡️',
+    isHardcore: true,
+    reward: { bytes: 25000, quantumFragments: 10 },
+    maxProgress: 8,
+    evaluate: (s) => {
+      const count = s.completedChallenges?.length || 0;
+      return {
+        unlocked: count >= 8,
+        currentProgress: Math.min(count, 8)
+      };
+    }
+  },
+  {
+    id: 'arena_gladiator_master',
+    title: 'Soberano da Arena 1v1',
+    description: 'Alcance 20 vitórias em duelos na Arena Multiplayer.',
+    category: 'collection',
+    icon: '⚔️',
+    isHardcore: true,
+    reward: { bytes: 30000, quantumFragments: 12 },
+    maxProgress: 20,
+    evaluate: (s) => {
+      const wins = s.arenaStats?.wins || 0;
+      return {
+        unlocked: wins >= 20,
+        currentProgress: Math.min(wins, 20)
+      };
+    }
+  },
+  {
+    id: 'cosmetics_overlord',
+    title: 'Estilo Lendário',
+    description: 'Desbloqueie pelo menos 15 itens cosméticos na Loja do Laboratório.',
+    category: 'collection',
+    icon: '👑',
+    isHardcore: true,
+    reward: { bytes: 15000, quantumFragments: 6 },
+    maxProgress: 15,
+    evaluate: (s) => {
+      const c = s.cosmetics;
+      if (!c) return { unlocked: false, currentProgress: 0 };
+      const total =
+        (c.unlockedThemes?.length || 1) +
+        (c.unlockedSkins?.length || 1) +
+        (c.unlockedLayouts?.length || 1) +
+        (c.unlockedSounds?.length || 1) +
+        (c.unlockedAnimations?.length || 1);
+      const custom = Math.max(0, total - 5);
+      return {
+        unlocked: custom >= 15,
+        currentProgress: Math.min(custom, 15)
+      };
+    }
+  },
 
   // --- F. SECRETAS / EASTER EGGS ---
   {
@@ -496,6 +647,25 @@ export const ACHIEVEMENTS_CATALOG: AchievementDef[] = [
       return {
         unlocked: streak >= 20,
         currentProgress: Math.min(streak, 20)
+      };
+    }
+  },
+  {
+    id: 'flawless_century',
+    title: 'Cinquenta Palavras Sem Erros',
+    description: 'Complete 50 palavras seguidas sem errar absolutamente nenhum caractere.',
+    category: 'secret',
+    isSecret: true,
+    hint: 'O ápice do estado de fluxo: cinquenta palavras consecutivas intactas em linha reta.',
+    icon: '🔮',
+    isHardcore: true,
+    reward: { bytes: 20000, quantumFragments: 10 },
+    maxProgress: 50,
+    evaluate: (s) => {
+      const streak = s.perfectWordsStreak || 0;
+      return {
+        unlocked: streak >= 50,
+        currentProgress: Math.min(streak, 50)
       };
     }
   }

@@ -25,6 +25,7 @@ export interface AchievementDef {
   reward: AchievementReward;
   maxProgress: number;
   isSecret?: boolean;
+  isHardcore?: boolean;
   hint?: string;
   evaluate: (state: GameState, context?: AchievementContext) => { unlocked: boolean; currentProgress: number };
 }
