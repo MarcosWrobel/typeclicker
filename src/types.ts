@@ -1,8 +1,10 @@
 import { PlayerCosmetics } from './types/cosmetics';
 import { ArenaStats } from './types/arena';
+import { AchievementDef, AchievementReward, AchievementCategory, AchievementContext } from './types/achievements';
 
 export * from './types/cosmetics';
 export * from './types/arena';
+export * from './types/achievements';
 
 export type CategoryId = 'iniciante' | 'facil' | 'medio' | 'avancado' | 'expert';
 
@@ -58,6 +60,14 @@ export interface GameState {
   arenaStats?: ArenaStats;
   // Telemetria por tecla para treino corretivo adaptativo
   keyTelemetry?: Record<string, KeyTelemetry>;
+  // Conquistas desbloqueadas (achievementId -> timestamp de desbloqueio)
+  achievements?: Record<string, number>;
+  // Estatísticas auxiliares de conquistas
+  focusDrillsCompleted?: number;
+  perfectWordsStreak?: number;
+  mascotClicks?: number;
+  completedDrillSessions?: number;
+  categoriesExplored?: CategoryId[];
   // Novos campos opcionais com retrocompatibilidade garantida
   schemaVersion?: number;
   flaggedForReview?: boolean;

@@ -16,6 +16,7 @@ interface BytezinhoMascotProps {
   isOverheating?: boolean;
   skin?: BytezinhoSkinId;
   weakKeys?: string[];
+  onMascotClick?: () => void;
 }
 
 const IDLE_MESSAGES = [
@@ -44,7 +45,8 @@ export const BytezinhoMascot: React.FC<BytezinhoMascotProps> = ({
   isOverloaded = false,
   isOverheating = false,
   skin = 'classic',
-  weakKeys = []
+  weakKeys = [],
+  onMascotClick
 }) => {
   const [currentMessage, setCurrentMessage] = useState<string>(IDLE_MESSAGES[0]);
   const [mood, setMood] = useState<'normal' | 'happy' | 'fire' | 'oops' | 'upgrade' | 'glitch' | 'warning' | 'leak'>('normal');
@@ -125,6 +127,7 @@ export const BytezinhoMascot: React.FC<BytezinhoMascotProps> = ({
 
   const handleMascotClick = () => {
     setClickCount(prev => prev + 1);
+    onMascotClick?.();
     setMood('happy');
     const funResponses = [
       "Bip-bup! Hehe, você clicou em mim! 🤖",

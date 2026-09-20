@@ -44,6 +44,9 @@ interface TypingArenaProps {
   equippedAnimation?: AnimationEffectId;
   onOpenCosmetics?: () => void;
   onOpenLeaderboard?: () => void;
+  onOpenAchievements?: () => void;
+  achievementsCount?: { unlocked: number; total: number };
+  onMascotClick?: () => void;
   onOpenArena?: () => void;
   onOpenConverter?: () => void;
   levelTokens?: number;
@@ -126,6 +129,9 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
   equippedAnimation = 'confetti_classic',
   onOpenCosmetics,
   onOpenLeaderboard,
+  onOpenAchievements,
+  achievementsCount,
+  onMascotClick,
   onOpenArena,
   onOpenConverter,
   levelTokens = 0,
@@ -428,6 +434,7 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
         isOverheating={isOverheating ?? (isOverloaded || isDraining)}
         skin={equippedSkin}
         weakKeys={weakKeys.map(k => k.char)}
+        onMascotClick={onMascotClick}
       />
 
       {/* Main Interactive Typing Box */}
@@ -901,6 +908,24 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
             >
               <Users className="w-3.5 h-3.5 text-purple-400" />
               <span>RANKING</span>
+            </button>
+          )}
+
+          {/* CONQUISTAS */}
+          {onOpenAchievements && (
+            <button
+              type="button"
+              onClick={onOpenAchievements}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-950/40 hover:bg-amber-900/60 text-amber-200 border border-amber-600/40 text-xs font-semibold transition shadow-sm cursor-pointer group"
+              title="Quadro e Galeria de Conquistas do Colégio Leopoldina"
+            >
+              <Trophy className="w-3.5 h-3.5 text-amber-400 group-hover:scale-110 transition-transform" />
+              <span>CONQUISTAS</span>
+              {achievementsCount && (
+                <span className="flex items-center px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-mono font-bold">
+                  {achievementsCount.unlocked}/{achievementsCount.total}
+                </span>
+              )}
             </button>
           )}
 

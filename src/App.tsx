@@ -31,6 +31,10 @@ import { PauseOverlay } from './components/PauseOverlay';
 import { ChallengeArena } from './components/ChallengeArena';
 import { FocusDrillModal } from './components/FocusDrillModal';
 import { QuantumConverterModal } from './components/QuantumConverterModal';
+import { AchievementToast } from './components/AchievementToast';
+import { AchievementsModal } from './components/AchievementsModal';
+import { checkPendingAchievements, getOverallAchievementsStats } from './services/achievementEngine';
+import { AchievementDef, AchievementContext } from './types/achievements';
 import { calculatePlayerRank, formatBytes } from './utils/formatting';
 import { auth, loginWithGoogle, logoutUser, subscribeToAuthChanges, loadProgressFromCloud, saveProgressToCloud, checkIsAdminAsync, checkIsSuperAdmin, getSystemSettings, subscribeToSystemSettings, claimPendingTestGrants } from './services/firebaseService';
 import { isCategoryAllowed, getMinAllowedCategoryLevel } from './utils/difficulty';
@@ -57,6 +61,8 @@ export default function App() {
   const [activeChallengeLevel, setActiveChallengeLevel] = useState<number | null>(null);
   const [drillSession, setDrillSession] = useState<DrillSession | null>(null);
   const [activeFocusDrill, setActiveFocusDrill] = useState<{ targetKey: string; words: string[] } | null>(null);
+  const [isAchievementsOpen, setIsAchievementsOpen] = useState<boolean>(false);
+  const [achievementQueue, setAchievementQueue] = useState<AchievementDef[]>([]);
   
   const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
   const [isAppLocked, setIsAppLocked] = useState<boolean>(true);
@@ -298,6 +304,7 @@ export default function App() {
   const lastKeyTimestampRef = useRef<number>(performance.now());
   const lastMissedCharRef = useRef<string>('');
   const sameCharMissCountRef = useRef<number>(0);
+  const currentWordHasErrorRef = useRef<boolean>(false);
 
   const typingInputRef = useRef<HTMLInputElement>(null);
 
@@ -375,6 +382,7 @@ export default function App() {
         isLeaderboardOpen ||
         isStudentModalOpen ||
         isCosmeticsOpen ||
+        isAchievementsOpen ||
         isArenaOpen ||
         isConverterOpen ||
         isAdminOpen ||
@@ -399,6 +407,7 @@ export default function App() {
     isLeaderboardOpen,
     isStudentModalOpen,
     isCosmeticsOpen,
+    isAchievementsOpen,
     isArenaOpen,
     isConverterOpen,
     isAdminOpen,
@@ -426,9 +435,66 @@ export default function App() {
     };
   }, []);
 
+  // Avalia e concede conquistas pendentes de forma pura e reativa
+  const checkAndAwardAchievements = useCallback((targetState: GameState, context?: AchievementContext): GameState => {
+    const newlyUnlocked = checkPendingAchievements(targetState, context);
+    if (newlyUnlocked.length === 0) return targetState;
+
+    let bonusBytes = 0;
+    let bonusTokens = 0;
+    let bonusFragments = 0;
+    const updatedAchievements = { ...(targetState.achievements || {}) };
+    const now = Date.now();
+
+    newlyUnlocked.forEach((ach) => {
+      updatedAchievements[ach.id] = now;
+      if (ach.reward.bytes) bonusBytes += ach.reward.bytes;
+      if (ach.reward.levelTokens) bonusTokens += ach.reward.levelTokens;
+      if (ach.reward.quantumFragments) bonusFragments += ach.reward.quantumFragments;
+    });
+
+    sound.playAchievement();
+
+    setAchievementQueue((prev) => [...prev, ...newlyUnlocked]);
+
+    const currentCosmetics = targetState.cosmetics || { ...DEFAULT_COSMETICS };
+
+    return {
+      ...targetState,
+      bytes: targetState.bytes + bonusBytes,
+      totalBytesEarned: targetState.totalBytesEarned + bonusBytes,
+      achievements: updatedAchievements,
+      cosmetics: {
+        ...currentCosmetics,
+        levelTokens: (currentCosmetics.levelTokens || 0) + bonusTokens,
+        quantumFragments: (currentCosmetics.quantumFragments || 0) + bonusFragments
+      }
+    };
+  }, []);
+
+  const handleMascotClick = useCallback(() => {
+    setState((prev) => {
+      const nextClicks = (prev.mascotClicks || 0) + 1;
+      const nextState: GameState = {
+        ...prev,
+        mascotClicks: nextClicks
+      };
+      return checkAndAwardAchievements(nextState);
+    });
+  }, [checkAndAwardAchievements]);
+
   // Category change
   const handleSelectCategory = useCallback((cat: CategoryId) => {
-    setState((prev) => ({ ...prev, selectedCategory: cat }));
+    setState((prev) => {
+      const explored = prev.categoriesExplored || ['iniciante'];
+      const updatedExplored = explored.includes(cat) ? explored : [...explored, cat];
+      const nextState: GameState = {
+        ...prev,
+        selectedCategory: cat,
+        categoriesExplored: updatedExplored
+      };
+      return checkAndAwardAchievements(nextState);
+    });
     if (drillSessionRef.current) {
       setDrillSession(null);
       drillSessionRef.current = null;
@@ -437,7 +503,7 @@ export default function App() {
     setCurrentWord(nextWord);
     setCharIndex(0);
     setPendingAccent(null);
-  }, []);
+  }, [checkAndAwardAchievements]);
 
   // Handlers para o Treino Corretivo Adaptativo (Drill Engine)
   const handleStartDrill = useCallback((customKeys?: string[]) => {
@@ -467,11 +533,15 @@ export default function App() {
 
   // Handlers para o Modo Foco de Calibração (Sem tempo limite)
   const handleFocusDrillSuccess = useCallback((reward: number) => {
-    setState((prev) => ({
-      ...prev,
-      bytes: prev.bytes + reward,
-      totalBytesEarned: prev.totalBytesEarned + reward
-    }));
+    setState((prev) => {
+      const nextState: GameState = {
+        ...prev,
+        bytes: prev.bytes + reward,
+        totalBytesEarned: prev.totalBytesEarned + reward,
+        focusDrillsCompleted: (prev.focusDrillsCompleted || 0) + 1
+      };
+      return checkAndAwardAchievements(nextState);
+    });
     setConsecutiveErrors(0);
     consecutiveErrorsRef.current = 0;
     setIsOverloaded(false);
@@ -480,7 +550,7 @@ export default function App() {
     overloadRecoveryRef.current = 0;
     setActiveFocusDrill(null);
     spawnFloatingText(`⚡ CIRCUITO RESTABELECIDO! +${reward} B`, 'success');
-  }, [spawnFloatingText]);
+  }, [spawnFloatingText, checkAndAwardAchievements]);
 
   const handleFocusDrillSkip = useCallback(() => {
     setConsecutiveErrors(0);
@@ -635,37 +705,58 @@ export default function App() {
           nextWord = getRandomWord(currState.selectedCategory, word);
         }
 
-        setState((prev) => ({
-          ...prev,
-          bytes: prev.bytes + totalEarned + drillCompletionBonus,
-          totalBytesEarned: prev.totalBytesEarned + totalEarned + drillCompletionBonus,
-          correctKeys: prev.correctKeys + 1,
-          comboStreak: nextCombo,
-          maxCombo: nextMaxCombo,
-          multiplier: nextMultiplier,
-          wordsCompleted: prev.wordsCompleted + 1,
-          keyTelemetry: updatedTelem
-        }));
+        // Avaliação de sequência perfeita e drills
+        const nextPerfectStreak = !currentWordHasErrorRef.current ? (currState.perfectWordsStreak || 0) + 1 : 0;
+        currentWordHasErrorRef.current = false;
+        const nextDrillsCompleted = isDrill && !nextDrillSession
+          ? (currState.completedDrillSessions || 0) + 1
+          : (currState.completedDrillSessions || 0);
+
+        const currentWpm = currState.totalActiveSeconds > 5
+          ? Math.round((currState.correctKeys / 5) / (currState.totalActiveSeconds / 60))
+          : 0;
+
+        setState((prev) => {
+          const nextState: GameState = {
+            ...prev,
+            bytes: prev.bytes + totalEarned + drillCompletionBonus,
+            totalBytesEarned: prev.totalBytesEarned + totalEarned + drillCompletionBonus,
+            correctKeys: prev.correctKeys + 1,
+            comboStreak: nextCombo,
+            maxCombo: nextMaxCombo,
+            multiplier: nextMultiplier,
+            wordsCompleted: prev.wordsCompleted + 1,
+            keyTelemetry: updatedTelem,
+            perfectWordsStreak: nextPerfectStreak,
+            completedDrillSessions: nextDrillsCompleted
+          };
+          return checkAndAwardAchievements(nextState, { wpm: currentWpm });
+        });
 
         setCurrentWord(nextWord);
         setCharIndex(0);
         setPendingAccent(null);
       } else {
         // Advance letter
-        setState((prev) => ({
-          ...prev,
-          bytes: prev.bytes + earned,
-          totalBytesEarned: prev.totalBytesEarned + earned,
-          correctKeys: prev.correctKeys + 1,
-          comboStreak: nextCombo,
-          maxCombo: nextMaxCombo,
-          multiplier: nextMultiplier,
-          keyTelemetry: updatedTelem
-        }));
+        setState((prev) => {
+          const nextState: GameState = {
+            ...prev,
+            bytes: prev.bytes + earned,
+            totalBytesEarned: prev.totalBytesEarned + earned,
+            correctKeys: prev.correctKeys + 1,
+            comboStreak: nextCombo,
+            maxCombo: nextMaxCombo,
+            multiplier: nextMultiplier,
+            keyTelemetry: updatedTelem
+          };
+          return checkAndAwardAchievements(nextState);
+        });
         setCharIndex(index + 1);
       }
     } else {
       // --- MISS (ERROR) ---
+      currentWordHasErrorRef.current = true;
+
       // Rastreia erros repetidos na mesma tecla
       if (expectedChar === lastMissedCharRef.current) {
         sameCharMissCountRef.current += 1;
@@ -721,7 +812,8 @@ export default function App() {
         wrongKeys: prev.wrongKeys + 1,
         comboStreak: 0,
         multiplier: nextErrors >= 3 ? 0.5 : 1.0,
-        keyTelemetry: updatedTelem
+        keyTelemetry: updatedTelem,
+        perfectWordsStreak: 0
       }));
 
       // Disparo do Modo Foco (quando o aluno erra sucessivamente a mesma tecla ou sobrecarga persistente)
@@ -743,7 +835,7 @@ export default function App() {
         sound.playGlitch();
       }
     }
-  }, [spawnFloatingText, activeFocusDrill]);
+  }, [spawnFloatingText, activeFocusDrill, checkAndAwardAchievements]);
 
   const handleDeadKey = useCallback((accent: string) => {
     if (isPausedRef.current) return;
@@ -777,6 +869,7 @@ export default function App() {
         isLeaderboardOpen ||
         isStudentModalOpen ||
         isCosmeticsOpen ||
+        isAchievementsOpen ||
         isConverterOpen ||
         isAdminOpen ||
         activeChallengeLevel !== null ||
@@ -852,9 +945,11 @@ export default function App() {
     isLeaderboardOpen,
     isStudentModalOpen,
     isCosmeticsOpen,
+    isAchievementsOpen,
     isConverterOpen,
     isAdminOpen,
-    activeChallengeLevel
+    activeChallengeLevel,
+    activeFocusDrill
   ]);
 
   // 100ms Interval: Cadence Buffer & Idle/Draining Tick Loop
@@ -969,20 +1064,23 @@ export default function App() {
       };
       const { bytesPerChar, autoBytesPerSec } = computeBaseRates(nextUpgrades);
 
-      setState((prev) => ({
-        ...prev,
-        bytes: prev.bytes - cost,
-        upgrades: nextUpgrades,
-        bytesPerChar,
-        autoBytesPerSec
-      }));
+      setState((prev) => {
+        const nextState: GameState = {
+          ...prev,
+          bytes: prev.bytes - cost,
+          upgrades: nextUpgrades,
+          bytesPerChar,
+          autoBytesPerSec
+        };
+        return checkAndAwardAchievements(nextState);
+      });
 
       setRecentUpgradeBought(upgrade.name);
       setTimeout(() => setRecentUpgradeBought(null), 2500);
 
       spawnFloatingText(`+NÍVEL: ${upgrade.name}`, 'level');
     }
-  }, [computeBaseRates, spawnFloatingText]);
+  }, [computeBaseRates, spawnFloatingText, checkAndAwardAchievements]);
 
   // Prestige confirm action
   const handleConfirmPrestige = useCallback((newCores: number) => {
@@ -992,7 +1090,7 @@ export default function App() {
 
     setState((prev) => {
       const nextCores = prev.prestigeCores + newCores;
-      return {
+      const nextState: GameState = {
         ...prev,
         bytes: 0,
         comboStreak: 0,
@@ -1003,6 +1101,7 @@ export default function App() {
         prestigeCores: nextCores,
         prestigeCount: prev.prestigeCount + 1
       };
+      return checkAndAwardAchievements(nextState);
     });
 
     setIsPrestigeOpen(false);
@@ -1012,7 +1111,7 @@ export default function App() {
         syncNow('overclock').catch(() => {});
       }, 50);
     }
-  }, [spawnFloatingText, user, syncNow]);
+  }, [spawnFloatingText, user, syncNow, checkAndAwardAchievements]);
 
   // Reset entire game
   const handleResetGame = useCallback(() => {
@@ -1147,15 +1246,16 @@ export default function App() {
       if (activeChallengeLevel && !completed.includes(activeChallengeLevel)) {
         completed.push(activeChallengeLevel);
       }
-      return {
+      const nextState: GameState = {
         ...prev,
         bytes: prev.bytes + reward,
         totalBytesEarned: prev.totalBytesEarned + reward,
         completedChallenges: completed
       };
+      return checkAndAwardAchievements(nextState);
     });
     spawnFloatingText(`+${formatBytes(reward)} B (DESAFIO)!`, 'bonus');
-  }, [activeChallengeLevel, spawnFloatingText]);
+  }, [activeChallengeLevel, spawnFloatingText, checkAndAwardAchievements]);
 
   const handleChallengeFail = useCallback(() => {
     setActiveChallengeLevel(null);
@@ -1177,15 +1277,16 @@ export default function App() {
         bytes: Math.max(0, prev.bytes - bytesSpent),
         cosmetics: updatedCosmetics
       };
+      const finalState = checkAndAwardAchievements(newState);
 
       if (user) {
-        saveState(newState, user.uid);
+        saveState(finalState, user.uid);
       }
-      return newState;
+      return finalState;
     });
 
     spawnFloatingText(`🌌 +${fragmentsGained} FRAGMENTO${fragmentsGained > 1 ? 'S' : ''} QUÂNTICO${fragmentsGained > 1 ? 'S' : ''}!`, 'bonus');
-  }, [user, spawnFloatingText]);
+  }, [user, spawnFloatingText, checkAndAwardAchievements]);
 
   const handleArenaReward = useCallback((
     isWinner: boolean,
@@ -1221,11 +1322,12 @@ export default function App() {
         arenaStats: updatedStats,
         cosmetics: updatedCosmetics
       };
+      const finalState = checkAndAwardAchievements(newState);
 
       if (user) {
-        saveState(newState, user.uid);
+        saveState(finalState, user.uid);
       }
-      return newState;
+      return finalState;
     });
 
     if (isWinner) {
@@ -1233,7 +1335,7 @@ export default function App() {
     } else {
       spawnFloatingText(`⚔️ DUELO CONCLUÍDO! +1 Token`, 'bonus');
     }
-  }, [user, spawnFloatingText]);
+  }, [user, spawnFloatingText, checkAndAwardAchievements]);
 
   // Sincroniza o som equipado e master on/off no sintetizador
   useEffect(() => {
@@ -1246,14 +1348,15 @@ export default function App() {
 
   const handleUpdateCosmetics = useCallback((newCosmetics: PlayerCosmetics) => {
     setState(prev => {
-      const next = {
+      const next: GameState = {
         ...prev,
         cosmetics: newCosmetics
       };
-      saveState(next, auth.currentUser?.uid);
-      return next;
+      const finalState = checkAndAwardAchievements(next);
+      saveState(finalState, auth.currentUser?.uid);
+      return finalState;
     });
-  }, []);
+  }, [checkAndAwardAchievements]);
 
   const handleAdminUpdateGameState = useCallback((updatedState: GameState) => {
     setState(updatedState);
@@ -1398,6 +1501,9 @@ export default function App() {
             equippedAnimation={currentCosmetics.equippedAnimation || 'confetti_classic'}
             onOpenCosmetics={() => setIsCosmeticsOpen(true)}
             onOpenLeaderboard={() => setIsLeaderboardOpen(true)}
+            onOpenAchievements={() => setIsAchievementsOpen(true)}
+            achievementsCount={getOverallAchievementsStats(state)}
+            onMascotClick={handleMascotClick}
             onOpenArena={() => setIsArenaOpen(true)}
             onOpenConverter={() => setIsConverterOpen(true)}
             levelTokens={state.cosmetics?.levelTokens ?? 0}
@@ -1513,6 +1619,19 @@ export default function App() {
         cosmetics={currentCosmetics}
         onUpdateCosmetics={handleUpdateCosmetics}
         isAdmin={isAdmin}
+      />
+
+      {/* Toast Flutuante de Conquista Desbloqueada */}
+      <AchievementToast
+        achievement={achievementQueue[0] || null}
+        onDismiss={() => setAchievementQueue((prev) => prev.slice(1))}
+      />
+
+      {/* Galeria de Conquistas (Hall da Fama) */}
+      <AchievementsModal
+        isOpen={isAchievementsOpen}
+        onClose={() => setIsAchievementsOpen(false)}
+        state={state}
       />
 
       {/* Arena 1x1 Multiplayer Modal (Nível 100 ou Administrador) */}

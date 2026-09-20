@@ -51,8 +51,27 @@ export const INITIAL_STATE: GameState = {
   completedChallenges: [],
   cosmetics: { ...DEFAULT_COSMETICS },
   arenaStats: { ...DEFAULT_ARENA_STATS },
-  keyTelemetry: {}
+  keyTelemetry: {},
+  achievements: {},
+  focusDrillsCompleted: 0,
+  perfectWordsStreak: 0,
+  mascotClicks: 0,
+  completedDrillSessions: 0,
+  categoriesExplored: ['iniciante']
 };
+
+export function sanitizeAchievements(raw?: Record<string, any> | null): Record<string, number> {
+  if (!raw || typeof raw !== 'object') {
+    return {};
+  }
+  const sanitized: Record<string, number> = {};
+  for (const [key, val] of Object.entries(raw)) {
+    if (typeof key === 'string' && typeof val === 'number' && Number.isFinite(val) && val > 0) {
+      sanitized[key] = Math.floor(val);
+    }
+  }
+  return sanitized;
+}
 
 export function sanitizeKeyTelemetry(rawTelemetry?: Record<string, any> | null): Record<string, KeyTelemetry> {
   if (!rawTelemetry || typeof rawTelemetry !== 'object') {
@@ -344,7 +363,13 @@ export function loadSavedState(userId?: string | null): GameState {
         duelPoints: Number.isFinite(parsed.arenaStats.duelPoints) ? parsed.arenaStats.duelPoints : 0,
         currentRankId: typeof parsed.arenaStats.currentRankId === 'string' ? parsed.arenaStats.currentRankId : 'recruta'
       } : { ...DEFAULT_ARENA_STATS },
-      keyTelemetry: sanitizeKeyTelemetry(parsed.keyTelemetry)
+      keyTelemetry: sanitizeKeyTelemetry(parsed.keyTelemetry),
+      achievements: sanitizeAchievements(parsed.achievements),
+      focusDrillsCompleted: Number.isFinite(parsed.focusDrillsCompleted) ? parsed.focusDrillsCompleted : 0,
+      perfectWordsStreak: Number.isFinite(parsed.perfectWordsStreak) ? parsed.perfectWordsStreak : 0,
+      mascotClicks: Number.isFinite(parsed.mascotClicks) ? parsed.mascotClicks : 0,
+      completedDrillSessions: Number.isFinite(parsed.completedDrillSessions) ? parsed.completedDrillSessions : 0,
+      categoriesExplored: Array.isArray(parsed.categoriesExplored) ? parsed.categoriesExplored : ['iniciante']
     };
   } catch (e) {
     console.warn('Falha ao carregar estado salvo:', e);

@@ -567,6 +567,38 @@ class SoundEngine {
       // Ignore
     }
   }
+
+  // Conquista Desbloqueada - Fanfarra triunfal com arpeggio dourado
+  public playAchievement() {
+    const ctx = this.getContext();
+    if (!ctx) return;
+
+    try {
+      const now = ctx.currentTime;
+      // Arpeggio maior ascendente brilhante (C5 -> E5 -> G5 -> C6 -> E6)
+      const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51];
+      notes.forEach((freq, idx) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = idx === notes.length - 1 ? 'sine' : 'triangle';
+        osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+
+        const duration = idx === notes.length - 1 ? 0.45 : 0.22;
+        gain.gain.setValueAtTime(0.12, now + idx * 0.08);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + duration);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(now + idx * 0.08);
+        osc.stop(now + idx * 0.08 + duration + 0.02);
+      });
+    } catch {
+      // Ignore
+    }
+  }
 }
 
 export const sound = new SoundEngine();
+
