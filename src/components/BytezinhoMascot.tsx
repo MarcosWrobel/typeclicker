@@ -31,6 +31,8 @@ const IDLE_MESSAGES = [
   "Qual nível você quer alcançar hoje? Dá pra chegar até o Nível 100! 🎯",
   "Sabia que cada acerto aumenta seu multiplicador de Bytes?",
   "Compre upgrades na loja para turbinar seu teclado!",
+  "Já conferiu as Missões Semanais no botão [MISSÕES]? Recompensas incríveis te esperam! 📜",
+  "Desbrave a Masmorra RPG! Digite histórias completas para derrotar os monstros de dados! ⚔️",
   "Pratique com calma para virar um Mestre da Digitação no Leopoldina!"
 ];
 

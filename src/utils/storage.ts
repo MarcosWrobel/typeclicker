@@ -1,6 +1,7 @@
 import { GameState, KeyTelemetry } from '../types';
 import { DEFAULT_COSMETICS, PlayerCosmetics } from '../types/cosmetics';
 import { ArenaStats } from '../types/arena';
+import { syncQuestsState } from '../services/questsEngine';
 
 const DEFAULT_STORAGE_KEY = 'typeclicker_save_v1';
 
@@ -57,7 +58,8 @@ export const INITIAL_STATE: GameState = {
   perfectWordsStreak: 0,
   mascotClicks: 0,
   completedDrillSessions: 0,
-  categoriesExplored: ['iniciante']
+  categoriesExplored: ['iniciante'],
+  quests: syncQuestsState()
 };
 
 export function sanitizeAchievements(raw?: Record<string, any> | null): Record<string, number> {
@@ -369,7 +371,8 @@ export function loadSavedState(userId?: string | null): GameState {
       perfectWordsStreak: Number.isFinite(parsed.perfectWordsStreak) ? parsed.perfectWordsStreak : 0,
       mascotClicks: Number.isFinite(parsed.mascotClicks) ? parsed.mascotClicks : 0,
       completedDrillSessions: Number.isFinite(parsed.completedDrillSessions) ? parsed.completedDrillSessions : 0,
-      categoriesExplored: Array.isArray(parsed.categoriesExplored) ? parsed.categoriesExplored : ['iniciante']
+      categoriesExplored: Array.isArray(parsed.categoriesExplored) ? parsed.categoriesExplored : ['iniciante'],
+      quests: syncQuestsState(parsed.quests)
     };
   } catch (e) {
     console.warn('Falha ao carregar estado salvo:', e);

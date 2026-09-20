@@ -33,8 +33,12 @@ import { FocusDrillModal } from './components/FocusDrillModal';
 import { QuantumConverterModal } from './components/QuantumConverterModal';
 import { AchievementToast } from './components/AchievementToast';
 import { AchievementsModal } from './components/AchievementsModal';
+import { QuestsModal } from './components/QuestsModal';
+import { RpgChronicleArena } from './components/RpgChronicleArena';
 import { checkPendingAchievements, getOverallAchievementsStats, syncRetroactiveAchievements } from './services/achievementEngine';
+import { syncQuestsState, processQuestEvent, claimWeeklyQuestReward, generateRpgFloor, completeRpgFloor } from './services/questsEngine';
 import { AchievementDef, AchievementContext } from './types/achievements';
+import { RpgFloorData, QuestEvent } from './types/quests';
 import { calculatePlayerRank, formatBytes } from './utils/formatting';
 import { auth, loginWithGoogle, logoutUser, subscribeToAuthChanges, loadProgressFromCloud, saveProgressToCloud, checkIsAdminAsync, checkIsSuperAdmin, getSystemSettings, subscribeToSystemSettings, claimPendingTestGrants } from './services/firebaseService';
 import { isCategoryAllowed, getMinAllowedCategoryLevel } from './utils/difficulty';
@@ -76,6 +80,8 @@ export default function App() {
   const [activeFocusDrill, setActiveFocusDrill] = useState<{ targetKey: string; words: string[] } | null>(null);
   const [isAchievementsOpen, setIsAchievementsOpen] = useState<boolean>(false);
   const [achievementQueue, setAchievementQueue] = useState<AchievementDef[]>([]);
+  const [isQuestsOpen, setIsQuestsOpen] = useState<boolean>(false);
+  const [activeRpgFloor, setActiveRpgFloor] = useState<RpgFloorData | null>(null);
   
   const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
   const [isAppLocked, setIsAppLocked] = useState<boolean>(true);
@@ -444,6 +450,8 @@ export default function App() {
         isStudentModalOpen ||
         isCosmeticsOpen ||
         isAchievementsOpen ||
+        isQuestsOpen ||
+        activeRpgFloor !== null ||
         isArenaOpen ||
         isConverterOpen ||
         isAdminOpen ||
@@ -469,6 +477,8 @@ export default function App() {
     isStudentModalOpen,
     isCosmeticsOpen,
     isAchievementsOpen,
+    isQuestsOpen,
+    activeRpgFloor,
     isArenaOpen,
     isConverterOpen,
     isAdminOpen,
@@ -541,6 +551,79 @@ export default function App() {
     };
   }, [spawnFloatingText]);
 
+  // Avalia e avança eventos das Quests Semanais
+  const applyQuestEvents = useCallback((targetState: GameState, events: QuestEvent[]): GameState => {
+    let currentQuests = syncQuestsState(targetState.quests);
+    const allCompleted: any[] = [];
+
+    for (const evt of events) {
+      const { updatedQuests, newlyCompleted } = processQuestEvent(currentQuests, evt);
+      currentQuests = updatedQuests;
+      if (newlyCompleted.length > 0) {
+        allCompleted.push(...newlyCompleted);
+      }
+    }
+
+    if (allCompleted.length > 0) {
+      sound.playAchievement();
+      allCompleted.forEach((q) => {
+        spawnFloatingText(`📜 MISSÃO CONCLUÍDA: ${q.title}!`, 'bonus');
+      });
+    }
+
+    return {
+      ...targetState,
+      quests: currentQuests
+    };
+  }, [spawnFloatingText]);
+
+  // Resgate de recompensa de missão semanal
+  const handleClaimWeeklyQuest = useCallback((questId: string) => {
+    setState((prev) => {
+      const res = claimWeeklyQuestReward(prev, questId);
+      if (!res) return prev;
+      sound.playAchievement();
+      spawnFloatingText(`🎁 RECOMPENSA RESGATADA! +${formatBytes(res.reward.bytes)} B`, 'bonus');
+      if (res.reward.levelTokens) {
+        spawnFloatingText(`🪙 +${res.reward.levelTokens} Ficha${res.reward.levelTokens > 1 ? 's' : ''}`, 'bonus');
+      }
+      if (res.reward.quantumFragments) {
+        spawnFloatingText(`✨ +${res.reward.quantumFragments} Frag. Quântico${res.reward.quantumFragments > 1 ? 's' : ''}`, 'bonus');
+      }
+      saveState(res.updatedState, auth.currentUser?.uid);
+      return res.updatedState;
+    });
+  }, [spawnFloatingText]);
+
+  // Iniciar batalha de texto na Masmorra RPG
+  const handleStartRpgChronicle = useCallback((floor: number) => {
+    setIsQuestsOpen(false);
+    const data = generateRpgFloor(floor, stateRef.current.keyTelemetry);
+    setActiveRpgFloor(data);
+  }, []);
+
+  // Vitória no andar da Masmorra RPG
+  const handleVictoryRpgFloor = useCallback((floorData: RpgFloorData) => {
+    setState((prev) => {
+      const { updatedState, reward } = completeRpgFloor(prev, floorData);
+      spawnFloatingText(`⚔️ ANDAR ${floorData.floor} RESTAURADO!`, 'bonus');
+      spawnFloatingText(`+${formatBytes(reward.bytes)} B`, 'bonus');
+      if (reward.quantumFragments) {
+        spawnFloatingText(`✨ +${reward.quantumFragments} Frag. Quântico${reward.quantumFragments > 1 ? 's' : ''}!`, 'bonus');
+      }
+      saveState(updatedState, auth.currentUser?.uid);
+      return checkAndAwardAchievements(updatedState);
+    });
+  }, [spawnFloatingText, checkAndAwardAchievements]);
+
+  // Avançar para o próximo andar na Masmorra RPG
+  const handleNextRpgFloor = useCallback(() => {
+    if (!activeRpgFloor) return;
+    const nextFloor = activeRpgFloor.floor + 1;
+    const nextData = generateRpgFloor(nextFloor, stateRef.current.keyTelemetry);
+    setActiveRpgFloor(nextData);
+  }, [activeRpgFloor]);
+
   const handleMascotClick = useCallback(() => {
     setState((prev) => {
       const nextClicks = (prev.mascotClicks || 0) + 1;
@@ -609,7 +692,8 @@ export default function App() {
         totalBytesEarned: prev.totalBytesEarned + reward,
         focusDrillsCompleted: (prev.focusDrillsCompleted || 0) + 1
       };
-      return checkAndAwardAchievements(nextState);
+      const stateWithQuests = applyQuestEvents(nextState, [{ type: 'focus_drill_completed', amount: 1 }]);
+      return checkAndAwardAchievements(stateWithQuests);
     });
     setConsecutiveErrors(0);
     consecutiveErrorsRef.current = 0;
@@ -619,7 +703,7 @@ export default function App() {
     overloadRecoveryRef.current = 0;
     setActiveFocusDrill(null);
     spawnFloatingText(`⚡ CIRCUITO RESTABELECIDO! +${reward} B`, 'success');
-  }, [spawnFloatingText, checkAndAwardAchievements]);
+  }, [spawnFloatingText, checkAndAwardAchievements, applyQuestEvents]);
 
   const handleFocusDrillSkip = useCallback(() => {
     setConsecutiveErrors(0);
@@ -799,7 +883,19 @@ export default function App() {
             perfectWordsStreak: nextPerfectStreak,
             completedDrillSessions: nextDrillsCompleted
           };
-          return checkAndAwardAchievements(nextState, { wpm: currentWpm });
+
+          const questEvents: QuestEvent[] = [
+            { type: 'word_typed', amount: 1, keys: currState.selectedCategory !== 'iniciante' ? ['advanced_category'] : [] },
+            { type: 'keystroke', amount: 1 }
+          ];
+          if (!currentWordHasErrorRef.current) {
+            questEvents.push({ type: 'accuracy_sample', accuracy: 100 });
+          }
+          if (isDrill && !nextDrillSession) {
+            questEvents.push({ type: 'drill_completed', amount: 1 });
+          }
+          const stateWithQuests = applyQuestEvents(nextState, questEvents);
+          return checkAndAwardAchievements(stateWithQuests, { wpm: currentWpm });
         });
 
         setCurrentWord(nextWord);
@@ -818,7 +914,12 @@ export default function App() {
             multiplier: nextMultiplier,
             keyTelemetry: updatedTelem
           };
-          return checkAndAwardAchievements(nextState);
+          const advanceEvents: QuestEvent[] = [{ type: 'keystroke', amount: 1 }];
+          if (nextCombo >= 50 && nextCombo % 50 === 0) {
+            advanceEvents.push({ type: 'keystroke', amount: nextCombo });
+          }
+          const stateWithQuests = applyQuestEvents(nextState, advanceEvents);
+          return checkAndAwardAchievements(stateWithQuests);
         });
         setCharIndex(index + 1);
       }
@@ -904,7 +1005,7 @@ export default function App() {
         sound.playGlitch();
       }
     }
-  }, [spawnFloatingText, activeFocusDrill, checkAndAwardAchievements]);
+  }, [spawnFloatingText, activeFocusDrill, checkAndAwardAchievements, applyQuestEvents]);
 
   const handleDeadKey = useCallback((accent: string) => {
     if (isPausedRef.current) return;
@@ -939,6 +1040,8 @@ export default function App() {
         isStudentModalOpen ||
         isCosmeticsOpen ||
         isAchievementsOpen ||
+        isQuestsOpen ||
+        activeRpgFloor !== null ||
         isConverterOpen ||
         isAdminOpen ||
         activeChallengeLevel !== null ||
@@ -1015,6 +1118,8 @@ export default function App() {
     isStudentModalOpen,
     isCosmeticsOpen,
     isAchievementsOpen,
+    isQuestsOpen,
+    activeRpgFloor,
     isConverterOpen,
     isAdminOpen,
     activeChallengeLevel,
@@ -1340,10 +1445,11 @@ export default function App() {
         totalBytesEarned: prev.totalBytesEarned + reward,
         completedChallenges: completed
       };
-      return checkAndAwardAchievements(nextState);
+      const stateWithQuests = applyQuestEvents(nextState, [{ type: 'boss_defeated', amount: 1 }]);
+      return checkAndAwardAchievements(stateWithQuests);
     });
     spawnFloatingText(`+${formatBytes(reward)} B (DESAFIO)!`, 'bonus');
-  }, [activeChallengeLevel, spawnFloatingText, checkAndAwardAchievements]);
+  }, [activeChallengeLevel, spawnFloatingText, checkAndAwardAchievements, applyQuestEvents]);
 
   const handleChallengeFail = useCallback(() => {
     setActiveChallengeLevel(null);
@@ -1591,6 +1697,11 @@ export default function App() {
             onOpenLeaderboard={() => setIsLeaderboardOpen(true)}
             onOpenAchievements={() => setIsAchievementsOpen(true)}
             achievementsCount={getOverallAchievementsStats(state)}
+            onOpenQuests={() => setIsQuestsOpen(true)}
+            questsCount={{
+              readyToClaim: (state.quests?.weeklyQuests || []).filter((q) => q.completed && !q.claimed).length,
+              currentFloor: state.quests?.rpgDungeonFloor ?? 1
+            }}
             onMascotClick={handleMascotClick}
             onOpenArena={() => setIsArenaOpen(true)}
             onOpenConverter={() => setIsConverterOpen(true)}
@@ -1721,6 +1832,26 @@ export default function App() {
         onClose={() => setIsAchievementsOpen(false)}
         state={state}
       />
+
+      {/* Modal de Quests Semanais & Crônicas RPG */}
+      <QuestsModal
+        isOpen={isQuestsOpen}
+        onClose={() => setIsQuestsOpen(false)}
+        state={state}
+        onClaimWeeklyQuest={handleClaimWeeklyQuest}
+        onStartRpgChronicle={handleStartRpgChronicle}
+      />
+
+      {/* Arena de Combate em Texto Completo da Crônica RPG */}
+      {activeRpgFloor && (
+        <RpgChronicleArena
+          isOpen={true}
+          floorData={activeRpgFloor}
+          onVictory={handleVictoryRpgFloor}
+          onNextFloor={handleNextRpgFloor}
+          onClose={() => setActiveRpgFloor(null)}
+        />
+      )}
 
       {/* Arena 1x1 Multiplayer Modal (Nível 100 ou Administrador) */}
       <ArenaModal

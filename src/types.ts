@@ -1,10 +1,12 @@
 import { PlayerCosmetics } from './types/cosmetics';
 import { ArenaStats } from './types/arena';
 import { AchievementDef, AchievementReward, AchievementCategory, AchievementContext } from './types/achievements';
+import { QuestsState } from './types/quests';
 
 export * from './types/cosmetics';
 export * from './types/arena';
 export * from './types/achievements';
+export * from './types/quests';
 
 export type CategoryId = 'iniciante' | 'facil' | 'medio' | 'avancado' | 'expert';
 
@@ -68,6 +70,8 @@ export interface GameState {
   mascotClicks?: number;
   completedDrillSessions?: number;
   categoriesExplored?: CategoryId[];
+  // Sistema de Quests Semanais & Crônicas RPG Infinitas
+  quests?: QuestsState;
   // Novos campos opcionais com retrocompatibilidade garantida
   schemaVersion?: number;
   flaggedForReview?: boolean;

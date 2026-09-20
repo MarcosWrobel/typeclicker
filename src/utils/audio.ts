@@ -598,6 +598,22 @@ class SoundEngine {
       // Ignore
     }
   }
+
+  public playClick() {
+    this.playKeyStroke(0, 'mechanical');
+  }
+
+  public playType() {
+    this.playKeyStroke();
+  }
+
+  public playChallengeSuccess() {
+    this.playAchievement();
+  }
+
+  public playChallengeFail() {
+    this.playGlitch();
+  }
 }
 
 export const sound = new SoundEngine();

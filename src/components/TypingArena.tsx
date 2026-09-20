@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Flame, Sparkles, Award, Keyboard, HelpCircle, AlertCircle, Zap, Gauge, Trophy, AlertTriangle, Timer, Activity, Pause, Play, Lock, Palette, Coins, Users, Swords, Target } from 'lucide-react';
+import { Flame, Sparkles, Award, Keyboard, HelpCircle, AlertCircle, Zap, Gauge, Trophy, AlertTriangle, Timer, Activity, Pause, Play, Lock, Palette, Coins, Users, Swords, Target, Scroll } from 'lucide-react';
 import { CategoryId, FloatingText, DrillSession, KeyTelemetry } from '../types';
 import { BytezinhoSkinId, TerminalThemeId, AnimationEffectId } from '../types/cosmetics';
 import { TERMINAL_THEMES } from '../constants/themes';
@@ -46,6 +46,8 @@ interface TypingArenaProps {
   onOpenLeaderboard?: () => void;
   onOpenAchievements?: () => void;
   achievementsCount?: { unlocked: number; total: number };
+  onOpenQuests?: () => void;
+  questsCount?: { readyToClaim: number; currentFloor: number };
   onMascotClick?: () => void;
   onOpenArena?: () => void;
   onOpenConverter?: () => void;
@@ -131,6 +133,8 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
   onOpenLeaderboard,
   onOpenAchievements,
   achievementsCount,
+  onOpenQuests,
+  questsCount,
   onMascotClick,
   onOpenArena,
   onOpenConverter,
@@ -926,6 +930,28 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
                   {achievementsCount.unlocked}/{achievementsCount.total}
                 </span>
               )}
+            </button>
+          )}
+
+          {/* MISSÕES & CRÔNICAS RPG */}
+          {onOpenQuests && (
+            <button
+              type="button"
+              onClick={onOpenQuests}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-cyan-950/70 via-indigo-950/60 to-cyan-950/70 hover:from-cyan-900/80 hover:to-indigo-900/80 text-cyan-200 hover:text-white border border-cyan-500/50 text-xs font-semibold transition shadow-[0_0_12px_rgba(6,182,212,0.2)] cursor-pointer group"
+              title="Missões Semanais e Crônicas RPG em Texto Completo"
+            >
+              <Scroll className="w-3.5 h-3.5 text-cyan-400 group-hover:scale-110 transition-transform" />
+              <span>MISSÕES</span>
+              {questsCount && questsCount.readyToClaim > 0 ? (
+                <span className="flex items-center px-1.5 py-0.2 rounded-full bg-amber-500 text-black font-black text-[10px] animate-bounce">
+                  {questsCount.readyToClaim}
+                </span>
+              ) : questsCount ? (
+                <span className="flex items-center px-1.5 py-0.2 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-500/40 text-[9px] font-mono">
+                  A.{questsCount.currentFloor}
+                </span>
+              ) : null}
             </button>
           )}
 
