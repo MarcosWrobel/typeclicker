@@ -8,7 +8,7 @@ import { isAccentKey, resolveDeadKey, getAccentDisplayName } from '../utils/keyb
 import { BytezinhoMascot } from './BytezinhoMascot';
 import { TerminalThemeEffects } from './TerminalThemeEffects';
 import { isCategoryAllowed, getMinAllowedCategoryLevel } from '../utils/difficulty';
-import { getLetterVfxClasses } from '../services/fxEngine';
+import { getLetterVfxClasses, triggerKeystrokeImpact } from '../services/fxEngine';
 
 interface TypingArenaProps {
   playerRankLevel: number;
@@ -133,6 +133,31 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
 
   const [isFocused, setIsFocused] = useState(true);
   const activeTerminalTheme = TERMINAL_THEMES[equippedTheme || 'matrix'] || TERMINAL_THEMES.matrix;
+
+  // Rastreamento para disparo cinemático de impacto de teclas e finalização de palavras (Arcade VFX)
+  const lastCharIndexRef = useRef(charIndex);
+  const wordContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Se o jogador avançou na digitação correta da palavra
+    if (charIndex > lastCharIndexRef.current) {
+      let xPx = window.innerWidth / 2;
+      let yPx = window.innerHeight / 2;
+
+      const activeCharSpan = wordContainerRef.current?.querySelector('.char-current') as HTMLElement | null;
+      if (activeCharSpan) {
+        const rect = activeCharSpan.getBoundingClientRect();
+        xPx = rect.left + rect.width / 2;
+        yPx = rect.top + rect.height / 2;
+      }
+
+      const isWordComplete = charIndex >= currentWord.length;
+      const themeColor = activeTerminalTheme.previewColors.accent || '#38bdf8';
+
+      triggerKeystrokeImpact(xPx, yPx, themeColor, equippedAnimation, isWordComplete);
+    }
+    lastCharIndexRef.current = charIndex;
+  }, [charIndex, currentWord, activeTerminalTheme, equippedAnimation]);
 
   // Mantém o input focado para captura de digitação direta no laboratório
   useEffect(() => {
@@ -420,7 +445,7 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
           )}
 
           {/* High-Contrast Interactive Characters */}
-          <div className="font-mono text-3xl sm:text-4xl md:text-5xl tracking-widest font-bold my-2 sm:my-3 flex items-center justify-center flex-wrap gap-1 select-none">
+          <div ref={wordContainerRef} className="font-mono text-3xl sm:text-4xl md:text-5xl tracking-widest font-bold my-2 sm:my-3 flex items-center justify-center flex-wrap gap-1 select-none">
             {currentWord.split('').map((char, index) => {
               const isDone = index < charIndex;
               const isCurrent = index === charIndex;

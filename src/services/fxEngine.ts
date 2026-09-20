@@ -1,53 +1,124 @@
 import confetti from 'canvas-confetti';
 import { AnimationEffectId } from '../types/cosmetics';
+import { VECTOR_SHAPES } from '../constants/vectorShapes';
+import { arcadeVfx } from './arcadeVfxEngine';
 
-// Cache para formas customizadas (ImageBitmap / Emojis de alta resolução) via canvas-confetti
+export interface TintOptions {
+  scalar?: number;
+  color?: string | [string, string];
+  fallback?: confetti.Shape;
+}
+
+/**
+ * Renderiza uma forma (Path2D nativo ou glifo) com mascaramento de canal Alfa
+ * e preenchimento de cor semântica sólida ou gradiente espectral via Canvas 2D.
+ */
+export function createTintedShape(
+  textOrPath: string | Path2D,
+  options: TintOptions = {}
+): confetti.Shape {
+  if (typeof window === 'undefined') return options.fallback || 'circle';
+
+  const scalar = options.scalar ?? 2.5;
+  const fontSize = Math.round(12 * scalar);
+  const padding = 4;
+  const width = fontSize + padding * 2;
+  const height = fontSize + padding * 2;
+
+  try {
+    let canvas: OffscreenCanvas | HTMLCanvasElement;
+    let ctx: OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D | null = null;
+
+    if (typeof OffscreenCanvas !== 'undefined') {
+      canvas = new OffscreenCanvas(width, height);
+      ctx = canvas.getContext('2d');
+    } else {
+      canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      ctx = canvas.getContext('2d');
+    }
+
+    if (!ctx) return options.fallback || 'circle';
+
+    // 1. Desenha a forma base como máscara de opacidade/alfa
+    if (typeof textOrPath === 'string') {
+      ctx.font = `${fontSize}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(textOrPath, width / 2, height / 2);
+    } else {
+      ctx.save();
+      ctx.translate(padding, padding);
+      ctx.scale(fontSize / 24, fontSize / 24);
+      ctx.fill(textOrPath);
+      ctx.restore();
+    }
+
+    // 2. Aplica mascaramento de Alfa: mantém apenas a silhueta desenhada
+    ctx.globalCompositeOperation = 'source-in';
+
+    // 3. Preenche com cor sólida ou gradiente temático
+    if (Array.isArray(options.color)) {
+      const grad = ctx.createLinearGradient(0, 0, width, height);
+      grad.addColorStop(0, options.color[0]);
+      grad.addColorStop(1, options.color[1]);
+      ctx.fillStyle = grad;
+    } else {
+      ctx.fillStyle = options.color || '#38bdf8';
+    }
+    ctx.fillRect(0, 0, width, height);
+
+    // 4. Converte para ImageBitmap compatível com canvas-confetti
+    const scale = 1 / scalar;
+    const bitmap =
+      'transferToImageBitmap' in canvas && typeof canvas.transferToImageBitmap === 'function'
+        ? canvas.transferToImageBitmap()
+        : (canvas as HTMLCanvasElement);
+
+    return {
+      type: 'bitmap',
+      bitmap: bitmap as unknown as ImageBitmap,
+      matrix: [scale, 0, 0, scale, (-width * scale) / 2, (-height * scale) / 2],
+    } as unknown as confetti.Shape;
+  } catch (err) {
+    console.warn('[fxEngine] createTintedShape error:', err);
+    return options.fallback || 'circle';
+  }
+}
+
+// Cache para formas customizadas via canvas-confetti
 let cachedShapes: Record<string, confetti.Shape> | null = null;
 
 function getShapes(): Record<string, confetti.Shape> {
   if (cachedShapes) return cachedShapes;
 
-  const createEmojiShape = (
-    text: string,
-    scalar: number = 2.4,
-    fallback: confetti.Shape = 'circle'
-  ): confetti.Shape => {
-    try {
-      if (typeof window !== 'undefined' && typeof confetti.shapeFromText === 'function') {
-        return confetti.shapeFromText({ text, scalar });
-      }
-    } catch (err) {
-      console.warn(`[fxEngine] shapeFromText failed for "${text}":`, err);
-    }
-    return fallback;
-  };
-
   cachedShapes = {
-    bat: createEmojiShape('🦇', 2.5, 'circle'),
-    skull: createEmojiShape('💀', 2.4, 'circle'),
-    bone: createEmojiShape('🦴', 2.4, 'square'),
-    lightning: createEmojiShape('⚡', 2.4, 'star'),
-    ring: createEmojiShape('💍', 2.3, 'circle'),
-    goldCoin: createEmojiShape('🪙', 2.4, 'circle'),
-    diamond: createEmojiShape('💎', 2.4, 'square'),
-    flame: createEmojiShape('🔥', 2.4, 'circle'),
-    fist: createEmojiShape('👊', 2.7, 'square'),
-    explosion: createEmojiShape('💥', 2.7, 'star'),
-    steam: createEmojiShape('💨', 2.4, 'circle'),
-    waterWave: createEmojiShape('🌊', 2.4, 'circle'),
-    eye: createEmojiShape('👁️', 2.4, 'circle'),
-    spiral: createEmojiShape('🌀', 2.4, 'circle'),
-    ghost: createEmojiShape('👻', 2.4, 'circle'),
-    sword: createEmojiShape('🗡️', 2.4, 'star'),
-    pixelMonster: createEmojiShape('👾', 2.4, 'square'),
-    pixelHeart: createEmojiShape('❤️', 2.4, 'square'),
-    rocket: createEmojiShape('🚀', 2.4, 'star'),
-    star: createEmojiShape('⭐', 2.4, 'star'),
-    bubble: createEmojiShape('🫧', 2.4, 'circle'),
-    sparkles: createEmojiShape('✨', 2.4, 'star'),
-    firework: createEmojiShape('🎆', 2.4, 'star'),
-    binaryOne: createEmojiShape('1', 2.1, 'square'),
-    binaryZero: createEmojiShape('0', 2.1, 'square'),
+    bat: createTintedShape(VECTOR_SHAPES.bat, { scalar: 2.8, color: ['#fbbf24', '#78350f'], fallback: 'circle' }),
+    skull: createTintedShape(VECTOR_SHAPES.skull, { scalar: 2.8, color: ['#e0f2fe', '#06b6d4'], fallback: 'circle' }),
+    bone: createTintedShape(VECTOR_SHAPES.bone, { scalar: 2.6, color: ['#ffffff', '#38bdf8'], fallback: 'square' }),
+    lightning: createTintedShape(VECTOR_SHAPES.lightning, { scalar: 2.6, color: ['#fef08a', '#eab308'], fallback: 'star' }),
+    ring: createTintedShape(VECTOR_SHAPES.ring, { scalar: 2.6, color: ['#fef9c3', '#f59e0b'], fallback: 'circle' }),
+    diamond: createTintedShape(VECTOR_SHAPES.diamond, { scalar: 2.6, color: ['#a5f3fc', '#06b6d4'], fallback: 'square' }),
+    flame: createTintedShape(VECTOR_SHAPES.flame, { scalar: 2.6, color: ['#fef08a', '#ea580c'], fallback: 'circle' }),
+    fist: createTintedShape(VECTOR_SHAPES.fist, { scalar: 3.0, color: ['#fca5a5', '#dc2626'], fallback: 'square' }),
+    sword: createTintedShape(VECTOR_SHAPES.sword, { scalar: 2.6, color: ['#e0f2fe', '#0284c7'], fallback: 'star' }),
+    star: createTintedShape(VECTOR_SHAPES.star, { scalar: 2.6, color: ['#fef08a', '#c084fc'], fallback: 'star' }),
+    steam: createTintedShape(VECTOR_SHAPES.steam, { scalar: 2.6, color: ['#ffffff', '#fb7185'], fallback: 'circle' }),
+    spiral: createTintedShape(VECTOR_SHAPES.spiral, { scalar: 2.6, color: ['#38bdf8', '#a855f7'], fallback: 'circle' }),
+    goldCoin: createTintedShape('🪙', { scalar: 2.6, color: ['#fef08a', '#d97706'], fallback: 'circle' }),
+    bubble: createTintedShape('🫧', { scalar: 2.6, color: ['#a5f3fc', '#c084fc'], fallback: 'circle' }),
+    pixelMonster: createTintedShape('👾', { scalar: 2.6, color: ['#a855f7', '#22c55e'], fallback: 'square' }),
+    pixelHeart: createTintedShape('❤️', { scalar: 2.6, color: ['#fca5a5', '#dc2626'], fallback: 'square' }),
+    rocket: createTintedShape('🚀', { scalar: 2.6, color: ['#e0f2fe', '#0284c7'], fallback: 'star' }),
+    sparkles: createTintedShape('✨', { scalar: 2.6, color: ['#fef08a', '#f59e0b'], fallback: 'star' }),
+    firework: createTintedShape('🎆', { scalar: 2.6, color: ['#f43f5e', '#38bdf8'], fallback: 'star' }),
+    binaryOne: createTintedShape('1', { scalar: 2.2, color: ['#86efac', '#16a34a'], fallback: 'square' }),
+    binaryZero: createTintedShape('0', { scalar: 2.2, color: ['#86efac', '#16a34a'], fallback: 'square' }),
+    explosion: createTintedShape('💥', { scalar: 2.8, color: ['#fef08a', '#ea580c'], fallback: 'star' }),
+    eye: createTintedShape('👁️', { scalar: 2.6, color: ['#a5f3fc', '#38bdf8'], fallback: 'circle' }),
+    ghost: createTintedShape('👻', { scalar: 2.6, color: ['#dbeafe', '#7dd3fc'], fallback: 'circle' }),
+    waterWave: createTintedShape('🌊', { scalar: 2.6, color: ['#e0f2fe', '#0284c7'], fallback: 'circle' }),
   };
 
   return cachedShapes;
@@ -171,6 +242,69 @@ export function triggerScreenShakeVfx() {
 }
 
 /**
+ * Disparado em tempo real na digitação de teclas e combos no terminal
+ * Opera via ArcadeVfxEngine com fusão aditiva (lighter), Kinetic Smear e 0% CPU em repouso
+ */
+export function triggerKeystrokeImpact(
+  xPx: number,
+  yPx: number,
+  color: string = '#38bdf8',
+  effectId: AnimationEffectId | string = 'confetti_classic',
+  isWordComplete: boolean = false
+): void {
+  let pathShape: Path2D | undefined;
+  const multiplier = isWordComplete ? 2.2 : 1;
+  const particleCount = Math.round((isWordComplete ? 14 : 5) * (multiplier > 1 ? 1.2 : 1));
+  const baseSpeed = isWordComplete ? 9.5 : 5.5;
+
+  switch (effectId) {
+    case 'gaster_bone_barrage':
+      pathShape = VECTOR_SHAPES.bone;
+      break;
+    case 'bat_swarm_vfx':
+      pathShape = VECTOR_SHAPES.bat;
+      break;
+    case 'tesla_lightning':
+    case 'thunder_storm_vfx':
+    case 'sandevistan_afterimage':
+      pathShape = VECTOR_SHAPES.lightning;
+      break;
+    case 'golden_ring_burst':
+      pathShape = VECTOR_SHAPES.ring;
+      break;
+    case 'diamond_rain':
+      pathShape = VECTOR_SHAPES.diamond;
+      break;
+    case 'volcano_flame':
+    case 'gear_second_steam':
+    case 'water_flame_dragon':
+      pathShape = VECTOR_SHAPES.flame;
+      break;
+    case 'serious_shockwave':
+      pathShape = VECTOR_SHAPES.fist;
+      break;
+    case 'soul_vessel_burst':
+      pathShape = VECTOR_SHAPES.sword;
+      break;
+    case 'supernova_burst':
+    case 'hyperspace_warp':
+      pathShape = VECTOR_SHAPES.star;
+      break;
+    default:
+      break;
+  }
+
+  arcadeVfx.emitBurst({
+    x: xPx,
+    y: yPx,
+    color,
+    pathShape,
+    particleCount,
+    baseSpeed,
+  });
+}
+
+/**
  * Dispara o efeito visual de compra de upgrade de acordo com o estilo equipado
  */
 export function triggerUpgradePurchaseVfx(
@@ -187,6 +321,19 @@ export function triggerUpgradePurchaseVfx(
     }
     const countMultiplier = isMilestone ? 2 : 1;
     const shapes = getShapes();
+
+    // Burst tátil instantâneo no ponto do clique via ArcadeVfx (zero latência)
+    if (typeof window !== 'undefined') {
+      const screenXPx = x * window.innerWidth;
+      const screenYPx = y * window.innerHeight;
+      arcadeVfx.emitBurst({
+        x: screenXPx,
+        y: screenYPx,
+        color: '#ffffff',
+        particleCount: isMilestone ? 14 : 7,
+        baseSpeed: 6.5,
+      });
+    }
 
     switch (style) {
       case 'confetti_classic':
@@ -430,16 +577,28 @@ export function triggerUpgradePurchaseVfx(
         break;
 
       case 'gaster_bone_barrage':
+        // 1. Entidades Primárias (Heróis): 3 ossos e caveiras grandes e nítidos
         confetti({
-          particleCount: Math.round(24 * countMultiplier),
-          spread: 100,
+          particleCount: Math.round(3 * countMultiplier),
+          spread: 70,
           origin: { x, y },
           shapes: [shapes.skull, shapes.bone],
           flat: true,
-          scalar: 2.4,
-          colors: ['#06b6d4', '#ffffff', '#e0f2fe'],
+          scalar: 3.0,
           startVelocity: isMilestone ? 42 : 28,
-          gravity: 0.55,
+          gravity: 0.5,
+        });
+        // 2. Micro-debris de plasma ciano velozes (dissipação em 300ms)
+        confetti({
+          particleCount: Math.round(20 * countMultiplier),
+          spread: 110,
+          origin: { x, y },
+          shapes: ['circle'],
+          colors: ['#06b6d4', '#67e8f9', '#ffffff'],
+          scalar: 0.45,
+          startVelocity: isMilestone ? 54 : 36,
+          gravity: 0.7,
+          ticks: 55,
         });
         if (isMilestone) {
           triggerShockwaveVfx(x, y, 'rgba(6, 182, 212, 0.8)', 210);
@@ -497,16 +656,28 @@ export function triggerUpgradePurchaseVfx(
         break;
 
       case 'serious_shockwave':
+        // 1. Entidades Primárias: 2 punhos gigantes e explosão cataclísmica
         confetti({
-          particleCount: Math.round(24 * countMultiplier),
-          spread: 120,
+          particleCount: Math.round(2 * countMultiplier),
+          spread: 80,
           origin: { x, y },
           shapes: [shapes.fist, shapes.explosion],
           flat: true,
-          scalar: 2.8,
+          scalar: 3.4,
+          startVelocity: isMilestone ? 46 : 30,
+          gravity: 0.6,
+        });
+        // 2. Micro-debris de impacto
+        confetti({
+          particleCount: Math.round(24 * countMultiplier),
+          spread: 160,
+          origin: { x, y },
+          shapes: ['circle'],
           colors: ['#ef4444', '#fca5a5', '#ffffff'],
-          startVelocity: isMilestone ? 48 : 32,
-          gravity: 0.65,
+          scalar: 0.45,
+          startVelocity: isMilestone ? 58 : 38,
+          gravity: 0.7,
+          ticks: 50,
         });
         triggerShockwaveVfx(x, y, 'rgba(239, 68, 68, 0.85)', isMilestone ? 320 : 190);
         triggerScreenShakeVfx();
@@ -550,17 +721,29 @@ export function triggerUpgradePurchaseVfx(
         break;
 
       case 'bat_swarm_vfx':
+        // 1. Entidades Primárias (Heróis): 3 morcegos grandes em ascensão
         confetti({
-          particleCount: Math.round(22 * countMultiplier),
-          spread: 90,
+          particleCount: Math.round(3 * countMultiplier),
+          spread: 60,
           angle: 90,
           origin: { x, y },
           shapes: [shapes.bat],
           flat: true,
-          scalar: 2.5,
-          colors: ['#111827', '#374151', '#f59e0b'],
-          startVelocity: isMilestone ? 38 : 24,
-          gravity: 0.35,
+          scalar: 3.2,
+          startVelocity: isMilestone ? 40 : 26,
+          gravity: 0.3,
+        });
+        // 2. Micro-debris sombrios e faíscas âmbar
+        confetti({
+          particleCount: Math.round(18 * countMultiplier),
+          spread: 100,
+          origin: { x, y },
+          shapes: ['circle'],
+          colors: ['#fbbf24', '#f59e0b', '#18181b'],
+          scalar: 0.4,
+          startVelocity: isMilestone ? 46 : 30,
+          gravity: 0.6,
+          ticks: 55,
         });
         if (isMilestone) {
           triggerShockwaveVfx(x, y, 'rgba(245, 158, 11, 0.65)', 190);
