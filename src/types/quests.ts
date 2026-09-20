@@ -24,6 +24,18 @@ export interface WeeklyQuestProgress {
   claimed: boolean;
 }
 
+export type RpgStatusEffectType = 'blind' | 'fear' | 'hold';
+
+export interface RpgActiveStatusEffect {
+  type: RpgStatusEffectType;
+  label: string;
+  description: string;
+  icon: string;
+  durationSeconds: number;
+  progress: number;
+  maxProgress: number;
+}
+
 export interface RpgBoss {
   name: string;
   title: string;
@@ -32,6 +44,7 @@ export interface RpgBoss {
   maxHp: number;
   lore: string;
   weaknessKeys?: string[];
+  armorPercent?: number; // % de mitigação contra teclas comuns (perfurada por fraquezas)
 }
 
 export interface RpgFloorData {

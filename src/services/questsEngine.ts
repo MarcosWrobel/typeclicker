@@ -596,8 +596,23 @@ export function generateRpgFloor(floor: number, telemetry?: Record<string, KeyTe
     // Se o aluno tem fraquezas identificadas, adiciona-as à fraqueza do Boss!
     const bossWeaknesses = Array.from(new Set([...(baseBoss.weaknessKeys || []), ...weakKeys])).slice(0, 5);
 
-    // Ajusta o HP de acordo com a extensão do texto (aproximadamente 1.1x o total de caracteres)
-    const calculatedHp = Math.max(baseBoss.maxHp, Math.round(chapter.text.length * 1.15));
+    // Dificuldade Mediana a Difícil conforme o avanço na masmorra:
+    // Andares 1 a 3: Mediana (exige ~85-95% do texto digitado)
+    // Andares 4 a 7: Desafiadora (15% armadura, HP ampliado)
+    // Andares 8 a 10: Pesada / Chefes Lendários (25% armadura, HP massivo)
+    let calculatedHp = 0;
+    let armorPercent = 0;
+
+    if (floor <= 3) {
+      calculatedHp = Math.round(chapter.text.length * 2.8 + floor * 100);
+      armorPercent = 0;
+    } else if (floor <= 7) {
+      calculatedHp = Math.round(chapter.text.length * 3.6 + floor * 160);
+      armorPercent = 15;
+    } else {
+      calculatedHp = Math.round(chapter.text.length * 4.4 + floor * 220);
+      armorPercent = 25;
+    }
 
     const isMilestone = floor % 5 === 0;
     return {
@@ -607,6 +622,7 @@ export function generateRpgFloor(floor: number, telemetry?: Record<string, KeyTe
       boss: {
         ...baseBoss,
         maxHp: calculatedHp,
+        armorPercent,
         weaknessKeys: bossWeaknesses
       },
       rewardBytes: floor * 2000 + 5000,
@@ -620,7 +636,6 @@ export function generateRpgFloor(floor: number, telemetry?: Record<string, KeyTe
   // Gera narrativa combinando sentenças de lore ricas nas teclas fracas do aluno
   const bossIndex = (floor - 1) % RPG_BOSSES.length;
   const baseBoss = RPG_BOSSES[bossIndex];
-  const hpMultiplier = 1 + (floor - 10) * 0.08;
 
   let adaptiveSentence = '';
   if (weakKeys.some((k) => ['p', 'c', 'ç'].includes(k))) {
@@ -641,6 +656,8 @@ export function generateRpgFloor(floor: number, telemetry?: Record<string, KeyTe
   const epicConclusion = `Com golpes ritmados sobre o teclado, a barreira de ruído começou a ruir diante da perseverança de um futuro mestre do Colégio Leopoldina.`;
 
   const fullText = `${epicPreamble} ${adaptiveSentence} ${epicConclusion}`;
+  const calculatedHp = Math.round(fullText.length * (4.5 + (floor - 10) * 0.25));
+  const armorPercent = Math.min(35, 25 + Math.floor((floor - 10) / 3) * 2);
   const bossWeaknesses = Array.from(new Set([...(baseBoss.weaknessKeys || []), ...weakKeys])).slice(0, 5);
   const isMilestone = floor % 5 === 0;
 
@@ -651,7 +668,8 @@ export function generateRpgFloor(floor: number, telemetry?: Record<string, KeyTe
     boss: {
       ...baseBoss,
       name: `${baseBoss.name} Nv.${Math.floor(floor / 2)}`,
-      maxHp: Math.round(fullText.length * 1.25 * hpMultiplier),
+      maxHp: calculatedHp,
+      armorPercent,
       weaknessKeys: bossWeaknesses
     },
     rewardBytes: Math.round(floor * 2500 + 8000),
