@@ -1,0 +1,8 @@
+{
+  "firestore": {
+    "databaseId": "ai-studio-typeclickereduca-b411f269-51c7-4c3d-ac8c-f1dd59f2f7ca",
+    "rules": "firestore.rules",
+    "edition": "ENTERPRISE",
+    "dataAccessMode": "FIRESTORE_NATIVE"
+  }
+}

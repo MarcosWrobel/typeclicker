@@ -1,0 +1,88 @@
+{
+  "entities": {
+    "PlayerSave": {
+      "title": "Player Save",
+      "description": "A student's game progress linked to their Google Auth UID.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 128 },
+        "nome": { "type": "string", "maxLength": 100 },
+        "apelido": { "type": "string", "maxLength": 50 },
+        "turma": { "type": "string", "maxLength": 50 },
+        "level": { "type": "number" },
+        "points": { "type": "number" },
+        "wpm": { "type": "number" },
+        "accuracy": { "type": "number" },
+        "saveState": { "type": "object", "description": "The full game state JSON" },
+        "updatedAt": { "type": "string", "description": "Server timestamp of last update" }
+      },
+      "required": ["userId", "saveState"]
+    },
+    "LeaderboardEntry": {
+      "title": "Leaderboard Entry",
+      "description": "Public ranking data for a student. PII is isolated from here.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "nome": { "type": "string", "maxLength": 100 },
+        "apelido": { "type": "string", "maxLength": 50 },
+        "turma": { "type": "string", "maxLength": 50 },
+        "level": { "type": "number" },
+        "points": { "type": "number" },
+        "wpm": { "type": "number" },
+        "accuracy": { "type": "number" },
+        "avatar": { "type": "string", "maxLength": 500 },
+        "updatedAt": { "type": "string", "description": "Server timestamp of last update" }
+      },
+      "required": ["userId", "nome", "level", "points"]
+    },
+    "SystemSettings": {
+      "title": "System Settings",
+      "description": "Global system configurations, locks, and admin testing grants.",
+      "type": "object",
+      "properties": {
+        "activeCode": { "type": "string" },
+        "expiresAt": { "type": "string" },
+        "expiresAtMs": { "type": "number" },
+        "allowedTeachers": { "type": "array" },
+        "testerEmails": { "type": "array", "description": "List of emails designated to receive testing resources" },
+        "testGrantsHistory": { "type": "array", "description": "Audit log of test resource grants" },
+        "pendingTestGrants": { "type": "object", "description": "Pending grants for tester accounts" }
+      },
+      "required": []
+    },
+    "DatabaseBackup": {
+      "title": "Database Backup",
+      "description": "Historical snapshot of database saves and leaderboard created by admins.",
+      "type": "object",
+      "properties": {
+        "createdAt": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "totalSaves": { "type": "number" },
+        "totalLeaderboard": { "type": "number" },
+        "label": { "type": "string" },
+        "data": { "type": "object" }
+      },
+      "required": ["createdAt", "createdBy", "totalSaves", "totalLeaderboard"]
+    }
+  },
+  "firestore": {
+    "saves/{userId}": {
+      "schema": { "$ref": "#/entities/PlayerSave" },
+      "description": "Stores the game saves of the students. Private."
+    },
+    "leaderboard/{userId}": {
+      "schema": { "$ref": "#/entities/LeaderboardEntry" },
+      "description": "Publicly readable leaderboard entries."
+    },
+    "system/settings": {
+      "schema": { "$ref": "#/entities/SystemSettings" },
+      "description": "Global lock codes and system settings."
+    },
+    "backups/{backupId}": {
+      "schema": { "$ref": "#/entities/DatabaseBackup" },
+      "description": "Admin snapshots of database saves for disaster recovery."
+    }
+  }
+}

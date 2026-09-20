@@ -1,0 +1,82 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) { 
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    }
+    
+    function incoming() { 
+      return request.resource.data; 
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'wrobel.marcos@gmail.com' ||
+        request.auth.token.email == 'marcos.wrobel@escola.pr.gov.br' ||
+        request.auth.token.email == 'wrobel.marcos3@gmail.com'
+      );
+    }
+
+    function isSessionActive() {
+      let settings = get(/databases/$(database)/documents/system/settings).data;
+      return settings != null &&
+             settings.activeCode != null &&
+             settings.expiresAtMs != null &&
+             settings.expiresAtMs > request.time.toMillis();
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidPlayerSave(data) {
+      return data.keys().hasAll(['userId', 'saveState']) &&
+             data.userId is string && data.userId.size() > 0 && data.userId.size() <= 128 &&
+             data.saveState is map;
+    }
+
+    function isValidLeaderboardEntry(data) {
+      return data.keys().hasAll(['userId', 'nome', 'level', 'points']) &&
+             data.userId is string && data.userId.size() <= 128 &&
+             data.nome is string && data.nome.size() <= 100 &&
+             data.level is number &&
+             data.points is number;
+    }
+
+    match /saves/{userId} {
+      allow read, write: if isAdmin();
+      allow get: if isValidId(userId) && isOwner(userId);
+      allow create, update: if isValidId(userId) && isOwner(userId) && isValidPlayerSave(incoming()) && incoming().userId == request.auth.uid;
+      allow delete: if isAdmin() || (isValidId(userId) && isOwner(userId));
+    }
+
+    match /leaderboard/{userId} {
+      allow read, write: if isAdmin();
+      // Public read for signed-in users so they can see the ranking
+      allow read: if isSignedIn();
+      allow create, update: if isValidId(userId) && isOwner(userId) && isValidLeaderboardEntry(incoming()) && incoming().userId == request.auth.uid;
+      allow delete: if isAdmin() || (isValidId(userId) && isOwner(userId));
+    }
+
+    match /system/settings {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /arena_rooms/{roomId} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /backups/{backupId} {
+      allow read, write: if isAdmin();
+    }
+  }
+}
