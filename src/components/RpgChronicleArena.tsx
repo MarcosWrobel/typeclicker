@@ -20,7 +20,8 @@ import {
   Snowflake,
   Skull,
   Activity,
-  Lock
+  Lock,
+  Clock
 } from 'lucide-react';
 import { RpgFloorData, DungeonState, RpgActiveStatusEffect } from '../types/quests';
 import { sound } from '../utils/audio';
@@ -34,6 +35,9 @@ interface RpgChronicleArenaProps {
   onVictory: (floorData: RpgFloorData) => void;
   onClose: () => void;
   onNextFloor?: () => void;
+  availableKeys?: number;
+  onConsumeKey?: () => boolean;
+  isAdmin?: boolean;
 }
 
 interface DamagePopup {
@@ -50,7 +54,10 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
   dungeon,
   onVictory,
   onClose,
-  onNextFloor
+  onNextFloor,
+  availableKeys,
+  onConsumeKey,
+  isAdmin
 }) => {
   const maxShield = 100 + (dungeon?.shield?.bonusShield ?? 0) + (dungeon?.relic?.bonusShield ?? 0);
   const [charIndex, setCharIndex] = useState(0);
@@ -62,6 +69,10 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
   const [pendingAccent, setPendingAccent] = useState<string | null>(null);
   const [isBossHurt, setIsBossHurt] = useState(false);
 
+  // Gestão de Chaves de Expedição para Reiniciar após Derrota
+  const keysCount = availableKeys ?? dungeon?.keys ?? 0;
+  const hasKeysToRetry = isAdmin || keysCount > 0;
+
   // Mecânica de Minigame QTE: Sobrecarga do Núcleo do Boss aos 50% de HP
   const [overloadTriggered, setOverloadTriggered] = useState(false);
   const [overloadActive, setOverloadActive] = useState(false);
@@ -71,7 +82,13 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
   // Efeitos de Controle de Grupo (Crowd Control de RPG: Blind, Fear, Hold)
   const [activeStatusEffect, setActiveStatusEffect] = useState<RpgActiveStatusEffect | null>(null);
   const activeStatusEffectRef = useRef<RpgActiveStatusEffect | null>(null);
-  const [telegraphSpell, setTelegraphSpell] = useState<{ label: string; icon: string } | null>(null);
+  const [debuffSecondsLeft, setDebuffSecondsLeft] = useState<number>(0);
+  const debuffSecondsLeftRef = useRef<number>(0);
+  const [telegraphSpell, setTelegraphSpell] = useState<{
+    label: string;
+    icon: string;
+    breakInstruction: string;
+  } | null>(null);
   const [blindTriggered, setBlindTriggered] = useState(false);
   const [fearTriggered, setFearTriggered] = useState(false);
   const [holdTriggered, setHoldTriggered] = useState(false);
@@ -116,28 +133,83 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
     activeStatusEffectRef.current = activeStatusEffect;
   }, [activeStatusEffect]);
 
-  // Telegrafa e conjura um debuff de RPG no jogador
+  // Spawna número flutuante de dano RPG
+  const spawnDamage = useCallback((amount: number, isCrit: boolean, label?: string) => {
+    const id = Date.now() + Math.random();
+    const x = 50 + (Math.random() * 20 - 10);
+    const y = 35 + (Math.random() * 15 - 7);
+    const text = label ? label : isCrit ? `💥 -${amount} CRÍTICO!` : `-${amount}`;
+    setDamagePopups((prev) => [...prev.slice(-6), { id, text, x, y, isCrit }]);
+
+    setTimeout(() => {
+      setDamagePopups((prev) => prev.filter((p) => p.id !== id));
+    }, 850);
+  }, []);
+
+  // Telegrafa e conjura um debuff de RPG no jogador com aviso prévio ultralegível
   const castStatusEffect = useCallback((effect: RpgActiveStatusEffect) => {
-    setTelegraphSpell({ label: effect.label, icon: effect.icon });
+    setTelegraphSpell({
+      label: effect.label,
+      icon: effect.icon,
+      breakInstruction: effect.breakInstruction
+    });
     sound.playGlitch();
 
     setTimeout(() => {
       setTelegraphSpell(null);
       setActiveStatusEffect(effect);
       activeStatusEffectRef.current = effect;
+      setDebuffSecondsLeft(effect.durationSeconds);
+      debuffSecondsLeftRef.current = effect.durationSeconds;
       sound.playChallengeFail();
-    }, 1500);
+    }, 1800);
   }, []);
 
-  // Temporizador de expiração de segurança dos efeitos de status
+  // Temporizador regressivo em tempo real com punição direta se esgotar
   useEffect(() => {
-    if (!activeStatusEffect) return;
-    const timer = setTimeout(() => {
-      setActiveStatusEffect(null);
-      activeStatusEffectRef.current = null;
-    }, (activeStatusEffect.durationSeconds || 8) * 1000);
-    return () => clearTimeout(timer);
-  }, [activeStatusEffect]);
+    if (!activeStatusEffect) {
+      setDebuffSecondsLeft(0);
+      debuffSecondsLeftRef.current = 0;
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setDebuffSecondsLeft((prev) => {
+        const next = Math.max(0, parseFloat((prev - 0.1).toFixed(1)));
+        debuffSecondsLeftRef.current = next;
+
+        if (next <= 0) {
+          clearInterval(interval);
+          // O tempo esgotou sem cumprir a condição!
+          // Aplica punição direta: Dano pesado no escudo!
+          const hardeningLevel = dungeon?.perks?.shieldHardening ?? 0;
+          const dmgMitigation = Math.min(0.5, hardeningLevel * 0.08);
+          const directDmg = Math.max(10, Math.round(25 * (1 - dmgMitigation)));
+
+          sound.playChallengeFail();
+          setIsErrorShaking(true);
+          setTimeout(() => setIsErrorShaking(false), 400);
+          spawnDamage(directDmg, false, `💥 TEMPO ESGOTADO! -${directDmg} DIRETO!`);
+
+          setPlayerShield((shieldPrev) => {
+            const nextShield = Math.max(0, shieldPrev - directDmg);
+            if (nextShield <= 0) {
+              statusRef.current = 'defeat';
+              setStatus('defeat');
+            }
+            return nextShield;
+          });
+
+          setActiveStatusEffect(null);
+          activeStatusEffectRef.current = null;
+        }
+
+        return next;
+      });
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, [activeStatusEffect, dungeon, spawnDamage]);
 
   // Reinicia o estado ao abrir um novo andar
   useEffect(() => {
@@ -160,6 +232,8 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
       overloadIndexRef.current = 0;
       setActiveStatusEffect(null);
       activeStatusEffectRef.current = null;
+      setDebuffSecondsLeft(0);
+      debuffSecondsLeftRef.current = 0;
       setTelegraphSpell(null);
       setBlindTriggered(false);
       setFearTriggered(false);
@@ -208,19 +282,6 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
     window.addEventListener('keydown', handleWindowKeyDown);
     return () => window.removeEventListener('keydown', handleWindowKeyDown);
   }, [isOpen, onClose]);
-
-  // Spawna número flutuante de dano RPG
-  const spawnDamage = useCallback((amount: number, isCrit: boolean, label?: string) => {
-    const id = Date.now() + Math.random();
-    const x = 50 + (Math.random() * 20 - 10);
-    const y = 35 + (Math.random() * 15 - 7);
-    const text = label ? label : isCrit ? `💥 -${amount} CRÍTICO!` : `-${amount}`;
-    setDamagePopups((prev) => [...prev.slice(-6), { id, text, x, y, isCrit }]);
-
-    setTimeout(() => {
-      setDamagePopups((prev) => prev.filter((p) => p.id !== id));
-    }, 850);
-  }, []);
 
   // Processa o caractere final após composição de acentos (ABNT2 / IME / Teclas Mortas)
   const processTypedChar = useCallback(
@@ -390,11 +451,13 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
           castStatusEffect({
             type: 'blind',
             label: 'CEGUEIRA DIGITAL',
-            description: 'Visão ofuscada! Digite 4 teclas corretas para dissipar a névoa!',
+            description: 'Visão ofuscada! Digite 4 teclas corretas pela memória motora!',
             icon: '👁️',
             durationSeconds: 8,
             progress: 0,
-            maxProgress: 4
+            maxProgress: 4,
+            breakInstruction: 'Digite 4 teclas pela memória motora!',
+            penaltyDescription: 'Se zerar: -25 DIRETO no escudo! Erros custam 2x mais!'
           });
         }
 
@@ -403,12 +466,14 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
           setHoldTriggered(true);
           castStatusEffect({
             type: 'hold',
-            label: 'PARALISIA DE BUFFER',
-            description: 'Cursor congelado! Pressione [ESPAÇO] 3x para quebrar o gelo!',
+            label: 'PARALISIA DE BUFFER (GELO)',
+            description: 'Cursor congelado! Pressione a barra de [ESPAÇO] 3x para quebrar o gelo!',
             icon: '❄️',
-            durationSeconds: 9,
+            durationSeconds: 8,
             progress: 0,
-            maxProgress: 3
+            maxProgress: 3,
+            breakInstruction: 'Golpeie a barra de [ESPAÇO] 3 vezes!',
+            penaltyDescription: 'Se zerar: -25 DIRETO no escudo! Erros custam 2x mais!'
           });
         }
 
@@ -417,12 +482,14 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
           setFearTriggered(true);
           castStatusEffect({
             type: 'fear',
-            label: 'ONDA DE PAVOR',
-            description: 'Tremor no sistema! Conclua 1 palavra inteira sem errar!',
+            label: 'ONDA DE PAVOR (INTERFERÊNCIA)',
+            description: 'Tremor no sistema! Conclua 1 palavra inteira com 100% de perfeição!',
             icon: '😱',
-            durationSeconds: 6,
+            durationSeconds: 7,
             progress: 0,
-            maxProgress: 1
+            maxProgress: 1,
+            breakInstruction: 'Conclua a palavra atual sem cometer nenhum erro!',
+            penaltyDescription: 'Se zerar: -25 DIRETO no escudo! Erros custam 2x mais!'
           });
         }
 
@@ -457,10 +524,18 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
         setIsErrorShaking(true);
         setTimeout(() => setIsErrorShaking(false), 200);
 
+        // Se estiver sob efeito de status ativo (debuff), o dano do erro é DOBRADO (2x)!
+        const isUnderDebuff = !!activeStatusEffectRef.current;
+        const baseDmg = isUnderDebuff ? 12 : 6;
+
         // Reduz o escudo do jogador com mitigação de armadura (Perk Endurecimento de Escudo)
         const hardeningLevel = dungeon?.perks?.shieldHardening ?? 0;
         const dmgMitigation = Math.min(0.5, hardeningLevel * 0.08); // 8% por nível
-        const actualDmgTaken = Math.max(2, Math.round(6 * (1 - dmgMitigation)));
+        const actualDmgTaken = Math.max(isUnderDebuff ? 4 : 2, Math.round(baseDmg * (1 - dmgMitigation)));
+
+        if (isUnderDebuff) {
+          spawnDamage(actualDmgTaken, false, `💥 ERRO SOB DEBUFF! -${actualDmgTaken} (2X DANO)`);
+        }
 
         setPlayerShield((prev) => {
           const nextShield = Math.max(0, prev - actualDmgTaken);
@@ -569,6 +644,35 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
       return;
     }
   };
+
+  const handleRestartFight = useCallback(() => {
+    setCharIndex(0);
+    charIndexRef.current = 0;
+    setBossHp(floorData.boss.maxHp);
+    bossHpRef.current = floorData.boss.maxHp;
+    setPlayerShield(maxShield);
+    setPendingAccent(null);
+    pendingAccentRef.current = null;
+    setOverloadTriggered(false);
+    setOverloadActive(false);
+    overloadActiveRef.current = false;
+    setOverloadSequence([]);
+    overloadSequenceRef.current = [];
+    setOverloadIndex(0);
+    overloadIndexRef.current = 0;
+    setActiveStatusEffect(null);
+    activeStatusEffectRef.current = null;
+    setDebuffSecondsLeft(0);
+    debuffSecondsLeftRef.current = 0;
+    setTelegraphSpell(null);
+    setBlindTriggered(false);
+    setFearTriggered(false);
+    setHoldTriggered(false);
+    setStatus('playing');
+    statusRef.current = 'playing';
+    wordCleanRef.current = true;
+    setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 100);
+  }, [floorData, maxShield]);
 
   if (!isOpen) return null;
 
@@ -765,79 +869,124 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
             </div>
           </div>
 
-          {/* Banner de Telegrafia de Magia do Boss */}
+          {/* Banner de Telegrafia de Magia do Boss (Ultra Visível) */}
           {telegraphSpell && (
             <motion.div
-              initial={{ y: -20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: -20, opacity: 0 }}
-              className="px-6 py-2.5 bg-gradient-to-r from-rose-900 via-purple-900 to-rose-900 border-b-2 border-rose-400 flex items-center justify-center gap-3 text-rose-100 font-mono font-bold text-xs sm:text-sm animate-pulse shadow-[0_0_30px_rgba(244,63,94,0.6)] z-20"
-            >
-              <AlertCircle className="w-5 h-5 text-rose-300 animate-bounce flex-shrink-0" />
-              <span>
-                ⚠️ ALERTA: {floorData.boss.name} ESTÁ CONJURANDO{' '}
-                <strong className="text-amber-300 uppercase underline decoration-amber-400 tracking-wide">
-                  [{telegraphSpell.icon} {telegraphSpell.label}]
-                </strong>
-                ! PREPARE-SE!
-              </span>
-            </motion.div>
-          )}
-
-          {/* Banner de Efeito de Status Ativo (Crowd Control de RPG) */}
-          {activeStatusEffect && (
-            <motion.div
-              initial={{ scale: 0.98, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className={`px-6 py-2.5 border-b-2 flex flex-col sm:flex-row items-center justify-between gap-3 font-mono z-20 ${
-                activeStatusEffect.type === 'hold'
-                  ? 'bg-gradient-to-r from-cyan-950 via-blue-950 to-cyan-950 border-cyan-400 text-cyan-200 shadow-[0_0_25px_rgba(6,182,212,0.4)]'
-                  : activeStatusEffect.type === 'fear'
-                  ? 'bg-gradient-to-r from-purple-950 via-rose-950 to-purple-950 border-purple-400 text-purple-200 shadow-[0_0_25px_rgba(168,85,247,0.4)] animate-pulse'
-                  : 'bg-gradient-to-r from-zinc-900 via-amber-950/70 to-zinc-900 border-amber-400 text-amber-200 shadow-[0_0_25px_rgba(245,158,11,0.4)]'
-              }`}
+              initial={{ y: -30, opacity: 0, scale: 0.95 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
+              exit={{ y: -30, opacity: 0, scale: 0.95 }}
+              className="px-6 py-4 bg-gradient-to-r from-rose-950 via-purple-950 to-rose-950 border-b-4 border-rose-500 flex flex-col sm:flex-row items-center justify-between gap-3 text-white font-mono shadow-[0_0_50px_rgba(244,63,94,0.7)] z-30 animate-pulse"
             >
               <div className="flex items-center gap-3">
-                <span className="text-2xl">{activeStatusEffect.icon}</span>
+                <div className="w-12 h-12 rounded-xl bg-rose-600/40 border-2 border-rose-400 flex items-center justify-center text-3xl animate-bounce flex-shrink-0 shadow-lg">
+                  {telegraphSpell.icon}
+                </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-black text-xs sm:text-sm tracking-wider uppercase">
-                      {activeStatusEffect.label}
+                    <span className="bg-rose-600 text-black font-black text-xs px-2 py-0.5 rounded tracking-wider uppercase">
+                      ⚠️ ALERTA DE MAGIA IMINENTE
                     </span>
-                    <span className="text-[10px] bg-black/60 px-2 py-0.5 rounded border border-white/20 font-bold">
-                      DEBUFF ATIVO
+                    <span className="text-rose-200 text-xs font-bold">
+                      {floorData.boss.name} ESTÁ CONJURANDO:
                     </span>
                   </div>
-                  <p className="text-[11px] opacity-90">{activeStatusEffect.description}</p>
+                  <h4 className="text-base sm:text-lg font-black text-amber-300 tracking-wide mt-0.5">
+                    {telegraphSpell.label}
+                  </h4>
                 </div>
               </div>
 
-              {activeStatusEffect.type === 'hold' && (
-                <div className="flex items-center gap-2 bg-black/70 px-3.5 py-1.5 rounded-xl border border-cyan-400/60 shadow-inner">
-                  <Snowflake className="w-4 h-4 text-cyan-300 animate-spin" />
-                  <span className="text-xs font-bold text-cyan-300">
-                    PRESSIONE [ESPAÇO]: {activeStatusEffect.progress || 0} / {activeStatusEffect.maxProgress}
-                  </span>
-                </div>
-              )}
+              <div className="bg-black/70 border border-amber-400/80 px-4 py-2 rounded-xl text-center sm:text-right">
+                <span className="text-[11px] text-amber-300 block uppercase font-bold">PREPARE-SE PARA QUEBRAR:</span>
+                <span className="text-xs sm:text-sm font-black text-white">{telegraphSpell.breakInstruction}</span>
+              </div>
+            </motion.div>
+          )}
 
-              {activeStatusEffect.type === 'blind' && (
-                <div className="flex items-center gap-2 bg-black/70 px-3.5 py-1.5 rounded-xl border border-amber-400/60 shadow-inner">
-                  <EyeOff className="w-4 h-4 text-amber-300" />
-                  <span className="text-xs font-bold text-amber-300">
-                    ACERTOS RESTANTES: {(activeStatusEffect.maxProgress || 4) - (activeStatusEffect.progress || 0)}
-                  </span>
+          {/* Banner de Efeito de Status Ativo (Ultra Visível com Timer Regressivo & Instrução de Quebra) */}
+          {activeStatusEffect && (
+            <motion.div
+              initial={{ scale: 0.96, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className={`px-6 py-3.5 border-b-4 flex flex-col gap-2.5 font-mono z-30 transition-all ${
+                activeStatusEffect.type === 'hold'
+                  ? 'bg-gradient-to-r from-cyan-950 via-[#0a1b2d] to-cyan-950 border-cyan-400 text-cyan-100 shadow-[0_0_40px_rgba(6,182,212,0.5)]'
+                  : activeStatusEffect.type === 'fear'
+                  ? 'bg-gradient-to-r from-purple-950 via-[#1e0a2d] to-purple-950 border-purple-400 text-purple-100 shadow-[0_0_40px_rgba(168,85,247,0.5)] animate-pulse'
+                  : 'bg-gradient-to-r from-amber-950 via-[#261505] to-amber-950 border-amber-400 text-amber-100 shadow-[0_0_40px_rgba(245,158,11,0.5)]'
+              }`}
+            >
+              {/* Linha Superior: Ícone, Nome, Status e Temporizador */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-xl bg-black/60 border-2 border-current flex items-center justify-center text-2xl shadow-inner flex-shrink-0">
+                    {activeStatusEffect.icon}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-black text-sm sm:text-base tracking-wider uppercase text-white">
+                        {activeStatusEffect.label}
+                      </span>
+                      <span className="text-[10px] bg-rose-600 text-black font-black px-2 py-0.5 rounded animate-pulse">
+                        DEBUFF ATIVO
+                      </span>
+                    </div>
+                    <p className="text-xs text-zinc-300 mt-0.5">{activeStatusEffect.description}</p>
+                  </div>
                 </div>
-              )}
 
-              {activeStatusEffect.type === 'fear' && (
-                <div className="flex items-center gap-2 bg-black/70 px-3.5 py-1.5 rounded-xl border border-purple-400/60 shadow-inner">
-                  <Activity className="w-4 h-4 text-purple-300 animate-pulse" />
-                  <span className="text-xs font-bold text-purple-300">
-                    DIGITE A PALAVRA SEM ERROS
-                  </span>
+                {/* Temporizador Regressivo em Segundos e Barra */}
+                <div className="w-full sm:w-60 bg-black/70 px-3.5 py-1.5 rounded-xl border border-white/20 shadow-inner flex flex-col justify-center">
+                  <div className="flex items-center justify-between text-xs font-mono font-bold mb-1">
+                    <span className="flex items-center gap-1 text-amber-300">
+                      <Clock className="w-3.5 h-3.5 animate-spin" />
+                      <span>TEMPO RESTANTE:</span>
+                    </span>
+                    <span className={`text-sm ${debuffSecondsLeft <= 2.5 ? 'text-rose-400 animate-bounce' : 'text-white'}`}>
+                      {debuffSecondsLeft.toFixed(1)}s
+                    </span>
+                  </div>
+                  <div className="w-full h-2 rounded-full bg-zinc-900 overflow-hidden border border-white/10">
+                    <div
+                      style={{
+                        width: `${Math.min(100, Math.max(0, (debuffSecondsLeft / activeStatusEffect.durationSeconds) * 100))}%`
+                      }}
+                      className={`h-full transition-all duration-100 ${
+                        debuffSecondsLeft <= 2.5
+                          ? 'bg-rose-500 animate-pulse'
+                          : debuffSecondsLeft <= 4.5
+                          ? 'bg-amber-400'
+                          : 'bg-emerald-400'
+                      }`}
+                    />
+                  </div>
                 </div>
-              )}
+              </div>
+
+              {/* Linha Inferior: Caixa de Instrução Destacada & Alerta de Penalidade */}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-1 border-t border-white/10">
+                <div className="flex items-center gap-2 bg-black/60 px-3 py-1.5 rounded-lg border border-amber-400/60 w-full sm:w-auto">
+                  <Zap className="w-4 h-4 text-amber-300 flex-shrink-0 animate-bounce" />
+                  <span className="text-xs font-black text-amber-200">
+                    👉 COMO QUEBRAR: {activeStatusEffect.breakInstruction}
+                  </span>
+                  {activeStatusEffect.type === 'hold' && (
+                    <span className="ml-auto text-xs font-mono font-bold text-cyan-300 bg-cyan-950 px-2 py-0.5 rounded border border-cyan-400/50">
+                      {activeStatusEffect.progress || 0} / {activeStatusEffect.maxProgress}
+                    </span>
+                  )}
+                  {activeStatusEffect.type === 'blind' && (
+                    <span className="ml-auto text-xs font-mono font-bold text-amber-300 bg-amber-950 px-2 py-0.5 rounded border border-amber-400/50">
+                      {activeStatusEffect.progress || 0} / {activeStatusEffect.maxProgress}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-1.5 text-[11px] text-rose-300 font-bold bg-rose-950/60 px-3 py-1 rounded-lg border border-rose-500/40 w-full sm:w-auto justify-center">
+                  <AlertCircle className="w-3.5 h-3.5 text-rose-400 flex-shrink-0" />
+                  <span>PENALIDADE: -25 de DANO DIRETO se zerar! Erros causam 2x mais dano!</span>
+                </div>
+              </div>
             </motion.div>
           )}
 
@@ -1067,45 +1216,68 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="absolute inset-0 bg-black/90 backdrop-blur-md z-40 flex flex-col items-center justify-center p-6 text-center"
+              className="absolute inset-0 bg-black/95 backdrop-blur-md z-40 flex flex-col items-center justify-center p-6 text-center"
             >
-              <div className="w-16 h-16 rounded-2xl bg-rose-950/80 border-2 border-rose-500/80 flex items-center justify-center text-4xl shadow-[0_0_30px_rgba(244,63,94,0.5)] mb-3">
+              <div className="w-20 h-20 rounded-2xl bg-rose-950/80 border-2 border-rose-500/80 flex items-center justify-center text-5xl shadow-[0_0_40px_rgba(244,63,94,0.6)] mb-3 animate-pulse">
                 💀
               </div>
 
-              <h2 className="text-xl sm:text-2xl font-black text-rose-300">ESCUDO ROMPIDO!</h2>
-              <p className="text-xs sm:text-sm text-zinc-400 mt-1 max-w-md">
-                O guardião quebrou sua concentração motora. Não se preocupe: você pode reiniciar a qualquer momento sem
-                nenhuma perda de progresso!
+              <h2 className="text-2xl sm:text-3xl font-black text-rose-300">ESCUDO ROMPIDO!</h2>
+              <p className="text-xs sm:text-sm text-zinc-300 mt-1 max-w-md">
+                O guardião quebrou sua concentração motora. A incursão esgotou sua chave de expedição.
               </p>
 
-              <div className="flex items-center gap-3 mt-5">
+              {/* Status de Chaves de Expedição */}
+              <div className="my-4 px-4 py-2.5 rounded-xl bg-zinc-900/90 border border-zinc-700/80 flex items-center gap-3">
+                <span className="text-2xl">🔑</span>
+                <div className="text-left font-mono">
+                  <div className="text-xs font-bold text-zinc-300">
+                    Chaves de Expedição Restantes:{' '}
+                    <strong className={keysCount > 0 ? 'text-amber-400' : 'text-rose-400'}>
+                      {isAdmin ? 'Ilimitadas (Admin)' : `${keysCount} / ${dungeon?.maxKeys ?? 5}`}
+                    </strong>
+                  </div>
+                  <div className="text-[11px] text-zinc-400">
+                    {hasKeysToRetry
+                      ? 'Reiniciar a luta consumirá 1 Chave de Expedição.'
+                      : 'Você esgotou todas as chaves de expedição.'}
+                  </div>
+                </div>
+              </div>
+
+              {!hasKeysToRetry && (
+                <div className="mb-4 max-w-md px-4 py-3 rounded-xl bg-rose-950/40 border border-rose-500/50 text-rose-200 text-xs font-mono text-left space-y-1">
+                  <div className="font-bold flex items-center gap-1.5 text-rose-300">
+                    <Lock className="w-4 h-4" />
+                    <span>SEM CHAVES PARA REINICIAR</span>
+                  </div>
+                  <p className="text-[11px] text-zinc-300">
+                    Para sintetizar novas chaves, retorne ao Terminal Principal e digite mais 15 palavras ou conclua um{' '}
+                    <strong className="text-amber-300">Treino Corretivo Adaptativo</strong>!
+                  </p>
+                </div>
+              )}
+
+              <div className="flex items-center gap-3 mt-2 flex-wrap justify-center">
                 <button
+                  disabled={!hasKeysToRetry}
                   onClick={() => {
+                    if (!hasKeysToRetry) return;
                     sound.playClick();
-                    setCharIndex(0);
-                    charIndexRef.current = 0;
-                    setBossHp(floorData.boss.maxHp);
-                    bossHpRef.current = floorData.boss.maxHp;
-                    setPlayerShield(maxShield);
-                    setPendingAccent(null);
-                    pendingAccentRef.current = null;
-                    setOverloadTriggered(false);
-                    setOverloadActive(false);
-                    overloadActiveRef.current = false;
-                    setOverloadSequence([]);
-                    overloadSequenceRef.current = [];
-                    setOverloadIndex(0);
-                    overloadIndexRef.current = 0;
-                    setStatus('playing');
-                    statusRef.current = 'playing';
-                    wordCleanRef.current = true;
-                    setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 100);
+                    if (onConsumeKey) {
+                      const success = onConsumeKey();
+                      if (!success && !isAdmin) return;
+                    }
+                    handleRestartFight();
                   }}
-                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-amber-500 hover:from-rose-400 hover:to-amber-400 text-black font-black text-xs font-mono transition shadow-lg flex items-center gap-2 cursor-pointer"
+                  className={`px-5 py-3 rounded-xl font-black text-xs sm:text-sm font-mono transition shadow-lg flex items-center gap-2 ${
+                    hasKeysToRetry
+                      ? 'bg-gradient-to-r from-rose-500 to-amber-500 hover:from-rose-400 hover:to-amber-400 text-black cursor-pointer shadow-[0_0_20px_rgba(245,158,11,0.4)]'
+                      : 'bg-zinc-800 text-zinc-500 border border-zinc-700 cursor-not-allowed opacity-60'
+                  }`}
                 >
                   <RotateCcw className="w-4 h-4" />
-                  <span>TENTAR NOVAMENTE</span>
+                  <span>{hasKeysToRetry ? 'TENTAR NOVAMENTE (-1 Chave 🔑)' : 'SEM CHAVES RESTANTES'}</span>
                 </button>
 
                 <button
@@ -1113,9 +1285,9 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
                     sound.playClick();
                     onClose();
                   }}
-                  className="px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white font-bold text-xs font-mono transition border border-zinc-700 cursor-pointer"
+                  className="px-5 py-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white font-bold text-xs sm:text-sm font-mono transition border border-zinc-700 cursor-pointer"
                 >
-                  Sair
+                  Voltar ao Terminal
                 </button>
               </div>
             </motion.div>

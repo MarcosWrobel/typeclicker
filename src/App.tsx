@@ -681,6 +681,29 @@ export default function App() {
     setActiveRpgFloor(nextData);
   }, [activeRpgFloor, isAdmin, spawnFloatingText]);
 
+  // Consumir 1 chave de expedição da Masmorra RPG (ao reiniciar após derrota)
+  const handleConsumeDungeonKey = useCallback((): boolean => {
+    if (isAdmin) return true;
+    const currentKeys = stateRef.current.quests?.dungeon?.keys ?? 0;
+    if (currentKeys <= 0) {
+      spawnFloatingText('⚠️ Sem chaves restantes! Retorne ao terminal.', 'error');
+      return false;
+    }
+
+    setState((prev) => {
+      const syncedQuests = syncQuestsState(prev.quests);
+      const { updatedQuests } = consumeDungeonKey(syncedQuests);
+      const nextState: GameState = {
+        ...prev,
+        quests: updatedQuests
+      };
+      saveState(nextState, auth.currentUser?.uid);
+      return nextState;
+    });
+    spawnFloatingText('🔑 -1 Chave de Expedição utilizada', 'info');
+    return true;
+  }, [isAdmin, spawnFloatingText]);
+
   // Recompensa do Minigame Baú Criptográfico da Masmorra
   const handleChestReward = useCallback(
     (reward: { bytes: number; tokens: number; xp: number; keyGranted: boolean }) => {
@@ -2028,6 +2051,9 @@ export default function App() {
           isOpen={true}
           floorData={activeRpgFloor}
           dungeon={state.quests?.dungeon}
+          availableKeys={state.quests?.dungeon?.keys ?? 0}
+          onConsumeKey={handleConsumeDungeonKey}
+          isAdmin={isAdmin}
           onVictory={handleVictoryRpgFloor}
           onNextFloor={handleNextRpgFloor}
           onClose={() => setActiveRpgFloor(null)}

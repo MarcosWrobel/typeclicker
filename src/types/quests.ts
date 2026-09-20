@@ -34,6 +34,8 @@ export interface RpgActiveStatusEffect {
   durationSeconds: number;
   progress: number;
   maxProgress: number;
+  breakInstruction: string;
+  penaltyDescription: string;
 }
 
 export interface RpgBoss {
