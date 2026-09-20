@@ -374,7 +374,8 @@ export function generateRpgFloor(floor: number, telemetry?: Record<string, KeyTe
       },
       rewardBytes: floor * 2000 + 5000,
       rewardTokens: isMilestone ? 3 : 1,
-      rewardFragments: isMilestone ? (floor >= 10 ? 3 : 1) : undefined
+      rewardFragments: isMilestone ? (floor >= 10 ? 3 : 1) : undefined,
+      isProcedural: false
     };
   }
 
@@ -418,7 +419,8 @@ export function generateRpgFloor(floor: number, telemetry?: Record<string, KeyTe
     },
     rewardBytes: Math.round(floor * 2500 + 8000),
     rewardTokens: isMilestone ? 4 : 2,
-    rewardFragments: isMilestone ? Math.min(6, 2 + Math.floor(floor / 10)) : undefined
+    rewardFragments: isMilestone ? Math.min(6, 2 + Math.floor(floor / 10)) : undefined,
+    isProcedural: true
   };
 }
 

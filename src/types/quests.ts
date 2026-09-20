@@ -42,6 +42,7 @@ export interface RpgFloorData {
   rewardBytes: number;
   rewardTokens: number;
   rewardFragments?: number;
+  isProcedural?: boolean;
 }
 
 export interface QuestsState {

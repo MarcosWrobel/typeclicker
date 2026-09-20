@@ -1,5 +1,5 @@
 import React from 'react';
-import { Cpu, Trophy, ChevronRight } from 'lucide-react';
+import { Cpu, Trophy, ChevronRight, Users } from 'lucide-react';
 import { GameState } from '../types';
 import { formatBytes, formatRate, calculatePlayerRank } from '../utils/formatting';
 
@@ -8,6 +8,9 @@ interface StatsSidebarProps {
   onOpenPrestige: () => void;
   onOpenLevels: () => void;
   onOpenStudentModal?: () => void;
+  onOpenAchievements?: () => void;
+  achievementsCount?: { unlocked: number; total: number };
+  onOpenLeaderboard?: () => void;
   isAdmin?: boolean;
   isSuperAdmin?: boolean;
 }
@@ -17,6 +20,9 @@ export const StatsSidebar: React.FC<StatsSidebarProps> = ({
   onOpenPrestige,
   onOpenLevels,
   onOpenStudentModal,
+  onOpenAchievements,
+  achievementsCount,
+  onOpenLeaderboard,
   isAdmin = false,
   isSuperAdmin = false
 }) => {
@@ -137,6 +143,52 @@ export const StatsSidebar: React.FC<StatsSidebarProps> = ({
           </div>
         </div>
       </button>
+
+      {/* Atalhos de Reconhecimento & Comunidade (Abaixo do Nível do Jogador) */}
+      {(onOpenAchievements || onOpenLeaderboard) && (
+        <div className="grid grid-cols-2 gap-2 mt-1">
+          {onOpenAchievements && (
+            <button
+              type="button"
+              onClick={onOpenAchievements}
+              className="flex flex-col items-center justify-center p-2.5 rounded-xl bg-[#0b0e14] hover:bg-[#151a26] border border-[#222834] hover:border-amber-500/60 transition-all duration-200 cursor-pointer group shadow-sm text-center"
+              title="Quadro e Galeria de Conquistas do Colégio Leopoldina"
+            >
+              <div className="flex items-center gap-1.5">
+                <Trophy className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform" />
+                <span className="text-xs font-bold text-zinc-200 group-hover:text-amber-300 transition-colors">
+                  CONQUISTAS
+                </span>
+              </div>
+              {achievementsCount && (
+                <span className="text-[10px] font-mono text-amber-400 font-bold mt-1 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/30">
+                  {achievementsCount.unlocked}/{achievementsCount.total}
+                </span>
+              )}
+            </button>
+          )}
+
+          {onOpenLeaderboard && (
+            <button
+              type="button"
+              onClick={onOpenLeaderboard}
+              className="flex flex-col items-center justify-center p-2.5 rounded-xl bg-[#0b0e14] hover:bg-[#151a26] border border-[#222834] hover:border-purple-500/60 transition-all duration-200 cursor-pointer group shadow-sm text-center"
+              title="Ranking Geral das Turmas e Alunos do Colégio Leopoldina"
+            >
+              <div className="flex items-center gap-1.5">
+                <Users className="w-4 h-4 text-purple-400 group-hover:scale-110 transition-transform" />
+                <span className="text-xs font-bold text-zinc-200 group-hover:text-purple-300 transition-colors">
+                  RANKING
+                </span>
+              </div>
+              <span className="text-[10px] font-mono text-purple-300 mt-1 bg-purple-500/10 px-2 py-0.5 rounded-md border border-purple-500/30">
+                Turmas
+              </span>
+            </button>
+          )}
+        </div>
+      )}
     </aside>
   );
 };
+

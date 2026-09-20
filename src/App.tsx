@@ -34,6 +34,7 @@ import { QuantumConverterModal } from './components/QuantumConverterModal';
 import { AchievementToast } from './components/AchievementToast';
 import { AchievementsModal } from './components/AchievementsModal';
 import { QuestsModal } from './components/QuestsModal';
+import { RpgDungeonModal } from './components/RpgDungeonModal';
 import { RpgChronicleArena } from './components/RpgChronicleArena';
 import { checkPendingAchievements, getOverallAchievementsStats, syncRetroactiveAchievements } from './services/achievementEngine';
 import { syncQuestsState, processQuestEvent, claimWeeklyQuestReward, generateRpgFloor, completeRpgFloor } from './services/questsEngine';
@@ -81,6 +82,7 @@ export default function App() {
   const [isAchievementsOpen, setIsAchievementsOpen] = useState<boolean>(false);
   const [achievementQueue, setAchievementQueue] = useState<AchievementDef[]>([]);
   const [isQuestsOpen, setIsQuestsOpen] = useState<boolean>(false);
+  const [isDungeonOpen, setIsDungeonOpen] = useState<boolean>(false);
   const [activeRpgFloor, setActiveRpgFloor] = useState<RpgFloorData | null>(null);
   
   const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
@@ -451,6 +453,7 @@ export default function App() {
         isCosmeticsOpen ||
         isAchievementsOpen ||
         isQuestsOpen ||
+        isDungeonOpen ||
         activeRpgFloor !== null ||
         isArenaOpen ||
         isConverterOpen ||
@@ -478,6 +481,7 @@ export default function App() {
     isCosmeticsOpen,
     isAchievementsOpen,
     isQuestsOpen,
+    isDungeonOpen,
     activeRpgFloor,
     isArenaOpen,
     isConverterOpen,
@@ -598,6 +602,7 @@ export default function App() {
   // Iniciar batalha de texto na Masmorra RPG
   const handleStartRpgChronicle = useCallback((floor: number) => {
     setIsQuestsOpen(false);
+    setIsDungeonOpen(false);
     const data = generateRpgFloor(floor, stateRef.current.keyTelemetry);
     setActiveRpgFloor(data);
   }, []);
@@ -1041,6 +1046,7 @@ export default function App() {
         isCosmeticsOpen ||
         isAchievementsOpen ||
         isQuestsOpen ||
+        isDungeonOpen ||
         activeRpgFloor !== null ||
         isConverterOpen ||
         isAdminOpen ||
@@ -1119,6 +1125,7 @@ export default function App() {
     isCosmeticsOpen,
     isAchievementsOpen,
     isQuestsOpen,
+    isDungeonOpen,
     activeRpgFloor,
     isConverterOpen,
     isAdminOpen,
@@ -1659,6 +1666,9 @@ export default function App() {
             onOpenStudentModal={() => setIsStudentModalOpen(true)}
             onOpenPrestige={() => setIsPrestigeOpen(true)}
             onOpenLevels={() => setIsLevelsModalOpen(true)}
+            onOpenAchievements={() => setIsAchievementsOpen(true)}
+            achievementsCount={getOverallAchievementsStats(state)}
+            onOpenLeaderboard={() => setIsLeaderboardOpen(true)}
           />
         }
         arena={
@@ -1698,6 +1708,7 @@ export default function App() {
             onOpenAchievements={() => setIsAchievementsOpen(true)}
             achievementsCount={getOverallAchievementsStats(state)}
             onOpenQuests={() => setIsQuestsOpen(true)}
+            onOpenDungeon={() => setIsDungeonOpen(true)}
             questsCount={{
               readyToClaim: (state.quests?.weeklyQuests || []).filter((q) => q.completed && !q.claimed).length,
               currentFloor: state.quests?.rpgDungeonFloor ?? 1
@@ -1833,13 +1844,21 @@ export default function App() {
         state={state}
       />
 
-      {/* Modal de Quests Semanais & Crônicas RPG */}
+      {/* Modal de Quests Semanais */}
       <QuestsModal
         isOpen={isQuestsOpen}
         onClose={() => setIsQuestsOpen(false)}
         state={state}
         onClaimWeeklyQuest={handleClaimWeeklyQuest}
-        onStartRpgChronicle={handleStartRpgChronicle}
+        onOpenDungeon={() => setIsDungeonOpen(true)}
+      />
+
+      {/* Modal Dedicado da Masmorra de Digitação (Crônicas RPG) */}
+      <RpgDungeonModal
+        isOpen={isDungeonOpen}
+        onClose={() => setIsDungeonOpen(false)}
+        state={state}
+        onStartBattle={handleStartRpgChronicle}
       />
 
       {/* Arena de Combate em Texto Completo da Crônica RPG */}
