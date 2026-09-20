@@ -1,4 +1,4 @@
-import { GameState } from '../types';
+import { GameState, KeyTelemetry } from '../types';
 import { DEFAULT_COSMETICS, PlayerCosmetics } from '../types/cosmetics';
 import { ArenaStats } from '../types/arena';
 
@@ -50,8 +50,27 @@ export const INITIAL_STATE: GameState = {
   studentAvatar: '🐧',
   completedChallenges: [],
   cosmetics: { ...DEFAULT_COSMETICS },
-  arenaStats: { ...DEFAULT_ARENA_STATS }
+  arenaStats: { ...DEFAULT_ARENA_STATS },
+  keyTelemetry: {}
 };
+
+export function sanitizeKeyTelemetry(rawTelemetry?: Record<string, any> | null): Record<string, KeyTelemetry> {
+  if (!rawTelemetry || typeof rawTelemetry !== 'object') {
+    return {};
+  }
+  const sanitized: Record<string, KeyTelemetry> = {};
+  for (const [key, val] of Object.entries(rawTelemetry)) {
+    if (typeof key === 'string' && val && typeof val === 'object') {
+      const hits = Number.isFinite(val.hits) && val.hits >= 0 ? Math.floor(val.hits) : 0;
+      const misses = Number.isFinite(val.misses) && val.misses >= 0 ? Math.floor(val.misses) : 0;
+      const totalTimeMs = Number.isFinite(val.totalTimeMs) && val.totalTimeMs >= 0 ? Math.floor(val.totalTimeMs) : 0;
+      if (hits > 0 || misses > 0) {
+        sanitized[key] = { hits, misses, totalTimeMs };
+      }
+    }
+  }
+  return sanitized;
+}
 
 const VALID_CATEGORIES = ['iniciante', 'facil', 'medio', 'avancado', 'expert'];
 
@@ -324,7 +343,8 @@ export function loadSavedState(userId?: string | null): GameState {
         highestWpm: Number.isFinite(parsed.arenaStats.highestWpm) ? parsed.arenaStats.highestWpm : 0,
         duelPoints: Number.isFinite(parsed.arenaStats.duelPoints) ? parsed.arenaStats.duelPoints : 0,
         currentRankId: typeof parsed.arenaStats.currentRankId === 'string' ? parsed.arenaStats.currentRankId : 'recruta'
-      } : { ...DEFAULT_ARENA_STATS }
+      } : { ...DEFAULT_ARENA_STATS },
+      keyTelemetry: sanitizeKeyTelemetry(parsed.keyTelemetry)
     };
   } catch (e) {
     console.warn('Falha ao carregar estado salvo:', e);

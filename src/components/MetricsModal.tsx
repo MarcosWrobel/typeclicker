@@ -22,17 +22,20 @@ import {
 } from '../utils/formatting';
 import { exportSaveToFile } from '../utils/storage';
 import { WORD_CATEGORIES } from '../data/words';
+import { identificarTeclasFracas } from '../services/adaptiveDrillEngine';
 
 interface MetricsModalProps {
   isOpen: boolean;
   onClose: () => void;
   state: GameState;
+  onStartDrill?: (keys?: string[]) => void;
 }
 
 export const MetricsModal: React.FC<MetricsModalProps> = ({
   isOpen,
   onClose,
-  state
+  state,
+  onStartDrill
 }) => {
   const [copied, setCopied] = useState(false);
 
@@ -41,6 +44,7 @@ export const MetricsModal: React.FC<MetricsModalProps> = ({
   const ppm = calculatePPM(state.correctKeys, state.totalActiveSeconds);
   const accuracy = calculateAccuracy(state.correctKeys, state.wrongKeys);
   const totalKeys = state.correctKeys + state.wrongKeys;
+  const weakKeys = identificarTeclasFracas(state.keyTelemetry, 4);
 
   const generateReportText = () => {
     const activeCat = WORD_CATEGORIES.find(c => c.id === state.selectedCategory) || WORD_CATEGORIES[0];
@@ -65,6 +69,11 @@ Dificuldade Ativa: ${activeCat.name} (Nível ${activeCat.levelNumber}) • Bônu
 • Palavras Concluídas: ${formatNumber(state.wordsCompleted)} palavras
 • Maior Sequência de Combo: ${state.maxCombo} acertos seguidos
 • Tempo Ativo de Prática: ${formatTime(state.totalActiveSeconds)}
+
+--- DIAGNÓSTICO MOTOR DE TECLAS (IDT) ---
+${weakKeys.length > 0 
+  ? weakKeys.map(k => `• Tecla [${k.char.toUpperCase()}]: ${Math.round(k.errorRate * 100)}% erros (${k.misses}/${k.total}) | Latência: ${k.avgTimeMs}ms | IDT: ${k.idt}`).join('\n')
+  : '• Nenhuma deficiência motora crítica detectada. Telemetria equilibrada.'}
 
 --- PROGRESSO NO JOGO INCREMENTAL ---
 • Nível Atual: Nv. ${playerRank.level} / 100 (${playerRank.badge} ${playerRank.title})
@@ -178,6 +187,87 @@ Dificuldade Ativa: ${activeCat.name} (Nível ${activeCat.levelNumber}) • Bônu
                 <span className="text-zinc-400">Total Histórico de Bytes</span>
                 <span className="font-mono font-bold text-cyan-400">{formatBytes(state.totalBytesEarned)}</span>
               </div>
+            </div>
+          </div>
+
+          {/* Diagnóstico Motor & Reabilitação (Teclas Críticas) */}
+          <div className="bg-[#161922] border border-[#2b3240] rounded-xl overflow-hidden text-sm">
+            <div className="bg-[#1b1f2b] px-4 py-2.5 border-b border-[#2b3240] flex items-center justify-between">
+              <div className="flex items-center gap-2 font-bold text-xs text-zinc-300 uppercase tracking-wider font-mono">
+                <Target className="w-4 h-4 text-indigo-400" />
+                <span>Diagnóstico Motor & Teclas Críticas (IDT)</span>
+              </div>
+              <span className="text-[10px] text-zinc-400 font-mono">
+                {weakKeys.length > 0 ? `${weakKeys.length} tecla(s) identificada(s)` : 'Calibrado'}
+              </span>
+            </div>
+
+            <div className="p-4 space-y-3">
+              {weakKeys.length > 0 ? (
+                <>
+                  <p className="text-xs text-zinc-400 leading-relaxed">
+                    O motor pedagógico identificou teclas com taxa de erro elevada ou hesitação motora. O treino corretivo gera sequências personalizadas para reabilitação muscular:
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {weakKeys.map((k) => (
+                      <div
+                        key={k.char}
+                        className="bg-[#10131a] border border-[#232836] p-3 rounded-lg flex items-center justify-between"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <span className="w-9 h-9 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center justify-center font-mono font-black text-base shadow-sm">
+                            {k.char.toUpperCase()}
+                          </span>
+                          <div>
+                            <div className="text-xs font-bold text-white font-mono flex items-center gap-2">
+                              <span>{Math.round(k.errorRate * 100)}% de erros</span>
+                              <span className="text-[10px] text-zinc-400 font-normal">({k.misses} em {k.total})</span>
+                            </div>
+                            <div className="text-[11px] text-zinc-400 font-mono">
+                              Latência média: <strong className="text-zinc-300">{k.avgTimeMs}ms</strong>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="text-right font-mono">
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                            k.idt >= 0.4
+                              ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                              : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                          }`}>
+                            IDT: {k.idt}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {onStartDrill && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onStartDrill(weakKeys.map(k => k.char));
+                        onClose();
+                      }}
+                      className="w-full mt-2 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-mono font-bold text-xs sm:text-sm bg-gradient-to-r from-amber-500 via-indigo-600 to-purple-600 hover:from-amber-400 hover:via-indigo-500 hover:to-purple-500 text-white shadow-[0_0_18px_rgba(99,102,241,0.35)] transition cursor-pointer"
+                    >
+                      <Target className="w-4 h-4" />
+                      <span>Iniciar Treino Corretivo Adaptativo ({weakKeys.map(k => k.char.toUpperCase()).join(', ')})</span>
+                    </button>
+                  )}
+                </>
+              ) : (
+                <div className="text-xs text-zinc-400 flex items-center gap-2.5 py-1">
+                  <div className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 flex-shrink-0 font-bold">
+                    ✓
+                  </div>
+                  <div>
+                    <span className="text-emerald-300 font-bold">Telemetria Balanceada: </span>
+                    Nenhuma anomalia motora crítica detectada. Sua precisão e velocidade estão homogêneas entre as teclas.
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

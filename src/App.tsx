@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { GameState, CategoryId, FloatingText, UpgradeDef } from './types';
+import { GameState, CategoryId, FloatingText, UpgradeDef, DrillSession } from './types';
 import { loadSavedState, saveState, clearSavedState, INITIAL_STATE, sanitizeCosmetics, DEFAULT_ARENA_STATS } from './utils/storage';
 import { DEFAULT_COSMETICS, PlayerCosmetics } from './types/cosmetics';
 import { TERMINAL_THEMES } from './constants/themes';
 import { CosmeticsShopModal } from './components/CosmeticsShopModal';
 import { getRandomWord, WORD_CATEGORIES } from './data/words';
+import { gerarTreinoAdaptativo } from './services/adaptiveDrillEngine';
 import { UPGRADES, getUpgradeCost } from './data/upgrades';
 import { sound } from './utils/audio';
 import { audioSynthesizer } from './services/audioSynthesizer';
@@ -53,6 +54,7 @@ export default function App() {
   const [isConverterOpen, setIsConverterOpen] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [activeChallengeLevel, setActiveChallengeLevel] = useState<number | null>(null);
+  const [drillSession, setDrillSession] = useState<DrillSession | null>(null);
   
   const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
   const [isAppLocked, setIsAppLocked] = useState<boolean>(true);
@@ -288,6 +290,11 @@ export default function App() {
   const pendingAccentRef = useRef<string | null>(null);
   pendingAccentRef.current = pendingAccent;
 
+  const drillSessionRef = useRef<DrillSession | null>(null);
+  drillSessionRef.current = drillSession;
+
+  const lastKeyTimestampRef = useRef<number>(performance.now());
+
   const typingInputRef = useRef<HTMLInputElement>(null);
 
   // Sync sound engine preference
@@ -418,11 +425,41 @@ export default function App() {
   // Category change
   const handleSelectCategory = useCallback((cat: CategoryId) => {
     setState((prev) => ({ ...prev, selectedCategory: cat }));
+    if (drillSessionRef.current) {
+      setDrillSession(null);
+      drillSessionRef.current = null;
+    }
     const nextWord = getRandomWord(cat, currentWordRef.current);
     setCurrentWord(nextWord);
     setCharIndex(0);
     setPendingAccent(null);
   }, []);
+
+  // Handlers para o Treino Corretivo Adaptativo (Drill Engine)
+  const handleStartDrill = useCallback((customKeys?: string[]) => {
+    const telemetry = stateRef.current.keyTelemetry || {};
+    const session = gerarTreinoAdaptativo(telemetry, stateRef.current.selectedCategory, customKeys);
+    if (session && session.drillWords.length > 0) {
+      setDrillSession(session);
+      drillSessionRef.current = session;
+      setCurrentWord(session.drillWords[0]);
+      setCharIndex(0);
+      setPendingAccent(null);
+      spawnFloatingText('🎯 TREINO CORRETIVO INICIADO!', 'bonus');
+    } else {
+      spawnFloatingText('Poucos dados para calibrar o treino!', 'error');
+    }
+  }, [spawnFloatingText]);
+
+  const handleCancelDrill = useCallback(() => {
+    setDrillSession(null);
+    drillSessionRef.current = null;
+    const newWord = getRandomWord(stateRef.current.selectedCategory);
+    setCurrentWord(newWord);
+    setCharIndex(0);
+    setPendingAccent(null);
+    spawnFloatingText('Treino encerrado', 'error');
+  }, [spawnFloatingText]);
 
   // Processador central de caracteres digitados (com suporte a acentos ABNT2 e composição)
   const handleTypeChar = useCallback((rawChar: string) => {
@@ -444,11 +481,29 @@ export default function App() {
 
     if (!expectedChar) return;
 
+    // Mede tempo de resposta (delta t em ms, limitado a 50-3000ms para filtrar distrações)
+    const now = performance.now();
+    const rawDelta = now - lastKeyTimestampRef.current;
+    lastKeyTimestampRef.current = now;
+    const deltaMs = Math.min(3000, Math.max(50, Math.round(rawDelta)));
+
     const currState = stateRef.current;
     const prestigeMult = 1 + currState.prestigeCores * 0.2;
 
     if (typedChar === expectedChar) {
       // --- HIT (CORRECT KEY) ---
+      // Atualiza telemetria da tecla correta
+      const currentTelem = currState.keyTelemetry || {};
+      const keyStats = currentTelem[expectedChar] || { hits: 0, misses: 0, totalTimeMs: 0 };
+      const updatedTelem = {
+        ...currentTelem,
+        [expectedChar]: {
+          hits: keyStats.hits + 1,
+          misses: keyStats.misses,
+          totalTimeMs: keyStats.totalTimeMs + deltaMs
+        }
+      };
+
       // Restore Cadence Buffer
       const targetBuffer = maxFocusBufferRef.current === 0 ? 0 : (maxFocusBufferRef.current || 5.0);
       focusBufferRef.current = targetBuffer;
@@ -514,20 +569,49 @@ export default function App() {
         setRecentWordComplete(true);
         setTimeout(() => setRecentWordComplete(false), 1200);
 
+        // Verifica se há sessão de treino adaptativo em andamento
+        const isDrill = Boolean(drillSessionRef.current);
+        let nextDrillSession: DrillSession | null = drillSessionRef.current;
+        let nextWord = '';
+        let drillCompletionBonus = 0;
+
+        if (isDrill && nextDrillSession) {
+          const nextIndex = nextDrillSession.currentIndex + 1;
+          if (nextIndex < nextDrillSession.drillWords.length) {
+            nextDrillSession = {
+              ...nextDrillSession,
+              currentIndex: nextIndex
+            };
+            drillSessionRef.current = nextDrillSession;
+            setDrillSession(nextDrillSession);
+            nextWord = nextDrillSession.drillWords[nextIndex];
+          } else {
+            // Treino adaptativo concluído com sucesso!
+            drillCompletionBonus = Math.max(100, Math.round(currState.bytesPerChar * 25 * prestigeMult));
+            sound.playUpgrade();
+            audioSynthesizer.playUnlockJingle();
+            spawnFloatingText(`🎯 REABILITAÇÃO CONCLUÍDA! +${drillCompletionBonus} B`, 'bonus');
+            drillSessionRef.current = null;
+            setDrillSession(null);
+            nextWord = getRandomWord(currState.selectedCategory);
+          }
+        } else {
+          nextWord = getRandomWord(currState.selectedCategory, word);
+        }
+
         setState((prev) => ({
           ...prev,
-          bytes: prev.bytes + totalEarned,
-          totalBytesEarned: prev.totalBytesEarned + totalEarned,
+          bytes: prev.bytes + totalEarned + drillCompletionBonus,
+          totalBytesEarned: prev.totalBytesEarned + totalEarned + drillCompletionBonus,
           correctKeys: prev.correctKeys + 1,
           comboStreak: nextCombo,
           maxCombo: nextMaxCombo,
           multiplier: nextMultiplier,
-          wordsCompleted: prev.wordsCompleted + 1
+          wordsCompleted: prev.wordsCompleted + 1,
+          keyTelemetry: updatedTelem
         }));
 
-        // Pick next word
-        const newWord = getRandomWord(currState.selectedCategory, word);
-        setCurrentWord(newWord);
+        setCurrentWord(nextWord);
         setCharIndex(0);
         setPendingAccent(null);
       } else {
@@ -539,12 +623,25 @@ export default function App() {
           correctKeys: prev.correctKeys + 1,
           comboStreak: nextCombo,
           maxCombo: nextMaxCombo,
-          multiplier: nextMultiplier
+          multiplier: nextMultiplier,
+          keyTelemetry: updatedTelem
         }));
         setCharIndex(index + 1);
       }
     } else {
       // --- MISS (ERROR) ---
+      // Atualiza telemetria da tecla esperada com erro
+      const currentTelem = currState.keyTelemetry || {};
+      const keyStats = currentTelem[expectedChar] || { hits: 0, misses: 0, totalTimeMs: 0 };
+      const updatedTelem = {
+        ...currentTelem,
+        [expectedChar]: {
+          hits: keyStats.hits,
+          misses: keyStats.misses + 1,
+          totalTimeMs: keyStats.totalTimeMs + deltaMs
+        }
+      };
+
       const nextErrors = consecutiveErrorsRef.current + 1;
       consecutiveErrorsRef.current = nextErrors;
       setConsecutiveErrors(nextErrors);
@@ -579,7 +676,8 @@ export default function App() {
         bytes: Math.max(0, prev.bytes - bytesLost),
         wrongKeys: prev.wrongKeys + 1,
         comboStreak: 0,
-        multiplier: nextErrors >= 3 ? 0.5 : 1.0
+        multiplier: nextErrors >= 3 ? 0.5 : 1.0,
+        keyTelemetry: updatedTelem
       }));
     }
   }, [spawnFloatingText]);
@@ -1241,6 +1339,8 @@ export default function App() {
             levelTokens={state.cosmetics?.levelTokens ?? 0}
             quantumFragments={state.cosmetics?.quantumFragments ?? 0}
             isAdmin={isAdmin}
+            drillSession={drillSession}
+            onCancelDrill={handleCancelDrill}
           />
         }
         shop={
@@ -1262,6 +1362,7 @@ export default function App() {
         isOpen={isMetricsOpen}
         onClose={() => setIsMetricsOpen(false)}
         state={state}
+        onStartDrill={handleStartDrill}
       />
 
       {/* Prestige Reboot Modal */}

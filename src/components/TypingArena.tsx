@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Flame, Sparkles, Award, Keyboard, HelpCircle, AlertCircle, Zap, Gauge, Trophy, AlertTriangle, Timer, Activity, Pause, Play, Lock, Palette, Coins, Users, Swords } from 'lucide-react';
-import { CategoryId, FloatingText } from '../types';
+import { Flame, Sparkles, Award, Keyboard, HelpCircle, AlertCircle, Zap, Gauge, Trophy, AlertTriangle, Timer, Activity, Pause, Play, Lock, Palette, Coins, Users, Swords, Target } from 'lucide-react';
+import { CategoryId, FloatingText, DrillSession } from '../types';
 import { BytezinhoSkinId, TerminalThemeId, AnimationEffectId } from '../types/cosmetics';
 import { TERMINAL_THEMES } from '../constants/themes';
 import { WORD_CATEGORIES } from '../data/words';
@@ -48,6 +48,8 @@ interface TypingArenaProps {
   levelTokens?: number;
   quantumFragments?: number;
   isAdmin?: boolean;
+  drillSession?: DrillSession | null;
+  onCancelDrill?: () => void;
 }
 
 const THEME_STYLES: Record<string, {
@@ -125,7 +127,9 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
   onOpenConverter,
   levelTokens = 0,
   quantumFragments = 0,
-  isAdmin = false
+  isAdmin = false,
+  drillSession = null,
+  onCancelDrill
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const internalInputRef = useRef<HTMLInputElement>(null);
@@ -400,6 +404,48 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
           ))}
         </div>
 
+        {/* Banner Pedagógico de Treino Corretivo Adaptativo */}
+        {drillSession && (
+          <div className="w-full max-w-2xl mb-2 bg-gradient-to-r from-indigo-950/90 via-purple-950/90 to-indigo-950/90 border-2 border-indigo-500/60 rounded-xl p-2.5 sm:px-4 sm:py-3 flex items-center justify-between shadow-[0_0_24px_rgba(99,102,241,0.3)] animate-in fade-in">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-lg bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-300 flex-shrink-0">
+                <Target className="w-4 h-4 animate-pulse" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-black text-white font-mono tracking-wider">
+                    TREINO CORRETIVO ADAPTATIVO
+                  </span>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-indigo-500/30 text-indigo-200 border border-indigo-400/40 font-bold">
+                    {drillSession.currentIndex + 1} / {drillSession.totalWords}
+                  </span>
+                </div>
+                <div className="text-[11px] text-zinc-300 font-mono mt-0.5 flex items-center gap-1.5 flex-wrap">
+                  <span className="text-zinc-400">Teclas em foco:</span>
+                  {drillSession.targetKeys.map(k => (
+                    <span
+                      key={k}
+                      className="px-1.5 py-0.5 bg-amber-500/20 text-amber-300 border border-amber-500/40 rounded uppercase font-bold text-xs shadow-sm"
+                    >
+                      {k}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+            {onCancelDrill && (
+              <button
+                type="button"
+                onClick={onCancelDrill}
+                className="text-[11px] font-mono font-bold text-zinc-400 hover:text-white px-2.5 py-1.5 rounded-lg bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-700/60 transition cursor-pointer whitespace-nowrap ml-2"
+                title="Cancelar treino e retornar ao vocabulário regular"
+              >
+                Encerrar Treino
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Word Display Card */}
         <div
           ref={containerRef}
@@ -452,6 +498,7 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
               const isPending = index > charIndex;
               const isJustTyped = index === charIndex - 1;
               const animClasses = getLetterVfxClasses(equippedAnimation, isDone, isCurrent, isJustTyped);
+              const isTargetKey = Boolean(drillSession?.targetKeys?.includes(char.toLowerCase()));
 
               return (
                 <span
@@ -462,11 +509,18 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
                       : isCurrent
                       ? `char-current ${activeTerminalTheme.classes.charCurrent} ${animClasses} bg-zinc-900/60 ring-2 ring-current/80 shadow-[0_0_15px_rgba(255,255,255,0.2)]`
                       : 'char-pending text-zinc-600'
-                  } ${isJustTyped ? animClasses : ''}`}
+                  } ${isJustTyped ? animClasses : ''} ${
+                    isTargetKey && !isDone
+                      ? 'border-b-2 border-amber-400 font-extrabold text-amber-200'
+                      : ''
+                  }`}
                 >
                   {char === ' ' ? '␣' : char}
                   {isCurrent && (
                     <span className={`absolute -bottom-1.5 left-0 right-0 h-1 rounded-full animate-cursor-pulse ${activeTerminalTheme.classes.cursor}`} />
+                  )}
+                  {isTargetKey && !isDone && (
+                    <span className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.8)]" />
                   )}
                 </span>
               );

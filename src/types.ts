@@ -56,11 +56,37 @@ export interface GameState {
   cosmetics?: PlayerCosmetics;
   // Estatísticas de Arena 1x1 (Nível 100)
   arenaStats?: ArenaStats;
+  // Telemetria por tecla para treino corretivo adaptativo
+  keyTelemetry?: Record<string, KeyTelemetry>;
   // Novos campos opcionais com retrocompatibilidade garantida
   schemaVersion?: number;
   flaggedForReview?: boolean;
   flagReason?: string;
   lastSyncTimestamp?: number;
+}
+
+export interface KeyTelemetry {
+  hits: number;
+  misses: number;
+  totalTimeMs: number;
+}
+
+export interface WeakKeyReport {
+  char: string;
+  hits: number;
+  misses: number;
+  total: number;
+  errorRate: number; // 0 a 1
+  avgTimeMs: number;
+  idt: number; // Índice de Dificuldade da Tecla
+}
+
+export interface DrillSession {
+  targetKeys: string[];
+  drillWords: string[];
+  currentIndex: number;
+  totalWords: number;
+  startedAt?: number;
 }
 
 export interface FloatingText {
