@@ -1341,6 +1341,8 @@ export default function App() {
             isAdmin={isAdmin}
             drillSession={drillSession}
             onCancelDrill={handleCancelDrill}
+            onStartDrill={handleStartDrill}
+            keyTelemetry={state.keyTelemetry}
           />
         }
         shop={

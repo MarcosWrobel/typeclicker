@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Flame, Sparkles, Award, Keyboard, HelpCircle, AlertCircle, Zap, Gauge, Trophy, AlertTriangle, Timer, Activity, Pause, Play, Lock, Palette, Coins, Users, Swords, Target } from 'lucide-react';
-import { CategoryId, FloatingText, DrillSession } from '../types';
+import { CategoryId, FloatingText, DrillSession, KeyTelemetry } from '../types';
 import { BytezinhoSkinId, TerminalThemeId, AnimationEffectId } from '../types/cosmetics';
 import { TERMINAL_THEMES } from '../constants/themes';
 import { WORD_CATEGORIES } from '../data/words';
@@ -9,6 +9,7 @@ import { BytezinhoMascot } from './BytezinhoMascot';
 import { TerminalThemeEffects } from './TerminalThemeEffects';
 import { isCategoryAllowed, getMinAllowedCategoryLevel } from '../utils/difficulty';
 import { getLetterVfxClasses, triggerKeystrokeImpact } from '../services/fxEngine';
+import { identificarTeclasFracas } from '../services/adaptiveDrillEngine';
 
 interface TypingArenaProps {
   playerRankLevel: number;
@@ -50,6 +51,8 @@ interface TypingArenaProps {
   isAdmin?: boolean;
   drillSession?: DrillSession | null;
   onCancelDrill?: () => void;
+  onStartDrill?: (keys?: string[]) => void;
+  keyTelemetry?: Record<string, KeyTelemetry>;
 }
 
 const THEME_STYLES: Record<string, {
@@ -129,7 +132,9 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
   quantumFragments = 0,
   isAdmin = false,
   drillSession = null,
-  onCancelDrill
+  onCancelDrill,
+  onStartDrill,
+  keyTelemetry = {}
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const internalInputRef = useRef<HTMLInputElement>(null);
@@ -137,6 +142,47 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
 
   const [isFocused, setIsFocused] = useState(true);
   const activeTerminalTheme = TERMINAL_THEMES[equippedTheme || 'matrix'] || TERMINAL_THEMES.matrix;
+
+  // Análise em tempo real de teclas com dificuldade motora
+  const weakKeys = React.useMemo(() => {
+    return identificarTeclasFracas(keyTelemetry, 3);
+  }, [keyTelemetry]);
+
+  // Gestão de Recomendação Pedagógica Espontânea
+  const [suggestedDrillPrompt, setSuggestedDrillPrompt] = useState<{ keys: string[]; idt: number } | null>(null);
+  const dismissedUntilRef = useRef<number>(0);
+
+  useEffect(() => {
+    if (drillSession) {
+      setSuggestedDrillPrompt(null);
+      return;
+    }
+
+    const now = Date.now();
+    if (now < dismissedUntilRef.current) return;
+
+    // Gatilho espontâneo 1: Se o aluno entrar em sobrecarga de erros ou tiver 2 erros seguidos
+    if ((consecutiveErrors >= 2 || isOverloaded) && weakKeys.length > 0) {
+      setSuggestedDrillPrompt({
+        keys: weakKeys.map(k => k.char),
+        idt: weakKeys[0].idt
+      });
+      return;
+    }
+
+    // Gatilho espontâneo 2: Ao concluir palavra, se houver tecla com IDT crítico (>= 0.40)
+    if (recentWordComplete && weakKeys.length > 0 && weakKeys.some(k => k.idt >= 0.40)) {
+      setSuggestedDrillPrompt({
+        keys: weakKeys.map(k => k.char),
+        idt: weakKeys[0].idt
+      });
+    }
+  }, [consecutiveErrors, isOverloaded, recentWordComplete, weakKeys, drillSession]);
+
+  const handleDismissSuggestion = () => {
+    dismissedUntilRef.current = Date.now() + 90000; // 90 segundos de respiro
+    setSuggestedDrillPrompt(null);
+  };
 
   // Rastreamento para disparo cinemático de impacto de teclas e finalização de palavras (Arcade VFX)
   const lastCharIndexRef = useRef(charIndex);
@@ -381,6 +427,7 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
         isOverloaded={isOverloaded}
         isOverheating={isOverheating ?? (isOverloaded || isDraining)}
         skin={equippedSkin}
+        weakKeys={weakKeys.map(k => k.char)}
       />
 
       {/* Main Interactive Typing Box */}
@@ -403,6 +450,87 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
             </div>
           ))}
         </div>
+
+        {/* Notificação / Recomendação Espontânea de Treino (Disparada em erros ou hesitação) */}
+        {suggestedDrillPrompt && !drillSession && (
+          <div className="w-full max-w-2xl mb-2 bg-gradient-to-r from-amber-950/95 via-purple-950/95 to-indigo-950/95 border-2 border-amber-400/90 rounded-xl p-3 sm:px-4 sm:py-3.5 shadow-[0_0_30px_rgba(245,158,11,0.4)] animate-in fade-in zoom-in-95 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 z-20">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/60 flex items-center justify-center text-amber-300 flex-shrink-0 animate-bounce">
+                <Target className="w-5 h-5 text-amber-400" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-black text-amber-300 font-mono uppercase tracking-wider flex items-center gap-1.5">
+                    <span>💡 Sugestão Pedagógica</span>
+                    <span className="text-[10px] px-2 py-0.2 rounded-full bg-amber-500/30 text-amber-200 border border-amber-500/50 font-bold">
+                      Calibração Recomendada
+                    </span>
+                  </span>
+                </div>
+                <p className="text-[11px] sm:text-xs text-zinc-200 font-sans mt-0.5 leading-snug">
+                  Detectamos hesitação nas teclas{' '}
+                  {suggestedDrillPrompt.keys.map((k) => (
+                    <strong key={k} className="mx-0.5 px-1.5 py-0.5 bg-amber-500/30 text-amber-200 rounded border border-amber-400/50 font-mono uppercase">
+                      {k}
+                    </strong>
+                  ))}
+                  . Recalibre seus dedos em 30s e ganhe bônus de Bytes!
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 self-end sm:self-center flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  if (onStartDrill) onStartDrill(suggestedDrillPrompt.keys);
+                  setSuggestedDrillPrompt(null);
+                }}
+                className="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-indigo-600 hover:from-amber-400 hover:to-indigo-500 text-white font-mono font-bold text-xs shadow-[0_0_15px_rgba(245,158,11,0.5)] transition cursor-pointer flex items-center gap-1.5"
+              >
+                <Target className="w-3.5 h-3.5" />
+                <span>Iniciar Treino</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleDismissSuggestion}
+                className="px-2.5 py-1.5 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 text-zinc-400 hover:text-white font-mono text-xs border border-zinc-700 transition cursor-pointer"
+                title="Dispensar sugestão temporariamente"
+              >
+                Depois
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Botão de Acesso Rápido Permanente na Arena (Sem precisar abrir menus) */}
+        {weakKeys.length > 0 && !drillSession && !suggestedDrillPrompt && (
+          <div className="w-full max-w-2xl mb-2 flex items-center justify-between p-2 px-3 sm:px-4 rounded-xl bg-gradient-to-r from-amber-950/40 via-purple-950/40 to-indigo-950/40 border border-amber-500/40 hover:border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.15)] transition animate-in fade-in">
+            <div className="flex items-center gap-2 text-xs font-mono text-amber-300 min-w-0">
+              <div className="w-6 h-6 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 flex-shrink-0 animate-pulse">
+                <Target className="w-3.5 h-3.5" />
+              </div>
+              <span className="font-bold truncate">Calibração Motora Disponível:</span>
+              <span className="text-zinc-400 hidden sm:inline">teclas</span>
+              <div className="flex gap-1">
+                {weakKeys.map(k => (
+                  <span key={k.char} className="px-1.5 py-0.2 bg-amber-500/20 text-amber-200 rounded border border-amber-500/40 uppercase font-black text-[11px]">
+                    {k.char}
+                  </span>
+                ))}
+              </div>
+            </div>
+            {onStartDrill && (
+              <button
+                type="button"
+                onClick={() => onStartDrill(weakKeys.map(k => k.char))}
+                className="px-3 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 hover:text-amber-200 border border-amber-500/50 text-xs font-mono font-bold transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap ml-2 shadow-sm"
+              >
+                <span>Calibrar Agora (+Bônus)</span>
+                <span>→</span>
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Banner Pedagógico de Treino Corretivo Adaptativo */}
         {drillSession && (

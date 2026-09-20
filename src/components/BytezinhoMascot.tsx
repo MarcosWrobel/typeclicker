@@ -15,6 +15,7 @@ interface BytezinhoMascotProps {
   isOverloaded?: boolean;
   isOverheating?: boolean;
   skin?: BytezinhoSkinId;
+  weakKeys?: string[];
 }
 
 const IDLE_MESSAGES = [
@@ -42,7 +43,8 @@ export const BytezinhoMascot: React.FC<BytezinhoMascotProps> = ({
   isDraining = false,
   isOverloaded = false,
   isOverheating = false,
-  skin = 'classic'
+  skin = 'classic',
+  weakKeys = []
 }) => {
   const [currentMessage, setCurrentMessage] = useState<string>(IDLE_MESSAGES[0]);
   const [mood, setMood] = useState<'normal' | 'happy' | 'fire' | 'oops' | 'upgrade' | 'glitch' | 'warning' | 'leak'>('normal');
@@ -52,13 +54,21 @@ export const BytezinhoMascot: React.FC<BytezinhoMascotProps> = ({
   useEffect(() => {
     if (isOverloaded || consecutiveErrors >= 3) {
       setMood('glitch');
-      setCurrentMessage("⚡ SOBRECARGA DE ERROS! Pare, respire e posicione os dedos na fileira base!");
+      if (weakKeys.length > 0) {
+        setCurrentMessage(`⚡ SOBRECARGA! A tecla [${weakKeys[0].toUpperCase()}] travou o circuito! Clique em Calibrar para reabilitar!`);
+      } else {
+        setCurrentMessage("⚡ SOBRECARGA DE ERROS! Pare, respire e posicione os dedos na fileira base!");
+      }
       return;
     }
 
     if (consecutiveErrors === 2) {
       setMood('warning');
-      setCurrentMessage("⚠️ 2 erros seguidos! Cuidado, errar em sequência consome seus Bytes!");
+      if (weakKeys.length > 0) {
+        setCurrentMessage(`⚠️ A tecla [${weakKeys[0].toUpperCase()}] escorregou de novo! Que tal fazer um treino rápido de reabilitação?`);
+      } else {
+        setCurrentMessage("⚠️ 2 erros seguidos! Cuidado, errar em sequência consome seus Bytes!");
+      }
       return;
     }
 
@@ -96,18 +106,22 @@ export const BytezinhoMascot: React.FC<BytezinhoMascotProps> = ({
     } else {
       setMood('normal');
     }
-  }, [comboStreak, multiplier, isError, recentWordComplete, recentUpgradeBought, consecutiveErrors, isDraining, isOverloaded]);
+  }, [comboStreak, multiplier, isError, recentWordComplete, recentUpgradeBought, consecutiveErrors, isDraining, isOverloaded, weakKeys]);
 
   // Rotação periódica de mensagens aleatórias quando estiver ocioso
   useEffect(() => {
     const interval = setInterval(() => {
       if (mood === 'normal') {
-        const next = IDLE_MESSAGES[Math.floor(Math.random() * IDLE_MESSAGES.length)];
-        setCurrentMessage(next);
+        if (weakKeys.length > 0 && Math.random() > 0.5) {
+          setCurrentMessage(`🎯 Dica do Bytezinho: Notei hesitação na tecla [${weakKeys[0].toUpperCase()}]. O Treino Corretivo tá pronto pra calibrar!`);
+        } else {
+          const next = IDLE_MESSAGES[Math.floor(Math.random() * IDLE_MESSAGES.length)];
+          setCurrentMessage(next);
+        }
       }
-    }, 12000);
+    }, 10000);
     return () => clearInterval(interval);
-  }, [mood]);
+  }, [mood, weakKeys]);
 
   const handleMascotClick = () => {
     setClickCount(prev => prev + 1);
