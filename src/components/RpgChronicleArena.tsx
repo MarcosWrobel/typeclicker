@@ -19,7 +19,7 @@ import {
 import { RpgFloorData, DungeonState } from '../types/quests';
 import { sound } from '../utils/audio';
 import { formatBytes } from '../utils/formatting';
-import { combineAccent, isAccentKey, resolveDeadKey } from '../utils/keyboardAccents';
+import { combineAccent, isAccentKey, resolveDeadKey, getAccentDisplayName } from '../utils/keyboardAccents';
 
 interface RpgChronicleArenaProps {
   isOpen: boolean;
@@ -62,29 +62,83 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
   const [overloadSequence, setOverloadSequence] = useState<string[]>([]);
   const [overloadIndex, setOverloadIndex] = useState(0);
 
+  // Refs para prevenir race conditions e closures desatualizadas na digitação veloz
+  const charIndexRef = useRef(0);
+  const bossHpRef = useRef(floorData.boss.maxHp);
+  const statusRef = useRef<'playing' | 'victory' | 'defeat'>('playing');
+  const pendingAccentRef = useRef<string | null>(null);
+  const overloadActiveRef = useRef(false);
+  const overloadIndexRef = useRef(0);
+  const overloadSequenceRef = useRef<string[]>([]);
+  const wordCleanRef = useRef<boolean>(true);
+
   const inputRef = useRef<HTMLInputElement>(null);
   const textContainerRef = useRef<HTMLDivElement>(null);
   const currentSpanRef = useRef<HTMLSpanElement>(null);
-  const wordCleanRef = useRef<boolean>(true);
+
+  // Sincroniza refs com states
+  useEffect(() => {
+    charIndexRef.current = charIndex;
+  }, [charIndex]);
+  useEffect(() => {
+    bossHpRef.current = bossHp;
+  }, [bossHp]);
+  useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
+  useEffect(() => {
+    pendingAccentRef.current = pendingAccent;
+  }, [pendingAccent]);
+  useEffect(() => {
+    overloadActiveRef.current = overloadActive;
+  }, [overloadActive]);
+  useEffect(() => {
+    overloadIndexRef.current = overloadIndex;
+  }, [overloadIndex]);
+  useEffect(() => {
+    overloadSequenceRef.current = overloadSequence;
+  }, [overloadSequence]);
 
   // Reinicia o estado ao abrir um novo andar
   useEffect(() => {
     if (isOpen) {
       setCharIndex(0);
+      charIndexRef.current = 0;
       setBossHp(floorData.boss.maxHp);
+      bossHpRef.current = floorData.boss.maxHp;
       setPlayerShield(maxShield);
       setStatus('playing');
+      statusRef.current = 'playing';
       setPendingAccent(null);
+      pendingAccentRef.current = null;
       setOverloadTriggered(false);
       setOverloadActive(false);
+      overloadActiveRef.current = false;
       setOverloadSequence([]);
+      overloadSequenceRef.current = [];
       setOverloadIndex(0);
+      overloadIndexRef.current = 0;
       wordCleanRef.current = true;
       setTimeout(() => {
-        inputRef.current?.focus();
-      }, 100);
+        inputRef.current?.focus({ preventScroll: true });
+      }, 80);
     }
   }, [isOpen, floorData, maxShield]);
+
+  // Mantém foco ininterrupto no input de digitação durante a batalha
+  useEffect(() => {
+    if (!isOpen || status !== 'playing') return;
+
+    const focusInput = () => {
+      if (inputRef.current && document.activeElement !== inputRef.current) {
+        inputRef.current.focus({ preventScroll: true });
+      }
+    };
+
+    focusInput();
+    const interval = setInterval(focusInput, 600);
+    return () => clearInterval(interval);
+  }, [isOpen, status]);
 
   // Mantém o cursor visível com scroll suave
   useEffect(() => {
@@ -97,16 +151,16 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
     }
   }, [charIndex]);
 
-  // Tecla ESC para fechar ou desistir
+  // Tecla ESC para fechar ou desistir se o foco estiver na janela
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const handleWindowKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) {
         e.preventDefault();
         onClose();
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleWindowKeyDown);
+    return () => window.removeEventListener('keydown', handleWindowKeyDown);
   }, [isOpen, onClose]);
 
   // Spawna número flutuante de dano RPG
@@ -122,154 +176,225 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
     }, 850);
   }, []);
 
-  // Processa a digitação com suporte a teclas mortas (acentos) e QTE
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (status !== 'playing') return;
+  // Processa o caractere final após composição de acentos (ABNT2 / IME / Teclas Mortas)
+  const processTypedChar = useCallback(
+    (rawChar: string) => {
+      if (statusRef.current !== 'playing') return;
 
-    if (e.key === 'Tab' || e.key === 'Escape') {
-      return;
-    }
+      // Se estiver em modo QTE de Sobrecarga do Núcleo
+      if (overloadActiveRef.current) {
+        const pressedKey = rawChar.toUpperCase();
+        const seq = overloadSequenceRef.current;
+        const qteIdx = overloadIndexRef.current;
+        const targetKey = seq[qteIdx];
 
-    // Se estiver em modo QTE de Sobrecarga do Núcleo
-    if (overloadActive) {
-      e.preventDefault();
-      const pressedKey = e.key.toUpperCase();
-      const targetKey = overloadSequence[overloadIndex];
+        if (pressedKey === targetKey) {
+          sound.playType();
+          const nextQteIdx = qteIdx + 1;
+          if (nextQteIdx >= seq.length) {
+            sound.playChallengeSuccess();
+            const burstDmg = Math.max(20, Math.round(floorData.boss.maxHp * 0.25));
+            spawnDamage(burstDmg, true, `⚡ SOBRECARGA! -${burstDmg}`);
+            const nextHp = Math.max(0, bossHpRef.current - burstDmg);
+            bossHpRef.current = nextHp;
+            setBossHp(nextHp);
+            overloadActiveRef.current = false;
+            setOverloadActive(false);
 
-      if (pressedKey === targetKey) {
-        sound.playType();
-        const nextQteIdx = overloadIndex + 1;
-        if (nextQteIdx >= overloadSequence.length) {
-          // Concluiu o QTE com perfeição!
-          sound.playChallengeSuccess();
-          const burstDmg = Math.max(20, Math.round(floorData.boss.maxHp * 0.25));
-          spawnDamage(burstDmg, true, `⚡ SOBRECARGA! -${burstDmg}`);
-          const nextHp = Math.max(0, bossHp - burstDmg);
-          setBossHp(nextHp);
-          setOverloadActive(false);
-
-          if (nextHp <= 0) {
-            setStatus('victory');
-            onVictory(floorData);
+            if (nextHp <= 0) {
+              statusRef.current = 'victory';
+              setStatus('victory');
+              onVictory(floorData);
+            }
+          } else {
+            overloadIndexRef.current = nextQteIdx;
+            setOverloadIndex(nextQteIdx);
           }
         } else {
-          setOverloadIndex(nextQteIdx);
+          sound.playError();
+          overloadActiveRef.current = false;
+          setOverloadActive(false);
+        }
+        return;
+      }
+
+      const currentIndex = charIndexRef.current;
+      const expectedChar = floorData.text[currentIndex];
+      if (!expectedChar) return;
+
+      let finalChar = rawChar;
+      const currentPending = pendingAccentRef.current;
+
+      // Se havia acento pendente, combina com a letra digitada
+      if (currentPending) {
+        finalChar = combineAccent(currentPending, rawChar);
+        setPendingAccent(null);
+        pendingAccentRef.current = null;
+      }
+
+      // Compara o caractere digitado com o esperado no texto
+      if (finalChar === expectedChar) {
+        // Acerto!
+        sound.playType();
+        const nextIndex = currentIndex + 1;
+        charIndexRef.current = nextIndex;
+        setCharIndex(nextIndex);
+
+        // Bônus de Equipamento (Arma e Relíquia)
+        const weaponBonusDmg = (dungeon?.weapon?.bonusDmg ?? 0) + (dungeon?.relic?.bonusDmg ?? 0);
+        const isWeakness = floorData.boss.weaknessKeys?.includes(finalChar.toLowerCase());
+
+        let baseDamage = 1 + weaponBonusDmg;
+        if (isWeakness) {
+          const weaknessBonusPercent = dungeon?.weapon?.bonusWeaknessDmgPercent ?? 0;
+          baseDamage = Math.round((2 + weaponBonusDmg) * (1 + weaknessBonusPercent / 100));
+
+          // Perk: Vampirismo de Fraqueza
+          const vampLevel = dungeon?.perks?.weaknessVampirism ?? 0;
+          if (vampLevel > 0) {
+            const healAmount = vampLevel * 2;
+            setPlayerShield((prev) => Math.min(maxShield, prev + healAmount));
+          }
+        }
+
+        // Boss ferido momentaneamente
+        setIsBossHurt(true);
+        setTimeout(() => setIsBossHurt(false), 80);
+
+        // Verificação de palavra concluída (espaço ou fim do texto)
+        let wordBonusDamage = 0;
+        if (expectedChar === ' ' || nextIndex >= floorData.text.length) {
+          if (wordCleanRef.current) {
+            // Perk: Combo Crítico
+            const comboLevel = dungeon?.perks?.criticalCombo ?? 0;
+            const comboMultiplier = 1 + comboLevel * 0.15;
+            wordBonusDamage = Math.round((8 + floorData.floor * 2) * comboMultiplier);
+            spawnDamage(wordBonusDamage, true);
+          }
+          wordCleanRef.current = true;
+        }
+
+        const totalDamage = baseDamage + wordBonusDamage;
+        const nextHp = Math.max(0, bossHpRef.current - totalDamage);
+        bossHpRef.current = nextHp;
+        setBossHp(nextHp);
+
+        // Ativa QTE Sobrecarga quando o Boss chega a <= 50% HP pela primeira vez
+        const halfHp = floorData.boss.maxHp * 0.5;
+        if (!overloadTriggered && nextHp <= halfHp && nextHp > 0) {
+          setOverloadTriggered(true);
+          const pool =
+            floorData.boss.weaknessKeys && floorData.boss.weaknessKeys.length > 0
+              ? floorData.boss.weaknessKeys
+              : ['f', 'j', 'd', 'k', 's', 'l', 'a'];
+          const qteSeq = Array.from({ length: 4 }, () => pool[Math.floor(Math.random() * pool.length)].toUpperCase());
+          overloadSequenceRef.current = qteSeq;
+          setOverloadSequence(qteSeq);
+          overloadIndexRef.current = 0;
+          setOverloadIndex(0);
+          overloadActiveRef.current = true;
+          setOverloadActive(true);
+        }
+
+        // Vitória ao concluir o texto ou esgotar a vida do Boss
+        if (nextIndex >= floorData.text.length || nextHp <= 0) {
+          statusRef.current = 'victory';
+          setStatus('victory');
+          sound.playChallengeSuccess();
+          onVictory(floorData);
         }
       } else {
-        // Erro no QTE - dissipa o atordoamento sem causar dano bônus
+        // Erro!
         sound.playError();
-        setOverloadActive(false);
-      }
-      return;
-    }
+        wordCleanRef.current = false;
+        setIsErrorShaking(true);
+        setTimeout(() => setIsErrorShaking(false), 200);
 
-    if (isAccentKey(e.key)) {
+        // Reduz o escudo do jogador com mitigação de armadura (Perk Endurecimento de Escudo)
+        const hardeningLevel = dungeon?.perks?.shieldHardening ?? 0;
+        const dmgMitigation = Math.min(0.5, hardeningLevel * 0.08); // 8% por nível
+        const actualDmgTaken = Math.max(2, Math.round(6 * (1 - dmgMitigation)));
+
+        setPlayerShield((prev) => {
+          const nextShield = Math.max(0, prev - actualDmgTaken);
+          if (nextShield <= 0) {
+            statusRef.current = 'defeat';
+            setStatus('defeat');
+            sound.playChallengeFail();
+          }
+          return nextShield;
+        });
+      }
+    },
+    [dungeon, floorData, maxShield, onVictory, overloadTriggered, spawnDamage]
+  );
+
+  // Processa caracteres digitados no input nativo (suporte robusto a acentuação ABNT2 e composição IME)
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    if (!val) return;
+
+    for (const ch of val) {
+      if (isAccentKey(ch)) {
+        setPendingAccent(ch);
+        pendingAccentRef.current = ch;
+      } else {
+        processTypedChar(ch);
+      }
+    }
+    // Esvazia para a próxima combinação de teclas
+    e.target.value = '';
+  };
+
+  // Captura teclas mortas (Dead), atalhos e QTE diretamente no teclado
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (statusRef.current !== 'playing') return;
+
+    if (e.key === 'Escape') {
+      if (pendingAccentRef.current) {
+        e.preventDefault();
+        setPendingAccent(null);
+        pendingAccentRef.current = null;
+        return;
+      }
       e.preventDefault();
-      const dead = resolveDeadKey(e.key);
-      setPendingAccent(dead);
+      onClose();
       return;
     }
 
-    let typedChar = e.key;
+    if (e.key === 'Backspace') {
+      if (pendingAccentRef.current) {
+        e.preventDefault();
+        setPendingAccent(null);
+        pendingAccentRef.current = null;
+      }
+      return;
+    }
 
-    if (pendingAccent) {
+    if (e.key === 'Tab') {
       e.preventDefault();
-      typedChar = combineAccent(pendingAccent, typedChar);
-      setPendingAccent(null);
-    }
-
-    if (typedChar.length !== 1) {
       return;
     }
 
-    e.preventDefault();
-
-    const expectedChar = floorData.text[charIndex];
-    if (!expectedChar) return;
-
-    if (typedChar === expectedChar) {
-      // Acerto!
-      sound.playType();
-      const nextIndex = charIndex + 1;
-      setCharIndex(nextIndex);
-
-      // Bônus de Equipamento (Arma e Relíquia)
-      const weaponBonusDmg = (dungeon?.weapon?.bonusDmg ?? 0) + (dungeon?.relic?.bonusDmg ?? 0);
-      const isWeakness = floorData.boss.weaknessKeys?.includes(typedChar.toLowerCase());
-      
-      let baseDamage = 1 + weaponBonusDmg;
-      if (isWeakness) {
-        const weaknessBonusPercent = dungeon?.weapon?.bonusWeaknessDmgPercent ?? 0;
-        baseDamage = Math.round((2 + weaponBonusDmg) * (1 + weaknessBonusPercent / 100));
-
-        // Perk: Vampirismo de Fraqueza
-        const vampLevel = dungeon?.perks?.weaknessVampirism ?? 0;
-        if (vampLevel > 0) {
-          const healAmount = vampLevel * 2;
-          setPlayerShield((prev) => Math.min(maxShield, prev + healAmount));
-        }
+    // Se estiver em modo QTE de Sobrecarga, processa o golpe diretamente no keydown
+    if (overloadActiveRef.current) {
+      if (e.key.length === 1 || e.key.startsWith('Key')) {
+        e.preventDefault();
+        processTypedChar(e.key);
       }
+      return;
+    }
 
-      // Boss ferido momentaneamente
-      setIsBossHurt(true);
-      setTimeout(() => setIsBossHurt(false), 80);
-
-      // Verificação de palavra concluída (espaço ou fim do texto)
-      let wordBonusDamage = 0;
-      if (expectedChar === ' ' || nextIndex >= floorData.text.length) {
-        if (wordCleanRef.current) {
-          // Perk: Combo Crítico
-          const comboLevel = dungeon?.perks?.criticalCombo ?? 0;
-          const comboMultiplier = 1 + (comboLevel * 0.15);
-          wordBonusDamage = Math.round((8 + (floorData.floor * 2)) * comboMultiplier);
-          spawnDamage(wordBonusDamage, true);
-        }
-        wordCleanRef.current = true;
+    // Identificação de teclas mortas (Dead) ou acentos isolados ('´', '~', '^', '`', "'")
+    if (e.key === 'Dead' || isAccentKey(e.key)) {
+      e.preventDefault();
+      const targetChar = floorData.text[charIndexRef.current];
+      const resolved = resolveDeadKey(e.nativeEvent, targetChar);
+      if (resolved) {
+        setPendingAccent(resolved);
+        pendingAccentRef.current = resolved;
       }
-
-      const totalDamage = baseDamage + wordBonusDamage;
-      const nextHp = Math.max(0, bossHp - totalDamage);
-      setBossHp(nextHp);
-
-      // Ativa QTE Sobrecarga quando o Boss chega a <= 50% HP pela primeira vez
-      const halfHp = floorData.boss.maxHp * 0.5;
-      if (!overloadTriggered && nextHp <= halfHp && nextHp > 0) {
-        setOverloadTriggered(true);
-        const pool = floorData.boss.weaknessKeys && floorData.boss.weaknessKeys.length > 0 
-          ? floorData.boss.weaknessKeys 
-          : ['f', 'j', 'd', 'k', 's', 'l', 'a'];
-        const qteSeq = Array.from({ length: 4 }, () => pool[Math.floor(Math.random() * pool.length)].toUpperCase());
-        setOverloadSequence(qteSeq);
-        setOverloadIndex(0);
-        setOverloadActive(true);
-      }
-
-      // Vitória ao concluir o texto ou esgotar a vida do Boss
-      if (nextIndex >= floorData.text.length || nextHp <= 0) {
-        setStatus('victory');
-        sound.playChallengeSuccess();
-        onVictory(floorData);
-      }
-    } else {
-      // Erro!
-      sound.playError();
-      wordCleanRef.current = false;
-      setIsErrorShaking(true);
-      setTimeout(() => setIsErrorShaking(false), 200);
-
-      // Reduz o escudo do jogador com mitigação de armadura (Perk Endurecimento de Escudo)
-      const hardeningLevel = dungeon?.perks?.shieldHardening ?? 0;
-      const dmgMitigation = Math.min(0.5, hardeningLevel * 0.08); // 8% por nível
-      const actualDmgTaken = Math.max(2, Math.round(6 * (1 - dmgMitigation)));
-
-      setPlayerShield((prev) => {
-        const nextShield = Math.max(0, prev - actualDmgTaken);
-        if (nextShield <= 0) {
-          setStatus('defeat');
-          sound.playChallengeFail();
-        }
-        return nextShield;
-      });
+      return;
     }
   };
 
@@ -283,14 +408,22 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
     <AnimatePresence>
       <div
         className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md select-none"
-        onClick={() => inputRef.current?.focus()}
+        onClick={() => inputRef.current?.focus({ preventScroll: true })}
       >
         <input
           ref={inputRef}
+          id="rpg-chronicle-input"
           type="text"
-          className="absolute opacity-0 pointer-events-none w-0 h-0"
+          value=""
+          onChange={handleInputChange}
+          onKeyDown={handleInputKeyDown}
+          className="opacity-0 absolute -left-[9999px] top-0 w-1 h-1 pointer-events-auto"
           autoFocus
-          onKeyDown={handleKeyDown}
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck="false"
+          aria-label="Terminal de Digitação da Masmorra"
         />
 
         <motion.div
@@ -506,8 +639,8 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
             }`}
           >
             {pendingAccent && (
-              <div className="inline-block px-2 py-0.5 mb-2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-bold font-mono">
-                Acento pendente: {pendingAccent}
+              <div className="inline-block px-2.5 py-1 mb-2 rounded-lg bg-amber-500/25 text-amber-300 border border-amber-500/50 text-xs font-bold font-mono animate-pulse shadow-[0_0_12px_rgba(245,158,11,0.3)]">
+                ⌨️ {getAccentDisplayName(pendingAccent)} (digite a vogal)
               </div>
             )}
 
@@ -642,15 +775,23 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
                   onClick={() => {
                     sound.playClick();
                     setCharIndex(0);
+                    charIndexRef.current = 0;
                     setBossHp(floorData.boss.maxHp);
+                    bossHpRef.current = floorData.boss.maxHp;
                     setPlayerShield(maxShield);
+                    setPendingAccent(null);
+                    pendingAccentRef.current = null;
                     setOverloadTriggered(false);
                     setOverloadActive(false);
+                    overloadActiveRef.current = false;
                     setOverloadSequence([]);
+                    overloadSequenceRef.current = [];
                     setOverloadIndex(0);
+                    overloadIndexRef.current = 0;
                     setStatus('playing');
+                    statusRef.current = 'playing';
                     wordCleanRef.current = true;
-                    setTimeout(() => inputRef.current?.focus(), 100);
+                    setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 100);
                   }}
                   className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-amber-500 hover:from-rose-400 hover:to-amber-400 text-black font-black text-xs font-mono transition shadow-lg flex items-center gap-2 cursor-pointer"
                 >
