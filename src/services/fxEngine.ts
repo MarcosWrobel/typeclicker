@@ -1,38 +1,53 @@
 import confetti from 'canvas-confetti';
 import { AnimationEffectId } from '../types/cosmetics';
 
-// Cache para formas vetoriais SVG customizadas via canvas-confetti
+// Cache para formas customizadas (ImageBitmap / Emojis de alta resolução) via canvas-confetti
 let cachedShapes: Record<string, confetti.Shape> | null = null;
 
 function getShapes(): Record<string, confetti.Shape> {
   if (cachedShapes) return cachedShapes;
 
-  const createShape = (path: string, fallback: 'circle' | 'square' | 'star' = 'circle'): confetti.Shape => {
+  const createEmojiShape = (
+    text: string,
+    scalar: number = 2.4,
+    fallback: confetti.Shape = 'circle'
+  ): confetti.Shape => {
     try {
-      if (typeof window !== 'undefined' && typeof Path2D === 'function' && typeof confetti.shapeFromPath === 'function') {
-        return confetti.shapeFromPath({ path });
+      if (typeof window !== 'undefined' && typeof confetti.shapeFromText === 'function') {
+        return confetti.shapeFromText({ text, scalar });
       }
-    } catch {
-      // Fallback gracioso para ambientes sem suporte a Path2D
+    } catch (err) {
+      console.warn(`[fxEngine] shapeFromText failed for "${text}":`, err);
     }
     return fallback;
   };
 
   cachedShapes = {
-    lightning: createShape('M 12 0 L 2 13 L 9 13 L 3 24 L 18 10 L 11 10 Z', 'star'),
-    bat: createShape('M 0 10 Q 7 0 14 6 Q 21 0 28 10 Q 24 16 14 18 Q 4 16 0 10 Z', 'circle'),
-    ring: createShape('M 12 2 A 10 10 0 1 0 12 22 A 10 10 0 1 0 12 2 Z M 12 6 A 6 6 0 1 1 12 18 A 6 6 0 1 1 12 6 Z', 'circle'),
-    bone: createShape('M 6 4 C 4 2 2 4 4 6 C 2 8 4 10 6 8 L 18 8 C 20 10 22 8 20 6 C 24 4 22 2 20 4 Z', 'square'),
-    diamond: createShape('M 6 0 L 22 0 L 28 8 L 14 26 L 0 8 Z', 'square'),
-    flame: createShape('M 10 0 C 14 6 18 10 16 16 C 14 22 8 26 10 30 C 6 26 2 20 4 14 C 5 10 8 4 10 0 Z', 'circle'),
-    water: createShape('M 10 0 C 14 8 18 14 18 20 C 18 26 14 30 10 30 C 6 30 2 26 2 20 C 2 14 6 8 10 0 Z', 'circle'),
-    starburst: createShape('M 12 0 Q 12 9 3 12 Q 12 15 12 24 Q 15 15 24 12 Q 15 9 12 0 Z', 'star'),
-    pixelHeart: createShape('M 10 3 L 13 0 L 19 0 L 22 3 L 22 9 L 11 20 L 0 9 L 0 3 L 3 0 L 9 0 Z', 'square'),
-    coin: createShape('M 12 2 A 10 10 0 1 0 12 22 A 10 10 0 1 0 12 2 Z M 12 5 A 7 7 0 1 1 12 19 A 7 7 0 1 1 12 5 Z', 'circle'),
-    voidEye: createShape('M 12 0 A 12 12 0 1 0 12 24 A 12 12 0 1 0 12 0 Z M 12 8 A 4 4 0 1 1 12 16 A 4 4 0 1 1 12 8 Z', 'circle'),
-    steam: createShape('M 8 16 A 6 6 0 0 1 14 10 A 8 8 0 0 1 24 11 A 5 5 0 0 1 28 16 A 6 6 0 0 1 22 22 L 8 22 A 6 6 0 0 1 8 16 Z', 'circle'),
-    vessel: createShape('M 14 28 C 10 24 6 18 6 12 C 4 8 2 2 0 0 C 4 4 8 8 10 10 C 12 6 14 2 14 2 C 14 2 16 6 18 10 C 20 8 24 4 28 0 C 26 2 24 8 22 12 C 22 18 18 24 14 28 Z', 'star'),
-    hyperspace: createShape('M 1 0 L 4 0 L 5 30 L 0 30 Z', 'square'),
+    bat: createEmojiShape('🦇', 2.5, 'circle'),
+    skull: createEmojiShape('💀', 2.4, 'circle'),
+    bone: createEmojiShape('🦴', 2.4, 'square'),
+    lightning: createEmojiShape('⚡', 2.4, 'star'),
+    ring: createEmojiShape('💍', 2.3, 'circle'),
+    goldCoin: createEmojiShape('🪙', 2.4, 'circle'),
+    diamond: createEmojiShape('💎', 2.4, 'square'),
+    flame: createEmojiShape('🔥', 2.4, 'circle'),
+    fist: createEmojiShape('👊', 2.7, 'square'),
+    explosion: createEmojiShape('💥', 2.7, 'star'),
+    steam: createEmojiShape('💨', 2.4, 'circle'),
+    waterWave: createEmojiShape('🌊', 2.4, 'circle'),
+    eye: createEmojiShape('👁️', 2.4, 'circle'),
+    spiral: createEmojiShape('🌀', 2.4, 'circle'),
+    ghost: createEmojiShape('👻', 2.4, 'circle'),
+    sword: createEmojiShape('🗡️', 2.4, 'star'),
+    pixelMonster: createEmojiShape('👾', 2.4, 'square'),
+    pixelHeart: createEmojiShape('❤️', 2.4, 'square'),
+    rocket: createEmojiShape('🚀', 2.4, 'star'),
+    star: createEmojiShape('⭐', 2.4, 'star'),
+    bubble: createEmojiShape('🫧', 2.4, 'circle'),
+    sparkles: createEmojiShape('✨', 2.4, 'star'),
+    firework: createEmojiShape('🎆', 2.4, 'star'),
+    binaryOne: createEmojiShape('1', 2.1, 'square'),
+    binaryZero: createEmojiShape('0', 2.1, 'square'),
   };
 
   return cachedShapes;
@@ -187,14 +202,15 @@ export function triggerUpgradePurchaseVfx(
 
       case 'golden_coins':
         confetti({
-          particleCount: Math.round(24 * countMultiplier),
-          spread: 50,
+          particleCount: Math.round(22 * countMultiplier),
+          spread: 55,
           origin: { x, y },
-          shapes: [shapes.coin, 'star'],
-          colors: ['#fbbf24', '#f59e0b', '#d97706', '#fef08a', '#ffffff'],
+          shapes: [shapes.goldCoin],
+          flat: true,
+          scalar: 2.4,
+          colors: ['#fbbf24', '#f59e0b', '#d97706'],
           startVelocity: isMilestone ? 42 : 28,
           gravity: 0.9,
-          scalar: 1.3,
         });
         if (isMilestone) {
           triggerShockwaveVfx(x, y, 'rgba(251, 191, 36, 0.7)', 180);
@@ -203,29 +219,31 @@ export function triggerUpgradePurchaseVfx(
 
       case 'matrix_stream':
         confetti({
-          particleCount: Math.round(30 * countMultiplier),
+          particleCount: Math.round(26 * countMultiplier),
           spread: 28,
           angle: 90,
           origin: { x, y },
-          shapes: ['square'],
-          colors: ['#22c55e', '#16a34a', '#86efac', '#15803d', '#4ade80'],
+          shapes: [shapes.binaryOne, shapes.binaryZero],
+          flat: true,
+          scalar: 2.1,
+          colors: ['#22c55e', '#16a34a', '#86efac'],
           startVelocity: isMilestone ? 48 : 34,
           gravity: 0.65,
           ticks: 120,
-          scalar: 0.95,
         });
         break;
 
       case 'supernova_burst':
         confetti({
-          particleCount: Math.round(36 * countMultiplier),
+          particleCount: Math.round(26 * countMultiplier),
           spread: 360,
           origin: { x, y },
-          shapes: [shapes.starburst, 'circle'],
-          colors: ['#c084fc', '#a855f7', '#38bdf8', '#e0e7ff', '#ffffff'],
+          shapes: [shapes.star, shapes.explosion],
+          flat: true,
+          scalar: 2.4,
+          colors: ['#c084fc', '#a855f7', '#38bdf8', '#ffffff'],
           startVelocity: isMilestone ? 36 : 24,
           decay: 0.92,
-          scalar: 1.2,
         });
         if (isMilestone) {
           triggerShockwaveVfx(x, y, 'rgba(168, 85, 247, 0.8)', 240);
@@ -235,15 +253,16 @@ export function triggerUpgradePurchaseVfx(
 
       case 'tesla_lightning':
         confetti({
-          particleCount: Math.round(28 * countMultiplier),
+          particleCount: Math.round(22 * countMultiplier),
           spread: 85,
           origin: { x, y },
-          shapes: [shapes.lightning, 'star'],
-          colors: ['#38bdf8', '#0ea5e9', '#60a5fa', '#ffffff', '#e0f2fe'],
+          shapes: [shapes.lightning],
+          flat: true,
+          scalar: 2.4,
+          colors: ['#38bdf8', '#0ea5e9', '#60a5fa', '#ffffff'],
           startVelocity: isMilestone ? 55 : 38,
           decay: 0.86,
           gravity: 0.45,
-          scalar: 1.15,
         });
         if (isMilestone) {
           triggerScreenFlashVfx('rgba(56, 189, 248, 0.35)');
@@ -253,15 +272,16 @@ export function triggerUpgradePurchaseVfx(
 
       case 'volcano_flame':
         confetti({
-          particleCount: Math.round(34 * countMultiplier),
-          spread: 40,
+          particleCount: Math.round(24 * countMultiplier),
+          spread: 45,
           angle: 90,
           origin: { x, y },
-          shapes: [shapes.flame, 'circle'],
-          colors: ['#ef4444', '#f97316', '#fbbf24', '#b91c1c', '#ea580c'],
+          shapes: [shapes.flame],
+          flat: true,
+          scalar: 2.4,
+          colors: ['#ef4444', '#f97316', '#fbbf24'],
           startVelocity: isMilestone ? 52 : 36,
-          gravity: 0.95,
-          scalar: 1.2,
+          gravity: 0.85,
         });
         if (isMilestone) {
           triggerScreenShakeVfx();
@@ -271,66 +291,71 @@ export function triggerUpgradePurchaseVfx(
 
       case 'cyber_neon':
         confetti({
-          particleCount: Math.round(28 * countMultiplier),
+          particleCount: Math.round(24 * countMultiplier),
           spread: 65,
           origin: { x, y },
-          shapes: ['square', shapes.starburst],
-          colors: ['#ec4899', '#06b6d4', '#f43f5e', '#67e8f9', '#ffffff'],
+          shapes: [shapes.sparkles, shapes.lightning],
+          flat: true,
+          scalar: 2.4,
+          colors: ['#ec4899', '#06b6d4', '#f43f5e'],
           startVelocity: isMilestone ? 44 : 30,
-          scalar: 1.2,
         });
         break;
 
       case 'pixel_retro':
         confetti({
-          particleCount: Math.round(30 * countMultiplier),
+          particleCount: Math.round(22 * countMultiplier),
           spread: 60,
           origin: { x, y },
-          shapes: [shapes.pixelHeart, 'square'],
-          colors: ['#22c55e', '#eab308', '#3b82f6', '#ef4444', '#a855f7', '#f97316'],
+          shapes: [shapes.pixelMonster, shapes.pixelHeart],
+          flat: true,
+          scalar: 2.4,
+          colors: ['#22c55e', '#eab308', '#ef4444', '#a855f7'],
           startVelocity: isMilestone ? 42 : 28,
-          gravity: 1.1,
-          scalar: 1.4,
+          gravity: 1.0,
         });
         break;
 
       case 'fireworks_show':
         confetti({
-          particleCount: Math.round(32 * countMultiplier),
+          particleCount: Math.round(24 * countMultiplier),
           spread: 120,
           origin: { x, y },
-          shapes: [shapes.starburst, 'circle', 'star'],
+          shapes: [shapes.firework, shapes.sparkles],
+          flat: true,
+          scalar: 2.4,
           colors: ['#f43f5e', '#fbbf24', '#38bdf8', '#ffffff'],
           startVelocity: isMilestone ? 42 : 28,
-          scalar: 1.1,
         });
         break;
 
       case 'bubble_magic':
         confetti({
-          particleCount: Math.round(24 * countMultiplier),
+          particleCount: Math.round(20 * countMultiplier),
           spread: 65,
           angle: 90,
           origin: { x, y },
-          shapes: [shapes.water, 'circle'],
-          colors: ['#67e8f9', '#c084fc', '#fbcfe8', '#a7f3d0', '#e0e7ff'],
+          shapes: [shapes.bubble],
+          flat: true,
+          scalar: 2.4,
+          colors: ['#67e8f9', '#c084fc', '#fbcfe8', '#a7f3d0'],
           startVelocity: isMilestone ? 25 : 16,
-          gravity: -0.24,
-          scalar: 1.35,
+          gravity: -0.22,
           ticks: 140,
         });
         break;
 
       case 'hyperspace_warp':
         confetti({
-          particleCount: Math.round(36 * countMultiplier),
+          particleCount: Math.round(26 * countMultiplier),
           spread: 360,
           origin: { x, y },
-          shapes: [shapes.hyperspace, 'circle'],
-          colors: ['#38bdf8', '#0284c7', '#ffffff', '#e0f2fe'],
+          shapes: [shapes.rocket, shapes.star],
+          flat: true,
+          scalar: 2.4,
+          colors: ['#38bdf8', '#0284c7', '#ffffff'],
           startVelocity: isMilestone ? 58 : 40,
           gravity: 0.2,
-          scalar: 1.25,
         });
         if (isMilestone) {
           triggerScreenFlashVfx('rgba(56, 189, 248, 0.25)');
@@ -340,14 +365,15 @@ export function triggerUpgradePurchaseVfx(
 
       case 'kamehameha_energy':
         confetti({
-          particleCount: Math.round(34 * countMultiplier),
+          particleCount: Math.round(28 * countMultiplier),
           spread: 360,
           origin: { x, y },
-          shapes: [shapes.starburst, 'circle'],
+          shapes: [shapes.lightning, shapes.explosion, shapes.sparkles],
+          flat: true,
+          scalar: 2.4,
           colors: ['#eab308', '#facc15', '#38bdf8', '#ffffff'],
           startVelocity: isMilestone ? 44 : 30,
-          gravity: 0.6,
-          scalar: 1.35,
+          gravity: 0.5,
         });
         if (isMilestone) {
           triggerShockwaveVfx(x, y, 'rgba(250, 204, 21, 0.85)', 250);
@@ -357,28 +383,30 @@ export function triggerUpgradePurchaseVfx(
 
       case 'diamond_rain':
         confetti({
-          particleCount: Math.round(28 * countMultiplier),
+          particleCount: Math.round(22 * countMultiplier),
           spread: 60,
           origin: { x, y },
-          shapes: [shapes.diamond, 'square'],
-          colors: ['#06b6d4', '#22c55e', '#67e8f9', '#bbf7d0', '#ffffff'],
+          shapes: [shapes.diamond],
+          flat: true,
+          scalar: 2.4,
+          colors: ['#06b6d4', '#67e8f9', '#ffffff'],
           startVelocity: isMilestone ? 40 : 26,
           gravity: 1.0,
-          scalar: 1.3,
         });
         break;
 
       case 'infinite_void_burst':
         confetti({
-          particleCount: Math.round(40 * countMultiplier),
+          particleCount: Math.round(26 * countMultiplier),
           spread: 360,
           origin: { x, y },
-          shapes: [shapes.voidEye, shapes.starburst, 'circle'],
-          colors: ['#38bdf8', '#a78bfa', '#e0f2fe', '#ffffff', '#1e293b'],
+          shapes: [shapes.eye, shapes.spiral],
+          flat: true,
+          scalar: 2.4,
+          colors: ['#38bdf8', '#a78bfa', '#e0f2fe', '#ffffff'],
           startVelocity: isMilestone ? 36 : 24,
           gravity: 0.2,
           decay: 0.91,
-          scalar: 1.3,
         });
         if (isMilestone) {
           triggerShockwaveVfx(x, y, 'rgba(167, 139, 250, 0.85)', 270);
@@ -388,28 +416,30 @@ export function triggerUpgradePurchaseVfx(
 
       case 'gear_second_steam':
         confetti({
-          particleCount: Math.round(36 * countMultiplier),
+          particleCount: Math.round(26 * countMultiplier),
           spread: 55,
           angle: 90,
           origin: { x, y },
           shapes: [shapes.steam, shapes.flame],
-          colors: ['#fb7185', '#f43f5e', '#fca5a5', '#fef2f2', '#fbbf24'],
+          flat: true,
+          scalar: 2.4,
+          colors: ['#fb7185', '#f43f5e', '#ffffff'],
           startVelocity: isMilestone ? 44 : 29,
-          gravity: 0.65,
-          scalar: 1.3,
+          gravity: 0.55,
         });
         break;
 
       case 'gaster_bone_barrage':
         confetti({
-          particleCount: Math.round(32 * countMultiplier),
+          particleCount: Math.round(24 * countMultiplier),
           spread: 100,
           origin: { x, y },
-          shapes: [shapes.bone, 'circle'],
-          colors: ['#06b6d4', '#ffffff', '#e0f2fe', '#94a3b8', '#0f172a'],
+          shapes: [shapes.skull, shapes.bone],
+          flat: true,
+          scalar: 2.4,
+          colors: ['#06b6d4', '#ffffff', '#e0f2fe'],
           startVelocity: isMilestone ? 42 : 28,
           gravity: 0.55,
-          scalar: 1.25,
         });
         if (isMilestone) {
           triggerShockwaveVfx(x, y, 'rgba(6, 182, 212, 0.8)', 210);
@@ -418,14 +448,15 @@ export function triggerUpgradePurchaseVfx(
 
       case 'sandevistan_afterimage':
         confetti({
-          particleCount: Math.round(38 * countMultiplier),
+          particleCount: Math.round(26 * countMultiplier),
           spread: 85,
           origin: { x, y },
-          shapes: [shapes.lightning, shapes.hyperspace, 'square'],
-          colors: ['#facc15', '#38bdf8', '#fef9c3', '#ffffff', '#0f172a'],
+          shapes: [shapes.lightning, shapes.steam],
+          flat: true,
+          scalar: 2.4,
+          colors: ['#facc15', '#38bdf8', '#ffffff'],
           startVelocity: isMilestone ? 50 : 34,
           gravity: 0.4,
-          scalar: 1.3,
         });
         if (isMilestone) {
           triggerScreenShakeVfx();
@@ -435,27 +466,29 @@ export function triggerUpgradePurchaseVfx(
 
       case 'water_flame_dragon':
         confetti({
-          particleCount: Math.round(36 * countMultiplier),
+          particleCount: Math.round(26 * countMultiplier),
           spread: 90,
           origin: { x, y },
-          shapes: [shapes.flame, shapes.water],
-          colors: ['#38bdf8', '#f97316', '#fbbf24', '#e0f2fe', '#0284c7'],
+          shapes: [shapes.waterWave, shapes.flame],
+          flat: true,
+          scalar: 2.4,
+          colors: ['#38bdf8', '#f97316', '#fbbf24', '#ffffff'],
           startVelocity: isMilestone ? 46 : 32,
-          gravity: 0.78,
-          scalar: 1.25,
+          gravity: 0.75,
         });
         break;
 
       case 'thunder_storm_vfx':
         confetti({
-          particleCount: Math.round(36 * countMultiplier),
+          particleCount: Math.round(24 * countMultiplier),
           spread: 75,
           origin: { x, y },
-          shapes: [shapes.lightning, shapes.starburst],
-          colors: ['#facc15', '#38bdf8', '#fef08a', '#e0f2fe', '#ffffff'],
+          shapes: [shapes.lightning, shapes.sparkles],
+          flat: true,
+          scalar: 2.4,
+          colors: ['#facc15', '#38bdf8', '#ffffff'],
           startVelocity: isMilestone ? 55 : 38,
-          gravity: 0.48,
-          scalar: 1.25,
+          gravity: 0.45,
         });
         if (isMilestone) {
           triggerScreenFlashVfx('rgba(250, 204, 21, 0.35)');
@@ -465,14 +498,15 @@ export function triggerUpgradePurchaseVfx(
 
       case 'serious_shockwave':
         confetti({
-          particleCount: Math.round(42 * countMultiplier),
+          particleCount: Math.round(24 * countMultiplier),
           spread: 120,
           origin: { x, y },
-          shapes: [shapes.starburst, 'circle'],
-          colors: ['#ef4444', '#fca5a5', '#ffffff', '#fbbf24', '#7f1d1d'],
+          shapes: [shapes.fist, shapes.explosion],
+          flat: true,
+          scalar: 2.8,
+          colors: ['#ef4444', '#fca5a5', '#ffffff'],
           startVelocity: isMilestone ? 48 : 32,
-          gravity: 0.7,
-          scalar: 1.35,
+          gravity: 0.65,
         });
         triggerShockwaveVfx(x, y, 'rgba(239, 68, 68, 0.85)', isMilestone ? 320 : 190);
         triggerScreenShakeVfx();
@@ -483,14 +517,15 @@ export function triggerUpgradePurchaseVfx(
 
       case 'soul_vessel_burst':
         confetti({
-          particleCount: Math.round(34 * countMultiplier),
+          particleCount: Math.round(22 * countMultiplier),
           spread: 110,
           origin: { x, y },
-          shapes: [shapes.vessel, shapes.water, 'circle'],
-          colors: ['#dbeafe', '#7dd3fc', '#e0f2fe', '#93c5fd', '#1e293b'],
+          shapes: [shapes.ghost, shapes.sword],
+          flat: true,
+          scalar: 2.4,
+          colors: ['#dbeafe', '#7dd3fc', '#ffffff'],
           startVelocity: isMilestone ? 28 : 18,
           gravity: 0.28,
-          scalar: 1.38,
         });
         if (isMilestone) {
           triggerShockwaveVfx(x, y, 'rgba(125, 211, 252, 0.75)', 200);
@@ -499,14 +534,15 @@ export function triggerUpgradePurchaseVfx(
 
       case 'golden_ring_burst':
         confetti({
-          particleCount: Math.round(32 * countMultiplier),
+          particleCount: Math.round(22 * countMultiplier),
           spread: 120,
           origin: { x, y },
-          shapes: [shapes.ring, shapes.starburst],
-          colors: ['#fde047', '#fbbf24', '#fef9c3', '#ffffff', '#d97706'],
+          shapes: [shapes.ring, shapes.goldCoin],
+          flat: true,
+          scalar: 2.4,
+          colors: ['#fde047', '#fbbf24', '#ffffff'],
           startVelocity: isMilestone ? 40 : 26,
           gravity: 0.65,
-          scalar: 1.4,
         });
         if (isMilestone) {
           triggerShockwaveVfx(x, y, 'rgba(253, 224, 71, 0.8)', 220);
@@ -515,14 +551,16 @@ export function triggerUpgradePurchaseVfx(
 
       case 'bat_swarm_vfx':
         confetti({
-          particleCount: Math.round(30 * countMultiplier),
+          particleCount: Math.round(22 * countMultiplier),
           spread: 90,
+          angle: 90,
           origin: { x, y },
-          shapes: [shapes.bat, 'circle'],
-          colors: ['#111827', '#1f2937', '#f59e0b', '#fef3c7', '#d97706'],
-          startVelocity: isMilestone ? 34 : 22,
-          gravity: 0.4,
-          scalar: 1.3,
+          shapes: [shapes.bat],
+          flat: true,
+          scalar: 2.5,
+          colors: ['#111827', '#374151', '#f59e0b'],
+          startVelocity: isMilestone ? 38 : 24,
+          gravity: 0.35,
         });
         if (isMilestone) {
           triggerShockwaveVfx(x, y, 'rgba(245, 158, 11, 0.65)', 190);
@@ -583,21 +621,22 @@ export function triggerLevelUpCelebrationVfx(style: AnimationEffectId | string =
     }
 
     case 'golden_coins': {
-      // Chuva em 3 colunas de moedas cunhadas e estrelas + shockwave dourada
+      // Chuva em 3 colunas de moedas cunhadas 🪙 + shockwave dourada
       triggerShockwaveVfx(0.5, 0.4, 'rgba(251, 191, 36, 0.85)', 300);
       const drops = [0.25, 0.5, 0.75];
       drops.forEach((posX, idx) => {
         setTimeout(() => {
           confetti({
-            particleCount: 45,
+            particleCount: 35,
             spread: 55,
             angle: 270,
             origin: { x: posX, y: 0.05 },
-            shapes: [shapes.coin, 'star'],
-            colors: ['#fbbf24', '#f59e0b', '#d97706', '#fef08a', '#ffffff'],
+            shapes: [shapes.goldCoin],
+            flat: true,
+            scalar: 2.4,
+            colors: ['#fbbf24', '#f59e0b', '#d97706'],
             startVelocity: 32,
             gravity: 0.95,
-            scalar: 1.4,
           });
         }, idx * 220);
       });
@@ -605,21 +644,22 @@ export function triggerLevelUpCelebrationVfx(style: AnimationEffectId | string =
     }
 
     case 'matrix_stream': {
-      // Cortina de dados Matrix caindo por 4 colunas
+      // Cortina de dados binários Matrix (1s e 0s) caindo por 4 colunas
       const columns = [0.15, 0.38, 0.62, 0.85];
       columns.forEach((posX, idx) => {
         setTimeout(() => {
           confetti({
-            particleCount: 42,
+            particleCount: 36,
             spread: 25,
             angle: 270,
             origin: { x: posX, y: 0 },
-            shapes: ['square'],
-            colors: ['#22c55e', '#16a34a', '#86efac', '#15803d', '#4ade80'],
+            shapes: [shapes.binaryOne, shapes.binaryZero],
+            flat: true,
+            scalar: 2.2,
+            colors: ['#22c55e', '#16a34a', '#86efac'],
             startVelocity: 38,
             gravity: 0.8,
             ticks: 180,
-            scalar: 1.05,
           });
         }, idx * 180);
       });
@@ -627,25 +667,28 @@ export function triggerLevelUpCelebrationVfx(style: AnimationEffectId | string =
     }
 
     case 'supernova_burst': {
-      // Detonação cósmica com shockwave roxa e clarão de estrela
+      // Detonação cósmica com shockwave roxa, estrelas ⭐ e explosão 💥
       triggerScreenFlashVfx('rgba(168, 85, 247, 0.35)');
       triggerShockwaveVfx(0.5, 0.45, 'rgba(168, 85, 247, 0.9)', 350);
       confetti({
-        particleCount: 95,
+        particleCount: 55,
         spread: 360,
         origin: { x: 0.5, y: 0.45 },
-        shapes: [shapes.starburst, 'circle'],
-        colors: ['#c084fc', '#a855f7', '#38bdf8', '#e0e7ff', '#ffffff'],
+        shapes: [shapes.star, shapes.explosion],
+        flat: true,
+        scalar: 2.5,
+        colors: ['#c084fc', '#a855f7', '#38bdf8', '#ffffff'],
         startVelocity: 42,
         decay: 0.93,
-        scalar: 1.3,
       });
       setTimeout(() => {
         confetti({
-          particleCount: 55,
+          particleCount: 40,
           spread: 360,
           origin: { x: 0.5, y: 0.45 },
-          shapes: [shapes.starburst, 'star'],
+          shapes: [shapes.star, shapes.sparkles],
+          flat: true,
+          scalar: 2.4,
           colors: ['#ffffff', '#38bdf8', '#c084fc'],
           startVelocity: 26,
           decay: 0.9,
@@ -655,113 +698,120 @@ export function triggerLevelUpCelebrationVfx(style: AnimationEffectId | string =
     }
 
     case 'tesla_lightning': {
-      // Descargas de raios cruzados dos cantos superiores com clarão elétrico
+      // Descargas de relâmpagos cruzados ⚡ dos cantos superiores com clarão elétrico
       triggerScreenFlashVfx('rgba(56, 189, 248, 0.4)');
       triggerShockwaveVfx(0.5, 0.35, 'rgba(56, 189, 248, 0.85)', 300);
       confetti({
-        particleCount: 55,
+        particleCount: 35,
         spread: 90,
         angle: 300,
         origin: { x: 0.2, y: 0.1 },
-        shapes: [shapes.lightning, 'star'],
+        shapes: [shapes.lightning],
+        flat: true,
+        scalar: 2.5,
         colors: ['#38bdf8', '#0ea5e9', '#60a5fa', '#ffffff'],
         startVelocity: 55,
         decay: 0.88,
         gravity: 0.45,
-        scalar: 1.25,
       });
       setTimeout(() => {
         confetti({
-          particleCount: 55,
+          particleCount: 35,
           spread: 90,
           angle: 240,
           origin: { x: 0.8, y: 0.1 },
-          shapes: [shapes.lightning, 'star'],
+          shapes: [shapes.lightning],
+          flat: true,
+          scalar: 2.5,
           colors: ['#38bdf8', '#0ea5e9', '#60a5fa', '#ffffff'],
           startVelocity: 55,
           decay: 0.88,
           gravity: 0.45,
-          scalar: 1.25,
         });
       }, 200);
       break;
     }
 
     case 'volcano_flame': {
-      // Erupção de magma vulcânico disparando do rodapé para o alto
+      // Erupção de chamas vulcânicas 🔥 disparando do rodapé para o alto
       triggerScreenShakeVfx();
       triggerShockwaveVfx(0.5, 0.95, 'rgba(239, 68, 68, 0.85)', 340);
       confetti({
-        particleCount: 95,
-        spread: 45,
+        particleCount: 60,
+        spread: 50,
         angle: 90,
         origin: { x: 0.5, y: 1.0 },
-        shapes: [shapes.flame, 'circle'],
-        colors: ['#ef4444', '#f97316', '#fbbf24', '#b91c1c', '#ea580c'],
+        shapes: [shapes.flame],
+        flat: true,
+        scalar: 2.5,
+        colors: ['#ef4444', '#f97316', '#fbbf24'],
         startVelocity: 65,
-        gravity: 0.95,
-        scalar: 1.3,
+        gravity: 0.9,
       });
       setTimeout(() => {
         confetti({
-          particleCount: 65,
+          particleCount: 45,
           spread: 60,
           angle: 90,
           origin: { x: 0.5, y: 0.9 },
-          shapes: [shapes.flame, 'circle'],
+          shapes: [shapes.flame],
+          flat: true,
+          scalar: 2.4,
           colors: ['#f97316', '#fbbf24', '#ffffff'],
           startVelocity: 50,
-          gravity: 0.9,
-          scalar: 1.2,
+          gravity: 0.85,
         });
       }, 250);
       break;
     }
 
     case 'cyber_neon': {
-      // Cruzamento laser synthwave com estrelas de neon
+      // Cruzamento laser synthwave com faíscas ✨ e relâmpagos neon ⚡
       triggerShockwaveVfx(0.5, 0.5, 'rgba(236, 72, 153, 0.85)', 310);
       confetti({
-        particleCount: 65,
+        particleCount: 45,
         spread: 50,
         angle: 45,
         origin: { x: 0.1, y: 0.85 },
-        shapes: ['square', shapes.starburst],
+        shapes: [shapes.sparkles, shapes.lightning],
+        flat: true,
+        scalar: 2.4,
         colors: ['#ec4899', '#f43f5e', '#ffffff'],
         startVelocity: 50,
-        scalar: 1.25,
       });
       confetti({
-        particleCount: 65,
+        particleCount: 45,
         spread: 50,
         angle: 135,
         origin: { x: 0.9, y: 0.85 },
-        shapes: ['square', shapes.starburst],
+        shapes: [shapes.sparkles, shapes.lightning],
+        flat: true,
+        scalar: 2.4,
         colors: ['#06b6d4', '#67e8f9', '#ffffff'],
         startVelocity: 50,
-        scalar: 1.25,
       });
       break;
     }
 
     case 'pixel_retro': {
-      // Chuva arcade de corações e cubos pixel 8-bit
+      // Chuva arcade de space invaders 👾 e corações pixelados ❤️
       confetti({
-        particleCount: 80,
+        particleCount: 50,
         spread: 80,
         angle: 90,
         origin: { x: 0.5, y: 0.7 },
-        shapes: [shapes.pixelHeart, 'square'],
-        colors: ['#22c55e', '#eab308', '#3b82f6', '#ef4444', '#a855f7', '#f97316'],
+        shapes: [shapes.pixelMonster, shapes.pixelHeart],
+        flat: true,
+        scalar: 2.5,
+        colors: ['#22c55e', '#eab308', '#ef4444', '#a855f7'],
         startVelocity: 45,
-        gravity: 1.15,
-        scalar: 1.6,
+        gravity: 1.0,
       });
       break;
     }
 
     case 'fireworks_show': {
-      // Salva de fogos pirotécnicos em 3 momentos com starbursts
+      // Salva de fogos pirotécnicos 🎆 em 3 momentos com centelhas ✨
       const fireworks = [
         { x: 0.3, y: 0.35, colors: ['#f43f5e', '#fbbf24', '#ffffff'] },
         { x: 0.7, y: 0.3, colors: ['#38bdf8', '#a855f7', '#ffffff'] },
@@ -771,14 +821,15 @@ export function triggerLevelUpCelebrationVfx(style: AnimationEffectId | string =
         setTimeout(() => {
           triggerShockwaveVfx(fw.x, fw.y, 'rgba(251, 191, 36, 0.75)', 190);
           confetti({
-            particleCount: 55,
+            particleCount: 35,
             spread: 360,
             origin: { x: fw.x, y: fw.y },
-            shapes: [shapes.starburst, 'circle', 'star'],
+            shapes: [shapes.firework, shapes.sparkles],
+            flat: true,
+            scalar: 2.4,
             colors: fw.colors,
             startVelocity: 28,
             decay: 0.92,
-            scalar: 1.15,
           });
         }, idx * 250);
       });
@@ -786,20 +837,21 @@ export function triggerLevelUpCelebrationVfx(style: AnimationEffectId | string =
     }
 
     case 'bubble_magic': {
-      // Centenas de bolhas arcanas e gotas d'água ascendentes
+      // Bolhas arcanas 🫧 ascendentes por toda a tela
       [0.2, 0.4, 0.6, 0.8].forEach((posX, idx) => {
         setTimeout(() => {
           confetti({
-            particleCount: 32,
+            particleCount: 24,
             spread: 50,
             angle: 90,
             origin: { x: posX, y: 1.0 },
-            shapes: [shapes.water, 'circle'],
-            colors: ['#67e8f9', '#c084fc', '#fbcfe8', '#a7f3d0', '#e0e7ff'],
+            shapes: [shapes.bubble],
+            flat: true,
+            scalar: 2.5,
+            colors: ['#67e8f9', '#c084fc', '#fbcfe8', '#a7f3d0'],
             startVelocity: 22,
-            gravity: -0.28,
+            gravity: -0.25,
             ticks: 180,
-            scalar: 1.45,
           });
         }, idx * 150);
       });
@@ -807,20 +859,21 @@ export function triggerLevelUpCelebrationVfx(style: AnimationEffectId | string =
     }
 
     case 'hyperspace_warp': {
-      // Salto no hiperespaço: feixes estelares do centro para as bordas + flash
+      // Salto no hiperespaço: foguetes 🚀 e estrelas ⭐ do centro para as bordas + flash
       triggerScreenFlashVfx('rgba(56, 189, 248, 0.35)');
       triggerShockwaveVfx(0.5, 0.5, 'rgba(56, 189, 248, 0.85)', 340);
       for (let i = 0; i < 3; i++) {
         setTimeout(() => {
           confetti({
-            particleCount: 65,
+            particleCount: 45,
             spread: 360,
             origin: { x: 0.5, y: 0.5 },
-            shapes: [shapes.hyperspace, 'circle'],
-            colors: ['#38bdf8', '#0284c7', '#ffffff', '#e0f2fe'],
+            shapes: [shapes.rocket, shapes.star],
+            flat: true,
+            scalar: 2.4,
+            colors: ['#38bdf8', '#0284c7', '#ffffff'],
             startVelocity: 55 + i * 10,
             gravity: 0.2,
-            scalar: 1.3,
           });
         }, i * 200);
       }
@@ -828,26 +881,29 @@ export function triggerLevelUpCelebrationVfx(style: AnimationEffectId | string =
     }
 
     case 'kamehameha_energy': {
-      // Explosão de energia Ki dourada/celeste com aura shockwave
+      // Explosão de energia Ki dourada/celeste com raios ⚡, explosão 💥 e aura ✨
       triggerScreenFlashVfx('rgba(250, 204, 21, 0.38)');
       triggerShockwaveVfx(0.5, 0.45, 'rgba(250, 204, 21, 0.9)', 350);
       confetti({
-        particleCount: 95,
+        particleCount: 65,
         spread: 100,
         angle: 90,
         origin: { x: 0.5, y: 0.8 },
-        shapes: [shapes.starburst, 'circle'],
+        shapes: [shapes.lightning, shapes.explosion, shapes.sparkles],
+        flat: true,
+        scalar: 2.5,
         colors: ['#eab308', '#facc15', '#38bdf8', '#ffffff'],
         startVelocity: 60,
-        gravity: 0.65,
-        scalar: 1.45,
+        gravity: 0.55,
       });
       setTimeout(() => {
         confetti({
-          particleCount: 75,
+          particleCount: 45,
           spread: 360,
           origin: { x: 0.5, y: 0.4 },
-          shapes: [shapes.starburst, 'star'],
+          shapes: [shapes.lightning, shapes.sparkles],
+          flat: true,
+          scalar: 2.4,
           colors: ['#fef08a', '#38bdf8', '#ffffff'],
           startVelocity: 40,
         });
@@ -856,19 +912,20 @@ export function triggerLevelUpCelebrationVfx(style: AnimationEffectId | string =
     }
 
     case 'diamond_rain': {
-      // Chuva intensa de diamantes facetados do topo da tela
+      // Chuva intensa de diamantes facetados 💎 do topo da tela
       [0.2, 0.4, 0.6, 0.8].forEach((posX, idx) => {
         setTimeout(() => {
           confetti({
-            particleCount: 38,
+            particleCount: 28,
             spread: 45,
             angle: 270,
             origin: { x: posX, y: 0 },
-            shapes: [shapes.diamond, 'square'],
-            colors: ['#06b6d4', '#22c55e', '#67e8f9', '#a7f3d0', '#ffffff'],
+            shapes: [shapes.diamond],
+            flat: true,
+            scalar: 2.4,
+            colors: ['#06b6d4', '#22c55e', '#67e8f9', '#ffffff'],
             startVelocity: 35,
             gravity: 1.1,
-            scalar: 1.35,
           });
         }, idx * 120);
       });
@@ -876,37 +933,39 @@ export function triggerLevelUpCelebrationVfx(style: AnimationEffectId | string =
     }
 
     case 'infinite_void_burst': {
-      // Expansão do Vazio Infinito: olhos singulares e shockwave cósmica
+      // Expansão do Vazio Infinito: olhos singulares 👁️ e espirais do domínio 🌀
       triggerScreenFlashVfx('rgba(167, 139, 250, 0.35)');
       triggerShockwaveVfx(0.5, 0.5, 'rgba(167, 139, 250, 0.9)', 380);
       confetti({
-        particleCount: 110,
+        particleCount: 60,
         spread: 360,
         origin: { x: 0.5, y: 0.5 },
-        shapes: [shapes.voidEye, shapes.starburst, 'circle'],
-        colors: ['#38bdf8', '#a78bfa', '#e0f2fe', '#ffffff', '#1e293b'],
+        shapes: [shapes.eye, shapes.spiral],
+        flat: true,
+        scalar: 2.5,
+        colors: ['#38bdf8', '#a78bfa', '#e0f2fe', '#ffffff'],
         startVelocity: 36,
-        gravity: 0.18,
-        decay: 0.88,
-        scalar: 1.4,
+        gravity: 0.2,
+        decay: 0.9,
       });
       break;
     }
 
     case 'gear_second_steam': {
-      // Jatos ascendentes de vapor Gear Second com chamas de espírito de luta
+      // Jatos ascendentes de vapor 💨 Gear Second com chamas de espírito de luta 🔥
       [0.2, 0.5, 0.8].forEach((posX, idx) => {
         setTimeout(() => {
           confetti({
-            particleCount: 55,
+            particleCount: 40,
             spread: 60,
             angle: 90,
             origin: { x: posX, y: 0.9 },
             shapes: [shapes.steam, shapes.flame],
-            colors: ['#fb7185', '#f43f5e', '#fca5a5', '#fef2f2', '#fbbf24'],
+            flat: true,
+            scalar: 2.4,
+            colors: ['#fb7185', '#f43f5e', '#ffffff'],
             startVelocity: 44,
-            gravity: 0.7,
-            scalar: 1.35,
+            gravity: 0.6,
           });
         }, idx * 200);
       });
@@ -914,19 +973,20 @@ export function triggerLevelUpCelebrationVfx(style: AnimationEffectId | string =
     }
 
     case 'gaster_bone_barrage': {
-      // Barragem cruzada de ossos de Sans com brilho blaster
+      // Barragem cruzada de crânios 💀 e ossos 🦴 de Sans
       triggerShockwaveVfx(0.5, 0.5, 'rgba(6, 182, 212, 0.85)', 300);
       [0.2, 0.5, 0.8].forEach((posX, idx) => {
         setTimeout(() => {
           confetti({
-            particleCount: 46,
+            particleCount: 32,
             spread: 90,
             origin: { x: posX, y: 0.2 },
-            shapes: [shapes.bone, 'circle'],
-            colors: ['#06b6d4', '#ffffff', '#e0f2fe', '#94a3b8', '#0f172a'],
+            shapes: [shapes.skull, shapes.bone],
+            flat: true,
+            scalar: 2.4,
+            colors: ['#06b6d4', '#ffffff', '#e0f2fe'],
             startVelocity: 38,
             gravity: 0.58,
-            scalar: 1.25,
           });
         }, idx * 180);
       });
@@ -934,37 +994,39 @@ export function triggerLevelUpCelebrationVfx(style: AnimationEffectId | string =
     }
 
     case 'sandevistan_afterimage': {
-      // Rastro ultra veloz de Sandevistan com relâmpagos e micro-shake
+      // Rastro ultra veloz de Sandevistan com relâmpagos ⚡ e esteira de vapor 💨
       triggerScreenShakeVfx();
       triggerScreenFlashVfx('rgba(250, 204, 21, 0.32)');
       triggerShockwaveVfx(0.5, 0.42, 'rgba(250, 204, 21, 0.85)', 310);
       confetti({
-        particleCount: 100,
+        particleCount: 65,
         spread: 120,
         origin: { x: 0.5, y: 0.42 },
-        shapes: [shapes.lightning, shapes.hyperspace, 'square'],
-        colors: ['#facc15', '#38bdf8', '#fef9c3', '#ffffff', '#0f172a'],
-        startVelocity: 42,
+        shapes: [shapes.lightning, shapes.steam],
+        flat: true,
+        scalar: 2.4,
+        colors: ['#facc15', '#38bdf8', '#ffffff'],
+        startVelocity: 44,
         decay: 0.9,
         gravity: 0.42,
-        scalar: 1.35,
       });
       break;
     }
 
     case 'water_flame_dragon': {
-      // Fusão espiral da Dança do Dragão de Fogo e Água
+      // Fusão espiral da Dança do Dragão de Fogo 🔥 e Ondas de Água 🌊
       [0.25, 0.5, 0.75].forEach((posX, idx) => {
         setTimeout(() => {
           confetti({
-            particleCount: 50,
+            particleCount: 36,
             spread: 90,
             origin: { x: posX, y: 0.75 },
-            shapes: [shapes.flame, shapes.water],
-            colors: ['#38bdf8', '#f97316', '#fbbf24', '#e0f2fe', '#0284c7'],
+            shapes: [shapes.waterWave, shapes.flame],
+            flat: true,
+            scalar: 2.4,
+            colors: ['#38bdf8', '#f97316', '#fbbf24', '#ffffff'],
             startVelocity: 44,
-            gravity: 0.82,
-            scalar: 1.28,
+            gravity: 0.78,
           });
         }, idx * 200);
       });
@@ -972,70 +1034,74 @@ export function triggerLevelUpCelebrationVfx(style: AnimationEffectId | string =
     }
 
     case 'thunder_storm_vfx': {
-      // Tempestade furiosa de relâmpagos amarelos com clarões
+      // Tempestade furiosa de relâmpagos ⚡ amarelos com clarões
       triggerScreenFlashVfx('rgba(250, 204, 21, 0.4)');
       triggerShockwaveVfx(0.5, 0.35, 'rgba(250, 204, 21, 0.9)', 340);
       confetti({
-        particleCount: 95,
+        particleCount: 60,
         spread: 120,
         origin: { x: 0.5, y: 0.3 },
-        shapes: [shapes.lightning, shapes.starburst],
-        colors: ['#facc15', '#38bdf8', '#fef08a', '#e0f2fe', '#0f172a'],
+        shapes: [shapes.lightning],
+        flat: true,
+        scalar: 2.5,
+        colors: ['#facc15', '#38bdf8', '#ffffff'],
         startVelocity: 52,
         gravity: 0.48,
-        scalar: 1.3,
       });
       break;
     }
 
     case 'serious_shockwave': {
-      // Impacto cataclísmico do Soco Sério de Saitama
+      // Impacto cataclísmico do Soco Sério de Saitama (Punho 👊 e Explosão 💥)
       triggerShockwaveVfx(0.5, 0.5, 'rgba(239, 68, 68, 0.95)', 420);
       triggerScreenShakeVfx();
       triggerScreenFlashVfx('rgba(239, 68, 68, 0.4)');
       confetti({
-        particleCount: 110,
+        particleCount: 65,
         spread: 180,
         origin: { x: 0.5, y: 0.55 },
-        shapes: [shapes.starburst, 'circle'],
-        colors: ['#ef4444', '#fca5a5', '#ffffff', '#fbbf24', '#7f1d1d'],
+        shapes: [shapes.fist, shapes.explosion],
+        flat: true,
+        scalar: 3.0,
+        colors: ['#ef4444', '#fca5a5', '#ffffff'],
         startVelocity: 48,
-        gravity: 0.7,
-        scalar: 1.38,
+        gravity: 0.65,
       });
       break;
     }
 
     case 'soul_vessel_burst': {
-      // Libertação etérea de máscaras de alma e gotas luminescentes
+      // Libertação etérea de sombras 👻 e agulha pura 🗡️
       triggerShockwaveVfx(0.5, 0.5, 'rgba(125, 211, 252, 0.8)', 280);
       confetti({
-        particleCount: 95,
+        particleCount: 50,
         spread: 140,
         origin: { x: 0.5, y: 0.5 },
-        shapes: [shapes.vessel, shapes.water, 'circle'],
-        colors: ['#dbeafe', '#7dd3fc', '#e0f2fe', '#93c5fd', '#1e293b'],
+        shapes: [shapes.ghost, shapes.sword],
+        flat: true,
+        scalar: 2.4,
+        colors: ['#dbeafe', '#7dd3fc', '#ffffff'],
         startVelocity: 28,
         gravity: 0.28,
-        scalar: 1.4,
       });
       break;
     }
 
     case 'golden_ring_burst': {
-      // Dispersão supersônica de anéis do Sonic em 3 ondas radiais
+      // Dispersão supersônica de anéis dourados 💍 e moedas 🪙 em 3 ondas
       triggerShockwaveVfx(0.5, 0.5, 'rgba(253, 224, 71, 0.9)', 320);
       [0.2, 0.5, 0.8].forEach((posX, idx) => {
         setTimeout(() => {
           confetti({
-            particleCount: 48,
+            particleCount: 32,
             spread: 120,
             origin: { x: posX, y: 0.4 },
-            shapes: [shapes.ring, shapes.starburst],
-            colors: ['#fde047', '#fbbf24', '#fef9c3', '#ffffff', '#d97706'],
+            shapes: [shapes.ring, shapes.goldCoin],
+            flat: true,
+            scalar: 2.4,
+            colors: ['#fde047', '#fbbf24', '#ffffff'],
             startVelocity: 36,
             gravity: 0.65,
-            scalar: 1.45,
           });
         }, idx * 180);
       });
@@ -1043,18 +1109,34 @@ export function triggerLevelUpCelebrationVfx(style: AnimationEffectId | string =
     }
 
     case 'bat_swarm_vfx': {
-      // Revoada de morcegos saindo das sombras góticas
+      // Revoada de morcegos góticos 🦇 saindo das sombras em ascensão
       triggerShockwaveVfx(0.5, 0.6, 'rgba(245, 158, 11, 0.7)', 260);
       confetti({
-        particleCount: 90,
-        spread: 120,
-        origin: { x: 0.5, y: 0.65 },
-        shapes: [shapes.bat, 'circle'],
-        colors: ['#111827', '#1f2937', '#f59e0b', '#fef3c7', '#d97706'],
-        startVelocity: 34,
-        gravity: 0.45,
-        scalar: 1.35,
+        particleCount: 55,
+        spread: 110,
+        angle: 90,
+        origin: { x: 0.5, y: 0.75 },
+        shapes: [shapes.bat],
+        flat: true,
+        scalar: 2.6,
+        colors: ['#111827', '#374151', '#f59e0b'],
+        startVelocity: 42,
+        gravity: 0.3,
       });
+      setTimeout(() => {
+        confetti({
+          particleCount: 40,
+          spread: 90,
+          angle: 90,
+          origin: { x: 0.5, y: 0.8 },
+          shapes: [shapes.bat],
+          flat: true,
+          scalar: 2.5,
+          colors: ['#111827', '#1f2937', '#f59e0b'],
+          startVelocity: 36,
+          gravity: 0.25,
+        });
+      }, 200);
       break;
     }
 
