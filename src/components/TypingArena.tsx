@@ -49,6 +49,9 @@ interface TypingArenaProps {
   onOpenQuests?: () => void;
   onOpenDungeon?: () => void;
   questsCount?: { readyToClaim: number; currentFloor: number };
+  dungeonKeys?: number;
+  maxDungeonKeys?: number;
+  wordsTowardKey?: number;
   onMascotClick?: () => void;
   onOpenArena?: () => void;
   onOpenConverter?: () => void;
@@ -137,6 +140,9 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
   onOpenQuests,
   onOpenDungeon,
   questsCount,
+  dungeonKeys = 3,
+  maxDungeonKeys = 5,
+  wordsTowardKey = 0,
   onMascotClick,
   onOpenArena,
   onOpenConverter,
@@ -609,10 +615,16 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
 
           {/* Top Word Label / Progress, Difficulty & Focus Status */}
           <div className="flex flex-wrap items-center justify-between w-full mb-3 text-xs text-zinc-400 font-mono gap-1.5">
-            <span className="flex items-center gap-1.5">
-              <span className={`w-2 h-2 rounded-full ${isFocused ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
-              <span>{isFocused ? 'TECLADO ATIVO' : 'CLIQUE PARA FOCAR'}</span>
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="flex items-center gap-1.5">
+                <span className={`w-2 h-2 rounded-full ${isFocused ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+                <span>{isFocused ? 'TECLADO ATIVO' : 'CLIQUE PARA FOCAR'}</span>
+              </span>
+              <span className="hidden sm:inline-flex items-center gap-1 text-[10px] text-zinc-500 font-mono bg-zinc-900/60 px-1.5 py-0.5 rounded border border-zinc-800">
+                <kbd className="px-1 py-0.2 rounded bg-zinc-800 text-zinc-300 font-bold text-[9px]">Esc</kbd>
+                <span>pausar</span>
+              </span>
+            </div>
 
             {/* Dificuldade Ativa Badge */}
             <div className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-mono text-[11px] font-bold border transition-all ${currentTheme.pillColor}`}>
@@ -880,148 +892,150 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
         </div>
       </div>
 
-      {/* Barra de Ações Reformulada: MASMORRA, MISSÕES, LOJA, ARENA 1x1, FORJA e Atalho ESC */}
-      <div className="w-full bg-[#11141c]/95 border border-[#232835] rounded-2xl p-2.5 sm:p-3 text-zinc-400 flex flex-col md:flex-row items-center justify-between gap-2.5 shadow-[0_4px_25px_rgba(0,0,0,0.35)] flex-shrink-0 mt-1">
-        <div className="flex items-center gap-2.5 flex-wrap w-full md:w-auto justify-center md:justify-start">
-          {/* MASMORRA RPG (Combate de Texto Inteiro & Adaptação a Teclas Fracas) */}
-          {onOpenDungeon && (
-            <button
-              type="button"
-              onClick={onOpenDungeon}
-              className="flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl bg-gradient-to-r from-red-950/90 via-rose-950/80 to-amber-950/90 hover:from-red-900/90 hover:to-amber-900/90 text-amber-200 hover:text-white border border-rose-500/60 text-xs sm:text-sm font-bold transition shadow-[0_0_16px_rgba(244,63,94,0.3)] cursor-pointer group transform hover:scale-[1.03] active:scale-[0.98]"
-              title="Masmorra de Digitação: Combates contra Chefes em textos completos e adaptação pedagógica"
-            >
-              <Swords className="w-4 h-4 text-rose-400 group-hover:rotate-12 transition-transform" />
-              <span className="tracking-wide">MASMORRA</span>
+      {/* Barra de Ações Reformulada: MASMORRA, MISSÕES, LOJA, ARENA 1x1, FORJA */}
+      <div className="w-full bg-[#11141c]/95 border border-[#232835] rounded-2xl p-2.5 sm:p-3 text-zinc-400 flex items-center justify-center gap-2.5 sm:gap-3.5 flex-wrap shadow-[0_4px_25px_rgba(0,0,0,0.35)] flex-shrink-0 mt-1">
+        {/* MASMORRA RPG (Combate de Texto Inteiro & Chaves de Expedição) */}
+        {onOpenDungeon && (
+          <button
+            type="button"
+            onClick={onOpenDungeon}
+            className="flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl bg-gradient-to-r from-red-950/90 via-rose-950/80 to-amber-950/90 hover:from-red-900/90 hover:to-amber-900/90 text-amber-200 hover:text-white border border-rose-500/60 text-xs sm:text-sm font-bold transition shadow-[0_0_16px_rgba(244,63,94,0.3)] cursor-pointer group transform hover:scale-[1.03] active:scale-[0.98]"
+            title={`Masmorra de Digitação • Chaves: ${dungeonKeys}/${maxDungeonKeys}`}
+          >
+            <Swords className="w-4 h-4 text-rose-400 group-hover:rotate-12 transition-transform" />
+            <span className="tracking-wide">MASMORRA</span>
+            <div className="flex items-center gap-1.5">
               {questsCount && (
-                <span className="flex items-center px-2 py-0.5 rounded-full bg-rose-950/90 text-rose-300 border border-rose-500/50 text-[10px] sm:text-xs font-mono font-bold">
-                  Andar {questsCount.currentFloor}
+                <span className="flex items-center px-1.5 py-0.5 rounded-md bg-rose-950/90 text-rose-300 border border-rose-500/50 text-[10px] sm:text-xs font-mono font-bold">
+                  A.{questsCount.currentFloor}
                 </span>
               )}
-            </button>
-          )}
+              <span className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-md font-mono text-[10px] sm:text-xs font-bold border ${
+                dungeonKeys > 0
+                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                  : 'bg-zinc-800 text-zinc-500 border-zinc-700'
+              }`}>
+                <span>🔑</span>
+                <span>{dungeonKeys}/{maxDungeonKeys}</span>
+              </span>
+            </div>
+          </button>
+        )}
 
-          {/* MISSÕES SEMANAIS */}
-          {onOpenQuests && (
+        {/* MISSÕES SEMANAIS */}
+        {onOpenQuests && (
+          <button
+            type="button"
+            onClick={onOpenQuests}
+            className="flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl bg-gradient-to-r from-cyan-950/80 via-indigo-950/70 to-cyan-950/80 hover:from-cyan-900/80 hover:to-indigo-900/80 text-cyan-200 hover:text-white border border-cyan-500/50 text-xs sm:text-sm font-bold transition shadow-[0_0_14px_rgba(6,182,212,0.2)] cursor-pointer group transform hover:scale-[1.03] active:scale-[0.98]"
+            title="Terminal de Missões Semanais"
+          >
+            <Scroll className="w-4 h-4 text-cyan-400 group-hover:scale-110 transition-transform" />
+            <span className="tracking-wide">MISSÕES</span>
+            {questsCount && questsCount.readyToClaim > 0 ? (
+              <span className="flex items-center px-2 py-0.5 rounded-full bg-amber-500 text-black font-black text-xs animate-bounce shadow-sm">
+                {questsCount.readyToClaim}
+              </span>
+            ) : null}
+          </button>
+        )}
+
+        {/* LOJA DE COSMÉTICOS & SKINS */}
+        {onOpenCosmetics && (
+          <button
+            type="button"
+            onClick={onOpenCosmetics}
+            className="flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl bg-gradient-to-r from-purple-950/80 via-indigo-950/70 to-purple-950/80 hover:from-purple-900/80 hover:to-indigo-900/80 text-purple-200 hover:text-white border border-purple-500/60 text-xs sm:text-sm font-bold transition shadow-[0_0_14px_rgba(168,85,247,0.25)] cursor-pointer group transform hover:scale-[1.03] active:scale-[0.98]"
+            title="Loja do Laboratório: Temas de Terminal, Skins do Bytezinho, Layouts e Sons de Teclado"
+          >
+            <Palette className="w-4 h-4 text-purple-300 group-hover:scale-110 transition-transform" />
+            <span className="tracking-wide">LOJA</span>
+            {levelTokens > 0 ? (
+              <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/25 text-amber-300 border border-amber-500/40 text-[10px] sm:text-xs font-mono font-bold">
+                <Coins className="w-3 h-3 text-amber-400" />
+                <span>{levelTokens}</span>
+              </span>
+            ) : (
+              <Sparkles className="w-3.5 h-3.5 text-purple-400 opacity-70 group-hover:opacity-100" />
+            )}
+          </button>
+        )}
+
+        {/* ARENA 1x1 (MULTIPLAYER) */}
+        {onOpenArena && (() => {
+          const isArenaUnlocked = playerRankLevel >= 100 || isAdmin;
+          return (
             <button
               type="button"
-              onClick={onOpenQuests}
-              className="flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl bg-gradient-to-r from-cyan-950/80 via-indigo-950/70 to-cyan-950/80 hover:from-cyan-900/80 hover:to-indigo-900/80 text-cyan-200 hover:text-white border border-cyan-500/50 text-xs sm:text-sm font-bold transition shadow-[0_0_14px_rgba(6,182,212,0.2)] cursor-pointer group transform hover:scale-[1.03] active:scale-[0.98]"
-              title="Terminal de Missões Semanais"
+              onClick={onOpenArena}
+              className={`flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl border text-xs sm:text-sm font-bold transition cursor-pointer group transform hover:scale-[1.03] active:scale-[0.98] ${
+                isArenaUnlocked
+                  ? 'bg-gradient-to-r from-red-950/80 via-rose-950/70 to-amber-950/80 hover:from-red-900 hover:to-amber-900 text-white border-red-500/60 shadow-[0_0_15px_rgba(239,68,68,0.3)]'
+                  : 'bg-zinc-900/80 hover:bg-zinc-800 text-zinc-400 border-zinc-700/60 hover:text-zinc-200'
+              }`}
+              title={
+                isAdmin
+                  ? '⚔️ Arena 1x1 (Acesso Liberado para ADM: wrobel.marcos@gmail.com)'
+                  : playerRankLevel >= 100
+                  ? '⚔️ Arena 1x1 Multiplayer (Liberado para Lendas Leopoldina!)'
+                  : `🔒 Arena 1x1 (Requer Nível 100 • Seu Nível: ${playerRankLevel}/100)`
+              }
             >
-              <Scroll className="w-4 h-4 text-cyan-400 group-hover:scale-110 transition-transform" />
-              <span className="tracking-wide">MISSÕES</span>
-              {questsCount && questsCount.readyToClaim > 0 ? (
-                <span className="flex items-center px-2 py-0.5 rounded-full bg-amber-500 text-black font-black text-xs animate-bounce shadow-sm">
-                  {questsCount.readyToClaim}
+              {isArenaUnlocked ? (
+                <Swords className="w-4 h-4 text-red-400 group-hover:rotate-12 transition-transform" />
+              ) : (
+                <Lock className="w-4 h-4 text-zinc-500 group-hover:text-amber-400 transition-colors" />
+              )}
+              <span>ARENA 1x1</span>
+              {isAdmin ? (
+                <span className="flex items-center px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-mono font-bold">
+                  ADM
+                </span>
+              ) : playerRankLevel >= 100 ? (
+                <span className="flex items-center px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-300 border border-red-500/40 text-[10px] font-mono font-bold">
+                  100
                 </span>
               ) : null}
             </button>
-          )}
+          );
+        })()}
 
-          {/* LOJA DE COSMÉTICOS & SKINS */}
-          {onOpenCosmetics && (
+        {/* FORJA QUÂNTICA (3ª Moeda • Nível 100) */}
+        {onOpenConverter && (() => {
+          const isConverterUnlocked = playerRankLevel >= 100 || isAdmin;
+          return (
             <button
               type="button"
-              onClick={onOpenCosmetics}
-              className="flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl bg-gradient-to-r from-purple-950/80 via-indigo-950/70 to-purple-950/80 hover:from-purple-900/80 hover:to-indigo-900/80 text-purple-200 hover:text-white border border-purple-500/60 text-xs sm:text-sm font-bold transition shadow-[0_0_14px_rgba(168,85,247,0.25)] cursor-pointer group transform hover:scale-[1.03] active:scale-[0.98]"
-              title="Loja do Laboratório: Temas de Terminal, Skins do Bytezinho, Layouts e Sons de Teclado"
+              onClick={onOpenConverter}
+              className={`flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl border text-xs sm:text-sm font-bold transition cursor-pointer group transform hover:scale-[1.03] active:scale-[0.98] ${
+                isConverterUnlocked
+                  ? 'bg-gradient-to-r from-cyan-950/80 via-indigo-950/70 to-purple-950/80 hover:from-cyan-900 hover:to-indigo-900 text-cyan-200 hover:text-white border-cyan-500/60 shadow-[0_0_15px_rgba(6,182,212,0.3)]'
+                  : 'bg-zinc-900/80 hover:bg-zinc-800 text-zinc-400 border-zinc-700/60 hover:text-zinc-200'
+              }`}
+              title={
+                isAdmin
+                  ? '🌌 Forja Quântica (Acesso Liberado para ADM: Converter Bytes em Fragmentos Quânticos)'
+                  : playerRankLevel >= 100
+                  ? '🌌 Forja Quântica (Desbloqueado para Lendas Leopoldina: Converta Bytes em Fragmentos Quânticos!)'
+                  : `🔒 Forja Quântica (Requer Nível 100 • Seu Nível: ${playerRankLevel}/100)`
+              }
             >
-              <Palette className="w-4 h-4 text-purple-300 group-hover:scale-110 transition-transform" />
-              <span className="tracking-wide">LOJA</span>
-              {levelTokens > 0 ? (
-                <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/25 text-amber-300 border border-amber-500/40 text-[10px] sm:text-xs font-mono font-bold">
-                  <Coins className="w-3 h-3 text-amber-400" />
-                  <span>{levelTokens}</span>
+              <span className={`text-sm ${isConverterUnlocked ? 'animate-pulse' : 'opacity-60'}`}>🌌</span>
+              <span className="tracking-wide">FORJA</span>
+              {quantumFragments > 0 ? (
+                <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-cyan-500/25 text-cyan-300 border border-cyan-500/40 text-[10px] font-mono font-bold">
+                  <span>{quantumFragments}</span>
+                </span>
+              ) : isConverterUnlocked ? (
+                <span className="flex items-center px-1.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 text-[10px] font-mono font-bold">
+                  100
                 </span>
               ) : (
-                <Sparkles className="w-3.5 h-3.5 text-purple-400 opacity-70 group-hover:opacity-100" />
+                <Lock className="w-4 h-4 text-zinc-500 group-hover:text-cyan-400 transition-colors" />
               )}
             </button>
-          )}
-
-          {/* ARENA 1x1 (MULTIPLAYER) */}
-          {onOpenArena && (() => {
-            const isArenaUnlocked = playerRankLevel >= 100 || isAdmin;
-            return (
-              <button
-                type="button"
-                onClick={onOpenArena}
-                className={`flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl border text-xs sm:text-sm font-bold transition cursor-pointer group transform hover:scale-[1.03] active:scale-[0.98] ${
-                  isArenaUnlocked
-                    ? 'bg-gradient-to-r from-red-950/80 via-rose-950/70 to-amber-950/80 hover:from-red-900 hover:to-amber-900 text-white border-red-500/60 shadow-[0_0_15px_rgba(239,68,68,0.3)]'
-                    : 'bg-zinc-900/80 hover:bg-zinc-800 text-zinc-400 border-zinc-700/60 hover:text-zinc-200'
-                }`}
-                title={
-                  isAdmin
-                    ? '⚔️ Arena 1x1 (Acesso Liberado para ADM: wrobel.marcos@gmail.com)'
-                    : playerRankLevel >= 100
-                    ? '⚔️ Arena 1x1 Multiplayer (Liberado para Lendas Leopoldina!)'
-                    : `🔒 Arena 1x1 (Requer Nível 100 • Seu Nível: ${playerRankLevel}/100)`
-                }
-              >
-                {isArenaUnlocked ? (
-                  <Swords className="w-4 h-4 text-red-400 group-hover:rotate-12 transition-transform" />
-                ) : (
-                  <Lock className="w-4 h-4 text-zinc-500 group-hover:text-amber-400 transition-colors" />
-                )}
-                <span>ARENA 1x1</span>
-                {isAdmin ? (
-                  <span className="flex items-center px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-mono font-bold">
-                    ADM
-                  </span>
-                ) : playerRankLevel >= 100 ? (
-                  <span className="flex items-center px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-300 border border-red-500/40 text-[10px] font-mono font-bold">
-                    100
-                  </span>
-                ) : null}
-              </button>
-            );
-          })()}
-
-          {/* FORJA QUÂNTICA (3ª Moeda • Nível 100) */}
-          {onOpenConverter && (() => {
-            const isConverterUnlocked = playerRankLevel >= 100 || isAdmin;
-            return (
-              <button
-                type="button"
-                onClick={onOpenConverter}
-                className={`flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl border text-xs sm:text-sm font-bold transition cursor-pointer group transform hover:scale-[1.03] active:scale-[0.98] ${
-                  isConverterUnlocked
-                    ? 'bg-gradient-to-r from-cyan-950/80 via-indigo-950/70 to-purple-950/80 hover:from-cyan-900 hover:to-indigo-900 text-cyan-200 hover:text-white border-cyan-500/60 shadow-[0_0_15px_rgba(6,182,212,0.3)]'
-                    : 'bg-zinc-900/80 hover:bg-zinc-800 text-zinc-400 border-zinc-700/60 hover:text-zinc-200'
-                }`}
-                title={
-                  isAdmin
-                    ? '🌌 Forja Quântica (Acesso Liberado para ADM: Converter Bytes em Fragmentos Quânticos)'
-                    : playerRankLevel >= 100
-                    ? '🌌 Forja Quântica (Desbloqueado para Lendas Leopoldina: Converta Bytes em Fragmentos Quânticos!)'
-                    : `🔒 Forja Quântica (Requer Nível 100 • Seu Nível: ${playerRankLevel}/100)`
-                }
-              >
-                <span className={`text-sm ${isConverterUnlocked ? 'animate-pulse' : 'opacity-60'}`}>🌌</span>
-                <span className="tracking-wide">FORJA</span>
-                {quantumFragments > 0 ? (
-                  <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-cyan-500/25 text-cyan-300 border border-cyan-500/40 text-[10px] font-mono font-bold">
-                    <span>{quantumFragments}</span>
-                  </span>
-                ) : isConverterUnlocked ? (
-                  <span className="flex items-center px-1.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 text-[10px] font-mono font-bold">
-                    100
-                  </span>
-                ) : (
-                  <Lock className="w-4 h-4 text-zinc-500 group-hover:text-cyan-400 transition-colors" />
-                )}
-              </button>
-            );
-          })()}
-        </div>
-
-        {/* Informação sobre Pause (Somente ESC) */}
-        <div className="flex items-center gap-2 text-xs font-mono bg-zinc-900/90 px-3.5 py-2 rounded-xl border border-zinc-800 text-amber-300/90 flex-shrink-0 shadow-inner">
-          <span className="text-zinc-400">Pausar:</span>
-          <kbd className="px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-200 border border-zinc-700 font-bold text-xs shadow-sm">ESC</kbd>
-        </div>
+          );
+        })()}
       </div>
     </div>
   );

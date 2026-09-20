@@ -35,9 +35,21 @@ import { AchievementToast } from './components/AchievementToast';
 import { AchievementsModal } from './components/AchievementsModal';
 import { QuestsModal } from './components/QuestsModal';
 import { RpgDungeonModal } from './components/RpgDungeonModal';
+import { RpgChestMinigame } from './components/RpgChestMinigame';
 import { RpgChronicleArena } from './components/RpgChronicleArena';
 import { checkPendingAchievements, getOverallAchievementsStats, syncRetroactiveAchievements } from './services/achievementEngine';
-import { syncQuestsState, processQuestEvent, claimWeeklyQuestReward, generateRpgFloor, completeRpgFloor } from './services/questsEngine';
+import {
+  syncQuestsState,
+  processQuestEvent,
+  claimWeeklyQuestReward,
+  generateRpgFloor,
+  completeRpgFloor,
+  addWordProgressToDungeon,
+  grantDungeonKeys,
+  consumeDungeonKey,
+  upgradeDungeonEquipment,
+  upgradeDungeonPerk
+} from './services/questsEngine';
 import { AchievementDef, AchievementContext } from './types/achievements';
 import { RpgFloorData, QuestEvent } from './types/quests';
 import { calculatePlayerRank, formatBytes } from './utils/formatting';
@@ -83,6 +95,7 @@ export default function App() {
   const [achievementQueue, setAchievementQueue] = useState<AchievementDef[]>([]);
   const [isQuestsOpen, setIsQuestsOpen] = useState<boolean>(false);
   const [isDungeonOpen, setIsDungeonOpen] = useState<boolean>(false);
+  const [isChestMinigameOpen, setIsChestMinigameOpen] = useState<boolean>(false);
   const [activeRpgFloor, setActiveRpgFloor] = useState<RpgFloorData | null>(null);
   
   const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
@@ -601,11 +614,30 @@ export default function App() {
 
   // Iniciar batalha de texto na Masmorra RPG
   const handleStartRpgChronicle = useCallback((floor: number) => {
+    const currentKeys = stateRef.current.quests?.dungeon?.keys ?? 0;
+    if (currentKeys <= 0 && !isAdmin) {
+      spawnFloatingText('⚠️ Sem chaves de expedição! Pratique no terminal.', 'error');
+      return;
+    }
+
+    if (!isAdmin) {
+      setState((prev) => {
+        const syncedQuests = syncQuestsState(prev.quests);
+        const { updatedQuests } = consumeDungeonKey(syncedQuests);
+        const nextState: GameState = {
+          ...prev,
+          quests: updatedQuests
+        };
+        saveState(nextState, auth.currentUser?.uid);
+        return nextState;
+      });
+    }
+
     setIsQuestsOpen(false);
     setIsDungeonOpen(false);
     const data = generateRpgFloor(floor, stateRef.current.keyTelemetry);
     setActiveRpgFloor(data);
-  }, []);
+  }, [isAdmin, spawnFloatingText]);
 
   // Vitória no andar da Masmorra RPG
   const handleVictoryRpgFloor = useCallback((floorData: RpgFloorData) => {
@@ -624,10 +656,106 @@ export default function App() {
   // Avançar para o próximo andar na Masmorra RPG
   const handleNextRpgFloor = useCallback(() => {
     if (!activeRpgFloor) return;
+    const currentKeys = stateRef.current.quests?.dungeon?.keys ?? 0;
+    if (currentKeys <= 0 && !isAdmin) {
+      spawnFloatingText('⚠️ Sem chaves restantes! Retorne ao terminal.', 'error');
+      setActiveRpgFloor(null);
+      return;
+    }
+
+    if (!isAdmin) {
+      setState((prev) => {
+        const syncedQuests = syncQuestsState(prev.quests);
+        const { updatedQuests } = consumeDungeonKey(syncedQuests);
+        const nextState: GameState = {
+          ...prev,
+          quests: updatedQuests
+        };
+        saveState(nextState, auth.currentUser?.uid);
+        return nextState;
+      });
+    }
+
     const nextFloor = activeRpgFloor.floor + 1;
     const nextData = generateRpgFloor(nextFloor, stateRef.current.keyTelemetry);
     setActiveRpgFloor(nextData);
-  }, [activeRpgFloor]);
+  }, [activeRpgFloor, isAdmin, spawnFloatingText]);
+
+  // Recompensa do Minigame Baú Criptográfico da Masmorra
+  const handleChestReward = useCallback(
+    (reward: { bytes: number; tokens: number; xp: number; keyGranted: boolean }) => {
+      setState((prev) => {
+        let synced = syncQuestsState(prev.quests);
+        if (reward.keyGranted) {
+          synced = grantDungeonKeys(synced, 1);
+          spawnFloatingText('🔑 +1 Chave de Expedição Encontrada no Baú!', 'bonus');
+        }
+        synced.rpgDungeonXp = (synced.rpgDungeonXp || 0) + reward.xp;
+
+        const nextState: GameState = {
+          ...prev,
+          bytes: prev.bytes + reward.bytes,
+          totalBytesEarned: prev.totalBytesEarned + reward.bytes,
+          hackTokens: (prev.hackTokens || 0) + reward.tokens,
+          quests: synced
+        };
+
+        spawnFloatingText(`+${formatBytes(reward.bytes)} B`, 'bonus');
+        spawnFloatingText(`+${reward.tokens} Ficha${reward.tokens > 1 ? 's' : ''}`, 'bonus');
+        spawnFloatingText(`+${reward.xp} XP Masmorra`, 'bonus');
+
+        saveState(nextState, auth.currentUser?.uid);
+        return checkAndAwardAchievements(nextState);
+      });
+    },
+    [checkAndAwardAchievements, spawnFloatingText]
+  );
+
+  // Aprimorar equipamento da Masmorra
+  const handleUpgradeDungeonEquipment = useCallback(
+    (slot: 'weapon' | 'shield' | 'relic') => {
+      setState((prev) => {
+        const synced = syncQuestsState(prev.quests);
+        const result = upgradeDungeonEquipment(synced, slot);
+        if (!result.success) {
+          spawnFloatingText(result.error || 'XP de Masmorra insuficiente!', 'error');
+          return prev;
+        }
+        sound.playUpgrade();
+        spawnFloatingText(`🛡️ Equipamento aprimorado com sucesso!`, 'bonus');
+        const nextState: GameState = {
+          ...prev,
+          quests: result.updatedQuests
+        };
+        saveState(nextState, auth.currentUser?.uid);
+        return nextState;
+      });
+    },
+    [spawnFloatingText]
+  );
+
+  // Aprimorar Perk da Masmorra
+  const handleUpgradeDungeonPerk = useCallback(
+    (perkName: 'criticalCombo' | 'weaknessVampirism' | 'rewardMultiplier' | 'shieldHardening') => {
+      setState((prev) => {
+        const synced = syncQuestsState(prev.quests);
+        const result = upgradeDungeonPerk(synced, perkName);
+        if (!result.success) {
+          spawnFloatingText(result.error || 'XP de Masmorra insuficiente!', 'error');
+          return prev;
+        }
+        sound.playUpgrade();
+        spawnFloatingText(`✨ Perk aprimorado com sucesso!`, 'bonus');
+        const nextState: GameState = {
+          ...prev,
+          quests: result.updatedQuests
+        };
+        saveState(nextState, auth.currentUser?.uid);
+        return nextState;
+      });
+    },
+    [spawnFloatingText]
+  );
 
   const handleMascotClick = useCallback(() => {
     setState((prev) => {
@@ -875,6 +1003,20 @@ export default function App() {
           : 0;
 
         setState((prev) => {
+          let currentQuests = syncQuestsState(prev.quests);
+          const { updatedQuests: questsWithWord, keyEarned } = addWordProgressToDungeon(currentQuests, 1);
+          currentQuests = questsWithWord;
+
+          if (keyEarned) {
+            sound.playUpgrade();
+            spawnFloatingText('🔑 NOVA CHAVE DE EXPEDIÇÃO SINTETIZADA! (15/15)', 'bonus');
+          }
+
+          if (isDrill && !nextDrillSession) {
+            currentQuests = grantDungeonKeys(currentQuests, 1);
+            spawnFloatingText('🔑 +1 Chave por Reabilitação Motora!', 'bonus');
+          }
+
           const nextState: GameState = {
             ...prev,
             bytes: prev.bytes + totalEarned + drillCompletionBonus,
@@ -886,7 +1028,8 @@ export default function App() {
             wordsCompleted: prev.wordsCompleted + 1,
             keyTelemetry: updatedTelem,
             perfectWordsStreak: nextPerfectStreak,
-            completedDrillSessions: nextDrillsCompleted
+            completedDrillSessions: nextDrillsCompleted,
+            quests: currentQuests
           };
 
           const questEvents: QuestEvent[] = [
@@ -1390,12 +1533,14 @@ export default function App() {
         return; // Silent level up on initial load
       }
 
-      // Recompensa escolar: +1 Level Token por nível conquistado
+      // Recompensa escolar: +1 Level Token e +2 Chaves de Masmorra por nível conquistado
       const levelsGained = Math.max(1, newLevel - prevLevel);
       setState(prev => {
         const currCosmetics = prev.cosmetics || { ...DEFAULT_COSMETICS };
+        const updatedQuests = grantDungeonKeys(prev.quests ? syncQuestsState(prev.quests) : syncQuestsState(), 2 * levelsGained);
         return {
           ...prev,
+          quests: updatedQuests,
           cosmetics: {
             ...currCosmetics,
             levelTokens: (currCosmetics.levelTokens ?? 0) + levelsGained
@@ -1403,6 +1548,7 @@ export default function App() {
         };
       });
       spawnFloatingText(`+${levelsGained} Level Token${levelsGained > 1 ? 's' : ''}! 🪙`, 'bonus');
+      spawnFloatingText(`+${2 * levelsGained} Chaves de Masmorra! 🔑`, 'bonus');
       
       setLevelUpData({
         level: playerRank.level,
@@ -1713,6 +1859,9 @@ export default function App() {
               readyToClaim: (state.quests?.weeklyQuests || []).filter((q) => q.completed && !q.claimed).length,
               currentFloor: state.quests?.rpgDungeonFloor ?? 1
             }}
+            dungeonKeys={state.quests?.dungeon?.keys ?? 3}
+            maxDungeonKeys={5}
+            wordsTowardKey={state.quests?.dungeon?.wordsProgress ?? 0}
             onMascotClick={handleMascotClick}
             onOpenArena={() => setIsArenaOpen(true)}
             onOpenConverter={() => setIsConverterOpen(true)}
@@ -1858,7 +2007,19 @@ export default function App() {
         isOpen={isDungeonOpen}
         onClose={() => setIsDungeonOpen(false)}
         state={state}
+        playerRankLevel={playerRank.level}
         onStartBattle={handleStartRpgChronicle}
+        onUpgradeEquipment={handleUpgradeDungeonEquipment}
+        onUpgradePerk={handleUpgradeDungeonPerk}
+        onOpenChestMinigame={() => setIsChestMinigameOpen(true)}
+      />
+
+      {/* Minigame Baú Criptográfico da Masmorra */}
+      <RpgChestMinigame
+        isOpen={isChestMinigameOpen}
+        floor={state.quests?.rpgDungeonFloor ?? 1}
+        onRewardClaim={handleChestReward}
+        onClose={() => setIsChestMinigameOpen(false)}
       />
 
       {/* Arena de Combate em Texto Completo da Crônica RPG */}
@@ -1866,6 +2027,7 @@ export default function App() {
         <RpgChronicleArena
           isOpen={true}
           floorData={activeRpgFloor}
+          dungeon={state.quests?.dungeon}
           onVictory={handleVictoryRpgFloor}
           onNextFloor={handleNextRpgFloor}
           onClose={() => setActiveRpgFloor(null)}

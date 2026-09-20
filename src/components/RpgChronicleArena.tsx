@@ -13,9 +13,10 @@ import {
   Trophy,
   AlertCircle,
   Flame,
-  Target
+  Target,
+  Zap
 } from 'lucide-react';
-import { RpgFloorData } from '../types/quests';
+import { RpgFloorData, DungeonState } from '../types/quests';
 import { sound } from '../utils/audio';
 import { formatBytes } from '../utils/formatting';
 import { combineAccent, isAccentKey, resolveDeadKey } from '../utils/keyboardAccents';
@@ -23,6 +24,7 @@ import { combineAccent, isAccentKey, resolveDeadKey } from '../utils/keyboardAcc
 interface RpgChronicleArenaProps {
   isOpen: boolean;
   floorData: RpgFloorData;
+  dungeon?: DungeonState;
   onVictory: (floorData: RpgFloorData) => void;
   onClose: () => void;
   onNextFloor?: () => void;
@@ -39,18 +41,26 @@ interface DamagePopup {
 export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
   isOpen,
   floorData,
+  dungeon,
   onVictory,
   onClose,
   onNextFloor
 }) => {
+  const maxShield = 100 + (dungeon?.shield?.bonusShield ?? 0) + (dungeon?.relic?.bonusShield ?? 0);
   const [charIndex, setCharIndex] = useState(0);
   const [bossHp, setBossHp] = useState(floorData.boss.maxHp);
-  const [playerShield, setPlayerShield] = useState(100);
+  const [playerShield, setPlayerShield] = useState(maxShield);
   const [isErrorShaking, setIsErrorShaking] = useState(false);
   const [status, setStatus] = useState<'playing' | 'victory' | 'defeat'>('playing');
   const [damagePopups, setDamagePopups] = useState<DamagePopup[]>([]);
   const [pendingAccent, setPendingAccent] = useState<string | null>(null);
   const [isBossHurt, setIsBossHurt] = useState(false);
+
+  // Mecânica de Minigame QTE: Sobrecarga do Núcleo do Boss aos 50% de HP
+  const [overloadTriggered, setOverloadTriggered] = useState(false);
+  const [overloadActive, setOverloadActive] = useState(false);
+  const [overloadSequence, setOverloadSequence] = useState<string[]>([]);
+  const [overloadIndex, setOverloadIndex] = useState(0);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const textContainerRef = useRef<HTMLDivElement>(null);
@@ -62,15 +72,19 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
     if (isOpen) {
       setCharIndex(0);
       setBossHp(floorData.boss.maxHp);
-      setPlayerShield(100);
+      setPlayerShield(maxShield);
       setStatus('playing');
       setPendingAccent(null);
+      setOverloadTriggered(false);
+      setOverloadActive(false);
+      setOverloadSequence([]);
+      setOverloadIndex(0);
       wordCleanRef.current = true;
       setTimeout(() => {
         inputRef.current?.focus();
       }, 100);
     }
-  }, [isOpen, floorData]);
+  }, [isOpen, floorData, maxShield]);
 
   // Mantém o cursor visível com scroll suave
   useEffect(() => {
@@ -96,23 +110,56 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
   }, [isOpen, onClose]);
 
   // Spawna número flutuante de dano RPG
-  const spawnDamage = useCallback((amount: number, isCrit: boolean) => {
+  const spawnDamage = useCallback((amount: number, isCrit: boolean, label?: string) => {
     const id = Date.now() + Math.random();
     const x = 50 + (Math.random() * 20 - 10);
     const y = 35 + (Math.random() * 15 - 7);
-    const text = isCrit ? `💥 -${amount} CRÍTICO!` : `-${amount}`;
+    const text = label ? label : isCrit ? `💥 -${amount} CRÍTICO!` : `-${amount}`;
     setDamagePopups((prev) => [...prev.slice(-6), { id, text, x, y, isCrit }]);
 
     setTimeout(() => {
       setDamagePopups((prev) => prev.filter((p) => p.id !== id));
-    }, 750);
+    }, 850);
   }, []);
 
-  // Processa a digitação com suporte a teclas mortas (acentos)
+  // Processa a digitação com suporte a teclas mortas (acentos) e QTE
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (status !== 'playing') return;
 
     if (e.key === 'Tab' || e.key === 'Escape') {
+      return;
+    }
+
+    // Se estiver em modo QTE de Sobrecarga do Núcleo
+    if (overloadActive) {
+      e.preventDefault();
+      const pressedKey = e.key.toUpperCase();
+      const targetKey = overloadSequence[overloadIndex];
+
+      if (pressedKey === targetKey) {
+        sound.playType();
+        const nextQteIdx = overloadIndex + 1;
+        if (nextQteIdx >= overloadSequence.length) {
+          // Concluiu o QTE com perfeição!
+          sound.playChallengeSuccess();
+          const burstDmg = Math.max(20, Math.round(floorData.boss.maxHp * 0.25));
+          spawnDamage(burstDmg, true, `⚡ SOBRECARGA! -${burstDmg}`);
+          const nextHp = Math.max(0, bossHp - burstDmg);
+          setBossHp(nextHp);
+          setOverloadActive(false);
+
+          if (nextHp <= 0) {
+            setStatus('victory');
+            onVictory(floorData);
+          }
+        } else {
+          setOverloadIndex(nextQteIdx);
+        }
+      } else {
+        // Erro no QTE - dissipa o atordoamento sem causar dano bônus
+        sound.playError();
+        setOverloadActive(false);
+      }
       return;
     }
 
@@ -146,9 +193,22 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
       const nextIndex = charIndex + 1;
       setCharIndex(nextIndex);
 
-      // Dano no Boss a cada tecla
+      // Bônus de Equipamento (Arma e Relíquia)
+      const weaponBonusDmg = (dungeon?.weapon?.bonusDmg ?? 0) + (dungeon?.relic?.bonusDmg ?? 0);
       const isWeakness = floorData.boss.weaknessKeys?.includes(typedChar.toLowerCase());
-      const baseDamage = isWeakness ? 2 : 1;
+      
+      let baseDamage = 1 + weaponBonusDmg;
+      if (isWeakness) {
+        const weaknessBonusPercent = dungeon?.weapon?.bonusWeaknessDmgPercent ?? 0;
+        baseDamage = Math.round((2 + weaponBonusDmg) * (1 + weaknessBonusPercent / 100));
+
+        // Perk: Vampirismo de Fraqueza
+        const vampLevel = dungeon?.perks?.weaknessVampirism ?? 0;
+        if (vampLevel > 0) {
+          const healAmount = vampLevel * 2;
+          setPlayerShield((prev) => Math.min(maxShield, prev + healAmount));
+        }
+      }
 
       // Boss ferido momentaneamente
       setIsBossHurt(true);
@@ -158,7 +218,10 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
       let wordBonusDamage = 0;
       if (expectedChar === ' ' || nextIndex >= floorData.text.length) {
         if (wordCleanRef.current) {
-          wordBonusDamage = 8 + (floorData.floor * 2);
+          // Perk: Combo Crítico
+          const comboLevel = dungeon?.perks?.criticalCombo ?? 0;
+          const comboMultiplier = 1 + (comboLevel * 0.15);
+          wordBonusDamage = Math.round((8 + (floorData.floor * 2)) * comboMultiplier);
           spawnDamage(wordBonusDamage, true);
         }
         wordCleanRef.current = true;
@@ -167,6 +230,19 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
       const totalDamage = baseDamage + wordBonusDamage;
       const nextHp = Math.max(0, bossHp - totalDamage);
       setBossHp(nextHp);
+
+      // Ativa QTE Sobrecarga quando o Boss chega a <= 50% HP pela primeira vez
+      const halfHp = floorData.boss.maxHp * 0.5;
+      if (!overloadTriggered && nextHp <= halfHp && nextHp > 0) {
+        setOverloadTriggered(true);
+        const pool = floorData.boss.weaknessKeys && floorData.boss.weaknessKeys.length > 0 
+          ? floorData.boss.weaknessKeys 
+          : ['f', 'j', 'd', 'k', 's', 'l', 'a'];
+        const qteSeq = Array.from({ length: 4 }, () => pool[Math.floor(Math.random() * pool.length)].toUpperCase());
+        setOverloadSequence(qteSeq);
+        setOverloadIndex(0);
+        setOverloadActive(true);
+      }
 
       // Vitória ao concluir o texto ou esgotar a vida do Boss
       if (nextIndex >= floorData.text.length || nextHp <= 0) {
@@ -181,9 +257,13 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
       setIsErrorShaking(true);
       setTimeout(() => setIsErrorShaking(false), 200);
 
-      // Reduz o escudo do jogador
+      // Reduz o escudo do jogador com mitigação de armadura (Perk Endurecimento de Escudo)
+      const hardeningLevel = dungeon?.perks?.shieldHardening ?? 0;
+      const dmgMitigation = Math.min(0.5, hardeningLevel * 0.08); // 8% por nível
+      const actualDmgTaken = Math.max(2, Math.round(6 * (1 - dmgMitigation)));
+
       setPlayerShield((prev) => {
-        const nextShield = Math.max(0, prev - 6);
+        const nextShield = Math.max(0, prev - actualDmgTaken);
         if (nextShield <= 0) {
           setStatus('defeat');
           sound.playChallengeFail();
@@ -306,24 +386,96 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
             {/* Escudo do Jogador */}
             <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
               <div className="text-right">
-                <div className="flex items-center justify-end gap-1 text-[11px] font-mono text-cyan-300 font-bold">
+                <div className="flex items-center justify-end gap-1.5 text-[11px] font-mono text-cyan-300 font-bold">
                   <Shield className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Escudo do Jogador: {playerShield}%</span>
+                  <span>
+                    Escudo: {playerShield} / {maxShield}
+                  </span>
                 </div>
                 <div className="mt-1 w-36 sm:w-44 h-2 rounded-full bg-zinc-950 overflow-hidden border border-cyan-900/60 ml-auto">
                   <motion.div
-                    animate={{ width: `${playerShield}%` }}
+                    animate={{ width: `${Math.min(100, Math.max(0, Math.round((playerShield / maxShield) * 100)))}%` }}
                     transition={{ duration: 0.2 }}
                     className={`h-full ${
-                      playerShield > 40
+                      (playerShield / maxShield) > 0.4
                         ? 'bg-gradient-to-r from-cyan-500 to-indigo-500'
                         : 'bg-gradient-to-r from-rose-500 to-amber-500 animate-pulse'
                     }`}
                   />
                 </div>
+
+                {/* Bônus de Equipamento & Perks em Combate */}
+                {dungeon && (
+                  <div className="flex items-center justify-end gap-2 mt-1.5 text-[10px] font-mono text-zinc-400">
+                    {dungeon.weapon.bonusDmg > 0 && (
+                      <span className="text-amber-300 flex items-center gap-0.5" title="Bônus de Dano da Arma">
+                        <Swords className="w-2.5 h-2.5" />+{dungeon.weapon.bonusDmg}
+                      </span>
+                    )}
+                    {dungeon.perks.weaknessVampirism > 0 && (
+                      <span className="text-rose-400" title="Vampirismo em Fraquezas">
+                        🩸 Nv.{dungeon.perks.weaknessVampirism}
+                      </span>
+                    )}
+                    {dungeon.perks.criticalCombo > 0 && (
+                      <span className="text-cyan-400" title="Bônus em Combo Perfeito">
+                        ⚡ Nv.{dungeon.perks.criticalCombo}
+                      </span>
+                    )}
+                    {dungeon.perks.shieldHardening > 0 && (
+                      <span className="text-indigo-400" title="Mitigação de Escudo">
+                        🛡️ Nv.{dungeon.perks.shieldHardening}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
+
+          {/* Banner de Minigame QTE: Sobrecarga do Núcleo */}
+          {overloadActive && (
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="px-5 py-3 bg-gradient-to-r from-amber-950 via-rose-950 to-amber-950 border-b-2 border-amber-400 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-[0_0_30px_rgba(245,158,11,0.5)] z-20"
+            >
+              <div className="flex items-center gap-2">
+                <Zap className="w-5 h-5 text-amber-400 animate-bounce" />
+                <div>
+                  <span className="font-mono font-black text-amber-300 text-xs sm:text-sm tracking-wider uppercase">
+                    ⚠️ SOBRECARGA DO NÚCLEO DO BOSS!
+                  </span>
+                  <p className="text-[11px] text-amber-200/80 font-mono">
+                    Pressione as teclas para atordoar o guardião e causar dano crítico massivo:
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {overloadSequence.map((key, idx) => {
+                  const isDone = idx < overloadIndex;
+                  const isCurrent = idx === overloadIndex;
+                  return (
+                    <motion.span
+                      key={idx}
+                      animate={isCurrent ? { scale: [1, 1.15, 1] } : {}}
+                      transition={{ repeat: Infinity, duration: 0.6 }}
+                      className={`w-9 h-9 rounded-xl flex items-center justify-center font-mono font-black text-base border-2 shadow-lg transition-all ${
+                        isDone
+                          ? 'bg-emerald-500 text-black border-emerald-300 shadow-emerald-500/50'
+                          : isCurrent
+                          ? 'bg-amber-400 text-black border-amber-200 shadow-[0_0_15px_rgba(245,158,11,0.8)] scale-110'
+                          : 'bg-black/60 text-zinc-400 border-zinc-700'
+                      }`}
+                    >
+                      {key}
+                    </motion.span>
+                  );
+                })}
+              </div>
+            </motion.div>
+          )}
 
           {/* Fraquezas de Tecla do Boss */}
           {floorData.boss.weaknessKeys && floorData.boss.weaknessKeys.length > 0 && (
@@ -491,7 +643,11 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
                     sound.playClick();
                     setCharIndex(0);
                     setBossHp(floorData.boss.maxHp);
-                    setPlayerShield(100);
+                    setPlayerShield(maxShield);
+                    setOverloadTriggered(false);
+                    setOverloadActive(false);
+                    setOverloadSequence([]);
+                    setOverloadIndex(0);
                     setStatus('playing');
                     wordCleanRef.current = true;
                     setTimeout(() => inputRef.current?.focus(), 100);

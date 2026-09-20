@@ -134,7 +134,7 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               type="button"
               onClick={onTogglePause}
-              className={`flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-xl border text-xs font-bold transition shadow-sm cursor-pointer ${
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs font-bold transition shadow-sm cursor-pointer ${
                 isPaused
                   ? 'bg-amber-500 text-black border-amber-400 hover:bg-amber-400 animate-pulse'
                   : 'bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border-zinc-800'
@@ -143,6 +143,9 @@ export const Header: React.FC<HeaderProps> = ({
             >
               {isPaused ? <Play className="w-3.5 h-3.5 fill-current" /> : <Pause className="w-3.5 h-3.5 text-amber-400" />}
               <span className="hidden sm:inline">{isPaused ? 'Retomar' : 'Pausar'}</span>
+              <kbd className="px-1.5 py-0.2 rounded bg-black/40 text-amber-300 border border-white/10 font-mono text-[9px] font-bold">
+                ESC
+              </kbd>
             </button>
           )}
 

@@ -6,7 +6,10 @@ import {
   QuestEvent,
   QuestReward,
   RpgFloorData,
-  RpgBoss
+  RpgBoss,
+  DungeonState,
+  DungeonEquipment,
+  DungeonPerks
 } from '../types/quests';
 import { RPG_BOSSES, RPG_BASE_CHAPTERS, ADAPTIVE_RPG_LORE } from '../data/rpgChronicles';
 import { identificarTeclasFracas } from './adaptiveDrillEngine';
@@ -164,11 +167,242 @@ export function generateWeeklyQuestsForCycle(weekId: string): WeeklyQuestProgres
   }));
 }
 
+export const DEFAULT_WEAPON: DungeonEquipment = {
+  id: 'weapon_hex_linear',
+  name: 'Teclado Linear Hexadecimal',
+  slot: 'weapon',
+  level: 1,
+  maxLevel: 5,
+  bonusDmg: 3,
+  bonusWeaknessDmgPercent: 25,
+  bonusShield: 0,
+  effectDesc: '+3 dano base por tecla e +25% de dano em fraquezas',
+  icon: '⌨️',
+  upgradeCostXp: 120
+};
+
+export const DEFAULT_SHIELD: DungeonEquipment = {
+  id: 'shield_silicon_wall',
+  name: 'Firewall de Silício',
+  slot: 'shield',
+  level: 1,
+  maxLevel: 5,
+  bonusDmg: 0,
+  bonusWeaknessDmgPercent: 0,
+  bonusShield: 35,
+  effectDesc: '+35 Escudo Máximo contra falhas de digitação',
+  icon: '🛡️',
+  upgradeCostXp: 120
+};
+
+export const DEFAULT_RELIC: DungeonEquipment = {
+  id: 'relic_quantum_core',
+  name: 'Diodo de Foco Quântico',
+  slot: 'relic',
+  level: 1,
+  maxLevel: 5,
+  bonusDmg: 2,
+  bonusWeaknessDmgPercent: 15,
+  bonusShield: 20,
+  effectDesc: '+2 dano e +20 escudo em expedições contínuas',
+  icon: '💎',
+  upgradeCostXp: 180
+};
+
+export const DEFAULT_PERKS: DungeonPerks = {
+  criticalCombo: 0,
+  weaknessVampirism: 0,
+  rewardMultiplier: 0,
+  shieldHardening: 0
+};
+
+/**
+ * Valida e garante consistência do estado de inventário da masmorra
+ */
+export function syncDungeonState(raw?: Partial<DungeonState>): DungeonState {
+  if (!raw || typeof raw !== 'object') {
+    return {
+      keys: 3,
+      maxKeys: 5,
+      wordsProgress: 0,
+      wordsTarget: 15,
+      weapon: { ...DEFAULT_WEAPON },
+      shield: { ...DEFAULT_SHIELD },
+      relic: { ...DEFAULT_RELIC },
+      perks: { ...DEFAULT_PERKS }
+    };
+  }
+
+  return {
+    keys: typeof raw.keys === 'number' && Number.isFinite(raw.keys) ? Math.min(raw.maxKeys || 5, Math.max(0, Math.floor(raw.keys))) : 3,
+    maxKeys: 5,
+    wordsProgress: typeof raw.wordsProgress === 'number' && Number.isFinite(raw.wordsProgress) ? Math.max(0, Math.floor(raw.wordsProgress) % 15) : 0,
+    wordsTarget: 15,
+    weapon: raw.weapon ? { ...DEFAULT_WEAPON, ...raw.weapon } : { ...DEFAULT_WEAPON },
+    shield: raw.shield ? { ...DEFAULT_SHIELD, ...raw.shield } : { ...DEFAULT_SHIELD },
+    relic: raw.relic ? { ...DEFAULT_RELIC, ...raw.relic } : { ...DEFAULT_RELIC },
+    perks: {
+      criticalCombo: Math.min(5, Math.max(0, raw.perks?.criticalCombo || 0)),
+      weaknessVampirism: Math.min(5, Math.max(0, raw.perks?.weaknessVampirism || 0)),
+      rewardMultiplier: Math.min(5, Math.max(0, raw.perks?.rewardMultiplier || 0)),
+      shieldHardening: Math.min(5, Math.max(0, raw.perks?.shieldHardening || 0))
+    }
+  };
+}
+
+/**
+ * Adiciona progresso de palavras digitadas para sintetizar Chaves de Masmorra
+ */
+export function addWordProgressToDungeon(
+  quests: QuestsState,
+  wordsAdded: number = 1
+): { updatedQuests: QuestsState; keyEarned: boolean } {
+  const currentDungeon = syncDungeonState(quests.dungeon);
+  const newProgress = currentDungeon.wordsProgress + wordsAdded;
+  let keyEarned = false;
+  let remainingProgress = newProgress;
+  let newKeys = currentDungeon.keys;
+
+  while (remainingProgress >= currentDungeon.wordsTarget) {
+    remainingProgress -= currentDungeon.wordsTarget;
+    if (newKeys < currentDungeon.maxKeys) {
+      newKeys += 1;
+      keyEarned = true;
+    }
+  }
+
+  return {
+    updatedQuests: {
+      ...quests,
+      dungeon: {
+        ...currentDungeon,
+        keys: newKeys,
+        wordsProgress: remainingProgress
+      }
+    },
+    keyEarned
+  };
+}
+
+/**
+ * Concede chaves diretas (por subir de nível ou concluir treino corretivo)
+ */
+export function grantDungeonKeys(quests: QuestsState, amount: number = 1): QuestsState {
+  const currentDungeon = syncDungeonState(quests.dungeon);
+  return {
+    ...quests,
+    dungeon: {
+      ...currentDungeon,
+      keys: Math.min(currentDungeon.maxKeys, currentDungeon.keys + amount)
+    }
+  };
+}
+
+/**
+ * Consome 1 chave ao iniciar uma expedição na Masmorra
+ */
+export function consumeDungeonKey(quests: QuestsState): { success: boolean; updatedQuests: QuestsState } {
+  const currentDungeon = syncDungeonState(quests.dungeon);
+  if (currentDungeon.keys <= 0) {
+    return { success: false, updatedQuests: quests };
+  }
+
+  return {
+    success: true,
+    updatedQuests: {
+      ...quests,
+      dungeon: {
+        ...currentDungeon,
+        keys: currentDungeon.keys - 1
+      }
+    }
+  };
+}
+
+/**
+ * Aprimora um equipamento da masmorra usando XP de Aventureiro
+ */
+export function upgradeDungeonEquipment(
+  quests: QuestsState,
+  slot: 'weapon' | 'shield' | 'relic'
+): { success: boolean; updatedQuests: QuestsState; error?: string } {
+  const currentDungeon = syncDungeonState(quests.dungeon);
+  const equip = currentDungeon[slot];
+  if (!equip) return { success: false, updatedQuests: quests, error: 'Equipamento não encontrado' };
+
+  if (equip.level >= equip.maxLevel) {
+    return { success: false, updatedQuests: quests, error: 'Nível máximo atingido!' };
+  }
+
+  if (quests.rpgDungeonXp < equip.upgradeCostXp) {
+    return { success: false, updatedQuests: quests, error: `Requer ${equip.upgradeCostXp} XP de Aventureiro!` };
+  }
+
+  const newLevel = equip.level + 1;
+  const upgradedEquip: DungeonEquipment = {
+    ...equip,
+    level: newLevel,
+    bonusDmg: slot === 'weapon' ? equip.bonusDmg + 2 : slot === 'relic' ? equip.bonusDmg + 1 : equip.bonusDmg,
+    bonusWeaknessDmgPercent: equip.bonusWeaknessDmgPercent + 10,
+    bonusShield: slot === 'shield' ? equip.bonusShield + 20 : slot === 'relic' ? equip.bonusShield + 10 : equip.bonusShield,
+    upgradeCostXp: Math.round(equip.upgradeCostXp * 1.5)
+  };
+
+  return {
+    success: true,
+    updatedQuests: {
+      ...quests,
+      rpgDungeonXp: quests.rpgDungeonXp - equip.upgradeCostXp,
+      dungeon: {
+        ...currentDungeon,
+        [slot]: upgradedEquip
+      }
+    }
+  };
+}
+
+/**
+ * Aprimora um Perk da Masmorra usando XP de Aventureiro
+ */
+export function upgradeDungeonPerk(
+  quests: QuestsState,
+  perkName: keyof DungeonPerks
+): { success: boolean; updatedQuests: QuestsState; error?: string } {
+  const currentDungeon = syncDungeonState(quests.dungeon);
+  const currentLevel = currentDungeon.perks[perkName] || 0;
+  const maxLevel = 5;
+
+  if (currentLevel >= maxLevel) {
+    return { success: false, updatedQuests: quests, error: 'Perk no nível máximo!' };
+  }
+
+  const cost = (currentLevel + 1) * 80;
+  if (quests.rpgDungeonXp < cost) {
+    return { success: false, updatedQuests: quests, error: `Requer ${cost} XP de Aventureiro!` };
+  }
+
+  return {
+    success: true,
+    updatedQuests: {
+      ...quests,
+      rpgDungeonXp: quests.rpgDungeonXp - cost,
+      dungeon: {
+        ...currentDungeon,
+        perks: {
+          ...currentDungeon.perks,
+          [perkName]: currentLevel + 1
+        }
+      }
+    }
+  };
+}
+
 /**
  * Inicializa ou valida o estado de Quests, rotacionando a semana se necessário
  */
 export function syncQuestsState(raw?: QuestsState | null): QuestsState {
   const currentWeek = getCurrentWeekId();
+  const dungeon = syncDungeonState(raw?.dungeon);
 
   if (!raw || typeof raw !== 'object') {
     return {
@@ -177,7 +411,8 @@ export function syncQuestsState(raw?: QuestsState | null): QuestsState {
       rpgDungeonFloor: 1,
       rpgDungeonXp: 0,
       totalQuestsCompleted: 0,
-      highestRpgFloor: 1
+      highestRpgFloor: 1,
+      dungeon
     };
   }
 
@@ -194,7 +429,8 @@ export function syncQuestsState(raw?: QuestsState | null): QuestsState {
       rpgDungeonFloor: stateFloor,
       rpgDungeonXp: stateXp,
       totalQuestsCompleted: stateTotal,
-      highestRpgFloor: stateHighest
+      highestRpgFloor: stateHighest,
+      dungeon
     };
   }
 
@@ -219,7 +455,8 @@ export function syncQuestsState(raw?: QuestsState | null): QuestsState {
     rpgDungeonFloor: stateFloor,
     rpgDungeonXp: stateXp,
     totalQuestsCompleted: stateTotal,
-    highestRpgFloor: stateHighest
+    highestRpgFloor: stateHighest,
+    dungeon
   };
 }
 
@@ -435,8 +672,12 @@ export function completeRpgFloor(
   const nextFloor = floorData.floor + 1;
   const nextHighest = Math.max(currentQuests.highestRpgFloor, nextFloor);
 
+  const rewardMultiplierLevel = currentQuests.dungeon?.perks.rewardMultiplier || 0;
+  const perkBonusMult = 1 + (rewardMultiplierLevel * 0.15);
+  const finalBytes = Math.round(floorData.rewardBytes * perkBonusMult);
+
   const reward: QuestReward = {
-    bytes: floorData.rewardBytes,
+    bytes: finalBytes,
     levelTokens: floorData.rewardTokens,
     quantumFragments: floorData.rewardFragments
   };
