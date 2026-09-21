@@ -1004,6 +1004,141 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                               <div className="text-[6px] text-amber-400 text-center font-bold">VIGILÂNCIA DE GOTHAM</div>
                             </div>
                           )}
+
+                          {layout.id === 'whatsapp_chat_layout' && (
+                            <div className="w-full h-full bg-[#0b141a] rounded border border-[#25d366]/40 p-1 flex flex-col justify-between text-[#e9edef] font-sans text-[8px] relative overflow-hidden shadow-[0_0_10px_rgba(37,211,102,0.15)]">
+                              <div className="bg-[#202c33] px-1.5 py-0.5 rounded flex items-center justify-between text-[7px] border-b border-[#2a3942]">
+                                <div className="flex items-center gap-1 min-w-0">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-[#25d366] flex-shrink-0" />
+                                  <span className="text-white font-bold truncate text-[7px]">WhatsApp Web</span>
+                                </div>
+                                <span className="text-[#25d366] font-mono text-[6px]">🔒 Seguro</span>
+                              </div>
+                              <div className="flex gap-1 flex-1 my-0.5 items-stretch">
+                                <div className="w-1/4 bg-[#111b21] rounded border border-[#202c33] flex items-center justify-center text-[7px]">💬</div>
+                                <div className="w-2/4 bg-[#0b141a] rounded border border-[#25d366]/30 flex flex-col justify-center items-center px-1">
+                                  <div className="bg-[#005c4b] text-[#25d366] rounded px-1.5 py-0.5 text-[6px] font-bold flex items-center gap-0.5 shadow">
+                                    <span>✓✓</span> <span>Mensagem</span>
+                                  </div>
+                                </div>
+                                <div className="w-1/4 bg-[#111b21] rounded border border-[#202c33] flex items-center justify-center text-[7px]">📎</div>
+                              </div>
+                              <div className="text-[6px] text-[#25d366] text-center font-mono">STATUS ONLINE // CHAT ZAP</div>
+                            </div>
+                          )}
+
+                          {layout.id === 'instagram_feed_layout' && (
+                            <div className="w-full h-full bg-[#0c0614] rounded border border-[#e1306c]/40 p-1 flex flex-col justify-between text-pink-200 font-sans text-[8px] relative overflow-hidden shadow-[0_0_10px_rgba(225,48,108,0.2)]">
+                              <div className="bg-[#170d24] px-1.5 py-0.5 rounded flex items-center justify-between text-[7px] border-b border-[#301646]">
+                                <span className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#f77737] to-[#e1306c] text-[7px]">InstaType</span>
+                                <div className="flex gap-1">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-gradient-to-tr from-[#feda75] to-[#d62976]" />
+                                  <span className="w-1.5 h-1.5 rounded-full bg-gradient-to-tr from-[#feda75] to-[#d62976]" />
+                                </div>
+                              </div>
+                              <div className="flex gap-1 flex-1 my-0.5 items-stretch">
+                                <div className="w-1/4 bg-[#170d24] rounded border border-pink-500/20 flex items-center justify-center text-[7px]">✦ Perfil</div>
+                                <div className="w-2/4 bg-[#12071f] rounded border border-[#e1306c]/40 flex flex-col justify-center items-center">
+                                  <span className="text-[#e1306c] font-black text-[7px]">❤️ STORIES</span>
+                                  <span className="text-[6px] text-zinc-400">@typeclicker</span>
+                                </div>
+                                <div className="w-1/4 bg-[#170d24] rounded border border-pink-500/20 flex items-center justify-center text-[7px]">🛍️ Loja</div>
+                              </div>
+                              <div className="text-[6px] text-pink-400 text-center font-bold">REELS & STORIES // SUNSET</div>
+                            </div>
+                          )}
+
+                          {layout.id === 'youtube_theater_layout' && (
+                            <div className="w-full h-full bg-[#0f0f0f] rounded border border-red-500/40 p-1 flex flex-col justify-between text-zinc-300 font-sans text-[8px] relative overflow-hidden shadow-[0_0_10px_rgba(255,0,0,0.2)]">
+                              <div className="bg-[#181818] px-1.5 py-0.5 rounded flex items-center justify-between text-[7px] border-b border-[#2b2b2b]">
+                                <div className="flex items-center gap-1">
+                                  <span className="bg-[#ff0000] text-white px-1 rounded text-[5px] font-black">▶ PLAY</span>
+                                  <span className="text-white font-bold text-[7px]">YouTube</span>
+                                </div>
+                                <span className="bg-[#ff0000] text-white px-1 rounded text-[5px] font-bold">INSCREVER</span>
+                              </div>
+                              <div className="flex gap-1 flex-1 my-0.5 items-stretch">
+                                <div className="w-1/4 bg-[#181818] rounded border border-zinc-800 flex items-center justify-center text-[6px]">Painel</div>
+                                <div className="w-2/4 bg-black rounded border border-red-500/30 flex flex-col justify-center items-center relative overflow-hidden">
+                                  <span className="text-red-500 font-black text-[7px]">1080p60 HD</span>
+                                  <div className="w-full bg-zinc-800 h-1 absolute bottom-0">
+                                    <div className="w-2/3 bg-red-600 h-full" />
+                                  </div>
+                                </div>
+                                <div className="w-1/4 bg-[#181818] rounded border border-zinc-800 flex items-center justify-center text-[6px]">Loja</div>
+                              </div>
+                              <div className="text-[6px] text-zinc-400 text-center font-mono">SALA DO CRIADOR // THEATER</div>
+                            </div>
+                          )}
+
+                          {layout.id === 'tiktok_stream_layout' && (
+                            <div className="w-full h-full bg-[#010101] rounded border border-[#fe2c55]/40 p-1 flex flex-col justify-between text-white font-sans text-[8px] relative overflow-hidden shadow-[0_0_10px_rgba(0,242,254,0.2)]">
+                              <div className="bg-[#080808] px-1.5 py-0.5 rounded flex items-center justify-between text-[7px] border-b border-[#222]">
+                                <span className="font-black text-[#fe2c55] text-[7px]">Tok<span className="text-[#00f2fe]">Type</span></span>
+                                <span className="text-white font-bold border-b border-[#fe2c55] text-[6px]">Para Você</span>
+                                <span className="text-[7px]">💿</span>
+                              </div>
+                              <div className="flex gap-1 flex-1 my-0.5 items-stretch">
+                                <div className="w-1/4 bg-[#0d0d0d] rounded border border-[#222] flex items-center justify-center text-[6px]">🔥 FYP</div>
+                                <div className="w-2/4 bg-black rounded border border-[#00f2fe]/40 flex flex-col justify-center items-center">
+                                  <span className="text-[#00f2fe] font-mono text-[7px] font-bold">🎵 BEAT SYNC</span>
+                                  <span className="text-[#fe2c55] text-[5px]">❤️ 98.4K</span>
+                                </div>
+                                <div className="w-1/4 bg-[#0d0d0d] rounded border border-[#222] flex items-center justify-center text-[6px]">Loja</div>
+                              </div>
+                              <div className="text-[6px] text-[#00f2fe] text-center font-mono">GLITCH NEON // VERTICAL LIVE</div>
+                            </div>
+                          )}
+
+                          {layout.id === 'roblox_studio_layout' && (
+                            <div className="w-full h-full bg-[#111216] rounded border-2 border-[#292c37] p-1 flex flex-col justify-between text-zinc-200 font-mono text-[8px] relative overflow-hidden shadow-[0_0_10px_rgba(226,35,26,0.2)]">
+                              <div className="bg-[#171920] px-1.5 py-0.5 rounded flex items-center justify-between text-[7px] border-b border-[#292c37]">
+                                <div className="flex items-center gap-1">
+                                  <span className="w-1.5 h-1.5 bg-[#e2231a] rounded-sm" />
+                                  <span className="text-white font-black text-[6px]">ROBLOX STUDIO</span>
+                                </div>
+                                <span className="text-amber-400 font-bold text-[5px]">🪙 R$ 999K</span>
+                              </div>
+                              <div className="flex gap-1 flex-1 my-0.5 items-stretch">
+                                <div className="w-1/4 bg-[#1b1d24] rounded border border-[#292c37] flex items-center justify-center text-[6px]">Explorer</div>
+                                <div className="w-2/4 bg-[#111216] rounded border border-[#00a2ff]/40 flex flex-col justify-center items-center">
+                                  <span className="text-[#00a2ff] font-bold text-[7px]">VIEWPORT 3D</span>
+                                  <span className="text-[5px] text-zinc-400">1 STUD GRID</span>
+                                </div>
+                                <div className="w-1/4 bg-[#1b1d24] rounded border border-[#292c37] flex items-center justify-center text-[6px]">Toolbox</div>
+                              </div>
+                              <div className="text-[6px] text-[#00a2ff] text-center font-bold">BLOCKS 3D // PHYSICS</div>
+                            </div>
+                          )}
+
+                          {/* Fallback genérico para layouts sem preview explícito */}
+                          {![
+                            'default_terminal', 'arcade_cabinet', 'zen_focus', 'bios_dos', 'cyber_deck',
+                            'ide_developer', 'space_station', 'steampunk_lab', 'retro_mac_classic',
+                            'speedrun_arena', 'school_chalkboard', 'star_wars_cockpit', 'minecraft_block',
+                            'shonen_combat', 'mushroom_kingdom', 'infinite_void_realm', 'pirate_deck',
+                            'judgment_hall', 'edgerunner_rig', 'slayer_dojo', 'pocket_console',
+                            'manga_action', 'hollow_ruins', 'green_hills_zone', 'bat_cave_tactical',
+                            'whatsapp_chat_layout', 'instagram_feed_layout', 'youtube_theater_layout',
+                            'tiktok_stream_layout', 'roblox_studio_layout'
+                          ].includes(layout.id) && (
+                            <div
+                              className="w-full h-full rounded border p-1 flex flex-col justify-between font-mono text-[8px]"
+                              style={{
+                                backgroundColor: layout.previewColors?.bg || '#111',
+                                borderColor: layout.previewColors?.border || '#444',
+                                color: layout.previewColors?.accent || '#fff'
+                              }}
+                            >
+                              <div className="px-1 text-[7px] font-bold truncate">{layout.name}</div>
+                              <div className="flex gap-1 flex-1 my-0.5 items-stretch">
+                                <div className="w-1/4 rounded bg-white/10" />
+                                <div className="w-2/4 rounded bg-white/15 flex items-center justify-center text-[8px] font-bold">ARENA</div>
+                                <div className="w-1/4 rounded bg-white/10" />
+                              </div>
+                              <div className="text-[6px] text-center opacity-80 truncate">{layout.subtitle}</div>
+                            </div>
+                          )}
                         </div>
 
                         {/* Descrição */}

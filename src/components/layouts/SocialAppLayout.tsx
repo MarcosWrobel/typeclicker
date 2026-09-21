@@ -34,7 +34,6 @@ export const SocialAppLayout: React.FC<SocialAppLayoutProps> = ({
   sidebar,
   arena,
   shop,
-  footer,
   overlays,
   appBgClass = 'bg-[#0a0d0a]',
 }) => {
@@ -127,8 +126,6 @@ export const SocialAppLayout: React.FC<SocialAppLayoutProps> = ({
               <div className="flex-1 min-h-0 overflow-y-auto">{shop}</div>
             </div>
           </main>
-
-          {footer}
         </div>
       </div>
     );
@@ -206,8 +203,6 @@ export const SocialAppLayout: React.FC<SocialAppLayoutProps> = ({
               <div className="flex-1 min-h-0 overflow-y-auto">{shop}</div>
             </div>
           </main>
-
-          {footer}
         </div>
       </div>
     );
@@ -294,8 +289,6 @@ export const SocialAppLayout: React.FC<SocialAppLayoutProps> = ({
               <div className="flex-1 min-h-0 overflow-y-auto">{shop}</div>
             </div>
           </main>
-
-          {footer}
         </div>
       </div>
     );
@@ -374,8 +367,6 @@ export const SocialAppLayout: React.FC<SocialAppLayoutProps> = ({
               <div className="flex-1 min-h-0 overflow-y-auto">{shop}</div>
             </div>
           </main>
-
-          {footer}
         </div>
       </div>
     );
@@ -451,8 +442,6 @@ export const SocialAppLayout: React.FC<SocialAppLayoutProps> = ({
               <div className="flex-1 min-h-0 overflow-y-auto">{shop}</div>
             </div>
           </main>
-
-          {footer}
         </div>
       </div>
     );
@@ -474,7 +463,6 @@ export const SocialAppLayout: React.FC<SocialAppLayoutProps> = ({
           {shop}
         </div>
       </main>
-      {footer}
     </div>
   );
 };

@@ -105,7 +105,7 @@ export const GameLayoutWrapper: React.FC<GameLayoutWrapperProps> = ({
       case 'youtube_theater_layout':
       case 'tiktok_stream_layout':
       case 'roblox_studio_layout':
-        return <SocialAppLayout layoutId={layoutId} footer={footer} {...props} />;
+        return <SocialAppLayout layoutId={layoutId} {...props} />;
       case 'default_terminal':
       default:
         return <TerminalLayout footer={footer} {...props} />;
