@@ -52,7 +52,13 @@ export type TerminalThemeId =
   | 'serious_punch'
   | 'abyssal_vessel'
   | 'supersonic_speed'
-  | 'dark_detective';
+  | 'dark_detective'
+  // Temas Inspirados em Apps do Cotidiano dos Adolescentes
+  | 'whatsapp_chat'
+  | 'instagram_gradient'
+  | 'youtube_creator'
+  | 'tiktok_neon'
+  | 'roblox_blocks';
 
 export type BytezinhoSkinId =
   | 'classic'

@@ -471,6 +471,172 @@ export const TerminalThemeEffects: React.FC<TerminalThemeEffectsProps> = ({
           ))}
         </div>
       )}
+
+      {/* 27. WHATSAPP CHAT BUBBLES & TICKS */}
+      {themeId === 'whatsapp_chat' && (
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,rgba(37,211,102,0.08),transparent_50%)]" />
+          {[...Array(6)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-[#1f2c34]/60 border border-[#25d366]/30 text-[10px] font-mono text-emerald-300 shadow-sm"
+              style={{
+                left: `${12 + i * 15}%`,
+                bottom: '-20%'
+              }}
+              animate={{
+                bottom: ['-10%', '115%'],
+                opacity: [0, 0.7, 0.7, 0],
+                x: [0, i % 2 === 0 ? 12 : -12, 0]
+              }}
+              transition={{
+                duration: 6 + i * 1.5,
+                repeat: Infinity,
+                delay: i * 1.2,
+                ease: 'easeInOut'
+              }}
+            >
+              <span>💬</span>
+              <span className="text-[#25d366] font-bold">✓✓</span>
+            </motion.div>
+          ))}
+        </div>
+      )}
+
+      {/* 28. INSTAGRAM SUNSET GRADIENT & STORIES */}
+      {themeId === 'instagram_gradient' && (
+        <div className="absolute inset-0 overflow-hidden">
+          <motion.div
+            className="absolute -top-16 -right-16 w-80 h-80 rounded-full bg-gradient-to-br from-[#833ab4]/20 via-[#fd1d1d]/20 to-[#fcb045]/20 blur-3xl pointer-events-none"
+            animate={{
+              scale: [1, 1.25, 1],
+              rotate: [0, 90, 180, 270, 360],
+              opacity: [0.25, 0.5, 0.25]
+            }}
+            transition={{ duration: 12, repeat: Infinity, ease: 'linear' }}
+          />
+          <motion.div
+            className="absolute -bottom-16 -left-16 w-80 h-80 rounded-full bg-gradient-to-tr from-[#e1306c]/20 via-[#f77737]/20 to-[#833ab4]/20 blur-3xl pointer-events-none"
+            animate={{
+              scale: [1.2, 1, 1.2],
+              opacity: [0.2, 0.45, 0.2]
+            }}
+            transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
+          />
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+            <motion.div
+              className="w-72 h-72 rounded-full border-2 border-dashed border-[#e1306c]/20"
+              animate={{ rotate: 360 }}
+              transition={{ duration: 25, repeat: Infinity, ease: 'linear' }}
+            />
+            <motion.div
+              className="absolute inset-4 rounded-full border border-dotted border-[#fcb045]/25"
+              animate={{ rotate: -360 }}
+              transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* 29. YOUTUBE CREATOR PLAY PULSE */}
+      {themeId === 'youtube_creator' && (
+        <div className="absolute inset-0 overflow-hidden">
+          <motion.div
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-64 bg-red-600/10 rounded-full blur-3xl pointer-events-none"
+            animate={{
+              opacity: isTyping ? [0.2, 0.5, 0.2] : [0.1, 0.3, 0.1],
+              scale: isTyping ? [1, 1.15, 1] : [1, 1.05, 1]
+            }}
+            transition={{ duration: isTyping ? 0.4 : 3, repeat: Infinity }}
+          />
+          <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-red-600 via-rose-500 to-red-600 opacity-70 shadow-[0_0_12px_rgba(255,0,0,0.8)]" />
+          {[...Array(5)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute text-red-500/25 select-none text-2xl font-bold"
+              style={{
+                left: `${18 + i * 18}%`,
+                top: `${20 + (i % 3) * 25}%`
+              }}
+              animate={{
+                scale: [0.8, 1.2, 0.8],
+                opacity: [0.1, 0.35, 0.1],
+                y: [0, -10, 0]
+              }}
+              transition={{ duration: 3 + i * 0.8, repeat: Infinity, ease: 'easeInOut' }}
+            >
+              ▶
+            </motion.div>
+          ))}
+        </div>
+      )}
+
+      {/* 30. TIKTOK ANAGLYPH GLITCH & BEAT */}
+      {themeId === 'tiktok_neon' && (
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute inset-x-4 top-3 flex justify-between gap-1 opacity-20 pointer-events-none">
+            {[...Array(16)].map((_, i) => (
+              <motion.div
+                key={i}
+                className={`w-full rounded-full ${i % 2 === 0 ? 'bg-[#00f2fe]' : 'bg-[#fe2c55]'}`}
+                animate={{
+                  height: isTyping ? ['4px', '22px', '8px', '18px'] : ['3px', '12px', '4px']
+                }}
+                transition={{
+                  duration: 0.5 + (i % 5) * 0.1,
+                  repeat: Infinity,
+                  ease: 'easeInOut'
+                }}
+              />
+            ))}
+          </div>
+          <div className="absolute -left-10 top-1/4 w-36 h-36 rounded-full bg-[#00f2fe]/15 blur-3xl pointer-events-none" />
+          <div className="absolute -right-10 bottom-1/4 w-36 h-36 rounded-full bg-[#fe2c55]/15 blur-3xl pointer-events-none" />
+          <motion.div
+            className="absolute inset-x-0 h-0.5 bg-[#00f2fe]/40 shadow-[0_0_8px_#00f2fe]"
+            animate={{ top: ['0%', '100%'] }}
+            transition={{ duration: 2.2, repeat: Infinity, ease: 'linear' }}
+          />
+          <motion.div
+            className="absolute inset-x-0 h-0.5 bg-[#fe2c55]/40 shadow-[0_0_8px_#fe2c55]"
+            animate={{ top: ['100%', '0%'] }}
+            transition={{ duration: 2.8, repeat: Infinity, ease: 'linear' }}
+          />
+        </div>
+      )}
+
+      {/* 31. ROBLOX ISOMETRIC CUBES */}
+      {themeId === 'roblox_blocks' && (
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute inset-0 opacity-[0.05] bg-[linear-gradient(to_right,#ffffff_1px,transparent_1px),linear-gradient(to_bottom,#ffffff_1px,transparent_1px)] bg-[size:24px_24px]" />
+          {[...Array(6)].map((_, i) => (
+            <motion.div
+              key={i}
+              className={`absolute w-6 h-6 border rounded ${
+                i % 2 === 0
+                  ? 'border-[#e2231a]/40 bg-[#e2231a]/10 shadow-[0_0_10px_rgba(226,35,26,0.3)]'
+                  : 'border-[#00a2ff]/40 bg-[#00a2ff]/10 shadow-[0_0_10px_rgba(0,162,255,0.3)]'
+              }`}
+              style={{
+                left: `${15 + i * 14}%`,
+                top: `${20 + (i % 4) * 18}%`
+              }}
+              animate={{
+                rotate: [0, 90, 180, 270, 360],
+                y: [0, -12, 0],
+                opacity: [0.2, 0.6, 0.2]
+              }}
+              transition={{
+                duration: 5 + i * 1.2,
+                repeat: Infinity,
+                ease: 'easeInOut'
+              }}
+            />
+          ))}
+          <div className="absolute -bottom-8 -left-8 w-32 h-32 bg-[#e2231a]/15 rounded-full blur-2xl pointer-events-none" />
+          <div className="absolute -top-8 -right-8 w-32 h-32 bg-[#00a2ff]/15 rounded-full blur-2xl pointer-events-none" />
+        </div>
+      )}
     </div>
   );
 };

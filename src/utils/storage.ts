@@ -141,7 +141,13 @@ export function sanitizeCosmetics(rawCosmetics?: Partial<PlayerCosmetics> | null
     'serious_punch',
     'abyssal_vessel',
     'supersonic_speed',
-    'dark_detective'
+    'dark_detective',
+    // Temas Apps Populares
+    'whatsapp_chat',
+    'instagram_gradient',
+    'youtube_creator',
+    'tiktok_neon',
+    'roblox_blocks'
   ];
   const validSkins = [
     'classic',
