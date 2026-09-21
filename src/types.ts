@@ -86,6 +86,9 @@ export interface GameState {
   accessibility?: AccessibilitySettings;
   // Classe RPG de Especialização (Guerreiro, Arqueiro, Mago)
   rpgClass?: RpgClassType;
+  // Travas escolares gerenciadas pelo professor
+  isClassLocked?: boolean;
+  isRpgClassLocked?: boolean;
   // Novos campos opcionais com retrocompatibilidade garantida
   schemaVersion?: number;
   flaggedForReview?: boolean;

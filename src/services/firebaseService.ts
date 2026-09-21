@@ -3,6 +3,7 @@ import { getFirestore, doc, setDoc, getDoc, collection, query, where, orderBy, l
 import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import firebaseConfig from '../../firebase-applet-config.json';
 import { GameState, CustomCurricularText } from '../types';
+import { RpgClassType } from '../types/rpgClass';
 import { calculatePlayerRank, calculatePPM, calculateAccuracy } from '../utils/formatting';
 import { validateStateSanity } from '../utils/antiCheat';
 import { calculateMinBytesForLevel } from '../data/levels';
@@ -93,6 +94,7 @@ export interface SystemSettings {
   activeCode?: string;
   expiresAt?: string;
   expiresAtMs?: number;
+  activeTurma?: string | null;
   allowedTeachers?: string[];
   focusTimeoutSetting?: number; // 5 (padrão), 10, 15 ou 0 (desativado para inclusão)
   reducedAlerts?: boolean; // desativar efeitos visuais estroboscópicos/piscantes nos vírus de rede
@@ -114,6 +116,9 @@ export interface FirebaseSavePayload {
   updatedAt: string;
   userId: string;
   email?: string;
+  rpgClass?: RpgClassType;
+  isClassLocked?: boolean;
+  isRpgClassLocked?: boolean;
   // Campos retrocompatíveis para anti-cheat e controle de versão
   schemaVersion?: number;
   flaggedForReview?: boolean;
@@ -135,6 +140,9 @@ export interface LeaderboardEntry {
   accuracy?: number;
   avatar?: string;
   updatedAt: string;
+  rpgClass?: RpgClassType;
+  isClassLocked?: boolean;
+  isRpgClassLocked?: boolean;
   flaggedForReview?: boolean;
   flagReason?: string;
   email?: string;
@@ -320,6 +328,9 @@ export async function saveProgressToCloud(
   if (apelido) savePayload.apelido = apelido;
   if (user.email) savePayload.email = user.email;
   if (flagReason) savePayload.flagReason = flagReason;
+  if (state.rpgClass) savePayload.rpgClass = state.rpgClass;
+  if (state.isClassLocked !== undefined) savePayload.isClassLocked = state.isClassLocked;
+  if (state.isRpgClassLocked !== undefined) savePayload.isRpgClassLocked = state.isRpgClassLocked;
   if (state.raceWins !== undefined) savePayload.raceWins = state.raceWins;
   if (state.racesParticipated !== undefined) savePayload.racesParticipated = state.racesParticipated;
   if (state.bestRaceWpm !== undefined) savePayload.bestRaceWpm = state.bestRaceWpm;
@@ -355,6 +366,9 @@ export async function saveProgressToCloud(
 
   if (apelido) leaderboardPayload.apelido = apelido;
   if (flagReason) leaderboardPayload.flagReason = flagReason;
+  if (state.rpgClass) leaderboardPayload.rpgClass = state.rpgClass;
+  if (state.isClassLocked !== undefined) leaderboardPayload.isClassLocked = state.isClassLocked;
+  if (state.isRpgClassLocked !== undefined) leaderboardPayload.isRpgClassLocked = state.isRpgClassLocked;
 
   try {
     const cleanSavePayload = removeUndefinedFields(savePayload);
@@ -408,6 +422,10 @@ export async function loadProgressFromCloud(): Promise<CloudLoadResponse> {
       const rawSave = data.saveState || ({} as GameState);
       const normalizedState: Partial<GameState> = {
         ...rawSave,
+        studentClass: rawSave.studentClass || data.turma || '',
+        rpgClass: rawSave.rpgClass || data.rpgClass || undefined,
+        isClassLocked: rawSave.isClassLocked ?? data.isClassLocked ?? false,
+        isRpgClassLocked: rawSave.isRpgClassLocked ?? data.isRpgClassLocked ?? false,
         schemaVersion: rawSave.schemaVersion ?? data.schemaVersion ?? 1,
         flaggedForReview: rawSave.flaggedForReview ?? data.flaggedForReview ?? false,
         lastSyncTimestamp: rawSave.lastSyncTimestamp ?? Date.now()
@@ -699,7 +717,7 @@ export async function deleteCustomCurricularText(textId: string): Promise<void> 
   await setDoc(docRef, { ...settings, customTexts: updatedTexts }, { merge: true });
 }
 
-export async function generateSessionCode(durationHours: number): Promise<string> {
+export async function generateSessionCode(durationHours: number, targetTurma?: string | null): Promise<string> {
   const user = auth.currentUser;
   const isAdmin = await checkIsAdminAsync(user);
   if (!isAdmin) throw new Error('Não autorizado');
@@ -713,10 +731,11 @@ export async function generateSessionCode(durationHours: number): Promise<string
   const expiresAt = new Date();
   expiresAt.setHours(expiresAt.getHours() + durationHours);
   
-  const payload: SystemSettings = {
+  const payload: Partial<SystemSettings> = {
     activeCode: code,
     expiresAt: expiresAt.toISOString(),
-    expiresAtMs: expiresAt.getTime()
+    expiresAtMs: expiresAt.getTime(),
+    activeTurma: targetTurma && targetTurma.trim() !== '' ? targetTurma.trim() : null
   };
   
   try {
@@ -733,9 +752,134 @@ export async function clearSessionCode(): Promise<void> {
   const isAdmin = await checkIsAdminAsync(user);
   if (!isAdmin) throw new Error('Não autorizado');
   try {
-    await setDoc(doc(db, 'system', 'settings'), { activeCode: null, expiresAt: null, expiresAtMs: null }, { merge: true });
+    await setDoc(doc(db, 'system', 'settings'), { activeCode: null, expiresAt: null, expiresAtMs: null, activeTurma: null }, { merge: true });
   } catch (error: any) {
     handleFirestoreError(error, OperationType.WRITE, `system/settings`);
+    throw error;
+  }
+}
+
+/**
+ * Atualiza o perfil escolar do aluno (turma, classe RPG, travas) diretamente pelo painel do professor.
+ */
+export async function adminUpdateStudentProfile(
+  studentUserId: string,
+  updates: {
+    turma?: string;
+    rpgClass?: RpgClassType;
+    isClassLocked?: boolean;
+    isRpgClassLocked?: boolean;
+  }
+): Promise<void> {
+  const user = auth.currentUser;
+  const isAdmin = await checkIsAdminAsync(user);
+  if (!isAdmin) throw new Error('Não autorizado');
+
+  try {
+    const cleanUpdates = removeUndefinedFields(updates);
+    if (Object.keys(cleanUpdates).length === 0) return;
+
+    // 1. Atualiza documento no leaderboard se existir
+    const lbRef = doc(db, 'leaderboard', studentUserId);
+    const lbSnap = await getDoc(lbRef);
+    if (lbSnap.exists()) {
+      await setDoc(lbRef, cleanUpdates, { merge: true });
+    }
+
+    // 2. Atualiza documento em saves/{studentUserId}
+    const saveRef = doc(db, 'saves', studentUserId);
+    const saveSnap = await getDoc(saveRef);
+    if (saveSnap.exists()) {
+      const saveData = saveSnap.data() as FirebaseSavePayload;
+      const rawSaveState = saveData.saveState || ({} as GameState);
+      const updatedSaveState: GameState = {
+        ...rawSaveState,
+        ...(updates.turma !== undefined ? { studentClass: updates.turma } : {}),
+        ...(updates.rpgClass !== undefined ? { rpgClass: updates.rpgClass } : {}),
+        ...(updates.isClassLocked !== undefined ? { isClassLocked: updates.isClassLocked } : {}),
+        ...(updates.isRpgClassLocked !== undefined ? { isRpgClassLocked: updates.isRpgClassLocked } : {})
+      };
+
+      await setDoc(
+        saveRef,
+        {
+          ...(updates.turma !== undefined ? { turma: updates.turma } : {}),
+          ...(updates.rpgClass !== undefined ? { rpgClass: updates.rpgClass } : {}),
+          ...(updates.isClassLocked !== undefined ? { isClassLocked: updates.isClassLocked } : {}),
+          ...(updates.isRpgClassLocked !== undefined ? { isRpgClassLocked: updates.isRpgClassLocked } : {}),
+          saveState: removeUndefinedFields(updatedSaveState),
+          updatedAt: new Date().toISOString()
+        },
+        { merge: true }
+      );
+    }
+  } catch (error: any) {
+    handleFirestoreError(error, OperationType.WRITE, `saves/${studentUserId}`);
+    throw error;
+  }
+}
+
+/**
+ * Distribui automaticamente as classes RPG (1/3 Guerreiro, 1/3 Arqueiro, 1/3 Mago)
+ * de forma balanceada para todos os alunos de uma turma específica.
+ */
+export async function adminAutoBalanceRpgClasses(
+  turma: string
+): Promise<{ updatedCount: number; distribution: Record<RpgClassType, number> }> {
+  const user = auth.currentUser;
+  const isAdmin = await checkIsAdminAsync(user);
+  if (!isAdmin) throw new Error('Não autorizado');
+
+  const cleanTurma = (turma || '').trim();
+  if (!cleanTurma || cleanTurma.toLowerCase() === 'todas') {
+    throw new Error('Selecione uma turma específica para balancear as classes.');
+  }
+
+  try {
+    const q = query(collection(db, 'leaderboard'), where('turma', '==', cleanTurma));
+    const snapshot = await getDocs(q);
+
+    if (snapshot.empty) {
+      return { updatedCount: 0, distribution: { warrior: 0, archer: 0, mage: 0 } };
+    }
+
+    const classesPool: RpgClassType[] = ['warrior', 'archer', 'mage'];
+    const distribution: Record<RpgClassType, number> = { warrior: 0, archer: 0, mage: 0 };
+    const batch = writeBatch(db);
+    let count = 0;
+
+    const docsList = snapshot.docs.map((d) => ({ id: d.id, data: d.data() as LeaderboardEntry }));
+    // Ordena alfabeticamente para distribuição estável e justa
+    docsList.sort((a, b) => (a.data.nome || '').localeCompare(b.data.nome || ''));
+
+    for (let i = 0; i < docsList.length; i++) {
+      const student = docsList[i];
+      const assignedClass = classesPool[i % classesPool.length];
+      distribution[assignedClass]++;
+
+      // Atualiza leaderboard
+      const lbRef = doc(db, 'leaderboard', student.id);
+      batch.update(lbRef, {
+        rpgClass: assignedClass,
+        isRpgClassLocked: true
+      });
+
+      // Atualiza saves
+      const saveRef = doc(db, 'saves', student.id);
+      batch.update(saveRef, {
+        rpgClass: assignedClass,
+        isRpgClassLocked: true,
+        'saveState.rpgClass': assignedClass,
+        'saveState.isRpgClassLocked': true
+      });
+
+      count++;
+    }
+
+    await batch.commit();
+    return { updatedCount: count, distribution };
+  } catch (error: any) {
+    handleFirestoreError(error, OperationType.WRITE, `leaderboard/autobalance`);
     throw error;
   }
 }

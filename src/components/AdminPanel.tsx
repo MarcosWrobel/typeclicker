@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Shield, Key, Trash2, X, Clock, AlertTriangle, Users, Search, RefreshCw, BarChart, Database, Download, Upload, CheckCircle2, RotateCcw, FileText, Sliders, Battery, Eye, EyeOff, Filter, Swords, Sparkles, Coins, Zap, Trophy, Award, UserCheck, Plus, History, Gift, ArrowRight, Check, Terminal, Flag, Timer, BookOpen, Flame } from 'lucide-react';
+import { Shield, Key, Trash2, X, Clock, AlertTriangle, Users, Search, RefreshCw, BarChart, Database, Download, Upload, CheckCircle2, RotateCcw, FileText, Sliders, Battery, Eye, EyeOff, Filter, Swords, Sparkles, Coins, Zap, Trophy, Award, UserCheck, Plus, History, Gift, ArrowRight, Check, Terminal, Flag, Timer, BookOpen, Flame, GraduationCap, Sword } from 'lucide-react';
 import {
   auth,
   generateSessionCode,
   clearSessionCode,
+  adminUpdateStudentProfile,
+  adminAutoBalanceRpgClasses,
   wipeDatabase,
   SystemSettings,
   getSystemSettings,
@@ -31,6 +33,7 @@ import {
   saveCustomCurricularText,
   deleteCustomCurricularText
 } from '../services/firebaseService';
+import { RpgClassType } from '../types/rpgClass';
 import {
   launchClassroomRace,
   cancelClassroomRace,
@@ -126,6 +129,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [searchTurma, setSearchTurma] = useState('');
   const [selectedClassFilter, setSelectedClassFilter] = useState<string>('todas');
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
+  const [targetTurmaForCode, setTargetTurmaForCode] = useState<string>('');
+  const [updatingStudentId, setUpdatingStudentId] = useState<string | null>(null);
+  const [isAutoBalancing, setIsAutoBalancing] = useState<boolean>(false);
   
   const [newTeacherEmail, setNewTeacherEmail] = useState('');
   const [isUpdatingTeachers, setIsUpdatingTeachers] = useState(false);
@@ -857,15 +863,68 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   const handleGenerateCode = async (hours: number) => {
+    if (!targetTurmaForCode) {
+      alert("Por favor, selecione a Turma antes de gerar o código da sessão.");
+      return;
+    }
     setIsLoading(true);
     try {
-      await generateSessionCode(hours);
+      await generateSessionCode(hours, targetTurmaForCode);
       await loadSettings();
       sound.playPrestige();
     } catch (e) {
       alert("Erro ao gerar código");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleUpdateStudentProfile = async (
+    studentUserId: string,
+    updates: { turma?: string; rpgClass?: RpgClassType }
+  ) => {
+    setUpdatingStudentId(studentUserId);
+    try {
+      await adminUpdateStudentProfile(studentUserId, updates);
+      setStudents(prev => prev.map(s => {
+        if (s.userId === studentUserId) {
+          return {
+            ...s,
+            ...(updates.turma !== undefined ? { turma: updates.turma } : {}),
+            ...(updates.rpgClass !== undefined ? { rpgClass: updates.rpgClass } : {})
+          };
+        }
+        return s;
+      }));
+      sound.playUpgrade();
+    } catch (e: any) {
+      alert(`Erro ao atualizar aluno: ${e.message || e}`);
+    } finally {
+      setUpdatingStudentId(null);
+    }
+  };
+
+  const handleAutoBalanceRpg = async () => {
+    if (!selectedClassFilter || selectedClassFilter === 'todas') {
+      alert("Selecione uma turma específica no filtro para balancear as classes.");
+      return;
+    }
+    const confirmed = window.confirm(
+      `Deseja distribuir automaticamente as classes RPG para os alunos da turma ${selectedClassFilter}? (1/3 Guerreiro, 1/3 Arqueiro, 1/3 Mago)`
+    );
+    if (!confirmed) return;
+    setIsAutoBalancing(true);
+    try {
+      const res = await adminAutoBalanceRpgClasses(selectedClassFilter);
+      await loadStudents(selectedClassFilter);
+      sound.playPrestige();
+      alert(
+        `Balanceamento concluído para ${res.updatedCount} alunos da turma ${selectedClassFilter}!\n⚔️ Guerreiros: ${res.distribution.warrior} | 🏹 Arqueiros: ${res.distribution.archer} | 🔮 Magos: ${res.distribution.mage}`
+      );
+    } catch (err: any) {
+      alert(`Erro ao balancear classes: ${err.message || err}`);
+    } finally {
+      setIsAutoBalancing(false);
     }
   };
 
@@ -1169,8 +1228,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       <div className="text-xs text-zinc-500 uppercase tracking-wider font-bold mb-1">Status da Aula</div>
                       {isActive ? (
                         <div>
-                          <div className="text-3xl font-black text-emerald-400 tracking-widest">{settings?.activeCode}</div>
-                          <div className="text-xs text-emerald-500/70 mt-1 flex items-center gap-1">
+                          <div className="flex items-center gap-3">
+                            <span className="text-3xl font-black text-emerald-400 tracking-widest">{settings?.activeCode}</span>
+                            {settings?.activeTurma && (
+                              <span className="text-xs px-2.5 py-1 rounded-full font-mono font-bold bg-sky-950 text-sky-300 border border-sky-500/40">
+                                🎒 Turma: {settings.activeTurma}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-xs text-emerald-500/70 mt-1.5 flex items-center gap-1">
                             <Clock className="w-3 h-3" />
                             Expira em: {new Date(settings!.expiresAt!).toLocaleTimeString()}
                           </div>
@@ -1184,19 +1250,67 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       <button
                         onClick={handleClearCode}
                         disabled={isLoading}
-                        className="px-4 py-2 bg-red-500/10 text-red-400 border border-red-500/30 rounded-lg text-sm hover:bg-red-500/20"
+                        className="px-4 py-2 bg-red-500/10 text-red-400 border border-red-500/30 rounded-lg text-sm hover:bg-red-500/20 font-bold transition cursor-pointer"
                       >
                         Encerrar
                       </button>
                     )}
                   </div>
 
+                  {/* Seletor de Turma Obrigatório */}
+                  <div className="space-y-2 bg-zinc-900/60 p-4 rounded-xl border border-zinc-800">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-zinc-200 uppercase tracking-wider font-mono flex items-center gap-1.5">
+                        <GraduationCap className="w-4 h-4 text-purple-400" />
+                        <span>Turma para esta Aula (Obrigatória):</span>
+                      </label>
+                      {targetTurmaForCode && (
+                        <span className="text-[10px] font-mono font-bold text-purple-300 bg-purple-950 px-2 py-0.5 rounded border border-purple-500/40">
+                          {targetTurmaForCode}
+                        </span>
+                      )}
+                    </div>
+                    <select
+                      value={targetTurmaForCode}
+                      onChange={(e) => setTargetTurmaForCode(e.target.value)}
+                      disabled={isLoading}
+                      className="w-full bg-zinc-950 border border-zinc-700 focus:border-purple-400 rounded-xl px-3.5 py-2.5 text-sm text-zinc-100 focus:outline-none focus:ring-1 focus:ring-purple-400/50 transition font-mono font-bold cursor-pointer"
+                    >
+                      <option value="">-- Selecione a Turma que Terá Aula Agora --</option>
+                      {SCHOOL_CLASSES_CONFIG.map((group) => (
+                        <optgroup key={group.grade} label={group.grade}>
+                          {group.classes.map((cls) => (
+                            <option key={cls} value={cls}>
+                              {cls}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </select>
+                    {!targetTurmaForCode && (
+                      <p className="text-[11px] text-amber-400/90 flex items-center gap-1 pt-0.5">
+                        <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+                        <span>Selecione a turma para vincular e travar automaticamente nos alunos ao desbloquear.</span>
+                      </p>
+                    )}
+                  </div>
+
                   <div className="flex gap-2">
-                    <button onClick={() => handleGenerateCode(1)} disabled={isLoading} className="flex-1 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-lg transition disabled:opacity-50">
-                      Gerar (1 Hora)
+                    <button
+                      onClick={() => handleGenerateCode(1)}
+                      disabled={isLoading || !targetTurmaForCode}
+                      className="flex-1 py-2.5 bg-purple-600 hover:bg-purple-500 disabled:bg-zinc-800 disabled:text-zinc-600 disabled:border-zinc-700/50 text-white font-bold rounded-xl transition cursor-pointer disabled:cursor-not-allowed flex items-center justify-center gap-2 border border-purple-500/30 shadow-md"
+                    >
+                      <Key className="w-4 h-4" />
+                      <span>Gerar para {targetTurmaForCode || '...'} (1 Hora)</span>
                     </button>
-                    <button onClick={() => handleGenerateCode(2)} disabled={isLoading} className="flex-1 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-lg transition disabled:opacity-50">
-                      Gerar (2 Horas)
+                    <button
+                      onClick={() => handleGenerateCode(2)}
+                      disabled={isLoading || !targetTurmaForCode}
+                      className="flex-1 py-2.5 bg-purple-600 hover:bg-purple-500 disabled:bg-zinc-800 disabled:text-zinc-600 disabled:border-zinc-700/50 text-white font-bold rounded-xl transition cursor-pointer disabled:cursor-not-allowed flex items-center justify-center gap-2 border border-purple-500/30 shadow-md"
+                    >
+                      <Key className="w-4 h-4" />
+                      <span>Gerar para {targetTurmaForCode || '...'} (2 Horas)</span>
                     </button>
                   </div>
 
@@ -1350,6 +1464,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         <Download className="w-3.5 h-3.5 text-emerald-300" />
                         <span>Exportar Boletim (CSV)</span>
                       </button>
+
+                      {/* Equilíbrio de Classes RPG para a Turma Selecionada */}
+                      {selectedClassFilter && selectedClassFilter !== 'todas' && (
+                        <button
+                          onClick={handleAutoBalanceRpg}
+                          disabled={isAutoBalancing || isStudentsLoading || students.length === 0}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-950/60 hover:bg-amber-900/80 border border-amber-600/40 rounded-lg text-amber-200 text-xs font-bold transition disabled:opacity-50 shadow-sm cursor-pointer"
+                          title="Distribuir 1/3 Guerreiro, 1/3 Arqueiro e 1/3 Mago igualmente entre os alunos desta turma"
+                        >
+                          <Swords className={`w-3.5 h-3.5 text-amber-300 ${isAutoBalancing ? 'animate-spin' : ''}`} />
+                          <span>{isAutoBalancing ? 'Equilibrando...' : `Equilibrar Classes (${selectedClassFilter})`}</span>
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -1358,7 +1485,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       <thead className="bg-zinc-900 text-zinc-300 uppercase font-bold text-xs">
                         <tr>
                           <th className="px-4 py-3 border-b border-zinc-800 rounded-tl-xl">Aluno</th>
-                          <th className="px-4 py-3 border-b border-zinc-800">Turma</th>
+                          <th className="px-3 py-3 border-b border-zinc-800">Turma</th>
+                          <th className="px-3 py-3 border-b border-zinc-800">Classe RPG</th>
                           <th className="px-4 py-3 border-b border-zinc-800 text-right">Nível</th>
                           <th className="px-4 py-3 border-b border-zinc-800 text-right">Bytes</th>
                           <th className="px-4 py-3 border-b border-zinc-800 text-right">PPM</th>
@@ -1369,7 +1497,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       <tbody>
                         {isStudentsLoading ? (
                           <tr>
-                            <td colSpan={7} className="px-4 py-8 text-center text-zinc-500">
+                            <td colSpan={8} className="px-4 py-8 text-center text-zinc-500">
                               <div className="flex items-center justify-center gap-2">
                                 <RefreshCw className="w-5 h-5 animate-spin" />
                                 Carregando dados...
@@ -1378,7 +1506,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           </tr>
                         ) : filteredStudents.length === 0 ? (
                           <tr>
-                            <td colSpan={7} className="px-4 py-8 text-center text-zinc-500">
+                            <td colSpan={8} className="px-4 py-8 text-center text-zinc-500">
                               Nenhum aluno encontrado.
                             </td>
                           </tr>
@@ -1403,7 +1531,45 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                   <span className="text-xs text-zinc-600 font-mono">{s.userId.slice(0,8)}</span>
                                 </div>
                               </td>
-                              <td className="px-4 py-3 font-mono font-bold text-emerald-400">{s.turma || '-'}</td>
+
+                              {/* Turma (Reatribuível pelo Professor) */}
+                              <td className="px-3 py-2.5 font-mono">
+                                <select
+                                  value={s.turma || ''}
+                                  disabled={updatingStudentId === s.userId}
+                                  onChange={(e) => handleUpdateStudentProfile(s.userId, { turma: e.target.value })}
+                                  className="bg-zinc-950/90 border border-emerald-500/40 text-emerald-300 text-xs font-bold font-mono rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-emerald-400 cursor-pointer disabled:opacity-50"
+                                  title="Alterar Turma do Aluno"
+                                >
+                                  <option value="">Sem Turma</option>
+                                  {SCHOOL_CLASSES_CONFIG.map((group) => (
+                                    <optgroup key={group.grade} label={group.grade}>
+                                      {group.classes.map((cls) => (
+                                        <option key={cls} value={cls}>
+                                          {cls}
+                                        </option>
+                                      ))}
+                                    </optgroup>
+                                  ))}
+                                </select>
+                              </td>
+
+                              {/* Classe RPG (Reatribuível pelo Professor) */}
+                              <td className="px-3 py-2.5 font-mono">
+                                <select
+                                  value={s.rpgClass || ''}
+                                  disabled={updatingStudentId === s.userId}
+                                  onChange={(e) => handleUpdateStudentProfile(s.userId, { rpgClass: (e.target.value as RpgClassType) || undefined })}
+                                  className="bg-zinc-950/90 border border-amber-500/40 text-amber-300 text-xs font-bold font-mono rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-amber-400 cursor-pointer disabled:opacity-50"
+                                  title="Alterar Classe RPG do Aluno"
+                                >
+                                  <option value="">Sem Classe</option>
+                                  <option value="warrior">⚔️ Guerreiro</option>
+                                  <option value="archer">🏹 Arqueiro</option>
+                                  <option value="mage">🔮 Mago</option>
+                                </select>
+                              </td>
+
                               <td className="px-4 py-3 text-right font-bold text-purple-400">{s.level}</td>
                               <td className="px-4 py-3 text-right font-mono text-zinc-300">{formatBytes(s.points)}</td>
                               <td className={`px-4 py-3 text-right font-mono font-bold ${s.wpm > 200 ? 'text-amber-400' : ''}`}>

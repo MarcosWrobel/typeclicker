@@ -15,6 +15,7 @@ export const SessionLockOverlay: React.FC<SessionLockOverlayProps> = ({ isLocked
 
   // Fetch settings dynamically to see if there is an active class
   const [hasActiveClass, setHasActiveClass] = useState(false);
+  const [activeTurma, setActiveTurma] = useState<string | null>(null);
   const [showManualInput, setShowManualInput] = useState(false);
 
   useEffect(() => {
@@ -25,6 +26,7 @@ export const SessionLockOverlay: React.FC<SessionLockOverlayProps> = ({ isLocked
       getSystemSettings().then(settings => {
         const active = settings?.activeCode && settings?.expiresAt && new Date(settings.expiresAt) > new Date();
         setHasActiveClass(!!active);
+        setActiveTurma(active && settings?.activeTurma ? settings.activeTurma : null);
       });
     }
   }, [isLocked]);
@@ -68,9 +70,15 @@ export const SessionLockOverlay: React.FC<SessionLockOverlayProps> = ({ isLocked
             
             {isFormVisible ? (
               <>
+                {activeTurma && (
+                  <div className="mb-3 px-3 py-1.5 rounded-xl bg-purple-950/60 border border-purple-500/40 text-purple-300 text-xs font-mono font-bold flex items-center justify-center gap-1.5">
+                    <span>🎒 Aula da Turma</span>
+                    <span className="text-white bg-purple-800/80 px-2 py-0.5 rounded-md">{activeTurma}</span>
+                  </div>
+                )}
                 <p className="text-zinc-400 text-center text-sm mb-6">
                   {hasActiveClass 
-                    ? "Uma aula está em andamento. Insira o código exibido no quadro pelo professor para sincronizar sua sessão."
+                    ? "Uma aula está em andamento. Insira o código de 4 dígitos exibido no quadro para liberar seu computador e vincular sua turma."
                     : "Insira o código de 4 dígitos informado pelo professor para liberar seu computador."}
                 </p>
                 

@@ -15,7 +15,9 @@ import {
   LogIn,
   Shield,
   Settings,
-  Sword
+  Sword,
+  Lock,
+  AlertCircle
 } from 'lucide-react';
 import { sound } from '../utils/audio';
 import { GameState } from '../types';
@@ -59,6 +61,7 @@ interface StudentModalProps {
   currentClass?: string;
   currentRpgClass?: RpgClassType;
   onSave: (avatar: string, nickname: string, studentClass: string, rpgClass?: RpgClassType) => void;
+  onSwitchRpgClass?: (newClass: RpgClassType) => Promise<boolean> | boolean;
   onImportState: (state: GameState) => void;
   state: GameState;
   onClose?: () => void;
@@ -75,6 +78,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
   currentClass = '',
   currentRpgClass,
   onSave,
+  onSwitchRpgClass,
   onImportState,
   state,
   onClose,
@@ -83,15 +87,14 @@ export const StudentModal: React.FC<StudentModalProps> = ({
   const [activeTab, setActiveTab] = useState<StudentModalTab>('identity');
   const [selectedAvatar, setSelectedAvatar] = useState<string>(currentAvatar || '🐧');
   const [nickname, setNickname] = useState<string>(currentNickname || state.studentNickname || '');
-  const [selectedRpgClass, setSelectedRpgClass] = useState<RpgClassType>(currentRpgClass || state.rpgClass || 'warrior');
   
-  // Turma selecionada
-  const initialTurma = currentClass || state.studentClass || '';
-  const isCustomInitial = initialTurma !== '' && !ALL_STANDARD_CLASSES.includes(initialTurma);
-  
-  const [selectedTurma, setSelectedTurma] = useState<string>(initialTurma);
-  const [isCustomMode, setIsCustomMode] = useState<boolean>(isCustomInitial);
-  const [customTurma, setCustomTurma] = useState<string>(isCustomInitial ? initialTurma : '');
+  const hasAssignedClass = Boolean(state.rpgClass);
+  const [selectedInitialRpg, setSelectedInitialRpg] = useState<RpgClassType>(state.rpgClass || 'warrior');
+  const [switchConfirmClass, setSwitchConfirmClass] = useState<RpgClassType | null>(null);
+  const [isSwitching, setIsSwitching] = useState(false);
+
+  const fragmentsBalance = state.cosmetics?.quantumFragments || 0;
+  const canCancel = Boolean(state.studentClass && state.studentClass.trim() !== '');
 
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [toastMsg, setToastMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
@@ -103,17 +106,8 @@ export const StudentModal: React.FC<StudentModalProps> = ({
     if (isOpen) {
       setSelectedAvatar(state.studentAvatar || '🐧');
       setNickname(state.studentNickname || '');
-      setSelectedRpgClass(state.rpgClass || 'warrior');
-      const cls = state.studentClass || '';
-      if (cls && !ALL_STANDARD_CLASSES.includes(cls)) {
-        setSelectedTurma('');
-        setIsCustomMode(true);
-        setCustomTurma(cls);
-      } else {
-        setSelectedTurma(cls);
-        setIsCustomMode(false);
-        setCustomTurma('');
-      }
+      setSelectedInitialRpg(state.rpgClass || 'warrior');
+      setSwitchConfirmClass(null);
     }
   }, [isOpen, state.studentAvatar, state.studentNickname, state.studentClass, state.rpgClass]);
 
@@ -124,18 +118,29 @@ export const StudentModal: React.FC<StudentModalProps> = ({
     setTimeout(() => setToastMsg(null), 3000);
   };
 
-  const handleSelectClass = (cls: string) => {
-    setSelectedTurma(cls);
-    setIsCustomMode(false);
-    sound.playKeyStroke();
+  const handleConfirmSwitch = async () => {
+    if (!switchConfirmClass || !onSwitchRpgClass) return;
+    setIsSwitching(true);
+    try {
+      const ok = await onSwitchRpgClass(switchConfirmClass);
+      if (ok) {
+        showToast('Especialização alterada com sucesso! ⚔️', 'success');
+        setSwitchConfirmClass(null);
+      } else {
+        showToast('Fragmentos Quânticos insuficientes (10 necessários)!', 'error');
+      }
+    } catch {
+      showToast('Erro ao trocar especialização.', 'error');
+    } finally {
+      setIsSwitching(false);
+    }
   };
 
   const handleSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     sound.playUpgrade();
-    
-    const finalTurma = isCustomMode ? customTurma.trim() : selectedTurma;
-    onSave(selectedAvatar, nickname.trim(), finalTurma, selectedRpgClass);
+    const finalRpg = hasAssignedClass ? state.rpgClass : selectedInitialRpg;
+    onSave(selectedAvatar, nickname.trim(), state.studentClass || '', finalRpg);
   };
 
   const handleSelectAvatar = (emoji: string) => {
@@ -194,9 +199,11 @@ export const StudentModal: React.FC<StudentModalProps> = ({
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  const effectiveTurma = state.studentClass || '';
+  const canSubmit = Boolean(nickname.trim().length > 0);
   const currentAvatarObj = AVATAR_OPTIONS.find((a) => a.emoji === selectedAvatar) || AVATAR_OPTIONS[0];
-  const activeClassDisplay = isCustomMode ? customTurma : selectedTurma;
-  const currentRpgObj = RPG_CLASSES[selectedRpgClass] || RPG_CLASSES.warrior;
+  const activeClassDisplay = effectiveTurma;
+  const currentRpgObj = state.rpgClass ? RPG_CLASSES[state.rpgClass] : null;
 
   return (
     <AnimatePresence>
@@ -255,10 +262,10 @@ export const StudentModal: React.FC<StudentModalProps> = ({
 
               {/* Badge de Classe RPG no Topo */}
               <div className="hidden sm:flex items-center gap-2 bg-[#0d1017] px-3 py-1.5 rounded-xl border border-zinc-700/60 flex-shrink-0">
-                <span className="text-xl">{currentRpgObj.icon}</span>
+                <span className="text-xl">{currentRpgObj ? currentRpgObj.icon : '⏳'}</span>
                 <div className="text-left">
                   <span className="block text-[10px] text-zinc-400 uppercase font-mono font-bold">Classe</span>
-                  <span className="block text-xs font-black text-amber-300">{currentRpgObj.name}</span>
+                  <span className="block text-xs font-black text-amber-300">{currentRpgObj ? currentRpgObj.name : 'Aguardando Prof.'}</span>
                 </div>
               </div>
             </div>
@@ -295,7 +302,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
               }`}
             >
               <Sword className="w-3.5 h-3.5 text-amber-400" />
-              <span>2. Classe RPG ({currentRpgObj.name})</span>
+              <span>2. Classe RPG {currentRpgObj ? `(${currentRpgObj.name})` : ''}</span>
             </button>
 
             <button
@@ -344,83 +351,65 @@ export const StudentModal: React.FC<StudentModalProps> = ({
                     </div>
                   </div>
 
-                  {/* Seleção de Turma Compacta */}
+                  {/* Informações da Turma Escolar (Vinculada por Sessão) */}
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-bold text-zinc-200 uppercase tracking-wider font-mono flex items-center gap-1.5">
                         <GraduationCap className="w-3.5 h-3.5 text-sky-400" />
-                        <span>Selecione sua Turma:</span>
+                        <span>Turma da Sessão Escolar:</span>
                       </label>
-                      {activeClassDisplay ? (
-                        <span className="text-[10px] font-mono text-sky-300 font-bold bg-sky-950/80 px-2 py-0.5 rounded-full border border-sky-500/40 flex items-center gap-1">
-                          <Check className="w-2.5 h-2.5 text-sky-400 stroke-[3]" />
-                          {activeClassDisplay}
+                      {state.studentClass ? (
+                        <span className="text-[10px] font-mono text-emerald-300 font-bold bg-emerald-950/80 px-2 py-0.5 rounded-full border border-emerald-500/40 flex items-center gap-1">
+                          <Check className="w-2.5 h-2.5 text-emerald-400 stroke-[3]" />
+                          {state.studentClass}
                         </span>
                       ) : (
-                        <span className="text-[10px] font-mono text-amber-400/90">*Escolha abaixo</span>
+                        <span className="text-[10px] font-mono text-amber-400/90 font-bold">*Aguardando Código</span>
                       )}
                     </div>
 
-                    <div className="bg-[#090b10] p-2.5 sm:p-3 rounded-2xl border border-zinc-800 space-y-2">
-                      {SCHOOL_CLASSES_CONFIG.map((group) => (
-                        <div key={group.grade} className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
-                          <span className="text-[10px] font-mono font-bold text-zinc-400 w-14 sm:w-16 flex-shrink-0">
-                            {group.grade}:
+                    {state.studentClass ? (
+                      <div className="bg-[#090b10] p-3 rounded-2xl border border-emerald-500/40 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2.5">
+                            <div className="p-2 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-400">
+                              <Lock className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <span className="text-[10px] font-mono font-bold uppercase text-emerald-400 block tracking-wider">
+                                Turma Vinculada pela Aula
+                              </span>
+                              <span className="text-sm font-black text-white font-mono">
+                                {state.studentClass}
+                              </span>
+                            </div>
+                          </div>
+                          <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-emerald-950 text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
+                            <Check className="w-3 h-3 stroke-[3]" /> Sincronizada
                           </span>
-                          <div className="grid grid-cols-4 sm:flex sm:flex-wrap gap-1 flex-1">
-                            {group.classes.map((cls) => {
-                              const isSelected = !isCustomMode && selectedTurma === cls;
-                              return (
-                                <button
-                                  key={cls}
-                                  type="button"
-                                  onClick={() => handleSelectClass(cls)}
-                                  className={`h-8 sm:h-8.5 px-2.5 rounded-lg font-mono text-[11px] font-bold transition cursor-pointer flex items-center justify-center gap-1 select-none ${
-                                    isSelected
-                                      ? 'bg-sky-500/25 text-sky-200 border border-sky-400 shadow-[0_0_10px_rgba(56,189,248,0.4)] scale-102'
-                                      : 'bg-[#141822] hover:bg-zinc-800 text-zinc-300 border border-zinc-700/60 hover:border-zinc-500'
-                                  }`}
-                                >
-                                  {isSelected && <Check className="w-3 h-3 text-sky-400 stroke-[3]" />}
-                                  <span>{cls}</span>
-                                </button>
-                              );
-                            })}
+                        </div>
+                        <p className="text-[11px] text-zinc-400 leading-snug border-t border-zinc-800/80 pt-2 flex items-center gap-1.5">
+                          <Lock className="w-3.5 h-3.5 text-zinc-500 flex-shrink-0" />
+                          <span>Sua turma é vinculada automaticamente pelo código de aula iniciado pelo <strong>Professor Marcos</strong>.</span>
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="bg-[#090b10] p-3 rounded-2xl border border-amber-500/30 space-y-2">
+                        <div className="flex items-center gap-2.5">
+                          <div className="p-2 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-400">
+                            <Lock className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <span className="text-[10px] font-mono font-bold uppercase text-amber-400 block tracking-wider">
+                              Aguardando Código da Aula
+                            </span>
+                            <span className="text-xs text-zinc-300">
+                              Sua turma será vinculada automaticamente assim que você digitar o código da aula no laboratório.
+                            </span>
                           </div>
                         </div>
-                      ))}
-
-                      {/* Outra Turma */}
-                      <div className="pt-1.5 border-t border-zinc-800/80 flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsCustomMode((prev) => !prev);
-                            if (!isCustomMode) setSelectedTurma('');
-                            sound.playKeyStroke();
-                          }}
-                          className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition cursor-pointer inline-flex items-center gap-1 ${
-                            isCustomMode
-                              ? 'bg-sky-950 text-sky-300 border border-sky-500/60'
-                              : 'bg-zinc-900/80 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 border border-zinc-800'
-                          }`}
-                        >
-                          <span>✏️ Outra turma</span>
-                        </button>
-
-                        {isCustomMode && (
-                          <input
-                            type="text"
-                            value={customTurma}
-                            onChange={(e) => setCustomTurma(e.target.value)}
-                            placeholder="Digite sua turma (ex: Robótica, Sala de Recursos...)"
-                            maxLength={25}
-                            autoFocus
-                            className="flex-1 bg-[#12151d] border border-sky-500/80 rounded-lg px-2.5 py-1 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-sky-400"
-                          />
-                        )}
                       </div>
-                    </div>
+                    )}
                   </div>
 
                   {/* Escolha do Avatar em Grade Compacta */}
@@ -467,61 +456,155 @@ export const StudentModal: React.FC<StudentModalProps> = ({
               {/* ABA 2: CLASSE RPG */}
               {activeTab === 'rpg' && (
                 <div className="space-y-3">
-                  <div className="bg-[#090b10] p-2.5 rounded-xl border border-zinc-800 text-xs text-zinc-300 flex items-center justify-between">
-                    <span>Escolha sua especialização de combate para a <strong>Raid Coletiva</strong> e bônus de treino:</span>
-                    <span className="text-[10px] font-mono font-bold text-amber-300 bg-amber-950/60 px-2 py-0.5 rounded border border-amber-500/40">
-                      3 Classes Únicas
-                    </span>
+                  <div className="bg-[#090b10] p-3 rounded-2xl border border-zinc-800 space-y-2">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-2">
+                        <Sword className="w-4 h-4 text-amber-400" />
+                        <span className="text-xs font-bold text-white font-mono uppercase tracking-wider">
+                          Especializações de Combate da Turma
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-mono font-bold text-amber-300 bg-amber-950/80 px-2.5 py-0.5 rounded-full border border-amber-500/40 flex items-center gap-1">
+                          <Sparkles className="w-3 h-3 text-amber-400" />
+                          <span>{fragmentsBalance} Fragmentos ✨</span>
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-zinc-400 leading-relaxed">
+                      {!hasAssignedClass
+                        ? 'Escolha sua especialização inicial gratuita para a Raid Coletiva. Cada classe possui bônus passivos e estilo único de combate!'
+                        : 'Sua especialização de combate está ativa. Você pode trocar de classe na Forja Quântica gastando 10 Fragmentos Quânticos ✨.'}
+                    </p>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                    {(Object.values(RPG_CLASSES)).map((rpg) => {
-                      const isSelected = selectedRpgClass === rpg.id;
-                      return (
-                        <button
-                          key={rpg.id}
-                          type="button"
-                          onClick={() => {
-                            setSelectedRpgClass(rpg.id);
-                            sound.playKeyStroke();
-                          }}
-                          className={`p-3 rounded-2xl border text-left transition cursor-pointer flex flex-col justify-between relative ${
-                            isSelected
-                              ? `${rpg.badgeBg} ${rpg.badgeBorder} shadow-lg ring-1 ring-white/10 scale-[1.02]`
-                              : 'bg-[#0b0e14] border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900/60'
-                          }`}
-                        >
-                          <div>
-                            <div className="flex items-center justify-between gap-1 mb-1">
-                              <span className="text-2xl">{rpg.icon}</span>
-                              <span className={`text-[10px] font-mono font-black uppercase px-2 py-0.5 rounded-full border ${
-                                isSelected ? `${rpg.badgeBorder} ${rpg.badgeText} bg-black/40` : 'text-zinc-500 border-zinc-800'
-                              }`}>
-                                {rpg.title}
-                              </span>
-                            </div>
-                            <h4 className="text-sm font-black text-white">{rpg.name}</h4>
-                            <p className="text-[11px] text-zinc-400 mt-0.5 leading-tight">{rpg.tagline}</p>
-                          </div>
-
-                          <div className="mt-2.5 pt-2 border-t border-white/10 space-y-1">
-                            {rpg.passives.map((p) => (
-                              <div key={p.title} className="text-[10px] text-zinc-300 flex items-start gap-1">
-                                <span className="flex-shrink-0">{p.icon}</span>
-                                <span className="font-semibold text-white leading-tight">{p.title}</span>
+                  {!hasAssignedClass ? (
+                    /* Escolha Inicial Gratuita */
+                    <div className="space-y-2">
+                      <div className="p-2.5 bg-emerald-950/40 border border-emerald-500/40 rounded-xl flex items-center gap-2 text-xs text-emerald-300">
+                        <Sparkles className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                        <span><strong>1ª Escolha Gratuita:</strong> Selecione sua classe de combate inicial:</span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                        {(Object.values(RPG_CLASSES)).map((rpg) => {
+                          const isSelected = selectedInitialRpg === rpg.id;
+                          return (
+                            <button
+                              key={rpg.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedInitialRpg(rpg.id);
+                                sound.playKeyStroke();
+                              }}
+                              className={`p-3 rounded-2xl border text-left transition cursor-pointer flex flex-col justify-between relative ${
+                                isSelected
+                                  ? `${rpg.badgeBg} ${rpg.badgeBorder} shadow-lg ring-2 ring-emerald-400/60 scale-[1.02]`
+                                  : 'bg-[#090b10] border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900/60'
+                              }`}
+                            >
+                              <div>
+                                <div className="flex items-center justify-between gap-1 mb-1">
+                                  <span className="text-2xl">{rpg.icon}</span>
+                                  <span className={`text-[10px] font-mono font-black uppercase px-2 py-0.5 rounded-full border ${
+                                    isSelected ? `${rpg.badgeBorder} ${rpg.badgeText} bg-black/50` : 'text-zinc-500 border-zinc-800'
+                                  }`}>
+                                    {isSelected ? 'Selecionada' : rpg.title}
+                                  </span>
+                                </div>
+                                <h4 className="text-sm font-black text-white">{rpg.name}</h4>
+                                <p className="text-[11px] text-zinc-400 mt-0.5 leading-tight">{rpg.tagline}</p>
                               </div>
-                            ))}
-                          </div>
 
-                          {isSelected && (
-                            <span className="absolute -top-1.5 -right-1.5 bg-amber-400 text-black p-0.5 rounded-full shadow-md">
-                              <Check className="w-3 h-3" strokeWidth={4} />
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
+                              <div className="mt-2.5 pt-2 border-t border-white/10 space-y-1">
+                                {rpg.passives.map((p) => (
+                                  <div key={p.title} className="text-[10px] text-zinc-300 flex items-start gap-1">
+                                    <span className="flex-shrink-0">{p.icon}</span>
+                                    <span className="font-semibold text-white leading-tight">{p.title}</span>
+                                  </div>
+                                ))}
+                              </div>
+
+                              {isSelected && (
+                                <span className="absolute -top-1.5 -right-1.5 bg-emerald-400 text-black p-0.5 rounded-full shadow-md">
+                                  <Check className="w-3 h-3 stroke-[3]" />
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : (
+                    /* Já possui classe: Exibe ativa e botão de troca por 10 fragmentos */
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                      {(Object.values(RPG_CLASSES)).map((rpg) => {
+                        const isAssigned = state.rpgClass === rpg.id;
+                        const canAfford = fragmentsBalance >= 10;
+                        return (
+                          <div
+                            key={rpg.id}
+                            className={`p-3 rounded-2xl border text-left flex flex-col justify-between relative transition-all ${
+                              isAssigned
+                                ? `${rpg.badgeBg} ${rpg.badgeBorder} shadow-lg ring-2 ring-amber-400/50 scale-[1.02]`
+                                : 'bg-[#090b10]/90 border-zinc-800/80'
+                            }`}
+                          >
+                            <div>
+                              <div className="flex items-center justify-between gap-1 mb-1">
+                                <span className="text-2xl">{rpg.icon}</span>
+                                <span className={`text-[10px] font-mono font-black uppercase px-2 py-0.5 rounded-full border ${
+                                  isAssigned ? `${rpg.badgeBorder} ${rpg.badgeText} bg-black/50 shadow-sm` : 'text-zinc-500 border-zinc-800'
+                                }`}>
+                                  {isAssigned ? '🛡️ Sua Classe' : rpg.title}
+                                </span>
+                              </div>
+                              <h4 className={`text-sm font-black ${isAssigned ? 'text-white' : 'text-zinc-300'}`}>{rpg.name}</h4>
+                              <p className="text-[11px] text-zinc-400 mt-0.5 leading-tight">{rpg.tagline}</p>
+                            </div>
+
+                            <div className="mt-2.5 pt-2 border-t border-white/10 space-y-1">
+                              {rpg.passives.map((p) => (
+                                <div key={p.title} className="text-[10px] text-zinc-300 flex items-start gap-1">
+                                  <span className="flex-shrink-0">{p.icon}</span>
+                                  <span className="font-semibold text-white leading-tight">{p.title}</span>
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Botão de Troca ou Badge Ativa */}
+                            <div className="mt-3 pt-2.5 border-t border-zinc-800/80">
+                              {isAssigned ? (
+                                <div className="text-center py-1.5 bg-amber-500/15 border border-amber-500/30 rounded-xl text-[11px] font-bold text-amber-300 flex items-center justify-center gap-1.5">
+                                  <Shield className="w-3.5 h-3.5 text-amber-400" />
+                                  <span>Classe Ativa</span>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  disabled={!canAfford}
+                                  onClick={() => setSwitchConfirmClass(rpg.id)}
+                                  className={`w-full py-1.5 px-2 rounded-xl text-[11px] font-mono font-bold transition flex items-center justify-center gap-1.5 ${
+                                    canAfford
+                                      ? 'bg-amber-500 hover:bg-amber-400 text-zinc-950 shadow-md cursor-pointer'
+                                      : 'bg-zinc-800/80 text-zinc-500 border border-zinc-700/50 cursor-not-allowed'
+                                  }`}
+                                >
+                                  <Sparkles className="w-3 h-3 text-amber-900" />
+                                  <span>{canAfford ? `Trocar (10 ✨)` : `Faltam ${10 - fragmentsBalance} ✨`}</span>
+                                </button>
+                              )}
+                            </div>
+
+                            {isAssigned && (
+                              <span className="absolute -top-1.5 -right-1.5 bg-amber-400 text-black p-0.5 rounded-full shadow-md">
+                                <Check className="w-3 h-3 stroke-[3]" />
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -670,7 +753,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
 
             {/* Rodapé Fixo com Botão Sempre Visível */}
             <div className="p-3 sm:p-4 border-t border-[#242c3d] bg-[#0e1118] flex items-center justify-end gap-2.5 flex-shrink-0">
-              {onClose && (
+              {canCancel && onClose && (
                 <button
                   type="button"
                   onClick={onClose}
@@ -681,15 +764,89 @@ export const StudentModal: React.FC<StudentModalProps> = ({
               )}
               <motion.button
                 type="submit"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.97 }}
-                className="flex-1 py-2.5 sm:py-3 px-5 rounded-xl font-mono text-sm font-black flex items-center justify-center gap-2 transition shadow-lg bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-teal-400 text-zinc-950 cursor-pointer shadow-[0_0_20px_rgba(16,185,129,0.35)]"
+                disabled={!canSubmit}
+                whileHover={canSubmit ? { scale: 1.02 } : {}}
+                whileTap={canSubmit ? { scale: 0.97 } : {}}
+                className={`flex-1 py-2.5 sm:py-3 px-5 rounded-xl font-mono text-sm font-black flex items-center justify-center gap-2 transition shadow-lg ${
+                  canSubmit
+                    ? 'bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-teal-400 text-zinc-950 cursor-pointer shadow-[0_0_20px_rgba(16,185,129,0.35)]'
+                    : 'bg-zinc-800 text-zinc-500 cursor-not-allowed opacity-60 border border-zinc-700/50'
+                }`}
               >
-                <span>{selectedAvatar} Salvar Perfil e Jogar</span>
-                <ArrowRight className="w-4 h-4" />
+                <span>{canSubmit ? `${selectedAvatar} Salvar Perfil e Jogar` : '⚠️ Digite seu Apelido para Continuar'}</span>
+                {canSubmit && <ArrowRight className="w-4 h-4" />}
               </motion.button>
             </div>
           </form>
+
+          {/* Modal de Confirmação de Troca de Classe */}
+          <AnimatePresence>
+            {switchConfirmClass && (
+              <div className="absolute inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.9, opacity: 0 }}
+                  className="bg-[#151922] border-2 border-amber-500/60 rounded-2xl p-5 max-w-md w-full shadow-[0_0_30px_rgba(245,158,11,0.3)] space-y-4"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-2xl flex-shrink-0">
+                      {RPG_CLASSES[switchConfirmClass]?.icon}
+                    </div>
+                    <div>
+                      <h3 className="text-base font-black text-white">
+                        Trocar para {RPG_CLASSES[switchConfirmClass]?.name}?
+                      </h3>
+                      <p className="text-xs text-zinc-400">
+                        Esta alteração consome <strong>10 Fragmentos Quânticos ✨</strong>.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-[#090b10] p-3 rounded-xl border border-zinc-800 text-xs space-y-1.5 font-mono">
+                    <div className="flex justify-between text-zinc-400">
+                      <span>Saldo Atual:</span>
+                      <span className="text-amber-300 font-bold">{fragmentsBalance} ✨</span>
+                    </div>
+                    <div className="flex justify-between text-red-400">
+                      <span>Custo da Troca:</span>
+                      <span className="font-bold">-10 ✨</span>
+                    </div>
+                    <div className="flex justify-between text-emerald-400 border-t border-zinc-800 pt-1.5">
+                      <span>Saldo Restante:</span>
+                      <span className="font-bold">{fragmentsBalance - 10} ✨</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-1">
+                    <button
+                      type="button"
+                      disabled={isSwitching}
+                      onClick={() => setSwitchConfirmClass(null)}
+                      className="flex-1 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-bold text-zinc-300 transition cursor-pointer"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isSwitching}
+                      onClick={handleConfirmSwitch}
+                      className="flex-1 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-xs font-black text-zinc-950 transition flex items-center justify-center gap-1.5 shadow-lg shadow-amber-500/20 cursor-pointer"
+                    >
+                      {isSwitching ? (
+                        <span>Trocando...</span>
+                      ) : (
+                        <>
+                          <Sparkles className="w-3.5 h-3.5" />
+                          <span>Confirmar (10 ✨)</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </motion.div>
+              </div>
+            )}
+          </AnimatePresence>
         </motion.div>
       </div>
     </AnimatePresence>

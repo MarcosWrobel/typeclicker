@@ -74,7 +74,9 @@ export const INITIAL_STATE: GameState = {
   raceWins: 0,
   racesParticipated: 0,
   bestRaceWpm: 0,
-  accessibility: { ...DEFAULT_ACCESSIBILITY }
+  accessibility: { ...DEFAULT_ACCESSIBILITY },
+  isClassLocked: false,
+  isRpgClassLocked: false
 };
 
 export function sanitizeAchievements(raw?: Record<string, any> | null): Record<string, number> {
@@ -427,7 +429,9 @@ export function loadSavedState(userId?: string | null): GameState {
       completedDrillSessions: Number.isFinite(parsed.completedDrillSessions) ? parsed.completedDrillSessions : 0,
       categoriesExplored: Array.isArray(parsed.categoriesExplored) ? parsed.categoriesExplored : ['iniciante'],
       quests: syncQuestsState(parsed.quests),
-      accessibility: sanitizeAccessibility(parsed.accessibility)
+      accessibility: sanitizeAccessibility(parsed.accessibility),
+      isClassLocked: Boolean(parsed.isClassLocked),
+      isRpgClassLocked: Boolean(parsed.isRpgClassLocked)
     };
   } catch (e) {
     console.warn('Falha ao carregar estado salvo:', e);

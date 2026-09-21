@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { GameState, CategoryId, FloatingText, UpgradeDef, DrillSession, AccessibilitySettings, RpgClassType } from './types';
+import { RPG_CLASSES } from './types/rpgClass';
 import { loadSavedState, saveState, clearSavedState, INITIAL_STATE, sanitizeCosmetics, DEFAULT_ARENA_STATS, DEFAULT_ACCESSIBILITY } from './utils/storage';
 import { DEFAULT_COSMETICS, PlayerCosmetics } from './types/cosmetics';
 import { TERMINAL_THEMES } from './constants/themes';
@@ -138,6 +139,25 @@ export default function App() {
         localStorage.setItem('school_session_unlock', settings.expiresAt);
         localStorage.setItem('school_session_code', code);
         setIsAppLocked(false);
+
+        // Se a sessão do professor possui uma turma vinculada (ex: '6º 1'),
+        // vincula imediatamente a turma do aluno no estado, localStorage e nuvem!
+        if (settings.activeTurma && settings.activeTurma.trim() !== '') {
+          const targetTurma = settings.activeTurma.trim();
+          setState((prev) => {
+            const updated: GameState = {
+              ...prev,
+              studentClass: targetTurma,
+              isClassLocked: true
+            };
+            saveState(updated, auth.currentUser?.uid);
+            if (auth.currentUser) {
+              saveProgressToCloud(updated).catch(console.error);
+            }
+            return updated;
+          });
+          spawnFloatingText(`🎒 Vinculado à Turma: ${targetTurma}! 🚀`, 'bonus');
+        }
         return true;
       }
       return false;
@@ -167,6 +187,9 @@ export default function App() {
             studentName: currentUser.displayName || res.saveState.studentName || 'Aluno',
             studentNickname: loadedNickname,
             studentClass: loadedClass,
+            rpgClass: res.saveState.rpgClass || undefined,
+            isClassLocked: res.saveState.isClassLocked ?? (Boolean(loadedClass)),
+            isRpgClassLocked: res.saveState.isRpgClassLocked ?? (Boolean(res.saveState.rpgClass)),
             cosmetics: sanitizeCosmetics(res.saveState.cosmetics),
             arenaStats: res.saveState.arenaStats || INITIAL_STATE.arenaStats
           };
@@ -207,8 +230,8 @@ export default function App() {
           setCharIndex(0);
           setCurrentWord(getRandomWord(finalState.selectedCategory || INITIAL_STATE.selectedCategory));
           
-          // Se ainda não definiu apelido ou turma, abre o modal para configurar
-          if (!loadedNickname || !loadedClass) {
+          // Se ainda não escolheu apelido ou classe RPG inicial, abre o modal de perfil
+          if (!loadedNickname || !res.saveState.rpgClass) {
             setIsStudentModalOpen(true);
           }
         } else {
@@ -1602,12 +1625,15 @@ export default function App() {
   // Save student credentials from onboarding or header
   const handleSaveStudentCredentials = useCallback((avatar: string, nickname: string, studentClass: string, rpgClass?: RpgClassType) => {
     setState((prev) => {
+      const isFirstRpgPick = !prev.rpgClass && !!rpgClass;
+      const effectiveRpg = rpgClass || prev.rpgClass || undefined;
       const updated: GameState = {
         ...prev,
         studentAvatar: avatar,
         studentNickname: nickname,
-        studentClass: studentClass,
-        rpgClass: rpgClass || prev.rpgClass || 'warrior'
+        studentClass: studentClass || prev.studentClass || '',
+        rpgClass: effectiveRpg,
+        isRpgClassLocked: isFirstRpgPick ? true : prev.isRpgClassLocked
       };
       saveState(updated, auth.currentUser?.uid);
       if (auth.currentUser) {
@@ -1621,6 +1647,40 @@ export default function App() {
     setTimeout(() => {
       typingInputRef.current?.focus();
     }, 120);
+  }, [spawnFloatingText]);
+
+  // Troca de Classe RPG paga com 10 Fragmentos Quânticos
+  const handleSwitchRpgClass = useCallback(async (newClass: RpgClassType): Promise<boolean> => {
+    const COST = 10;
+    const currentFragments = stateRef.current.cosmetics?.quantumFragments || 0;
+    if (currentFragments < COST) {
+      spawnFloatingText(`⚠️ Fragmentos insuficientes (${currentFragments}/${COST} ✨)!`, 'error');
+      return false;
+    }
+
+    sound.playUpgrade();
+    setState((prev) => {
+      const prevCosmetics = prev.cosmetics || { ...DEFAULT_COSMETICS };
+      const updatedCosmetics = {
+        ...prevCosmetics,
+        quantumFragments: Math.max(0, (prevCosmetics.quantumFragments || 0) - COST)
+      };
+      const updated: GameState = {
+        ...prev,
+        rpgClass: newClass,
+        isRpgClassLocked: true,
+        cosmetics: updatedCosmetics
+      };
+      saveState(updated, auth.currentUser?.uid);
+      if (auth.currentUser) {
+        saveProgressToCloud(updated).catch(console.error);
+      }
+      return updated;
+    });
+
+    const className = RPG_CLASSES[newClass]?.name || newClass;
+    spawnFloatingText(`✨ -${COST} Frag. Quânticos | Especialização alterada para ${className}! ⚔️`, 'bonus');
+    return true;
   }, [spawnFloatingText]);
 
   // Import backup state
@@ -2226,6 +2286,7 @@ export default function App() {
         currentRpgClass={state.rpgClass}
         onClose={() => setIsStudentModalOpen(false)}
         onSave={handleSaveStudentCredentials}
+        onSwitchRpgClass={handleSwitchRpgClass}
         onImportState={handleImportState}
         onLogout={async () => {
           if (user) {
