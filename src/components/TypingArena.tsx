@@ -342,10 +342,12 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
 
     // Se o Linux emitir e.key === 'Dead' ou uma tecla de acento isolada
     if (e.key === 'Dead' || isAccentKey(e.key)) {
+      e.preventDefault();
       const resolved = resolveDeadKey(e.nativeEvent, currentWord[charIndex]);
       if (resolved) {
         onDeadKey(resolved);
       }
+      return;
     }
   };
 

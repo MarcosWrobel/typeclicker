@@ -13,7 +13,7 @@ import { sound } from '../utils/audio';
 import { formatBytes } from '../utils/formatting';
 import { ClassroomRace } from '../types/race';
 import { claimRaceFinish } from '../services/raceService';
-import { combineAccent, isAccentKey, resolveDeadKey } from '../utils/keyboardAccents';
+import { combineAccent, isAccentKey, resolveDeadKey, getAccentDisplayName } from '../utils/keyboardAccents';
 
 interface ClassroomRaceArenaProps {
   isOpen: boolean;
@@ -350,6 +350,7 @@ export const ClassroomRaceArena: React.FC<ClassroomRaceArenaProps> = ({
     }
 
     if (e.key === 'Dead' || isAccentKey(e.key)) {
+      e.preventDefault();
       const targetChar = race.text[charIndexRef.current];
       const resolved = resolveDeadKey(e.nativeEvent, targetChar);
       if (resolved) {
@@ -536,8 +537,8 @@ export const ClassroomRaceArena: React.FC<ClassroomRaceArenaProps> = ({
             }`}
           >
             {pendingAccent && (
-              <div className="inline-block px-3 py-1 mb-3 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/50 text-xs font-bold font-mono animate-pulse">
-                ⌨️ Acento ativo: [{pendingAccent}] (digite a vogal correspondente)
+              <div className="inline-block px-3 py-1 mb-3 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/50 text-xs font-bold font-mono animate-pulse shadow-[0_0_12px_rgba(245,158,11,0.25)]">
+                ⌨️ {getAccentDisplayName(pendingAccent)} (digite a vogal correspondente)
               </div>
             )}
 

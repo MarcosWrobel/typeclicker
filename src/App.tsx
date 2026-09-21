@@ -562,6 +562,7 @@ export default function App() {
         activeRpgFloor !== null ||
         isArenaOpen ||
         isRaceArenaOpen ||
+        isRaidArenaOpen ||
         isConverterOpen ||
         isAdminOpen ||
         activeChallengeLevel !== null ||
@@ -591,6 +592,7 @@ export default function App() {
     activeRpgFloor,
     isArenaOpen,
     isRaceArenaOpen,
+    isRaidArenaOpen,
     isConverterOpen,
     isAdminOpen,
     activeChallengeLevel,
@@ -977,6 +979,7 @@ export default function App() {
     if (currentPending) {
       finalChar = combineAccent(currentPending, rawChar);
       setPendingAccent(null);
+      pendingAccentRef.current = null;
     }
 
     const typedChar = finalChar.toLocaleLowerCase('pt-BR');
@@ -1335,7 +1338,8 @@ export default function App() {
         isAdminOpen ||
         activeChallengeLevel !== null ||
         activeFocusDrill !== null ||
-        isRaceArenaOpen
+        isRaceArenaOpen ||
+        isRaidArenaOpen
       ) {
         return;
       }
@@ -1356,6 +1360,7 @@ export default function App() {
         if (pendingAccentRef.current) {
           e.preventDefault();
           setPendingAccent(null);
+          pendingAccentRef.current = null;
         }
         return;
       }
@@ -1367,6 +1372,7 @@ export default function App() {
         const resolved = resolveDeadKey(e, word[index]);
         if (resolved) {
           setPendingAccent(resolved);
+          pendingAccentRef.current = resolved;
         }
         return;
       }
@@ -1401,6 +1407,7 @@ export default function App() {
     handleTypeChar,
     isArenaOpen,
     isRaceArenaOpen,
+    isRaidArenaOpen,
     isMetricsOpen,
     isPrestigeOpen,
     isLevelsModalOpen,

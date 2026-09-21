@@ -20,7 +20,7 @@ import { RpgClassType, RPG_CLASSES } from '../types/rpgClass';
 import { submitRaidContribution } from '../services/raidService';
 import { sound } from '../utils/audio';
 import { formatBytes } from '../utils/formatting';
-import { combineAccent, isAccentKey, resolveDeadKey } from '../utils/keyboardAccents';
+import { combineAccent, isAccentKey, resolveDeadKey, getAccentDisplayName } from '../utils/keyboardAccents';
 import { getRandomWord } from '../data/words';
 
 interface ClassroomRaidArenaProps {
@@ -104,13 +104,22 @@ export const ClassroomRaidArena: React.FC<ClassroomRaidArenaProps> = ({
   elapsedSecondsRef.current = elapsedSeconds;
   correctKeyCountRef.current = correctKeyCount;
 
-  // Início da sessão
+  // Início da sessão e foco contínuo
   useEffect(() => {
-    if (isOpen) {
-      setStartTimeMs(Date.now());
-      inputRef.current?.focus();
-    }
-  }, [isOpen]);
+    if (!isOpen || raid.status !== 'in_progress') return;
+
+    setStartTimeMs(Date.now());
+
+    const focusInput = () => {
+      if (inputRef.current && document.activeElement !== inputRef.current) {
+        inputRef.current.focus({ preventScroll: true });
+      }
+    };
+
+    focusInput();
+    const interval = setInterval(focusInput, 600);
+    return () => clearInterval(interval);
+  }, [isOpen, raid.status]);
 
   // Spawn de texto flutuante de dano
   const spawnDamage = useCallback((amount: number, isCrit: boolean = false, customText?: string) => {
@@ -203,37 +212,33 @@ export const ClassroomRaidArena: React.FC<ClassroomRaidArenaProps> = ({
     }
   }, [raid.status]);
 
-  // Manipulador de digitação principal na Raid
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLInputElement>) => {
+  // Processa caractere final digitado (com suporte a acentuação ABNT2 e composição IME)
+  const processChar = useCallback(
+    (rawChar: string) => {
       if (raid.status !== 'in_progress' || secondsRemaining <= 0) return;
-      if (e.ctrlKey || e.altKey || e.metaKey) return;
 
-      const key = e.key;
+      let finalChar = rawChar;
+      const currentPending = pendingAccentRef.current;
 
-      // Teclas mortas e acentuação gráfica
-      if (isAccentKey(key)) {
-        e.preventDefault();
-        setPendingAccent(key);
-        return;
-      }
-
-      let finalChar = key;
-      if (pendingAccentRef.current) {
-        finalChar = combineAccent(pendingAccentRef.current, key);
+      // Se havia acento pendente, combina com a vogal (ou cedilha)
+      if (currentPending) {
+        finalChar = combineAccent(currentPending, rawChar);
         setPendingAccent(null);
+        pendingAccentRef.current = null;
       }
-
-      if (finalChar.length !== 1) return;
-      e.preventDefault();
 
       const word = currentWordRef.current;
       const idx = charIndexRef.current;
       const expectedChar = word[idx];
+      if (!expectedChar) return;
 
-      if (finalChar.toLowerCase() === expectedChar.toLowerCase()) {
+      const typedLower = finalChar.toLocaleLowerCase('pt-BR');
+      const expectedLower = expectedChar.toLocaleLowerCase('pt-BR');
+
+      if (typedLower === expectedLower) {
         // Tecla correta!
         const nextIdx = idx + 1;
+        charIndexRef.current = nextIdx;
         setCharIndex(nextIdx);
         setCorrectKeyCount((prev) => prev + 1);
 
@@ -259,8 +264,8 @@ export const ClassroomRaidArena: React.FC<ClassroomRaidArenaProps> = ({
           let wordDamage = Math.round(word.length * 35);
 
           // Passiva do Guerreiro Veloz: se digitando em alta cadência, bônus de impacto motor
-          const activeSec = Math.max(1, elapsedSeconds);
-          const currentWpm = Math.round((correctKeyCount / 5) / (activeSec / 60));
+          const activeSec = Math.max(1, elapsedSecondsRef.current);
+          const currentWpm = Math.round((correctKeyCountRef.current / 5) / (activeSec / 60));
           if (activeRpgClass === 'warrior' && currentWpm >= 55) {
             wordDamage = Math.round(wordDamage * 1.30);
             spawnDamage(wordDamage, true, '⚡ ÍMPETO MOTOR (+30%)!');
@@ -279,7 +284,11 @@ export const ClassroomRaidArena: React.FC<ClassroomRaidArenaProps> = ({
           // Sorteia próxima palavra
           const nextWord = getRandomWord('medio', word);
           setCurrentWord(nextWord);
+          currentWordRef.current = nextWord;
           setCharIndex(0);
+          charIndexRef.current = 0;
+          setPendingAccent(null);
+          pendingAccentRef.current = null;
           isWordCleanRef.current = true;
 
           // Se acumulou bastante dano ou concluiu palavra, verifica flush
@@ -301,12 +310,70 @@ export const ClassroomRaidArena: React.FC<ClassroomRaidArenaProps> = ({
       secondsRemaining,
       comboStreak,
       activeRpgClass,
-      elapsedSeconds,
-      correctKeyCount,
       spawnDamage,
       flushPendingDamage
     ]
   );
+
+  // Processa caracteres digitados no input nativo (suporte a IME e digitação direta)
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    if (!val) return;
+
+    for (const ch of val) {
+      if (isAccentKey(ch)) {
+        setPendingAccent(ch);
+        pendingAccentRef.current = ch;
+      } else {
+        processChar(ch);
+      }
+    }
+    // Esvazia para a próxima combinação de teclas
+    e.target.value = '';
+  };
+
+  // Captura teclas mortas (Dead), acentos isolados e atalhos de navegação
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (raid.status !== 'in_progress' || secondsRemaining <= 0) return;
+
+    if (e.key === 'Escape') {
+      if (pendingAccentRef.current) {
+        e.preventDefault();
+        setPendingAccent(null);
+        pendingAccentRef.current = null;
+        return;
+      }
+      return;
+    }
+
+    if (e.key === 'Backspace') {
+      if (pendingAccentRef.current) {
+        e.preventDefault();
+        setPendingAccent(null);
+        pendingAccentRef.current = null;
+      }
+      return;
+    }
+
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      return;
+    }
+
+    // Teclas mortas (Dead) e acentuação gráfica
+    if (e.key === 'Dead' || isAccentKey(e.key)) {
+      e.preventDefault();
+      const word = currentWordRef.current;
+      const idx = charIndexRef.current;
+      const expectedChar = word[idx];
+      const resolved = resolveDeadKey(e.nativeEvent, expectedChar);
+      if (resolved) {
+        setPendingAccent(resolved);
+        pendingAccentRef.current = resolved;
+      }
+      return;
+    }
+  };
 
   // Lista de participantes ordenada por contribuição de dano
   const sortedParticipants = useMemo(() => {
@@ -343,15 +410,23 @@ export const ClassroomRaidArena: React.FC<ClassroomRaidArenaProps> = ({
   return (
     <div
       className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-between p-3 sm:p-6 overflow-hidden select-none"
-      onClick={() => inputRef.current?.focus()}
+      onClick={() => inputRef.current?.focus({ preventScroll: true })}
     >
-      {/* Input invisível para captura permanente de teclado físico e virtual */}
+      {/* Input invisível para captura permanente de teclado físico e virtual com suporte ABNT2/IME */}
       <input
         ref={inputRef}
+        id="classroom-raid-input"
         type="text"
-        className="opacity-0 absolute -top-96 left-0 pointer-events-none"
-        onKeyDown={handleKeyDown}
+        value=""
+        onChange={handleInputChange}
+        onKeyDown={handleInputKeyDown}
+        className="opacity-0 absolute -left-[9999px] top-0 w-1 h-1 pointer-events-auto"
         autoFocus
+        autoComplete="off"
+        autoCorrect="off"
+        autoCapitalize="off"
+        spellCheck="false"
+        aria-label="Terminal de Digitação da Raid Coletiva"
       />
 
       {/* TOP HEADER: Status do Chefe e Tempo Restante */}
@@ -502,8 +577,9 @@ export const ClassroomRaidArena: React.FC<ClassroomRaidArenaProps> = ({
             </div>
 
             {pendingAccent && (
-              <div className="mt-2 text-xs font-mono text-cyan-400 animate-pulse">
-                Acento pendente: [{pendingAccent}]
+              <div className="mt-2 text-xs font-mono text-amber-300 bg-amber-500/20 border border-amber-500/40 px-3 py-1 rounded-lg inline-flex items-center gap-1.5 animate-pulse shadow-[0_0_12px_rgba(245,158,11,0.25)]">
+                <span>⌨️</span>
+                <span>{getAccentDisplayName(pendingAccent)} (digite a vogal)</span>
               </div>
             )}
           </div>

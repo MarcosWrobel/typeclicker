@@ -496,6 +496,7 @@ export const ArenaModal: React.FC<ArenaModalProps> = ({
 
     // Se o teclado emitir 'Dead' ou tecla de acento isolada
     if (e.key === 'Dead' || isAccentKey(e.key)) {
+      e.preventDefault();
       const word = currentRoomRef.current?.words[wordIndexRef.current];
       const targetChar = word ? word[charIndexRef.current] : undefined;
       const resolved = resolveDeadKey(e.nativeEvent, targetChar);
@@ -503,6 +504,7 @@ export const ArenaModal: React.FC<ArenaModalProps> = ({
         setPendingAccent(resolved);
         pendingAccentRef.current = resolved;
       }
+      return;
     }
   };
 

@@ -1,3 +1,5 @@
+import type React from 'react';
+
 // Suporte e normalização de acentuação para teclado ABNT2 no laboratório e navegadores modernos
 // Suporta teclas mortas (Dead keys), composição IME e digitação sequencial
 
@@ -27,33 +29,53 @@ export function isAccentKey(key: string): boolean {
 /**
  * Resolve qual acento foi pressionado mesmo quando o navegador emite e.key === 'Dead'
  */
-export function resolveDeadKey(e: KeyboardEvent, targetChar?: string): string | null {
-  if (e.key === 'Dead') {
-    // 1. Pelo código físico da tecla ABNT2 / US-Intl
-    if (e.code === 'BracketLeft' || e.code === 'Quote') {
-      return e.shiftKey ? '`' : '´';
-    }
-    if (e.code === 'BracketRight' || e.code === 'Backquote') {
-      return e.shiftKey ? '^' : '~';
-    }
-    if (e.code === 'Equal' || e.code === 'Digit6') {
-      return '^';
-    }
+export function resolveDeadKey(e: KeyboardEvent | React.KeyboardEvent | any, targetChar?: string): string | null {
+  const evt = e?.nativeEvent || e;
+  const key = evt?.key || e?.key;
+  const code = evt?.code || e?.code;
+  const shiftKey = !!(evt?.shiftKey ?? e?.shiftKey);
 
-    // 2. Pelo contexto pedagógico da letra esperada na palavra
+  if (key === 'Dead') {
+    // 1. Pelo contexto pedagógico da letra esperada na palavra (MAIOR PRECISÃO)
     if (targetChar) {
       const lower = targetChar.toLocaleLowerCase('pt-BR');
-      if (['á', 'é', 'í', 'ó', 'ú'].includes(lower)) return '´';
+      if (['á', 'é', 'í', 'ó', 'ú', 'ç'].includes(lower)) return '´';
       if (['ã', 'õ'].includes(lower)) return '~';
-      if (['â', 'ê', 'ô'].includes(lower)) return '^';
-      if (['à'].includes(lower)) return '`';
+      if (['â', 'ê', 'î', 'ô', 'û'].includes(lower)) return '^';
+      if (['à', 'è', 'ì', 'ò', 'ù'].includes(lower)) return '`';
+      if (['ü'].includes(lower)) return '¨';
+    }
+
+    // 2. Pelo código físico da tecla ABNT2 / US-Intl
+    // ABNT2: tecla ao lado do P é [´ / `] (BracketLeft)
+    if (code === 'BracketLeft') {
+      return shiftKey ? '`' : '´';
+    }
+    // ABNT2: tecla ao lado do Ç é [~ / ^] (BracketRight)
+    if (code === 'BracketRight') {
+      return shiftKey ? '^' : '~';
+    }
+    // US-Intl: tecla [~ / `] (Backquote)
+    if (code === 'Backquote') {
+      return shiftKey ? '~' : '`';
+    }
+    // US-Intl: tecla [' / "] (Quote)
+    if (code === 'Quote') {
+      return shiftKey ? '¨' : '´';
+    }
+    // Atalhos numéricos com Shift (^ no 6) ou Equal
+    if (code === 'Digit6' || code === 'Equal') {
+      return '^';
+    }
+    if (code === 'Tilde') {
+      return shiftKey ? '^' : '~';
     }
 
     return '´';
   }
 
-  if (isAccentKey(e.key)) {
-    return e.key;
+  if (isAccentKey(key)) {
+    return key;
   }
 
   return null;
@@ -63,6 +85,7 @@ export function resolveDeadKey(e: KeyboardEvent, targetChar?: string): string | 
  * Combina o acento pendente com a vogal digitada
  */
 export function combineAccent(accent: string, char: string): string {
+  if (!accent || !char) return char;
   const table = ACCENT_MAP[accent];
   if (table && table[char]) {
     return table[char];
