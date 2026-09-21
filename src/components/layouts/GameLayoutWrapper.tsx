@@ -16,6 +16,7 @@ import { MinecraftBlockLayout } from './MinecraftBlockLayout';
 import { ShonenCombatLayout } from './ShonenCombatLayout';
 import { MushroomKingdomLayout } from './MushroomKingdomLayout';
 import { QuantumMythicLayout } from './QuantumMythicLayout';
+import { SocialAppLayout } from './SocialAppLayout';
 
 export interface GameLayoutWrapperProps extends BaseLayoutProps {
   layoutId?: LayoutSkinId;
@@ -51,6 +52,11 @@ export const GameLayoutWrapper: React.FC<GameLayoutWrapperProps> = ({
     'hollow_ruins',
     'green_hills_zone',
     'bat_cave_tactical',
+    'whatsapp_chat_layout',
+    'instagram_feed_layout',
+    'youtube_theater_layout',
+    'tiktok_stream_layout',
+    'roblox_studio_layout',
   ].includes(layoutId);
 
   const renderLayout = () => {
@@ -94,6 +100,12 @@ export const GameLayoutWrapper: React.FC<GameLayoutWrapperProps> = ({
       case 'green_hills_zone':
       case 'bat_cave_tactical':
         return <QuantumMythicLayout layoutId={layoutId} {...props} />;
+      case 'whatsapp_chat_layout':
+      case 'instagram_feed_layout':
+      case 'youtube_theater_layout':
+      case 'tiktok_stream_layout':
+      case 'roblox_studio_layout':
+        return <SocialAppLayout layoutId={layoutId} footer={footer} {...props} />;
       case 'default_terminal':
       default:
         return <TerminalLayout footer={footer} {...props} />;

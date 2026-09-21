@@ -222,7 +222,13 @@ export function sanitizeCosmetics(rawCosmetics?: Partial<PlayerCosmetics> | null
     'serious_shockwave',
     'soul_vessel_burst',
     'golden_ring_burst',
-    'bat_swarm_vfx'
+    'bat_swarm_vfx',
+    // Efeitos Apps Populares
+    'whatsapp_bubbles_burst',
+    'instagram_hearts_glow',
+    'youtube_play_spark',
+    'tiktok_music_glitch',
+    'roblox_blocks_fall'
   ];
 
   const validLayouts = [
@@ -251,7 +257,13 @@ export function sanitizeCosmetics(rawCosmetics?: Partial<PlayerCosmetics> | null
     'manga_action',
     'hollow_ruins',
     'green_hills_zone',
-    'bat_cave_tactical'
+    'bat_cave_tactical',
+    // Layouts Apps Populares
+    'whatsapp_chat_layout',
+    'instagram_feed_layout',
+    'youtube_theater_layout',
+    'tiktok_stream_layout',
+    'roblox_studio_layout'
   ];
 
   const unlockedLayouts = Array.isArray(rawCosmetics.unlockedLayouts) && rawCosmetics.unlockedLayouts.length > 0

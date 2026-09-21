@@ -412,6 +412,81 @@ export const LAYOUT_CONFIGS: Record<LayoutSkinId, LayoutConfig> = {
       accent: '#fbbf24',
     },
   },
+  whatsapp_chat_layout: {
+    id: 'whatsapp_chat_layout',
+    name: 'WhatsApp Web // Mensagens',
+    subtitle: 'Chat Criptografado & Status Online',
+    description: 'Ambiente de conversa instantânea com barra de status esmeralda, balões de texto e badges de mensagens não lidas.',
+    price: 6,
+    badge: 'App Teen',
+    icon: '💬',
+    features: ['Moldura Dark Green #111b21', 'Status Online & Criptografia 🔒', 'Balões de Mensagem Dinâmicos'],
+    previewColors: {
+      border: '#25d366',
+      bg: '#0b141a',
+      accent: '#53bdeb',
+    },
+  },
+  instagram_feed_layout: {
+    id: 'instagram_feed_layout',
+    name: 'Instagram Feed // Stories',
+    subtitle: 'Gradiente Sunset & Direct',
+    description: 'Moldura moderna com carrossel de Stories iluminado, anéis concêntricos neon e botões interativos de engajamento.',
+    price: 6,
+    badge: 'App Teen',
+    icon: '📸',
+    features: ['Stories com Gradiente Neon', 'Direct Messages & Interações', 'Estética Sunset & Ameixa'],
+    previewColors: {
+      border: '#e1306c',
+      bg: '#0c0614',
+      accent: '#f77737',
+    },
+  },
+  youtube_theater_layout: {
+    id: 'youtube_theater_layout',
+    name: 'YouTube Theater // Criador',
+    subtitle: 'Sala do Criador & Playback',
+    description: 'Visual cinematográfico imersivo com botão de inscrição vermelho rubi, barra de progresso scrubber e painel de criador.',
+    price: 5,
+    badge: 'App Teen',
+    icon: '▶️',
+    features: ['Cinema Dark & Botão Inscrever-se', 'Barra Scrubber de Reprodução', 'Painel de Vídeos & Likes'],
+    previewColors: {
+      border: '#ff0000',
+      bg: '#0f0f0f',
+      accent: '#ffffff',
+    },
+  },
+  tiktok_stream_layout: {
+    id: 'tiktok_stream_layout',
+    name: 'TikTok Stream // Para Você',
+    subtitle: 'Feed Vertical & Glitch Neon',
+    description: 'Experiência rítmica com abas Seguindo / Para Você, disco de música animado 💿 e divisores de glitch neon ciano e magenta.',
+    price: 7,
+    badge: 'App Teen',
+    icon: '🎵',
+    features: ['Abas "Para Você" & "Seguindo"', 'Disco de Vinil Giratório 💿', 'Acentos Anáglifos Ciano/Magenta'],
+    previewColors: {
+      border: '#fe2c55',
+      bg: '#010101',
+      accent: '#00f2fe',
+    },
+  },
+  roblox_studio_layout: {
+    id: 'roblox_studio_layout',
+    name: 'Roblox Studio // 3D Blocks',
+    subtitle: 'Mundo de Blocos & Studs',
+    description: 'Moldura geométrica 3D com chanfros táteis estilo blocos de montar, logotipo clássico vermelho e mostradores de peças/studs.',
+    price: 6,
+    badge: 'App Teen',
+    icon: '🧱',
+    features: ['Chanfros 3D Estilo Blocos', 'Logo Clássico Roblox ⛶', 'Mostrador de Peças & Ferramentas'],
+    previewColors: {
+      border: '#e2231a',
+      bg: '#111216',
+      accent: '#00a2ff',
+    },
+  },
 };
 
 export interface AnimationConfig {
@@ -862,6 +937,96 @@ export const ANIMATION_CONFIGS: Record<AnimationEffectId, AnimationConfig> = {
       purchase: 'Revoada de morcegos saindo em leque com ondas de sonar',
       terminal: 'Retícula de sonar tático nas palavras completadas',
       levelUp: 'Enxame massivo de morcegos cruzando a noite em tela cheia'
+    }
+  },
+  whatsapp_bubbles_burst: {
+    id: 'whatsapp_bubbles_burst',
+    name: 'Balões & Confirmações Verdes',
+    subtitle: 'Ticks Duplos & Chat Zap',
+    description: 'Erupção de balões de mensagens esmeralda, polegares de confirmação 👍 e ticks azuis/verdes de entrega.',
+    price: 6,
+    badge: 'App Teen',
+    icon: '💬',
+    accentColor: '#25d366',
+    glowColor: 'rgba(37, 211, 102, 0.5)',
+    borderClass: 'border-[#25d366]/70',
+    badgeClass: 'bg-[#25d366]/20 text-[#25d366] border-[#25d366]/40',
+    previewSummary: {
+      purchase: 'Explosão de balões de chat e ticks de confirmação',
+      terminal: 'Aura esmeralda e pop de mensagem nas palavras',
+      levelUp: 'Chuva torrencial de balões verdes, ticks duplos e joinhas'
+    }
+  },
+  instagram_hearts_glow: {
+    id: 'instagram_hearts_glow',
+    name: 'Corações & Fagulhas Stories',
+    subtitle: 'Sunset Magenta & Likes',
+    description: 'Cascata vibrante de corações luminosos em gradiente rosa/magenta com anéis giratórios de Stories.',
+    price: 6,
+    badge: 'App Teen',
+    icon: '💖',
+    accentColor: '#e1306c',
+    glowColor: 'rgba(225, 48, 108, 0.5)',
+    borderClass: 'border-[#e1306c]/70',
+    badgeClass: 'bg-[#e1306c]/20 text-pink-300 border-[#e1306c]/40',
+    previewSummary: {
+      purchase: 'Corações magenta pulsantes e faíscas de Stories',
+      terminal: 'Pop suave de corações e gradiente pôr-do-sol',
+      levelUp: 'Enxame de corações reluzentes com anéis de Stories'
+    }
+  },
+  youtube_play_spark: {
+    id: 'youtube_play_spark',
+    name: 'Play Rubi & Faíscas de Like',
+    subtitle: 'Play Button & Cinema',
+    description: 'Explosão de botões de Play vermelhos com centelhas douradas de Like e anéis cinematográficos.',
+    price: 5,
+    badge: 'App Teen',
+    icon: '▶️',
+    accentColor: '#ff0000',
+    glowColor: 'rgba(255, 0, 0, 0.5)',
+    borderClass: 'border-red-500/70',
+    badgeClass: 'bg-red-500/20 text-red-300 border-red-500/40',
+    previewSummary: {
+      purchase: 'Jato de botões play e faíscas rubi com polegares dourados',
+      terminal: 'Brilho cinematográfico vermelho com reflexo branco',
+      levelUp: 'Chuva de placas de play rubi e faíscas triunfais'
+    }
+  },
+  tiktok_music_glitch: {
+    id: 'tiktok_music_glitch',
+    name: 'Notas Musicais & Glitch Neon',
+    subtitle: 'Batida Sonora Ciano & Magenta',
+    description: 'Notas musicais saltitantes em meio a faixas de glitch anáglifo e shockwaves ao ritmo da batida.',
+    price: 7,
+    badge: 'App Teen',
+    icon: '🎵',
+    accentColor: '#00f2fe',
+    glowColor: 'rgba(0, 242, 254, 0.5)',
+    borderClass: 'border-[#00f2fe]/70',
+    badgeClass: 'bg-[#00f2fe]/20 text-[#00f2fe] border-[#00f2fe]/40',
+    previewSummary: {
+      purchase: 'Fagulhas rítmicas de notas musicais e feixes neon',
+      terminal: 'Glitch anáglifo estéreo ciano/magenta no acerto',
+      levelUp: 'Explosão de notas musicais, ondas de grave e glitch'
+    }
+  },
+  roblox_blocks_fall: {
+    id: 'roblox_blocks_fall',
+    name: 'Chuva de Blocos & Studs 3D',
+    subtitle: 'Blocos de Construção & Peças',
+    description: 'Chuva lúdica de blocos cúbicos coloridos (vermelho, azul, amarelo) e studs dourados.',
+    price: 6,
+    badge: 'App Teen',
+    icon: '🧱',
+    accentColor: '#e2231a',
+    glowColor: 'rgba(226, 35, 26, 0.5)',
+    borderClass: 'border-red-600/70',
+    badgeClass: 'bg-red-600/20 text-red-300 border-red-600/40',
+    previewSummary: {
+      purchase: 'Blocos coloridos 3D quicando com studs dourados',
+      terminal: 'Efeito tátil de encaixe de blocos nas teclas',
+      levelUp: 'Avalanche de cubos 3D coloridos e faíscas de studs'
     }
   }
 };

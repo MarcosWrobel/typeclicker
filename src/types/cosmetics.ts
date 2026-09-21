@@ -116,7 +116,13 @@ export type LayoutSkinId =
   | 'manga_action'
   | 'hollow_ruins'
   | 'green_hills_zone'
-  | 'bat_cave_tactical';
+  | 'bat_cave_tactical'
+  // Layouts Inspirados em Apps Populares
+  | 'whatsapp_chat_layout'
+  | 'instagram_feed_layout'
+  | 'youtube_theater_layout'
+  | 'tiktok_stream_layout'
+  | 'roblox_studio_layout';
 
 export type AnimationEffectId =
   | 'confetti_classic'
@@ -143,7 +149,13 @@ export type AnimationEffectId =
   | 'serious_shockwave'
   | 'soul_vessel_burst'
   | 'golden_ring_burst'
-  | 'bat_swarm_vfx';
+  | 'bat_swarm_vfx'
+  // Efeitos Inspirados em Apps Populares
+  | 'whatsapp_bubbles_burst'
+  | 'instagram_hearts_glow'
+  | 'youtube_play_spark'
+  | 'tiktok_music_glitch'
+  | 'roblox_blocks_fall';
 
 export type LevelUpEffectId = 'confetti' | 'matrix_rain' | 'glitch';
 

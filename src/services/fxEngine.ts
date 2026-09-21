@@ -119,6 +119,13 @@ function getShapes(): Record<string, confetti.Shape> {
     eye: createTintedShape('👁️', { scalar: 2.6, color: ['#a5f3fc', '#38bdf8'], fallback: 'circle' }),
     ghost: createTintedShape('👻', { scalar: 2.6, color: ['#dbeafe', '#7dd3fc'], fallback: 'circle' }),
     waterWave: createTintedShape('🌊', { scalar: 2.6, color: ['#e0f2fe', '#0284c7'], fallback: 'circle' }),
+    // Formas de Apps Populares
+    chatBubble: createTintedShape('💬', { scalar: 2.6, color: ['#25d366', '#128c7e'], fallback: 'circle' }),
+    checkMark: createTintedShape('✔️', { scalar: 2.4, color: ['#53bdeb', '#25d366'], fallback: 'circle' }),
+    heartGlow: createTintedShape('💖', { scalar: 2.6, color: ['#f43f5e', '#e1306c'], fallback: 'circle' }),
+    playButton: createTintedShape('▶️', { scalar: 2.6, color: ['#ff0000', '#b91c1c'], fallback: 'circle' }),
+    musicNote: createTintedShape('🎵', { scalar: 2.6, color: ['#00f2fe', '#fe2c55'], fallback: 'circle' }),
+    blockCube: createTintedShape('🧱', { scalar: 2.6, color: ['#e2231a', '#f59e0b'], fallback: 'square' }),
   };
 
   return cachedShapes;
@@ -750,6 +757,136 @@ export function triggerUpgradePurchaseVfx(
         }
         break;
 
+      case 'whatsapp_bubbles_burst':
+        confetti({
+          particleCount: Math.round(5 * countMultiplier),
+          spread: 60,
+          angle: 90,
+          origin: { x, y },
+          shapes: [shapes.chatBubble, shapes.checkMark],
+          flat: true,
+          scalar: 2.8,
+          startVelocity: isMilestone ? 42 : 28,
+          gravity: 0.5,
+        });
+        confetti({
+          particleCount: Math.round(20 * countMultiplier),
+          spread: 80,
+          origin: { x, y },
+          shapes: ['circle'],
+          colors: ['#25d366', '#53bdeb', '#005c4b', '#ffffff'],
+          scalar: 0.5,
+          startVelocity: isMilestone ? 44 : 26,
+        });
+        if (isMilestone) {
+          triggerShockwaveVfx(x, y, 'rgba(37, 211, 102, 0.65)', 200);
+        }
+        break;
+
+      case 'instagram_hearts_glow':
+        confetti({
+          particleCount: Math.round(6 * countMultiplier),
+          spread: 70,
+          angle: 90,
+          origin: { x, y },
+          shapes: [shapes.heartGlow],
+          flat: true,
+          scalar: 2.8,
+          startVelocity: isMilestone ? 44 : 30,
+          gravity: 0.45,
+        });
+        confetti({
+          particleCount: Math.round(22 * countMultiplier),
+          spread: 90,
+          origin: { x, y },
+          shapes: ['circle', 'star'],
+          colors: ['#e1306c', '#f77737', '#fa7e1e', '#c13584'],
+          scalar: 0.5,
+          startVelocity: isMilestone ? 45 : 28,
+        });
+        if (isMilestone) {
+          triggerShockwaveVfx(x, y, 'rgba(225, 48, 108, 0.65)', 210);
+        }
+        break;
+
+      case 'youtube_play_spark':
+        confetti({
+          particleCount: Math.round(5 * countMultiplier),
+          spread: 60,
+          angle: 90,
+          origin: { x, y },
+          shapes: [shapes.playButton],
+          flat: true,
+          scalar: 3.0,
+          startVelocity: isMilestone ? 45 : 32,
+          gravity: 0.5,
+        });
+        confetti({
+          particleCount: Math.round(24 * countMultiplier),
+          spread: 85,
+          origin: { x, y },
+          shapes: ['square', 'circle'],
+          colors: ['#ff0000', '#ffffff', '#991b1b', '#fca5a5'],
+          scalar: 0.5,
+          startVelocity: isMilestone ? 46 : 30,
+        });
+        if (isMilestone) {
+          triggerShockwaveVfx(x, y, 'rgba(255, 0, 0, 0.65)', 210);
+        }
+        break;
+
+      case 'tiktok_music_glitch':
+        confetti({
+          particleCount: Math.round(6 * countMultiplier),
+          spread: 65,
+          angle: 90,
+          origin: { x, y },
+          shapes: [shapes.musicNote],
+          flat: true,
+          scalar: 2.8,
+          startVelocity: isMilestone ? 44 : 30,
+          gravity: 0.4,
+        });
+        confetti({
+          particleCount: Math.round(24 * countMultiplier),
+          spread: 100,
+          origin: { x, y },
+          shapes: ['square'],
+          colors: ['#00f2fe', '#fe2c55', '#ffffff', '#010101'],
+          scalar: 0.5,
+          startVelocity: isMilestone ? 48 : 32,
+        });
+        if (isMilestone) {
+          triggerShockwaveVfx(x, y, 'rgba(0, 242, 254, 0.7)', 220);
+        }
+        break;
+
+      case 'roblox_blocks_fall':
+        confetti({
+          particleCount: Math.round(6 * countMultiplier),
+          spread: 75,
+          angle: 90,
+          origin: { x, y },
+          shapes: [shapes.blockCube],
+          flat: true,
+          scalar: 3.0,
+          startVelocity: isMilestone ? 42 : 28,
+          gravity: 0.6,
+        });
+        confetti({
+          particleCount: Math.round(22 * countMultiplier),
+          spread: 80,
+          origin: { x, y },
+          shapes: ['square'],
+          colors: ['#e2231a', '#00a2ff', '#fbbf24', '#22c55e', '#ffffff'],
+          scalar: 0.6,
+          startVelocity: isMilestone ? 45 : 30,
+        });
+        if (isMilestone) {
+          triggerShockwaveVfx(x, y, 'rgba(226, 35, 26, 0.65)', 200);
+        }
+        break;
+
       default:
         confetti({
           particleCount: 25,
@@ -1323,6 +1460,131 @@ export function triggerLevelUpCelebrationVfx(style: AnimationEffectId | string =
       break;
     }
 
+    case 'whatsapp_bubbles_burst': {
+      triggerShockwaveVfx(0.5, 0.4, 'rgba(37, 211, 102, 0.85)', 320);
+      confetti({
+        particleCount: 50,
+        spread: 80,
+        angle: 90,
+        origin: { x: 0.5, y: 0.7 },
+        shapes: [shapes.chatBubble, shapes.checkMark],
+        flat: true,
+        scalar: 3.2,
+        startVelocity: 44,
+        gravity: 0.4,
+      });
+      confetti({
+        particleCount: 70,
+        spread: 100,
+        origin: { x: 0.5, y: 0.5 },
+        shapes: ['circle'],
+        colors: ['#25d366', '#53bdeb', '#005c4b', '#ffffff'],
+        scalar: 0.8,
+        startVelocity: 42,
+      });
+      break;
+    }
+
+    case 'instagram_hearts_glow': {
+      triggerShockwaveVfx(0.5, 0.4, 'rgba(225, 48, 108, 0.85)', 320);
+      confetti({
+        particleCount: 55,
+        spread: 85,
+        angle: 90,
+        origin: { x: 0.5, y: 0.65 },
+        shapes: [shapes.heartGlow],
+        flat: true,
+        scalar: 3.2,
+        startVelocity: 46,
+        gravity: 0.35,
+      });
+      confetti({
+        particleCount: 75,
+        spread: 110,
+        origin: { x: 0.5, y: 0.5 },
+        shapes: ['circle', 'star'],
+        colors: ['#e1306c', '#f77737', '#fa7e1e', '#c13584'],
+        scalar: 0.8,
+        startVelocity: 44,
+      });
+      break;
+    }
+
+    case 'youtube_play_spark': {
+      triggerShockwaveVfx(0.5, 0.4, 'rgba(255, 0, 0, 0.85)', 320);
+      confetti({
+        particleCount: 50,
+        spread: 75,
+        angle: 90,
+        origin: { x: 0.5, y: 0.65 },
+        shapes: [shapes.playButton],
+        flat: true,
+        scalar: 3.4,
+        startVelocity: 48,
+        gravity: 0.45,
+      });
+      confetti({
+        particleCount: 80,
+        spread: 105,
+        origin: { x: 0.5, y: 0.5 },
+        shapes: ['square', 'circle'],
+        colors: ['#ff0000', '#ffffff', '#991b1b', '#fca5a5'],
+        scalar: 0.8,
+        startVelocity: 46,
+      });
+      break;
+    }
+
+    case 'tiktok_music_glitch': {
+      triggerShockwaveVfx(0.5, 0.4, 'rgba(0, 242, 254, 0.9)', 340);
+      confetti({
+        particleCount: 55,
+        spread: 80,
+        angle: 90,
+        origin: { x: 0.5, y: 0.65 },
+        shapes: [shapes.musicNote],
+        flat: true,
+        scalar: 3.2,
+        startVelocity: 48,
+        gravity: 0.35,
+      });
+      confetti({
+        particleCount: 80,
+        spread: 115,
+        origin: { x: 0.5, y: 0.5 },
+        shapes: ['square'],
+        colors: ['#00f2fe', '#fe2c55', '#ffffff'],
+        scalar: 0.8,
+        startVelocity: 50,
+      });
+      break;
+    }
+
+    case 'roblox_blocks_fall': {
+      triggerShockwaveVfx(0.5, 0.4, 'rgba(226, 35, 26, 0.85)', 320);
+      confetti({
+        particleCount: 55,
+        spread: 85,
+        angle: 90,
+        origin: { x: 0.5, y: 0.65 },
+        shapes: [shapes.blockCube],
+        flat: true,
+        scalar: 3.4,
+        startVelocity: 46,
+        gravity: 0.55,
+      });
+      confetti({
+        particleCount: 75,
+        spread: 100,
+        origin: { x: 0.5, y: 0.5 },
+        shapes: ['square'],
+        colors: ['#e2231a', '#00a2ff', '#fbbf24', '#22c55e', '#ffffff'],
+        scalar: 0.9,
+        startVelocity: 45,
+      });
+      break;
+    }
+
     default:
       confetti({
         particleCount: 80,
@@ -1446,6 +1708,16 @@ export function getLetterVfxClasses(
         return 'text-yellow-200 drop-shadow-[0_0_8px_rgba(253,224,71,0.6)]';
       case 'bat_swarm_vfx':
         return 'text-amber-200 drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]';
+      case 'whatsapp_bubbles_burst':
+        return 'text-[#25d366] drop-shadow-[0_0_8px_rgba(37,211,102,0.55)]';
+      case 'instagram_hearts_glow':
+        return 'text-[#e1306c] drop-shadow-[0_0_8px_rgba(225,48,108,0.55)]';
+      case 'youtube_play_spark':
+        return 'text-[#ff3333] drop-shadow-[0_0_8px_rgba(255,0,0,0.6)]';
+      case 'tiktok_music_glitch':
+        return 'text-[#00f2fe] drop-shadow-[0_0_8px_rgba(0,242,254,0.6)]';
+      case 'roblox_blocks_fall':
+        return 'text-[#00a2ff] drop-shadow-[0_0_8px_rgba(0,162,255,0.6)]';
       default:
         return '';
     }
@@ -1497,6 +1769,16 @@ export function getLetterVfxClasses(
         return 'ring-yellow-300 shadow-[0_0_18px_rgba(253,224,71,0.6)]';
       case 'bat_swarm_vfx':
         return 'ring-amber-300 shadow-[0_0_18px_rgba(245,158,11,0.55)]';
+      case 'whatsapp_bubbles_burst':
+        return 'ring-[#25d366] shadow-[0_0_18px_rgba(37,211,102,0.55)]';
+      case 'instagram_hearts_glow':
+        return 'ring-[#f77737] shadow-[0_0_18px_rgba(225,48,108,0.55)]';
+      case 'youtube_play_spark':
+        return 'ring-[#ff0000] shadow-[0_0_18px_rgba(255,0,0,0.6)]';
+      case 'tiktok_music_glitch':
+        return 'ring-[#fe2c55] shadow-[0_0_18px_rgba(254,44,85,0.6)]';
+      case 'roblox_blocks_fall':
+        return 'ring-[#e2231a] shadow-[0_0_18px_rgba(226,35,26,0.6)]';
       default:
         return '';
     }
