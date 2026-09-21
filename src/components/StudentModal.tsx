@@ -56,6 +56,7 @@ export { SCHOOL_CLASSES_CONFIG };
 interface StudentModalProps {
   isOpen: boolean;
   user: any; // Firebase user
+  isAdmin?: boolean;
   currentAvatar?: string;
   currentNickname?: string;
   currentClass?: string;
@@ -73,6 +74,7 @@ type StudentModalTab = 'identity' | 'rpg' | 'account';
 export const StudentModal: React.FC<StudentModalProps> = ({
   isOpen,
   user,
+  isAdmin,
   currentAvatar = '🐧',
   currentNickname = '',
   currentClass = '',
@@ -87,6 +89,12 @@ export const StudentModal: React.FC<StudentModalProps> = ({
   const [activeTab, setActiveTab] = useState<StudentModalTab>('identity');
   const [selectedAvatar, setSelectedAvatar] = useState<string>(currentAvatar || '🐧');
   const [nickname, setNickname] = useState<string>(currentNickname || state.studentNickname || '');
+  
+  const isTeacher = Boolean(
+    isAdmin || 
+    state.studentClass === 'Professor' || 
+    (user?.email && ['wrobel.marcos@gmail.com', 'marcos.wrobel@escola.pr.gov.br', 'wrobel.marcos3@gmail.com'].includes(user.email.toLowerCase()))
+  );
   
   const hasAssignedClass = Boolean(state.rpgClass);
   const [selectedInitialRpg, setSelectedInitialRpg] = useState<RpgClassType>(state.rpgClass || 'warrior');
@@ -140,7 +148,8 @@ export const StudentModal: React.FC<StudentModalProps> = ({
     if (e) e.preventDefault();
     sound.playUpgrade();
     const finalRpg = hasAssignedClass ? state.rpgClass : selectedInitialRpg;
-    onSave(selectedAvatar, nickname.trim(), state.studentClass || '', finalRpg);
+    const finalTurma = isTeacher ? 'Professor' : (state.studentClass || '');
+    onSave(selectedAvatar, nickname.trim(), finalTurma, finalRpg);
   };
 
   const handleSelectAvatar = (emoji: string) => {
@@ -368,7 +377,35 @@ export const StudentModal: React.FC<StudentModalProps> = ({
                       )}
                     </div>
 
-                    {state.studentClass ? (
+                    {isTeacher ? (
+                      <div className="bg-[#090b10] p-3 rounded-2xl border border-purple-500/50 space-y-2 shadow-[0_0_15px_rgba(168,85,247,0.15)]">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2.5">
+                            <div className="p-2 rounded-xl bg-purple-500/20 border border-purple-500/50 text-purple-300">
+                              <ShieldCheck className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <span className="text-[10px] font-mono font-bold uppercase text-purple-400 block tracking-wider">
+                                Identificação Docente
+                              </span>
+                              <span className="text-sm font-black text-white font-mono flex items-center gap-1.5">
+                                <span>Professor Marcos Wrobel</span>
+                                <span className="text-[10px] text-purple-300 font-bold bg-purple-950 px-2 py-0.5 rounded-full border border-purple-500/40">
+                                  Administrador
+                                </span>
+                              </span>
+                            </div>
+                          </div>
+                          <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-purple-950 text-purple-300 border border-purple-500/50 flex items-center gap-1">
+                            <Check className="w-3 h-3 stroke-[3]" /> Turma: Professor
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-zinc-400 leading-snug border-t border-zinc-800/80 pt-2 flex items-center gap-1.5">
+                          <Lock className="w-3.5 h-3.5 text-zinc-500 flex-shrink-0" />
+                          <span>Sua conta possui acesso administrativo irrestrito a todas as turmas, relatórios e gestão de aulas.</span>
+                        </p>
+                      </div>
+                    ) : state.studentClass ? (
                       <div className="bg-[#090b10] p-3 rounded-2xl border border-emerald-500/40 space-y-2">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2.5">

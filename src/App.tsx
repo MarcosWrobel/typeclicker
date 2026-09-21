@@ -62,7 +62,7 @@ import {
 import { AchievementDef, AchievementContext } from './types/achievements';
 import { RpgFloorData, QuestEvent } from './types/quests';
 import { calculatePlayerRank, formatBytes } from './utils/formatting';
-import { auth, loginWithGoogle, logoutUser, subscribeToAuthChanges, loadProgressFromCloud, saveProgressToCloud, checkIsAdminAsync, checkIsSuperAdmin, getSystemSettings, subscribeToSystemSettings, claimPendingTestGrants } from './services/firebaseService';
+import { auth, loginWithGoogle, logoutUser, subscribeToAuthChanges, loadProgressFromCloud, saveProgressToCloud, checkIsAdminAsync, checkIsSuperAdmin, getSystemSettings, subscribeToSystemSettings, claimPendingTestGrants, ADMIN_EMAILS } from './services/firebaseService';
 import { isCategoryAllowed, getMinAllowedCategoryLevel } from './utils/difficulty';
 import { useGameSync } from './hooks/useGameSync';
 import { Loader2 } from 'lucide-react';
@@ -142,7 +142,8 @@ export default function App() {
 
         // Se a sessão do professor possui uma turma vinculada (ex: '6º 1'),
         // vincula imediatamente a turma do aluno no estado, localStorage e nuvem!
-        if (settings.activeTurma && settings.activeTurma.trim() !== '') {
+        // IMPORTANTE: Se o usuário atual for professor/admin, NUNCA sobrescreve com turma de aluno!
+        if (!isAdmin && settings.activeTurma && settings.activeTurma.trim() !== '') {
           const targetTurma = settings.activeTurma.trim();
           setState((prev) => {
             const updated: GameState = {
@@ -175,20 +176,22 @@ export default function App() {
       setIsAdmin(adminStatus);
       setAuthLoading(false);
       
+      const isStaffUser = adminStatus || (currentUser?.email && ADMIN_EMAILS.some((adm) => adm.toLowerCase() === currentUser.email?.toLowerCase()));
+
       if (currentUser) {
         // Try to load state from cloud automatically upon login
         const res = await loadProgressFromCloud();
         if (res.success && res.saveState) {
           const loadedNickname = res.saveState.studentNickname || '';
-          const loadedClass = res.saveState.studentClass || '';
+          const loadedClass = isStaffUser ? 'Professor' : (res.saveState.studentClass || '');
           const loadedState: GameState = {
             ...INITIAL_STATE,
             ...res.saveState,
-            studentName: currentUser.displayName || res.saveState.studentName || 'Aluno',
+            studentName: currentUser.displayName || res.saveState.studentName || (isStaffUser ? 'Prof. Marcos Wrobel' : 'Aluno'),
             studentNickname: loadedNickname,
             studentClass: loadedClass,
             rpgClass: res.saveState.rpgClass || undefined,
-            isClassLocked: res.saveState.isClassLocked ?? (Boolean(loadedClass)),
+            isClassLocked: isStaffUser ? true : (res.saveState.isClassLocked ?? (Boolean(loadedClass))),
             isRpgClassLocked: res.saveState.isRpgClassLocked ?? (Boolean(res.saveState.rpgClass)),
             cosmetics: sanitizeCosmetics(res.saveState.cosmetics),
             arenaStats: res.saveState.arenaStats || INITIAL_STATE.arenaStats
@@ -199,11 +202,21 @@ export default function App() {
               const grantRes = await claimPendingTestGrants(currentUser.email, finalState);
               if (grantRes.claimed && grantRes.updatedState) {
                 finalState = grantRes.updatedState;
+                if (isStaffUser) {
+                  finalState.studentClass = 'Professor';
+                  finalState.isClassLocked = true;
+                }
                 await saveProgressToCloud(finalState);
               }
             } catch (e) {
               console.error('Error claiming pending test grants:', e);
             }
+          }
+
+          // Se for conta de professor e o save da nuvem ainda tiver turma antiga corrompida ou vazia, atualiza imediatamente
+          if (isStaffUser && res.saveState.studentClass !== 'Professor') {
+            saveState(finalState, currentUser.uid);
+            saveProgressToCloud(finalState).catch(console.error);
           }
 
           // Sincronização retroativa de conquistas na carga da nuvem
@@ -230,8 +243,8 @@ export default function App() {
           setCharIndex(0);
           setCurrentWord(getRandomWord(finalState.selectedCategory || INITIAL_STATE.selectedCategory));
           
-          // Se ainda não escolheu apelido ou classe RPG inicial, abre o modal de perfil
-          if (!loadedNickname || !res.saveState.rpgClass) {
+          // Se ainda não escolheu apelido ou classe RPG inicial, abre o modal de perfil (somente para alunos)
+          if (!isStaffUser && (!loadedNickname || !res.saveState.rpgClass)) {
             setIsStudentModalOpen(true);
           }
         } else {
@@ -243,15 +256,21 @@ export default function App() {
           if (hasLocalData) {
             activeState = {
               ...localState,
-              studentName: currentUser.displayName || localState.studentName || 'Aluno'
+              studentName: currentUser.displayName || localState.studentName || (isStaffUser ? 'Prof. Marcos Wrobel' : 'Aluno'),
+              studentClass: isStaffUser ? 'Professor' : (localState.studentClass || ''),
+              isClassLocked: isStaffUser ? true : localState.isClassLocked
             };
           } else {
             activeState = {
               ...INITIAL_STATE,
-              studentName: currentUser.displayName || 'Aluno'
+              studentName: currentUser.displayName || (isStaffUser ? 'Prof. Marcos Wrobel' : 'Aluno'),
+              studentClass: isStaffUser ? 'Professor' : '',
+              isClassLocked: isStaffUser ? true : false
             };
             // Primeiro acesso do aluno: abre modal para escolher apelido e turma
-            setIsStudentModalOpen(true);
+            if (!isStaffUser) {
+              setIsStudentModalOpen(true);
+            }
           }
 
           if (currentUser.email) {
@@ -2279,6 +2298,7 @@ export default function App() {
       <StudentModal
         isOpen={isStudentModalOpen}
         user={user}
+        isAdmin={isAdmin}
         state={state}
         currentAvatar={state.studentAvatar || '🐧'}
         currentNickname={state.studentNickname}

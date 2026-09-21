@@ -31,7 +31,9 @@ import {
   TestGrantConfig,
   sanitizeStaffFromLeaderboard,
   saveCustomCurricularText,
-  deleteCustomCurricularText
+  deleteCustomCurricularText,
+  saveProgressToCloud,
+  ADMIN_EMAILS
 } from '../services/firebaseService';
 import { RpgClassType } from '../types/rpgClass';
 import {
@@ -54,6 +56,7 @@ import { ALL_LEVELS, calculateMinBytesForLevel } from '../data/levels';
 import { GameState, CustomCurricularText } from '../types';
 import { DEFAULT_COSMETICS } from '../types/cosmetics';
 import { getAllUnlockedCosmetics } from '../constants/cosmeticsCatalog';
+import { saveState } from '../utils/storage';
 
 interface AdminPanelProps {
   isOpen: boolean;
@@ -551,13 +554,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       return;
     }
 
+    const isTeacherAccount = ADMIN_EMAILS.some((adm) => adm.toLowerCase() === clean);
+
     // Se for o próprio admin logado
     if (userEmail && clean === userEmail.trim().toLowerCase() && gameState) {
       const rank = calculatePlayerRank(gameState.totalBytesEarned || 0);
       setTargetAccountInfo({
         exists: true,
-        name: gameState.studentName || 'Você (Admin)',
-        turma: gameState.studentClass || 'Administração',
+        name: gameState.studentName || 'Prof. Marcos Wrobel (Admin)',
+        turma: 'Professor',
         currentLevel: rank.level,
         currentBytes: gameState.totalBytesEarned || 0,
         levelTokens: gameState.cosmetics?.levelTokens || 0,
@@ -570,12 +575,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     try {
       const save = await findUserSaveByEmail(clean);
       if (save) {
+        const isStaffAccount = isTeacherAccount || save.data.isStaff;
+        const effectiveTurma = isStaffAccount ? 'Professor' : (save.data.turma || 'Sem turma');
         const bytes = save.data.saveState?.totalBytesEarned || save.data.points || 0;
         const rank = calculatePlayerRank(bytes);
         setTargetAccountInfo({
           exists: true,
-          name: save.data.nome || save.data.apelido || clean.split('@')[0],
-          turma: save.data.turma || 'Sem turma',
+          name: save.data.nome || save.data.apelido || (isStaffAccount ? 'Prof. Marcos Wrobel' : clean.split('@')[0]),
+          turma: effectiveTurma,
           currentLevel: rank.level,
           currentBytes: bytes,
           levelTokens: save.data.saveState?.cosmetics?.levelTokens || 0,
@@ -584,8 +591,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       } else {
         setTargetAccountInfo({
           exists: false,
-          name: clean.split('@')[0],
-          turma: 'Conta nova (receberá ao logar)',
+          name: isTeacherAccount ? 'Prof. Marcos Wrobel' : clean.split('@')[0],
+          turma: isTeacherAccount ? 'Professor' : 'Conta nova (receberá ao logar)',
           currentLevel: 1,
           currentBytes: 0,
           levelTokens: 0,
@@ -2912,6 +2919,33 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             <span>Abrir Loja</span>
                           </button>
                         )}
+                        <button
+                          onClick={async () => {
+                            if (onUpdateGameState && gameState) {
+                              const fixed: GameState = {
+                                ...gameState,
+                                studentClass: 'Professor',
+                                isClassLocked: true
+                              };
+                              onUpdateGameState(fixed);
+                              saveState(fixed, auth.currentUser?.uid);
+                              if (auth.currentUser) {
+                                await saveProgressToCloud(fixed);
+                              }
+                            }
+                            if (targetEmail) {
+                              checkTargetAccount(targetEmail);
+                            }
+                            sound.playPrestige();
+                            setTestActionMessage('Turma do Professor ajustada com sucesso para "Professor"!');
+                            setTimeout(() => setTestActionMessage(null), 4000);
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-emerald-950/80 hover:bg-emerald-900/90 text-emerald-200 border border-emerald-500/50 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm"
+                          title="Garante que a conta do professor esteja com a turma 'Professor' no save local e na nuvem"
+                        >
+                          <GraduationCap className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>Fixar Turma: Professor</span>
+                        </button>
                       </div>
                     </div>
 
@@ -3095,7 +3129,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           <span className="font-bold text-white truncate block">
                             {targetAccountInfo?.name || targetEmail.split('@')[0]}
                           </span>
-                          <span className="text-[10px] text-zinc-400 block truncate">{targetAccountInfo?.turma || 'Sem turma'}</span>
+                          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                            <span className="text-[10px] text-zinc-400 block truncate font-mono">
+                              {targetAccountInfo?.turma || 'Sem turma'}
+                            </span>
+                            {ADMIN_EMAILS.some((adm) => adm.toLowerCase() === targetEmail.toLowerCase()) && (
+                              <span className="text-[9px] font-bold text-purple-300 bg-purple-950/90 px-1.5 py-0.2 rounded border border-purple-500/40">
+                                👨‍🏫 Docente
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <div className="p-2 rounded bg-zinc-900 border border-white/5">
                           <span className="text-zinc-500 block text-[10px]">Nível Atual:</span>

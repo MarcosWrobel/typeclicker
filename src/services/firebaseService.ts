@@ -127,6 +127,7 @@ export interface FirebaseSavePayload {
   raceWins?: number;
   racesParticipated?: number;
   bestRaceWpm?: number;
+  isStaff?: boolean;
 }
 
 export interface LeaderboardEntry {
@@ -281,10 +282,12 @@ export async function saveProgressToCloud(
     return { success: false, message: 'Você precisa fazer login com o Google para salvar na nuvem.' };
   }
 
-  const nome = (state.studentName || user.displayName || 'Aluno').trim() || 'Aluno Anônimo';
+  const isStaff = await checkIsAdminAsync(user);
+  const nome = (state.studentName || user.displayName || (isStaff ? 'Prof. Marcos Wrobel' : 'Aluno')).trim() || 'Aluno Anônimo';
   const apelido = (state.studentNickname || '').trim();
-  const turma = (state.studentClass || '').trim();
-  const avatar = state.studentAvatar || '👩‍💻';
+  const rawTurma = (state.studentClass || '').trim();
+  const turma = isStaff ? 'Professor' : rawTurma;
+  const avatar = state.studentAvatar || (isStaff ? '👨‍🏫' : '👩‍💻');
 
   const saveId = user.uid;
   const rank = calculatePlayerRank(state.totalBytesEarned);
@@ -298,6 +301,7 @@ export async function saveProgressToCloud(
 
   const sanitizedSaveState: GameState = {
     ...state,
+    ...(isStaff ? { studentClass: 'Professor', isClassLocked: true } : {}),
     schemaVersion: 2,
     flaggedForReview: isFlagged,
     lastSyncTimestamp: Date.now()
@@ -322,8 +326,6 @@ export async function saveProgressToCloud(
     schemaVersion: 2,
     flaggedForReview: isFlagged
   };
-  
-  const isStaff = await checkIsAdminAsync(user);
 
   if (apelido) savePayload.apelido = apelido;
   if (user.email) savePayload.email = user.email;
@@ -419,17 +421,31 @@ export async function loadProgressFromCloud(): Promise<CloudLoadResponse> {
       const data = saveSnap.data() as FirebaseSavePayload;
 
       // Normalização e Fallback de dados para garantir retrocompatibilidade com versões legadas
+      const isStaff = await checkIsAdminAsync(user);
       const rawSave = data.saveState || ({} as GameState);
+      const effectiveTurma = isStaff ? 'Professor' : (rawSave.studentClass || data.turma || '');
       const normalizedState: Partial<GameState> = {
         ...rawSave,
-        studentClass: rawSave.studentClass || data.turma || '',
+        studentClass: effectiveTurma,
         rpgClass: rawSave.rpgClass || data.rpgClass || undefined,
-        isClassLocked: rawSave.isClassLocked ?? data.isClassLocked ?? false,
+        isClassLocked: isStaff ? true : (rawSave.isClassLocked ?? data.isClassLocked ?? false),
         isRpgClassLocked: rawSave.isRpgClassLocked ?? data.isRpgClassLocked ?? false,
         schemaVersion: rawSave.schemaVersion ?? data.schemaVersion ?? 1,
         flaggedForReview: rawSave.flaggedForReview ?? data.flaggedForReview ?? false,
         lastSyncTimestamp: rawSave.lastSyncTimestamp ?? Date.now()
       };
+
+      // Auto-cura do documento na nuvem caso o professor tenha uma turma antiga corrompida (ex: 'Professorcíeccír')
+      if (isStaff && (data.turma !== 'Professor' || rawSave.studentClass !== 'Professor')) {
+        try {
+          await setDoc(saveRef, {
+            turma: 'Professor',
+            saveState: { studentClass: 'Professor', isClassLocked: true }
+          }, { merge: true });
+        } catch (e) {
+          console.error('Error auto-healing teacher turma in Firestore:', e);
+        }
+      }
 
       const reason = rawSave.flagReason || data.flagReason;
       if (reason) {
@@ -1274,12 +1290,26 @@ export async function removeTesterEmail(email: string): Promise<string[]> {
 export async function findUserSaveByEmail(email: string): Promise<{ docId: string; data: FirebaseSavePayload } | null> {
   const cleanEmail = email.trim().toLowerCase();
   if (!cleanEmail) return null;
+  const isTeacher = ADMIN_EMAILS.some((adm) => adm.toLowerCase() === cleanEmail);
 
   try {
     const q = query(collection(db, 'saves'), where('email', '==', email.trim()), limit(1));
     const snap = await getDocs(q);
     if (!snap.empty) {
-      return { docId: snap.docs[0].id, data: snap.docs[0].data() as FirebaseSavePayload };
+      const docId = snap.docs[0].id;
+      const data = snap.docs[0].data() as FirebaseSavePayload;
+      if (isTeacher && (data.turma !== 'Professor' || data.saveState?.studentClass !== 'Professor')) {
+        data.turma = 'Professor';
+        if (data.saveState) {
+          data.saveState.studentClass = 'Professor';
+          data.saveState.isClassLocked = true;
+        }
+        await setDoc(doc(db, 'saves', docId), {
+          turma: 'Professor',
+          saveState: { studentClass: 'Professor', isClassLocked: true }
+        }, { merge: true });
+      }
+      return { docId, data };
     }
   } catch (e) {
     // Fallback caso a query direta por campo email precise de índice
@@ -1290,6 +1320,17 @@ export async function findUserSaveByEmail(email: string): Promise<{ docId: strin
     for (const d of allSaves.docs) {
       const data = d.data() as FirebaseSavePayload;
       if (data.email?.toLowerCase() === cleanEmail || d.id.toLowerCase() === cleanEmail) {
+        if (isTeacher && (data.turma !== 'Professor' || data.saveState?.studentClass !== 'Professor')) {
+          data.turma = 'Professor';
+          if (data.saveState) {
+            data.saveState.studentClass = 'Professor';
+            data.saveState.isClassLocked = true;
+          }
+          await setDoc(doc(db, 'saves', d.id), {
+            turma: 'Professor',
+            saveState: { studentClass: 'Professor', isClassLocked: true }
+          }, { merge: true });
+        }
         return { docId: d.id, data };
       }
     }
@@ -1412,12 +1453,17 @@ export async function applyTestResourcesToEmail(
   resultingLevel = finalRank.level;
   resultingTokens = targetSaveState.cosmetics?.levelTokens || 0;
   resultingDuelTokens = targetSaveState.cosmetics?.duelTokens || 0;
-  resultingQuantumFragments = targetSaveState.cosmetics?.quantumFragments || 0;
+  const isTeacherTarget = ADMIN_EMAILS.some((adm) => adm.toLowerCase() === cleanEmail);
+  if (isTeacherTarget) {
+    targetSaveState.studentClass = 'Professor';
+    targetSaveState.isClassLocked = true;
+  }
 
   // Se o save do aluno já existe no Firestore, atualiza imediatamente na nuvem
   if (existingSave) {
     const updatedSavePayload: FirebaseSavePayload = {
       ...existingSave.data,
+      turma: isTeacherTarget ? 'Professor' : existingSave.data.turma,
       level: finalRank.level,
       points: Math.floor(targetSaveState.totalBytesEarned),
       saveState: removeUndefinedFields(targetSaveState),
