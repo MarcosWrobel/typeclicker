@@ -242,10 +242,10 @@ export function syncDungeonState(raw?: Partial<DungeonState>): DungeonState {
     shield: raw.shield ? { ...DEFAULT_SHIELD, ...raw.shield } : { ...DEFAULT_SHIELD },
     relic: raw.relic ? { ...DEFAULT_RELIC, ...raw.relic } : { ...DEFAULT_RELIC },
     perks: {
-      criticalCombo: Math.min(5, Math.max(0, raw.perks?.criticalCombo || 0)),
-      weaknessVampirism: Math.min(5, Math.max(0, raw.perks?.weaknessVampirism || 0)),
-      rewardMultiplier: Math.min(5, Math.max(0, raw.perks?.rewardMultiplier || 0)),
-      shieldHardening: Math.min(5, Math.max(0, raw.perks?.shieldHardening || 0))
+      criticalCombo: Math.min(10, Math.max(0, raw.perks?.criticalCombo || 0)),
+      weaknessVampirism: Math.min(10, Math.max(0, raw.perks?.weaknessVampirism || 0)),
+      rewardMultiplier: Math.min(10, Math.max(0, raw.perks?.rewardMultiplier || 0)),
+      shieldHardening: Math.min(10, Math.max(0, raw.perks?.shieldHardening || 0))
     }
   };
 }
@@ -361,8 +361,32 @@ export function upgradeDungeonEquipment(
   };
 }
 
+export interface PerkTierReq {
+  level: number;
+  cost: number;
+  requiredFloor: number;
+}
+
+export const PERK_TIER_CONFIG: Record<number, PerkTierReq> = {
+  1: { level: 1, cost: 60, requiredFloor: 1 },
+  2: { level: 2, cost: 110, requiredFloor: 2 },
+  3: { level: 3, cost: 180, requiredFloor: 4 },
+  4: { level: 4, cost: 270, requiredFloor: 6 },
+  5: { level: 5, cost: 390, requiredFloor: 8 },
+  6: { level: 6, cost: 550, requiredFloor: 10 },
+  7: { level: 7, cost: 750, requiredFloor: 13 },
+  8: { level: 8, cost: 1020, requiredFloor: 16 },
+  9: { level: 9, cost: 1380, requiredFloor: 20 },
+  10: { level: 10, cost: 1850, requiredFloor: 25 }
+};
+
+export function getPerkUpgradeReq(currentLevel: number): PerkTierReq | null {
+  const nextLevel = currentLevel + 1;
+  return PERK_TIER_CONFIG[nextLevel] || null;
+}
+
 /**
- * Aprimora um Perk da Masmorra usando XP de Aventureiro
+ * Aprimora um Perk da Masmorra usando XP de Aventureiro com requisitos de andar
  */
 export function upgradeDungeonPerk(
   quests: QuestsState,
@@ -370,22 +394,39 @@ export function upgradeDungeonPerk(
 ): { success: boolean; updatedQuests: QuestsState; error?: string } {
   const currentDungeon = syncDungeonState(quests.dungeon);
   const currentLevel = currentDungeon.perks[perkName] || 0;
-  const maxLevel = 5;
+  const maxLevel = 10;
 
   if (currentLevel >= maxLevel) {
     return { success: false, updatedQuests: quests, error: 'Perk no nível máximo!' };
   }
 
-  const cost = (currentLevel + 1) * 80;
-  if (quests.rpgDungeonXp < cost) {
-    return { success: false, updatedQuests: quests, error: `Requer ${cost} XP de Aventureiro!` };
+  const req = getPerkUpgradeReq(currentLevel);
+  if (!req) {
+    return { success: false, updatedQuests: quests, error: 'Nível de perk inválido!' };
+  }
+
+  const highestFloor = Math.max(quests.rpgDungeonFloor || 1, quests.highestRpgFloor || 1);
+  if (highestFloor < req.requiredFloor) {
+    return {
+      success: false,
+      updatedQuests: quests,
+      error: `Requer alcançar o Andar ${req.requiredFloor} para desbloquear o Nv.${req.level}!`
+    };
+  }
+
+  if (quests.rpgDungeonXp < req.cost) {
+    return {
+      success: false,
+      updatedQuests: quests,
+      error: `Requer ${req.cost} XP de Aventureiro (você possui ${quests.rpgDungeonXp} XP)!`
+    };
   }
 
   return {
     success: true,
     updatedQuests: {
       ...quests,
-      rpgDungeonXp: quests.rpgDungeonXp - cost,
+      rpgDungeonXp: quests.rpgDungeonXp - req.cost,
       dungeon: {
         ...currentDungeon,
         perks: {
@@ -691,7 +732,7 @@ export function completeRpgFloor(
   const nextHighest = Math.max(currentQuests.highestRpgFloor, nextFloor);
 
   const rewardMultiplierLevel = currentQuests.dungeon?.perks.rewardMultiplier || 0;
-  const perkBonusMult = 1 + (rewardMultiplierLevel * 0.15);
+  const perkBonusMult = 1 + (rewardMultiplierLevel * 0.04);
   const finalBytes = Math.round(floorData.rewardBytes * perkBonusMult);
 
   const reward: QuestReward = {
@@ -708,11 +749,13 @@ export function completeRpgFloor(
     currentCosmetics.quantumFragments = (currentCosmetics.quantumFragments || 0) + reward.quantumFragments;
   }
 
+  const floorXpEarned = 35 + floorData.floor * 15 + Math.round(floorData.text.length * 0.08);
+
   const updatedQuestsState: QuestsState = {
     ...currentQuests,
     rpgDungeonFloor: nextFloor,
     highestRpgFloor: nextHighest,
-    rpgDungeonXp: currentQuests.rpgDungeonXp + Math.round(floorData.text.length * 2)
+    rpgDungeonXp: currentQuests.rpgDungeonXp + floorXpEarned
   };
 
   // Processa o evento de andar RPG completado para as missões semanais

@@ -2,11 +2,13 @@ import { PlayerCosmetics } from './types/cosmetics';
 import { ArenaStats } from './types/arena';
 import { AchievementDef, AchievementReward, AchievementCategory, AchievementContext } from './types/achievements';
 import { QuestsState } from './types/quests';
+import { ClassroomRace, ClassroomRaceFinisher } from './types/race';
 
 export * from './types/cosmetics';
 export * from './types/arena';
 export * from './types/achievements';
 export * from './types/quests';
+export * from './types/race';
 
 export type CategoryId = 'iniciante' | 'facil' | 'medio' | 'avancado' | 'expert';
 
@@ -72,11 +74,32 @@ export interface GameState {
   categoriesExplored?: CategoryId[];
   // Sistema de Quests Semanais & Crônicas RPG Infinitas
   quests?: QuestsState;
+  // Sistema de Corridas Escolares em Tempo Real
+  raceWins?: number;
+  racesParticipated?: number;
+  bestRaceWpm?: number;
+  // Sistema de Acessibilidade & Baixa Visão
+  accessibility?: AccessibilitySettings;
   // Novos campos opcionais com retrocompatibilidade garantida
   schemaVersion?: number;
   flaggedForReview?: boolean;
   flagReason?: string;
   lastSyncTimestamp?: number;
+}
+
+export type TextScale = 'normal' | 'large' | 'huge' | 'mega';
+export type UiScale = 'normal' | 'large' | 'extra';
+export type ContrastTheme = 'standard' | 'high_contrast_yellow' | 'high_contrast_cyan' | 'high_contrast_white';
+
+export interface AccessibilitySettings {
+  textScale: TextScale;
+  uiScale: UiScale;
+  highContrast: boolean;
+  contrastTheme?: ContrastTheme;
+  thickCursor: boolean;
+  highlightActiveWord: boolean;
+  fontFamily?: 'mono' | 'sans' | 'dyslexic';
+  reduceMotion?: boolean;
 }
 
 export interface KeyTelemetry {

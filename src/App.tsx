@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { GameState, CategoryId, FloatingText, UpgradeDef, DrillSession } from './types';
-import { loadSavedState, saveState, clearSavedState, INITIAL_STATE, sanitizeCosmetics, DEFAULT_ARENA_STATS } from './utils/storage';
+import { GameState, CategoryId, FloatingText, UpgradeDef, DrillSession, AccessibilitySettings } from './types';
+import { loadSavedState, saveState, clearSavedState, INITIAL_STATE, sanitizeCosmetics, DEFAULT_ARENA_STATS, DEFAULT_ACCESSIBILITY } from './utils/storage';
 import { DEFAULT_COSMETICS, PlayerCosmetics } from './types/cosmetics';
 import { TERMINAL_THEMES } from './constants/themes';
 import { CosmeticsShopModal } from './components/CosmeticsShopModal';
@@ -21,7 +21,7 @@ import { PrestigeModal } from './components/PrestigeModal';
 import { StudentModal } from './components/StudentModal';
 import { LevelsModal } from './components/LevelsModal';
 import { HelpModal } from './components/HelpModal';
-import { LeaderboardModal } from './components/LeaderboardModal';
+import { LeaderboardModal, LeaderboardMetric } from './components/LeaderboardModal';
 import { ArenaModal } from './components/ArenaModal';
 import { ArenaStats, getArenaRank } from './types/arena';
 import { AdminPanel } from './components/AdminPanel';
@@ -37,6 +37,10 @@ import { QuestsModal } from './components/QuestsModal';
 import { RpgDungeonModal } from './components/RpgDungeonModal';
 import { RpgChestMinigame } from './components/RpgChestMinigame';
 import { RpgChronicleArena } from './components/RpgChronicleArena';
+import { ClassroomRaceArena } from './components/ClassroomRaceArena';
+import { AccessibilityModal } from './components/AccessibilityModal';
+import { subscribeToActiveRace } from './services/raceService';
+import { ClassroomRace } from './types/race';
 import { checkPendingAchievements, getOverallAchievementsStats, syncRetroactiveAchievements } from './services/achievementEngine';
 import {
   syncQuestsState,
@@ -92,12 +96,19 @@ export default function App() {
   const [drillSession, setDrillSession] = useState<DrillSession | null>(null);
   const [activeFocusDrill, setActiveFocusDrill] = useState<{ targetKey: string; words: string[] } | null>(null);
   const [isAchievementsOpen, setIsAchievementsOpen] = useState<boolean>(false);
+  const [isAccessibilityOpen, setIsAccessibilityOpen] = useState<boolean>(false);
   const [achievementQueue, setAchievementQueue] = useState<AchievementDef[]>([]);
   const [isQuestsOpen, setIsQuestsOpen] = useState<boolean>(false);
   const [isDungeonOpen, setIsDungeonOpen] = useState<boolean>(false);
   const [isChestMinigameOpen, setIsChestMinigameOpen] = useState<boolean>(false);
   const [activeRpgFloor, setActiveRpgFloor] = useState<RpgFloorData | null>(null);
   
+  // Corrida Escolar Sincronizada (Lançada pelo Professor)
+  const [activeRace, setActiveRace] = useState<ClassroomRace | null>(null);
+  const [isRaceArenaOpen, setIsRaceArenaOpen] = useState<boolean>(false);
+  const [dismissedRaceId, setDismissedRaceId] = useState<string | null>(null);
+  const [leaderboardInitialTab, setLeaderboardInitialTab] = useState<LeaderboardMetric>('level');
+
   const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
   const [isAppLocked, setIsAppLocked] = useState<boolean>(true);
   const [isVerifyingLock, setIsVerifyingLock] = useState<boolean>(false);
@@ -320,6 +331,43 @@ export default function App() {
     return () => unsubSettings();
   }, [isAdmin]);
 
+  // Escuta corridas sincronizadas em tempo real disparadas pelo professor
+  useEffect(() => {
+    const unsubRace = subscribeToActiveRace((race) => {
+      setActiveRace(race);
+
+      if (!race || race.status === 'cancelled') {
+        setIsRaceArenaOpen(false);
+        return;
+      }
+
+      // Validação de expiração: corridas criadas há mais de 15 minutos são ignoradas
+      const isRecent = race.createdAtMs && (Date.now() - race.createdAtMs < 15 * 60 * 1000);
+      if (!isRecent) {
+        setIsRaceArenaOpen(false);
+        return;
+      }
+
+      if (race.status === 'countdown' || race.status === 'in_progress') {
+        // Se o professor estiver com o painel ADM aberto, não interrompe a tela dele
+        if (isAdmin && isAdminOpen) {
+          return;
+        }
+
+        const isTarget =
+          race.targetTurma === 'todas' ||
+          !race.targetTurma ||
+          (state.studentClass && state.studentClass.trim().toLowerCase() === race.targetTurma.trim().toLowerCase());
+
+        if (isTarget && race.id !== dismissedRaceId) {
+          setIsRaceArenaOpen(true);
+        }
+      }
+    });
+
+    return () => unsubRace();
+  }, [state.studentClass, dismissedRaceId, isAdmin, isAdminOpen]);
+
   const [pendingAccent, setPendingAccent] = useState<string | null>(null);
   const [recentWordComplete, setRecentWordComplete] = useState<boolean>(false);
   const [recentUpgradeBought, setRecentUpgradeBought] = useState<string | null>(null);
@@ -467,6 +515,7 @@ export default function App() {
         isDungeonOpen ||
         activeRpgFloor !== null ||
         isArenaOpen ||
+        isRaceArenaOpen ||
         isConverterOpen ||
         isAdminOpen ||
         activeChallengeLevel !== null ||
@@ -495,6 +544,7 @@ export default function App() {
     isDungeonOpen,
     activeRpgFloor,
     isArenaOpen,
+    isRaceArenaOpen,
     isConverterOpen,
     isAdminOpen,
     activeChallengeLevel,
@@ -1215,7 +1265,8 @@ export default function App() {
         isConverterOpen ||
         isAdminOpen ||
         activeChallengeLevel !== null ||
-        activeFocusDrill !== null
+        activeFocusDrill !== null ||
+        isRaceArenaOpen
       ) {
         return;
       }
@@ -1280,6 +1331,7 @@ export default function App() {
   }, [
     handleTypeChar,
     isArenaOpen,
+    isRaceArenaOpen,
     isMetricsOpen,
     isPrestigeOpen,
     isLevelsModalOpen,
@@ -1724,12 +1776,96 @@ export default function App() {
     });
   }, [checkAndAwardAchievements]);
 
+  const handleUpdateAccessibility = useCallback((newSettings: AccessibilitySettings) => {
+    setState(prev => {
+      const next: GameState = {
+        ...prev,
+        accessibility: newSettings
+      };
+      saveState(next, auth.currentUser?.uid);
+      if (auth.currentUser) {
+        saveProgressToCloud(next).catch(console.error);
+      }
+      return next;
+    });
+  }, []);
+
   const handleAdminUpdateGameState = useCallback((updatedState: GameState) => {
     setState(updatedState);
     saveState(updatedState, auth.currentUser?.uid);
     if (auth.currentUser) {
       saveProgressToCloud(updatedState).catch(console.error);
     }
+  }, []);
+
+  // Handlers para a Corrida Escolar Sincronizada
+  const handleClaimRaceWin = useCallback(
+    (prizeBytes: number, stats: { wpm: number; timeMs: number }) => {
+      sound.playPrestige();
+      setState((prev) => {
+        const newBytes = prev.bytes + prizeBytes;
+        const newTotalEarned = prev.totalBytesEarned + prizeBytes;
+        const newWins = (prev.raceWins || 0) + 1;
+        const newRaces = (prev.racesParticipated || 0) + 1;
+        const newBestWpm = Math.max(prev.bestRaceWpm || 0, Math.round(stats.wpm));
+
+        const updated: GameState = {
+          ...prev,
+          bytes: newBytes,
+          totalBytesEarned: newTotalEarned,
+          raceWins: newWins,
+          racesParticipated: newRaces,
+          bestRaceWpm: newBestWpm
+        };
+        saveState(updated, auth.currentUser?.uid);
+        if (auth.currentUser) {
+          saveProgressToCloud(updated).catch(console.error);
+        }
+        return updated;
+      });
+      spawnFloatingText(`+${formatBytes(prizeBytes)} 🏁 Vitória na Corrida!`, 'bonus');
+    },
+    [spawnFloatingText]
+  );
+
+  const handleFinishRaceNonWinner = useCallback((stats: { wpm: number; timeMs: number }) => {
+    setState((prev) => {
+      const newRaces = (prev.racesParticipated || 0) + 1;
+      const newBestWpm = Math.max(prev.bestRaceWpm || 0, Math.round(stats.wpm));
+
+      const updated: GameState = {
+        ...prev,
+        racesParticipated: newRaces,
+        bestRaceWpm: newBestWpm
+      };
+      saveState(updated, auth.currentUser?.uid);
+      if (auth.currentUser) {
+        saveProgressToCloud(updated).catch(console.error);
+      }
+      return updated;
+    });
+  }, []);
+
+  const handleCloseRaceArena = useCallback(() => {
+    setIsRaceArenaOpen(false);
+    if (activeRace) {
+      setDismissedRaceId(activeRace.id);
+    }
+  }, [activeRace]);
+
+  const handleOpenRaceLeaderboard = useCallback(() => {
+    setLeaderboardInitialTab('races');
+    setIsLeaderboardOpen(true);
+  }, []);
+
+  const handleOpenGeneralLeaderboard = useCallback(() => {
+    setLeaderboardInitialTab('level');
+    setIsLeaderboardOpen(true);
+  }, []);
+
+  const handleOpenLeaderboardTab = useCallback((metric: LeaderboardMetric = 'level') => {
+    setLeaderboardInitialTab(metric);
+    setIsLeaderboardOpen(true);
   }, []);
 
   if (authLoading) {
@@ -1777,12 +1913,18 @@ export default function App() {
 
   const currentCosmetics = sanitizeCosmetics(state.cosmetics);
   const activeTheme = TERMINAL_THEMES[currentCosmetics.equippedTheme || 'matrix'] || TERMINAL_THEMES.matrix;
+  const effectiveAppBg = state.accessibility?.highContrast ? 'bg-black' : activeTheme.classes.appBg;
+  const uiScaleStyle: React.CSSProperties = state.accessibility?.uiScale === 'extra'
+    ? { zoom: '1.12' }
+    : state.accessibility?.uiScale === 'large'
+    ? { zoom: '1.06' }
+    : {};
 
   return (
-    <>
+    <div style={uiScaleStyle} className="min-h-screen">
       <GameLayoutWrapper
         layoutId={currentCosmetics.equippedLayout || 'default_terminal'}
-        appBgClass={activeTheme.classes.appBg}
+        appBgClass={effectiveAppBg}
         overlays={
           <>
             <LevelUpOverlay
@@ -1808,11 +1950,12 @@ export default function App() {
             onTogglePause={handleTogglePause}
             onToggleSound={() => setState((p) => ({ ...p, soundEnabled: !p.soundEnabled }))}
             onOpenMetrics={() => setIsMetricsOpen(true)}
+            onOpenAccessibility={() => setIsAccessibilityOpen(true)}
             onOpenPrestige={() => setIsPrestigeOpen(true)}
             onOpenStudentModal={() => setIsStudentModalOpen(true)}
             onOpenLevels={() => setIsLevelsModalOpen(true)}
             onOpenHelp={() => setIsHelpOpen(true)}
-            onOpenLeaderboard={() => setIsLeaderboardOpen(true)}
+            onOpenLeaderboard={handleOpenGeneralLeaderboard}
             onOpenAdmin={() => setIsAdminOpen(true)}
             onOpenCosmetics={() => setIsCosmeticsOpen(true)}
             onOpenArena={() => setIsArenaOpen(true)}
@@ -1828,12 +1971,14 @@ export default function App() {
             state={state}
             isAdmin={isAdmin}
             isSuperAdmin={checkIsSuperAdmin(user)}
+            currentUserId={user?.uid}
             onOpenStudentModal={() => setIsStudentModalOpen(true)}
             onOpenPrestige={() => setIsPrestigeOpen(true)}
             onOpenLevels={() => setIsLevelsModalOpen(true)}
             onOpenAchievements={() => setIsAchievementsOpen(true)}
             achievementsCount={getOverallAchievementsStats(state)}
-            onOpenLeaderboard={() => setIsLeaderboardOpen(true)}
+            onOpenLeaderboard={handleOpenGeneralLeaderboard}
+            onOpenLeaderboardTab={handleOpenLeaderboardTab}
           />
         }
         arena={
@@ -1869,7 +2014,7 @@ export default function App() {
             equippedTheme={currentCosmetics.equippedTheme || 'matrix'}
             equippedAnimation={currentCosmetics.equippedAnimation || 'confetti_classic'}
             onOpenCosmetics={() => setIsCosmeticsOpen(true)}
-            onOpenLeaderboard={() => setIsLeaderboardOpen(true)}
+            onOpenLeaderboard={handleOpenGeneralLeaderboard}
             onOpenAchievements={() => setIsAchievementsOpen(true)}
             achievementsCount={getOverallAchievementsStats(state)}
             onOpenQuests={() => setIsQuestsOpen(true)}
@@ -1891,6 +2036,7 @@ export default function App() {
             onCancelDrill={handleCancelDrill}
             onStartDrill={handleStartDrill}
             keyTelemetry={state.keyTelemetry}
+            accessibility={state.accessibility}
           />
         }
         shop={
@@ -1966,6 +2112,7 @@ export default function App() {
         onClose={() => setIsLeaderboardOpen(false)}
         currentUserId={user?.uid}
         currentUserClass={state.studentClass}
+        initialTab={leaderboardInitialTab}
       />
 
       {/* Mini-game Challenge */}
@@ -1997,6 +2144,14 @@ export default function App() {
         cosmetics={currentCosmetics}
         onUpdateCosmetics={handleUpdateCosmetics}
         isAdmin={isAdmin}
+      />
+
+      {/* Modal de Acessibilidade & Baixa Visão (A+ / A-) */}
+      <AccessibilityModal
+        isOpen={isAccessibilityOpen}
+        onClose={() => setIsAccessibilityOpen(false)}
+        settings={state.accessibility || DEFAULT_ACCESSIBILITY}
+        onUpdateSettings={handleUpdateAccessibility}
       />
 
       {/* Toast Flutuante de Conquista Desbloqueada */}
@@ -2099,7 +2254,26 @@ export default function App() {
         onOpenArena={() => setIsArenaOpen(true)}
         onOpenCosmetics={() => setIsCosmeticsOpen(true)}
         onTriggerChallenge={(lvl) => setActiveChallengeLevel(lvl || 10)}
+        onOpenRaceArena={() => setIsRaceArenaOpen(true)}
       />
+
+      {/* Arena de Corrida Escolar Sincronizada em Tempo Real */}
+      {activeRace && (
+        <ClassroomRaceArena
+          isOpen={isRaceArenaOpen}
+          race={activeRace}
+          studentName={state.studentName || user?.displayName || 'Aluno'}
+          studentNickname={state.studentNickname}
+          studentAvatar={state.studentAvatar || '🏎️'}
+          studentClass={state.studentClass || ''}
+          userId={user?.uid || 'anon_player'}
+          isAdmin={isAdmin}
+          onClose={handleCloseRaceArena}
+          onClaimWin={handleClaimRaceWin}
+          onFinishNonWinner={handleFinishRaceNonWinner}
+          onOpenRaceLeaderboard={handleOpenRaceLeaderboard}
+        />
+      )}
 
       {/* Session Lock Overlay */}
       <SessionLockOverlay
@@ -2107,7 +2281,7 @@ export default function App() {
         isLoading={isVerifyingLock}
         onUnlock={handleUnlockCode}
       />
-    </>
+    </div>
   );
 }
 

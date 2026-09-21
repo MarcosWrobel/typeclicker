@@ -2,6 +2,8 @@ import React from 'react';
 import { Cpu, Trophy, ChevronRight, Users } from 'lucide-react';
 import { GameState } from '../types';
 import { formatBytes, formatRate, calculatePlayerRank } from '../utils/formatting';
+import { TopPodiumWidget } from './TopPodiumWidget';
+import { LeaderboardMetric } from './LeaderboardModal';
 
 interface StatsSidebarProps {
   state: GameState;
@@ -11,6 +13,8 @@ interface StatsSidebarProps {
   onOpenAchievements?: () => void;
   achievementsCount?: { unlocked: number; total: number };
   onOpenLeaderboard?: () => void;
+  onOpenLeaderboardTab?: (metric: LeaderboardMetric) => void;
+  currentUserId?: string;
   isAdmin?: boolean;
   isSuperAdmin?: boolean;
 }
@@ -23,6 +27,8 @@ export const StatsSidebar: React.FC<StatsSidebarProps> = ({
   onOpenAchievements,
   achievementsCount,
   onOpenLeaderboard,
+  onOpenLeaderboardTab,
+  currentUserId,
   isAdmin = false,
   isSuperAdmin = false
 }) => {
@@ -110,7 +116,7 @@ export const StatsSidebar: React.FC<StatsSidebarProps> = ({
       {/* Level Progress */}
       <button
         onClick={onOpenLevels}
-        className="mt-auto lg:mt-4 flex flex-col gap-2 bg-[#0b0e14] hover:bg-[#121622] border border-[#222834] hover:border-amber-500/50 p-4 rounded-2xl shadow-sm transition-all duration-200 cursor-pointer group text-left"
+        className="flex flex-col gap-2 bg-[#0b0e14] hover:bg-[#121622] border border-[#222834] hover:border-amber-500/50 p-4 rounded-2xl shadow-sm transition-all duration-200 cursor-pointer group text-left"
         title="Clique para ver todos os Níveis do 1 ao 100!"
       >
         <div className="flex items-center gap-3">
@@ -144,9 +150,15 @@ export const StatsSidebar: React.FC<StatsSidebarProps> = ({
         </div>
       </button>
 
+      {/* Pódio Top 3 Escolar (Destaque sem entrar em menu) */}
+      <TopPodiumWidget
+        currentUserId={currentUserId}
+        onOpenLeaderboardTab={onOpenLeaderboardTab || (onOpenLeaderboard ? () => onOpenLeaderboard() : undefined)}
+      />
+
       {/* Atalhos de Reconhecimento & Comunidade (Abaixo do Nível do Jogador) */}
       {(onOpenAchievements || onOpenLeaderboard) && (
-        <div className="grid grid-cols-2 gap-2 mt-1">
+        <div className="grid grid-cols-2 gap-2 mt-auto pt-1">
           {onOpenAchievements && (
             <button
               type="button"

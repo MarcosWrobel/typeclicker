@@ -84,26 +84,25 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
   const activeStatusEffectRef = useRef<RpgActiveStatusEffect | null>(null);
   const [debuffSecondsLeft, setDebuffSecondsLeft] = useState<number>(0);
   const debuffSecondsLeftRef = useRef<number>(0);
-  const [telegraphSpell, setTelegraphSpell] = useState<{
-    label: string;
-    icon: string;
-    breakInstruction: string;
-  } | null>(null);
   const [blindTriggered, setBlindTriggered] = useState(false);
   const [fearTriggered, setFearTriggered] = useState(false);
   const [holdTriggered, setHoldTriggered] = useState(false);
 
-  // Estados de Splash Central (Aparece no meio da tela e depois volta ao topo)
-  const [showCenterTelegraph, setShowCenterTelegraph] = useState(false);
+  // Guards síncronos via useRef para evitar disparos duplicados durante digitação rápida
+  const blindTriggeredRef = useRef(false);
+  const fearTriggeredRef = useRef(false);
+  const holdTriggeredRef = useRef(false);
+
+  // Estados de Splash Central (Aparece 1 único aviso central e depois volta ao topo)
   const [showCenterDebuff, setShowCenterDebuff] = useState(false);
   const centerDebuffTimeoutRef = useRef<number | null>(null);
-  const telegraphTimeoutRef = useRef<number | null>(null);
 
   // Refs para prevenir race conditions e closures desatualizadas na digitação veloz
   const charIndexRef = useRef(0);
   const bossHpRef = useRef(floorData.boss.maxHp);
   const statusRef = useRef<'playing' | 'victory' | 'defeat'>('playing');
   const pendingAccentRef = useRef<string | null>(null);
+  const overloadTriggeredRef = useRef(false);
   const overloadActiveRef = useRef(false);
   const overloadIndexRef = useRef(0);
   const overloadSequenceRef = useRef<string[]>([]);
@@ -112,6 +111,12 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const textContainerRef = useRef<HTMLDivElement>(null);
   const currentSpanRef = useRef<HTMLSpanElement>(null);
+
+  // Mecânica de Ataque Iminente (Boss Cast Bar) e Modo de Fúria (< 30% HP)
+  const [bossChargeProgress, setBossChargeProgress] = useState(0);
+  const bossChargeProgressRef = useRef(0);
+  const [isEnraged, setIsEnraged] = useState(false);
+  const isEnragedRef = useRef(false);
 
   // Sincroniza refs com states
   useEffect(() => {
@@ -138,16 +143,15 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
   useEffect(() => {
     activeStatusEffectRef.current = activeStatusEffect;
   }, [activeStatusEffect]);
+  useEffect(() => {
+    bossChargeProgressRef.current = bossChargeProgress;
+  }, [bossChargeProgress]);
+  useEffect(() => {
+    isEnragedRef.current = isEnraged;
+  }, [isEnraged]);
 
   // Limpa debuffs ativos e timers associados
   const clearDebuff = useCallback(() => {
-    if (telegraphTimeoutRef.current) {
-      clearTimeout(telegraphTimeoutRef.current);
-      telegraphTimeoutRef.current = null;
-    }
-    setShowCenterTelegraph(false);
-    setTelegraphSpell(null);
-
     if (centerDebuffTimeoutRef.current) {
       clearTimeout(centerDebuffTimeoutRef.current);
       centerDebuffTimeoutRef.current = null;
@@ -162,7 +166,6 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
   // Limpeza no ciclo de desmontagem do componente
   useEffect(() => {
     return () => {
-      if (telegraphTimeoutRef.current) clearTimeout(telegraphTimeoutRef.current);
       if (centerDebuffTimeoutRef.current) clearTimeout(centerDebuffTimeoutRef.current);
     };
   }, []);
@@ -180,36 +183,22 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
     }, 850);
   }, []);
 
-  // Telegrafa e conjura um debuff de RPG no jogador com aviso prévio ultralegível centralizado
+  // Conjura um debuff de RPG no jogador com 1 aviso único e ultralegível centralizado que migra para o topo
   const castStatusEffect = useCallback((effect: RpgActiveStatusEffect) => {
-    setTelegraphSpell({
-      label: effect.label,
-      icon: effect.icon,
-      breakInstruction: effect.breakInstruction
-    });
-    setShowCenterTelegraph(true);
-    sound.playGlitch();
+    setActiveStatusEffect(effect);
+    activeStatusEffectRef.current = effect;
+    setDebuffSecondsLeft(effect.durationSeconds);
+    debuffSecondsLeftRef.current = effect.durationSeconds;
+    setShowCenterDebuff(true);
+    sound.playChallengeFail();
 
-    if (telegraphTimeoutRef.current) {
-      clearTimeout(telegraphTimeoutRef.current);
+    if (centerDebuffTimeoutRef.current) {
+      clearTimeout(centerDebuffTimeoutRef.current);
     }
-    telegraphTimeoutRef.current = window.setTimeout(() => {
-      setShowCenterTelegraph(false);
-      setTelegraphSpell(null);
-      setActiveStatusEffect(effect);
-      activeStatusEffectRef.current = effect;
-      setDebuffSecondsLeft(effect.durationSeconds);
-      debuffSecondsLeftRef.current = effect.durationSeconds;
-      setShowCenterDebuff(true);
-      sound.playChallengeFail();
-
-      if (centerDebuffTimeoutRef.current) {
-        clearTimeout(centerDebuffTimeoutRef.current);
-      }
-      centerDebuffTimeoutRef.current = window.setTimeout(() => {
-        setShowCenterDebuff(false);
-      }, 2000);
-    }, 1800);
+    // O aviso central fica em destaque por 2.2s e depois recolhe suavemente para o banner permanente no topo
+    centerDebuffTimeoutRef.current = window.setTimeout(() => {
+      setShowCenterDebuff(false);
+    }, 2200);
   }, []);
 
   // Temporizador regressivo em tempo real com punição direta se esgotar
@@ -230,7 +219,7 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
           // O tempo esgotou sem cumprir a condição!
           // Aplica punição direta: Dano pesado no escudo!
           const hardeningLevel = dungeon?.perks?.shieldHardening ?? 0;
-          const dmgMitigation = Math.min(0.5, hardeningLevel * 0.08);
+          const dmgMitigation = Math.min(0.4, hardeningLevel * 0.035);
           const directDmg = Math.max(10, Math.round(25 * (1 - dmgMitigation)));
 
           sound.playChallengeFail();
@@ -257,6 +246,61 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
     return () => clearInterval(interval);
   }, [activeStatusEffect, clearDebuff, dungeon, spawnDamage]);
 
+  // Temporizador de Carga de Ataque Iminente do Chefe (Boss Cast Bar)
+  useEffect(() => {
+    if (!isOpen || status !== 'playing') {
+      return;
+    }
+
+    const intervalMs = 100;
+    const timer = setInterval(() => {
+      if (statusRef.current !== 'playing') return;
+      // Pausa a carga se estiver em fase QTE de Sobrecarga
+      if (overloadActiveRef.current) return;
+
+      const currentFloor = floorData.floor;
+      const baseSec = Math.max(4.2, 7.5 - currentFloor * 0.25);
+      const speedMult = isEnragedRef.current ? 1.4 : 1.0;
+      const effectiveSec = baseSec / speedMult;
+      const incrementPerTick = (100 / effectiveSec) * (intervalMs / 1000);
+
+      const currentProg = bossChargeProgressRef.current;
+      const nextProg = currentProg + incrementPerTick;
+
+      if (nextProg >= 100) {
+        // Golpe autônomo do Boss dispara!
+        bossChargeProgressRef.current = 0;
+        setBossChargeProgress(0);
+
+        const enraged = isEnragedRef.current;
+        const rawStrikeDmg = Math.round((14 + currentFloor * 1.5) * (enraged ? 1.4 : 1.0));
+        const hardeningLevel = dungeon?.perks?.shieldHardening ?? 0;
+        const dmgMitigation = Math.min(0.4, hardeningLevel * 0.035);
+        const actualStrikeDmg = Math.max(8, Math.round(rawStrikeDmg * (1 - dmgMitigation)));
+
+        sound.playChallengeFail();
+        setIsErrorShaking(true);
+        setTimeout(() => setIsErrorShaking(false), 400);
+        spawnDamage(actualStrikeDmg, false, `💥 GOLPE DO CHEFE! -${actualStrikeDmg} DIRETO!`);
+
+        setPlayerShield((prevShield) => {
+          const nextShield = Math.max(0, prevShield - actualStrikeDmg);
+          if (nextShield <= 0) {
+            statusRef.current = 'defeat';
+            setStatus('defeat');
+            sound.playChallengeFail();
+          }
+          return nextShield;
+        });
+      } else {
+        bossChargeProgressRef.current = nextProg;
+        setBossChargeProgress(nextProg);
+      }
+    }, intervalMs);
+
+    return () => clearInterval(timer);
+  }, [isOpen, status, floorData.floor, dungeon, spawnDamage]);
+
   // Reinicia o estado ao abrir um novo andar
   useEffect(() => {
     if (isOpen) {
@@ -270,18 +314,24 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
       setPendingAccent(null);
       pendingAccentRef.current = null;
       setOverloadTriggered(false);
+      overloadTriggeredRef.current = false;
       setOverloadActive(false);
       overloadActiveRef.current = false;
       setOverloadSequence([]);
       overloadSequenceRef.current = [];
       setOverloadIndex(0);
       overloadIndexRef.current = 0;
-      setShowCenterTelegraph(false);
+      setBossChargeProgress(0);
+      bossChargeProgressRef.current = 0;
+      setIsEnraged(false);
+      isEnragedRef.current = false;
       clearDebuff();
-      setTelegraphSpell(null);
       setBlindTriggered(false);
+      blindTriggeredRef.current = false;
       setFearTriggered(false);
+      fearTriggeredRef.current = false;
       setHoldTriggered(false);
+      holdTriggeredRef.current = false;
       wordCleanRef.current = true;
       setTimeout(() => {
         inputRef.current?.focus({ preventScroll: true });
@@ -374,6 +424,16 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
             const nextHp = Math.max(0, bossHpRef.current - burstDmg);
             bossHpRef.current = nextHp;
             setBossHp(nextHp);
+
+            // Checagem de Fúria do Boss (< 30% HP)
+            const enrageThreshold = floorData.boss.maxHp * 0.3;
+            if (nextHp <= enrageThreshold && nextHp > 0 && !isEnragedRef.current) {
+              isEnragedRef.current = true;
+              setIsEnraged(true);
+              sound.playChallengeFail();
+              spawnDamage(0, true, '🔥 PROTOCOLO DE FÚRIA ATIVADO!');
+            }
+
             overloadActiveRef.current = false;
             setOverloadActive(false);
 
@@ -440,13 +500,22 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
           const weaknessBonusPercent = dungeon?.weapon?.bonusWeaknessDmgPercent ?? 0;
           baseDamage = Math.round((2 + weaponBonusDmg) * (1 + weaknessBonusPercent / 100));
 
+          // Atordoamento Crítico: Empurra a Carga de Ataque do Boss (-25%)!
+          bossChargeProgressRef.current = Math.max(0, bossChargeProgressRef.current - 25);
+          setBossChargeProgress(bossChargeProgressRef.current);
+          spawnDamage(0, false, '⚡ INTERRUPÇÃO! (-25% Carga)');
+
           // Perk: Vampirismo de Fraqueza
           const vampLevel = dungeon?.perks?.weaknessVampirism ?? 0;
           if (vampLevel > 0) {
-            const healAmount = vampLevel * 2;
+            const healAmount = Math.max(1, Math.floor(vampLevel * 0.6));
             setPlayerShield((prev) => Math.min(maxShield, prev + healAmount));
           }
         } else {
+          // Teclas comuns atrasam ligeiramente a carga do Boss (-2.5%)
+          bossChargeProgressRef.current = Math.max(0, bossChargeProgressRef.current - 2.5);
+          setBossChargeProgress(bossChargeProgressRef.current);
+
           // Teclas comuns sofrem mitigação da armadura natural do Boss
           const armor = floorData.boss.armorPercent || 0;
           if (armor > 0) {
@@ -462,6 +531,10 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
         let wordBonusDamage = 0;
         if (expectedChar === ' ' || nextIndex >= floorData.text.length) {
           if (wordCleanRef.current) {
+            // Atordoamento de Palavra Limpa: Empurra a Carga do Boss (-30%)!
+            bossChargeProgressRef.current = Math.max(0, bossChargeProgressRef.current - 30);
+            setBossChargeProgress(bossChargeProgressRef.current);
+
             // Se sob efeito de Pavor (Fear), concluir uma palavra limpa restaura a coragem
             if (activeStatusEffectRef.current?.type === 'fear') {
               sound.playUpgrade();
@@ -471,7 +544,7 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
 
             // Perk: Combo Crítico
             const comboLevel = dungeon?.perks?.criticalCombo ?? 0;
-            const comboMultiplier = 1 + comboLevel * 0.15;
+            const comboMultiplier = 1 + comboLevel * 0.05;
             wordBonusDamage = Math.round((8 + floorData.floor * 2) * comboMultiplier);
             spawnDamage(wordBonusDamage, true);
           }
@@ -483,11 +556,21 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
         bossHpRef.current = nextHp;
         setBossHp(nextHp);
 
+        // Checagem de Fúria do Boss (< 30% HP)
+        const enrageThreshold = floorData.boss.maxHp * 0.3;
+        if (nextHp <= enrageThreshold && nextHp > 0 && !isEnragedRef.current) {
+          isEnragedRef.current = true;
+          setIsEnraged(true);
+          sound.playChallengeFail();
+          spawnDamage(0, true, '🔥 PROTOCOLO DE FÚRIA ATIVADO!');
+        }
+
         // Gatilhos de Crowd Control (Debuffs) e QTE por porcentagem de HP do Boss
         const hpPct = Math.round((nextHp / floorData.boss.maxHp) * 100);
 
         // 1. Cegueira Digital (~70% HP)
-        if (!blindTriggered && hpPct <= 70 && hpPct > 58) {
+        if (!blindTriggeredRef.current && hpPct <= 70 && hpPct > 58) {
+          blindTriggeredRef.current = true;
           setBlindTriggered(true);
           castStatusEffect({
             type: 'blind',
@@ -503,7 +586,8 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
         }
 
         // 2. Paralisia de Buffer (~55% HP nos andares 3+)
-        if (!holdTriggered && floorData.floor >= 3 && hpPct <= 55 && hpPct > 48) {
+        if (!holdTriggeredRef.current && floorData.floor >= 3 && hpPct <= 55 && hpPct > 48) {
+          holdTriggeredRef.current = true;
           setHoldTriggered(true);
           castStatusEffect({
             type: 'hold',
@@ -519,7 +603,8 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
         }
 
         // 3. Onda de Pavor (~32% HP nos andares 2+)
-        if (!fearTriggered && floorData.floor >= 2 && hpPct <= 32 && hpPct > 18) {
+        if (!fearTriggeredRef.current && floorData.floor >= 2 && hpPct <= 32 && hpPct > 18) {
+          fearTriggeredRef.current = true;
           setFearTriggered(true);
           castStatusEffect({
             type: 'fear',
@@ -536,7 +621,8 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
 
         // 4. Sobrecarga do Núcleo QTE (<= 50% HP)
         const halfHp = floorData.boss.maxHp * 0.5;
-        if (!overloadTriggered && nextHp <= halfHp && nextHp > 0) {
+        if (!overloadTriggeredRef.current && nextHp <= halfHp && nextHp > 0) {
+          overloadTriggeredRef.current = true;
           setOverloadTriggered(true);
           const pool =
             floorData.boss.weaknessKeys && floorData.boss.weaknessKeys.length > 0
@@ -565,17 +651,28 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
         setIsErrorShaking(true);
         setTimeout(() => setIsErrorShaking(false), 200);
 
-        // Se estiver sob efeito de status ativo (debuff), o dano do erro é DOBRADO (2x)!
+        // Erro acelera o ataque iminente do Boss (+10% Carga)!
+        bossChargeProgressRef.current = Math.min(100, bossChargeProgressRef.current + 10);
+        setBossChargeProgress(bossChargeProgressRef.current);
+
+        // Dano de erro escalonado pela profundidade do andar
         const isUnderDebuff = !!activeStatusEffectRef.current;
-        const baseDmg = isUnderDebuff ? 12 : 6;
+        const isEnraged = isEnragedRef.current;
+        let baseDmg = 7 + Math.floor(floorData.floor * 1.4);
+        if (isUnderDebuff) baseDmg *= 2;
+        if (isEnraged) baseDmg = Math.round(baseDmg * 1.5);
 
         // Reduz o escudo do jogador com mitigação de armadura (Perk Endurecimento de Escudo)
         const hardeningLevel = dungeon?.perks?.shieldHardening ?? 0;
-        const dmgMitigation = Math.min(0.5, hardeningLevel * 0.08); // 8% por nível
-        const actualDmgTaken = Math.max(isUnderDebuff ? 4 : 2, Math.round(baseDmg * (1 - dmgMitigation)));
+        const dmgMitigation = Math.min(0.4, hardeningLevel * 0.035); // 3.5% por nível
+        const actualDmgTaken = Math.max(isUnderDebuff ? 6 : 3, Math.round(baseDmg * (1 - dmgMitigation)));
 
-        if (isUnderDebuff) {
+        if (isUnderDebuff && isEnraged) {
+          spawnDamage(actualDmgTaken, false, `💥 ERRO CRÍTICO NA FÚRIA! -${actualDmgTaken} (3X DANO)`);
+        } else if (isUnderDebuff) {
           spawnDamage(actualDmgTaken, false, `💥 ERRO SOB DEBUFF! -${actualDmgTaken} (2X DANO)`);
+        } else if (isEnraged) {
+          spawnDamage(actualDmgTaken, false, `🔥 ERRO NA FÚRIA! -${actualDmgTaken} (+50% DANO)`);
         }
 
         setPlayerShield((prev) => {
@@ -695,18 +792,24 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
     setPendingAccent(null);
     pendingAccentRef.current = null;
     setOverloadTriggered(false);
+    overloadTriggeredRef.current = false;
     setOverloadActive(false);
     overloadActiveRef.current = false;
     setOverloadSequence([]);
     overloadSequenceRef.current = [];
     setOverloadIndex(0);
     overloadIndexRef.current = 0;
-    setShowCenterTelegraph(false);
+    setBossChargeProgress(0);
+    bossChargeProgressRef.current = 0;
+    setIsEnraged(false);
+    isEnragedRef.current = false;
     clearDebuff();
-    setTelegraphSpell(null);
     setBlindTriggered(false);
+    blindTriggeredRef.current = false;
     setFearTriggered(false);
+    fearTriggeredRef.current = false;
     setHoldTriggered(false);
+    holdTriggeredRef.current = false;
     setStatus('playing');
     statusRef.current = 'playing';
     wordCleanRef.current = true;
@@ -718,6 +821,10 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
   const totalChars = floorData.text.length;
   const progressPercent = Math.min(100, Math.round((charIndex / totalChars) * 100));
   const hpPercent = Math.min(100, Math.max(0, Math.round((bossHp / floorData.boss.maxHp) * 100)));
+
+  const baseChargeTime = Math.max(4.2, 7.5 - floorData.floor * 0.25);
+  const effectiveChargeTime = isEnraged ? baseChargeTime / 1.4 : baseChargeTime;
+  const chargeSecondsRemaining = Math.max(0, ((100 - bossChargeProgress) / 100) * effectiveChargeTime);
 
   return (
     <AnimatePresence>
@@ -745,51 +852,12 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
           initial={{ opacity: 0, scale: 0.96 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.96 }}
-          className="relative w-full max-w-6xl h-[92vh] max-h-[94vh] flex flex-col bg-gradient-to-b from-[#111624] via-[#0d121c] to-[#080b12] border-2 border-cyan-500/50 rounded-2xl shadow-[0_0_70px_rgba(6,182,212,0.25)] overflow-hidden text-zinc-100"
+          className={`relative w-full max-w-6xl h-[92vh] max-h-[94vh] flex flex-col bg-gradient-to-b from-[#111624] via-[#0d121c] to-[#080b12] border-2 rounded-2xl overflow-hidden text-zinc-100 transition-all duration-300 ${
+            isEnraged
+              ? 'border-red-500 shadow-[0_0_90px_rgba(239,68,68,0.45)]'
+              : 'border-cyan-500/50 shadow-[0_0_70px_rgba(6,182,212,0.25)]'
+          }`}
         >
-          {/* Splash Central de Alerta de Telegrafia do Chefe */}
-          <AnimatePresence>
-            {showCenterTelegraph && telegraphSpell && (
-              <motion.div
-                key="center-telegraph"
-                initial={{ scale: 0.6, y: 30, opacity: 0 }}
-                animate={{ scale: [0.6, 1.05, 1], y: 0, opacity: 1 }}
-                exit={{ scale: 0.75, y: -180, opacity: 0 }}
-                transition={{ duration: 0.35, ease: 'easeOut' }}
-                className="absolute inset-0 z-50 flex items-center justify-center p-4 pointer-events-none select-none bg-black/50 backdrop-blur-[3px]"
-              >
-                <div className="relative w-full max-w-md sm:max-w-lg p-6 sm:p-8 rounded-3xl border-4 border-rose-500 bg-gradient-to-b from-[#3a0c18] via-[#20050d] to-[#0d0105] shadow-[0_0_90px_rgba(244,63,94,0.85)] flex flex-col items-center text-center font-mono text-white animate-pulse">
-                  <div className="w-20 h-20 rounded-2xl bg-rose-600/30 border-2 border-rose-400 flex items-center justify-center text-5xl mb-3 shadow-lg animate-bounce">
-                    {telegraphSpell.icon}
-                  </div>
-
-                  <span className="px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-rose-600 text-black mb-2 animate-bounce">
-                    ⚠️ CONJURAÇÃO DO CHEFE!
-                  </span>
-
-                  <span className="text-xs text-rose-300 font-bold mb-1">
-                    {floorData.boss.name} ESTÁ PREPARANDO:
-                  </span>
-                  <h3 className="text-2xl sm:text-3xl font-black text-amber-300 uppercase tracking-wide mb-3">
-                    {telegraphSpell.label}
-                  </h3>
-
-                  <div className="w-full bg-black/85 rounded-2xl p-4 border-2 border-amber-400 shadow-inner">
-                    <span className="text-[11px] font-black text-amber-300 uppercase tracking-wider block mb-1">
-                      👉 PREPARE-SE PARA QUEBRAR:
-                    </span>
-                    <span className="text-base sm:text-lg font-black text-white">
-                      {telegraphSpell.breakInstruction}
-                    </span>
-                  </div>
-
-                  <span className="mt-3 text-xs font-bold text-rose-300 animate-pulse">
-                    ⚡ Impacto em instantes...
-                  </span>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
 
           {/* Splash Central de Instrução do Debuff (Destaque Central -> Volta ao Topo) */}
           <AnimatePresence>
@@ -894,6 +962,8 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
                 className={`w-20 h-20 sm:w-24 sm:h-24 rounded-2xl border-2 flex items-center justify-center text-4xl sm:text-5xl select-none flex-shrink-0 shadow-xl transition-all ${
                   isBossHurt
                     ? 'bg-rose-950 border-rose-400 shadow-[0_0_35px_rgba(244,63,94,0.7)]'
+                    : isEnraged
+                    ? 'bg-red-950/90 border-red-500 shadow-[0_0_40px_rgba(239,68,68,0.85)] animate-pulse'
                     : 'bg-zinc-900/90 border-rose-500/60 shadow-[0_0_20px_rgba(244,63,94,0.25)]'
                 }`}
               >
@@ -906,7 +976,12 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
                   <span className="text-[10px] font-mono text-rose-300 font-bold bg-rose-950/80 px-2 py-0.5 rounded border border-rose-500/50 shadow-sm">
                     BOSS
                   </span>
-                  {overloadTriggered ? (
+                  {isEnraged ? (
+                    <span className="text-[10px] font-mono text-red-300 font-black bg-red-950/90 px-2 py-0.5 rounded border border-red-500/70 animate-pulse flex items-center gap-1 shadow-sm">
+                      <Flame className="w-3 h-3 text-red-400 fill-current" />
+                      FÚRIA DO CHEFE ATIVA (+40% VELOCIDADE)
+                    </span>
+                  ) : overloadTriggered ? (
                     <span className="text-[10px] font-mono text-amber-300 font-bold bg-amber-950/80 px-2 py-0.5 rounded border border-amber-500/50 animate-pulse">
                       ⚡ SOBRECARGA ATIVA
                     </span>
@@ -943,6 +1018,48 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
                       transition={{ duration: 0.2 }}
                       className="h-full rounded-full bg-gradient-to-r from-rose-600 via-rose-500 to-amber-400 shadow-[0_0_12px_rgba(244,63,94,0.6)]"
                     />
+                  </div>
+                </div>
+
+                {/* Barra de Carga de Ataque Iminente do Boss */}
+                <div className="mt-2.5 w-52 sm:w-72 md:w-80">
+                  <div className="flex items-center justify-between text-[11px] font-mono font-bold mb-1">
+                    <span
+                      className={`flex items-center gap-1.5 ${
+                        isEnraged
+                          ? 'text-red-400 animate-pulse'
+                          : bossChargeProgress > 70
+                          ? 'text-amber-400'
+                          : 'text-zinc-300'
+                      }`}
+                    >
+                      <Zap className={`w-3 h-3 ${isEnraged ? 'text-red-400 fill-current' : 'text-amber-400'}`} />
+                      <span>{isEnraged ? '🔥 ATAQUE EM FÚRIA' : '⚡ ATAQUE IMINENTE'}</span>
+                    </span>
+                    <span
+                      className={`text-[10px] font-mono font-bold ${
+                        bossChargeProgress > 75 ? 'text-rose-300 animate-pulse' : 'text-zinc-400'
+                      }`}
+                    >
+                      {bossChargeProgress.toFixed(0)}% • {chargeSecondsRemaining.toFixed(1)}s
+                    </span>
+                  </div>
+                  <div className="relative w-full h-2.5 sm:h-3 rounded-full bg-zinc-950 overflow-hidden border border-zinc-800 p-0.5 shadow-inner">
+                    <motion.div
+                      animate={{ width: `${Math.min(100, Math.max(0, bossChargeProgress))}%` }}
+                      transition={{ duration: 0.1, ease: 'linear' }}
+                      className={`h-full rounded-full transition-all ${
+                        bossChargeProgress > 75
+                          ? 'bg-gradient-to-r from-amber-500 via-rose-500 to-red-600 animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.9)]'
+                          : bossChargeProgress > 45
+                          ? 'bg-gradient-to-r from-yellow-400 to-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.6)]'
+                          : 'bg-gradient-to-r from-cyan-400 to-amber-400 shadow-[0_0_8px_rgba(6,182,212,0.4)]'
+                      }`}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between text-[9px] font-mono text-zinc-500 mt-0.5">
+                    <span>Digite teclas / fraquezas p/ interromper</span>
+                    {isEnraged && <span className="text-red-400 font-bold animate-pulse">+40% VELOCIDADE</span>}
                   </div>
                 </div>
               </div>
@@ -1005,17 +1122,17 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
                     )}
                     {dungeon.perks.weaknessVampirism > 0 && (
                       <span className="text-rose-400" title="Vampirismo em Fraquezas">
-                        🩸 Nv.{dungeon.perks.weaknessVampirism}
+                        🩸 Nv.{dungeon.perks.weaknessVampirism}/10
                       </span>
                     )}
                     {dungeon.perks.criticalCombo > 0 && (
                       <span className="text-cyan-400" title="Bônus em Combo Perfeito">
-                        ⚡ Nv.{dungeon.perks.criticalCombo}
+                        ⚡ Nv.{dungeon.perks.criticalCombo}/10
                       </span>
                     )}
                     {dungeon.perks.shieldHardening > 0 && (
                       <span className="text-indigo-400" title="Mitigação de Escudo">
-                        🛡️ Nv.{dungeon.perks.shieldHardening}
+                        🛡️ Nv.{dungeon.perks.shieldHardening}/10
                       </span>
                     )}
                   </div>
@@ -1024,39 +1141,6 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
             </div>
           </div>
 
-          {/* Banner de Telegrafia de Magia do Boss (Ultra Visível) */}
-          {telegraphSpell && (
-            <motion.div
-              initial={{ y: -30, opacity: 0, scale: 0.95 }}
-              animate={{ y: 0, opacity: 1, scale: 1 }}
-              exit={{ y: -30, opacity: 0, scale: 0.95 }}
-              className="px-6 py-4 bg-gradient-to-r from-rose-950 via-purple-950 to-rose-950 border-b-4 border-rose-500 flex flex-col sm:flex-row items-center justify-between gap-3 text-white font-mono shadow-[0_0_50px_rgba(244,63,94,0.7)] z-30 animate-pulse"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-rose-600/40 border-2 border-rose-400 flex items-center justify-center text-3xl animate-bounce flex-shrink-0 shadow-lg">
-                  {telegraphSpell.icon}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="bg-rose-600 text-black font-black text-xs px-2 py-0.5 rounded tracking-wider uppercase">
-                      ⚠️ ALERTA DE MAGIA IMINENTE
-                    </span>
-                    <span className="text-rose-200 text-xs font-bold">
-                      {floorData.boss.name} ESTÁ CONJURANDO:
-                    </span>
-                  </div>
-                  <h4 className="text-base sm:text-lg font-black text-amber-300 tracking-wide mt-0.5">
-                    {telegraphSpell.label}
-                  </h4>
-                </div>
-              </div>
-
-              <div className="bg-black/70 border border-amber-400/80 px-4 py-2 rounded-xl text-center sm:text-right">
-                <span className="text-[11px] text-amber-300 block uppercase font-bold">PREPARE-SE PARA QUEBRAR:</span>
-                <span className="text-xs sm:text-sm font-black text-white">{telegraphSpell.breakInstruction}</span>
-              </div>
-            </motion.div>
-          )}
 
           {/* Banner de Efeito de Status Ativo (Ultra Visível com Timer Regressivo & Instrução de Quebra) */}
           {activeStatusEffect && (

@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { GameState } from '../types';
 import { DungeonPerks } from '../types/quests';
-import { generateRpgFloor, syncQuestsState, syncDungeonState } from '../services/questsEngine';
+import { generateRpgFloor, syncQuestsState, syncDungeonState, getPerkUpgradeReq } from '../services/questsEngine';
 import { formatBytes } from '../utils/formatting';
 import { sound } from '../utils/audio';
 
@@ -65,9 +65,55 @@ export const RpgDungeonModal: React.FC<RpgDungeonModalProps> = ({
   const dungeon = syncDungeonState(quests.dungeon);
   const floorData = generateRpgFloor(quests.rpgDungeonFloor, state.keyTelemetry);
 
+  const currentHighestFloor = Math.max(quests.rpgDungeonFloor || 1, quests.highestRpgFloor || 1);
   const isLevelUnlocked = playerRankLevel >= 3;
   const hasKeys = dungeon.keys > 0;
   const isChestAvailable = floorData.floor % 3 === 0;
+
+  const renderPerkButton = (perkKey: keyof DungeonPerks, currentLevel: number, btnClass: string) => {
+    if (currentLevel >= 10) {
+      return (
+        <span className="text-[10px] font-mono text-emerald-400 font-bold px-2 py-1 bg-emerald-950/60 rounded border border-emerald-500/30">
+          MAX
+        </span>
+      );
+    }
+    const req = getPerkUpgradeReq(currentLevel);
+    if (!req) return null;
+
+    const hasFloor = currentHighestFloor >= req.requiredFloor;
+    const hasXp = quests.rpgDungeonXp >= req.cost;
+    const isLocked = !hasFloor;
+    const isDisabled = !hasFloor || !hasXp;
+
+    return (
+      <div className="flex flex-col items-end gap-1 shrink-0">
+        <button
+          onClick={() => {
+            sound.playClick();
+            onUpgradePerk(perkKey);
+          }}
+          disabled={isDisabled}
+          title={
+            isLocked
+              ? `Requer alcançar o Andar ${req.requiredFloor} para desbloquear o Nv.${req.level}!`
+              : !hasXp
+              ? `Requer ${req.cost} XP (você possui ${quests.rpgDungeonXp} XP)!`
+              : undefined
+          }
+          className={`px-2.5 py-1.5 rounded-lg ${btnClass} disabled:opacity-40 text-white font-mono text-[11px] font-bold cursor-pointer disabled:cursor-not-allowed whitespace-nowrap flex items-center gap-1 transition`}
+        >
+          {isLocked && <Lock className="w-3 h-3 text-amber-300" />}
+          <span>+1 ({req.cost} XP)</span>
+        </button>
+        {isLocked && (
+          <span className="text-[9px] font-mono font-bold text-amber-400 flex items-center gap-0.5 bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-500/30">
+            <Lock className="w-2.5 h-2.5" /> Andar {req.requiredFloor}+
+          </span>
+        )}
+      </div>
+    );
+  };
 
   return (
     <AnimatePresence>
@@ -502,27 +548,14 @@ export const RpgDungeonModal: React.FC<RpgDungeonModalProps> = ({
                         <div className="flex items-center gap-1.5">
                           <Zap className="w-3.5 h-3.5 text-amber-400" />
                           <h6 className="font-bold text-white text-xs">Foco Crítico</h6>
-                          <span className="text-[10px] font-mono text-amber-300">Nv.{dungeon.perks.criticalCombo}/5</span>
+                          <span className="text-[10px] font-mono text-amber-300">Nv.{dungeon.perks.criticalCombo}/10</span>
                         </div>
                         <p className="text-[11px] text-zinc-400 mt-0.5">
-                          +{dungeon.perks.criticalCombo * 10}% de dano adicional em combos longos sem erro.
+                          +{dungeon.perks.criticalCombo * 5}% de dano adicional em combos longos sem erro.
                         </p>
                       </div>
 
-                      {dungeon.perks.criticalCombo < 5 ? (
-                        <button
-                          onClick={() => {
-                            sound.playClick();
-                            onUpgradePerk('criticalCombo');
-                          }}
-                          disabled={quests.rpgDungeonXp < (dungeon.perks.criticalCombo + 1) * 80}
-                          className="px-2.5 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-mono text-[11px] font-bold cursor-pointer whitespace-nowrap"
-                        >
-                          +1 ({(dungeon.perks.criticalCombo + 1) * 80} XP)
-                        </button>
-                      ) : (
-                        <span className="text-[10px] font-mono text-emerald-400 font-bold">MAX</span>
-                      )}
+                      {renderPerkButton('criticalCombo', dungeon.perks.criticalCombo, 'bg-purple-600 hover:bg-purple-500')}
                     </div>
 
                     {/* Perk 2: Vampirismo de Fraqueza */}
@@ -531,27 +564,14 @@ export const RpgDungeonModal: React.FC<RpgDungeonModalProps> = ({
                         <div className="flex items-center gap-1.5">
                           <Heart className="w-3.5 h-3.5 text-rose-400" />
                           <h6 className="font-bold text-white text-xs">Regeneração em Fraquezas</h6>
-                          <span className="text-[10px] font-mono text-rose-300">Nv.{dungeon.perks.weaknessVampirism}/5</span>
+                          <span className="text-[10px] font-mono text-rose-300">Nv.{dungeon.perks.weaknessVampirism}/10</span>
                         </div>
                         <p className="text-[11px] text-zinc-400 mt-0.5">
-                          Acertar teclas de fraqueza do chefe restaura +{dungeon.perks.weaknessVampirism * 2} de Escudo.
+                          Acertar teclas de fraqueza do chefe restaura +{Math.max(1, Math.floor(dungeon.perks.weaknessVampirism * 0.6))} de Escudo.
                         </p>
                       </div>
 
-                      {dungeon.perks.weaknessVampirism < 5 ? (
-                        <button
-                          onClick={() => {
-                            sound.playClick();
-                            onUpgradePerk('weaknessVampirism');
-                          }}
-                          disabled={quests.rpgDungeonXp < (dungeon.perks.weaknessVampirism + 1) * 80}
-                          className="px-2.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white font-mono text-[11px] font-bold cursor-pointer whitespace-nowrap"
-                        >
-                          +1 ({(dungeon.perks.weaknessVampirism + 1) * 80} XP)
-                        </button>
-                      ) : (
-                        <span className="text-[10px] font-mono text-emerald-400 font-bold">MAX</span>
-                      )}
+                      {renderPerkButton('weaknessVampirism', dungeon.perks.weaknessVampirism, 'bg-rose-600 hover:bg-rose-500')}
                     </div>
 
                     {/* Perk 3: Síntese de Bytes */}
@@ -560,27 +580,14 @@ export const RpgDungeonModal: React.FC<RpgDungeonModalProps> = ({
                         <div className="flex items-center gap-1.5">
                           <Coins className="w-3.5 h-3.5 text-amber-400" />
                           <h6 className="font-bold text-white text-xs">Síntese de Bytes</h6>
-                          <span className="text-[10px] font-mono text-amber-300">Nv.{dungeon.perks.rewardMultiplier}/5</span>
+                          <span className="text-[10px] font-mono text-amber-300">Nv.{dungeon.perks.rewardMultiplier}/10</span>
                         </div>
                         <p className="text-[11px] text-zinc-400 mt-0.5">
-                          +{dungeon.perks.rewardMultiplier * 15}% de Bytes adicionais ao derrotar qualquer chefe.
+                          +{dungeon.perks.rewardMultiplier * 4}% de Bytes adicionais ao derrotar qualquer chefe.
                         </p>
                       </div>
 
-                      {dungeon.perks.rewardMultiplier < 5 ? (
-                        <button
-                          onClick={() => {
-                            sound.playClick();
-                            onUpgradePerk('rewardMultiplier');
-                          }}
-                          disabled={quests.rpgDungeonXp < (dungeon.perks.rewardMultiplier + 1) * 80}
-                          className="px-2.5 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white font-mono text-[11px] font-bold cursor-pointer whitespace-nowrap"
-                        >
-                          +1 ({(dungeon.perks.rewardMultiplier + 1) * 80} XP)
-                        </button>
-                      ) : (
-                        <span className="text-[10px] font-mono text-emerald-400 font-bold">MAX</span>
-                      )}
+                      {renderPerkButton('rewardMultiplier', dungeon.perks.rewardMultiplier, 'bg-amber-600 hover:bg-amber-500')}
                     </div>
 
                     {/* Perk 4: Endurecimento de Escudo */}
@@ -589,27 +596,14 @@ export const RpgDungeonModal: React.FC<RpgDungeonModalProps> = ({
                         <div className="flex items-center gap-1.5">
                           <Shield className="w-3.5 h-3.5 text-cyan-400" />
                           <h6 className="font-bold text-white text-xs">Endurecimento de Escudo</h6>
-                          <span className="text-[10px] font-mono text-cyan-300">Nv.{dungeon.perks.shieldHardening}/5</span>
+                          <span className="text-[10px] font-mono text-cyan-300">Nv.{dungeon.perks.shieldHardening}/10</span>
                         </div>
                         <p className="text-[11px] text-zinc-400 mt-0.5">
-                          Reduz o desgaste do escudo em {dungeon.perks.shieldHardening * 15}% contra erros comuns.
+                          Reduz o desgaste do escudo em {(dungeon.perks.shieldHardening * 3.5).toFixed(1)}% contra erros comuns.
                         </p>
                       </div>
 
-                      {dungeon.perks.shieldHardening < 5 ? (
-                        <button
-                          onClick={() => {
-                            sound.playClick();
-                            onUpgradePerk('shieldHardening');
-                          }}
-                          disabled={quests.rpgDungeonXp < (dungeon.perks.shieldHardening + 1) * 80}
-                          className="px-2.5 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white font-mono text-[11px] font-bold cursor-pointer whitespace-nowrap"
-                        >
-                          +1 ({(dungeon.perks.shieldHardening + 1) * 80} XP)
-                        </button>
-                      ) : (
-                        <span className="text-[10px] font-mono text-emerald-400 font-bold">MAX</span>
-                      )}
+                      {renderPerkButton('shieldHardening', dungeon.perks.shieldHardening, 'bg-cyan-600 hover:bg-cyan-500')}
                     </div>
                   </div>
                 </div>

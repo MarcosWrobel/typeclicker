@@ -1,4 +1,4 @@
-import { GameState, KeyTelemetry } from '../types';
+import { GameState, KeyTelemetry, AccessibilitySettings, TextScale, UiScale, ContrastTheme } from '../types';
 import { DEFAULT_COSMETICS, PlayerCosmetics } from '../types/cosmetics';
 import { ArenaStats } from '../types/arena';
 import { syncQuestsState } from '../services/questsEngine';
@@ -12,6 +12,17 @@ export const DEFAULT_ARENA_STATS: ArenaStats = {
   highestWpm: 0,
   duelPoints: 0,
   currentRankId: 'recruta'
+};
+
+export const DEFAULT_ACCESSIBILITY: AccessibilitySettings = {
+  textScale: 'normal',
+  uiScale: 'normal',
+  highContrast: false,
+  contrastTheme: 'standard',
+  thickCursor: false,
+  highlightActiveWord: true,
+  fontFamily: 'mono',
+  reduceMotion: false
 };
 
 export function getUserSaveKey(userId?: string | null): string {
@@ -59,7 +70,11 @@ export const INITIAL_STATE: GameState = {
   mascotClicks: 0,
   completedDrillSessions: 0,
   categoriesExplored: ['iniciante'],
-  quests: syncQuestsState()
+  quests: syncQuestsState(),
+  raceWins: 0,
+  racesParticipated: 0,
+  bestRaceWpm: 0,
+  accessibility: { ...DEFAULT_ACCESSIBILITY }
 };
 
 export function sanitizeAchievements(raw?: Record<string, any> | null): Record<string, number> {
@@ -319,6 +334,27 @@ export function sanitizeCosmetics(rawCosmetics?: Partial<PlayerCosmetics> | null
   };
 }
 
+export function sanitizeAccessibility(raw?: Partial<AccessibilitySettings> | null): AccessibilitySettings {
+  if (!raw || typeof raw !== 'object') {
+    return { ...DEFAULT_ACCESSIBILITY };
+  }
+
+  const validTextScales: TextScale[] = ['normal', 'large', 'huge', 'mega'];
+  const validUiScales: UiScale[] = ['normal', 'large', 'extra'];
+  const validContrastThemes: ContrastTheme[] = ['standard', 'high_contrast_yellow', 'high_contrast_cyan', 'high_contrast_white'];
+
+  return {
+    textScale: validTextScales.includes(raw.textScale as any) ? raw.textScale! : 'normal',
+    uiScale: validUiScales.includes(raw.uiScale as any) ? raw.uiScale! : 'normal',
+    highContrast: Boolean(raw.highContrast),
+    contrastTheme: validContrastThemes.includes(raw.contrastTheme as any) ? raw.contrastTheme! : 'standard',
+    thickCursor: Boolean(raw.thickCursor),
+    highlightActiveWord: raw.highlightActiveWord !== false,
+    fontFamily: raw.fontFamily === 'sans' || raw.fontFamily === 'dyslexic' ? raw.fontFamily : 'mono',
+    reduceMotion: Boolean(raw.reduceMotion)
+  };
+}
+
 export function loadSavedState(userId?: string | null): GameState {
   try {
     const key = getUserSaveKey(userId);
@@ -372,7 +408,8 @@ export function loadSavedState(userId?: string | null): GameState {
       mascotClicks: Number.isFinite(parsed.mascotClicks) ? parsed.mascotClicks : 0,
       completedDrillSessions: Number.isFinite(parsed.completedDrillSessions) ? parsed.completedDrillSessions : 0,
       categoriesExplored: Array.isArray(parsed.categoriesExplored) ? parsed.categoriesExplored : ['iniciante'],
-      quests: syncQuestsState(parsed.quests)
+      quests: syncQuestsState(parsed.quests),
+      accessibility: sanitizeAccessibility(parsed.accessibility)
     };
   } catch (e) {
     console.warn('Falha ao carregar estado salvo:', e);

@@ -91,10 +91,11 @@ export const RpgChestMinigame: React.FC<RpgChestMinigameProps> = ({
               // Cofre aberto!
               sound.playChallengeSuccess();
               setIsCompleted(true);
+              const earnedXp = 25 + floor * 8;
               const reward = {
                 bytes: floor * 3000 + 10000,
                 tokens: 2,
-                xp: 150,
+                xp: earnedXp,
                 keyGranted: true
               };
               onRewardClaim(reward);
@@ -234,7 +235,7 @@ export const RpgChestMinigame: React.FC<RpgChestMinigameProps> = ({
                 <div className="p-2.5 rounded-xl bg-cyan-950/60 border border-cyan-500/40 text-center">
                   <CheckCircle2 className="w-4 h-4 text-cyan-400 mx-auto" />
                   <span className="text-[10px] font-mono text-zinc-400 block mt-1">XP Masmorra</span>
-                  <span className="text-xs font-black text-cyan-300 font-mono">+150 XP</span>
+                  <span className="text-xs font-black text-cyan-300 font-mono">+{25 + floor * 8} XP</span>
                 </div>
                 <div className="p-2.5 rounded-xl bg-rose-950/60 border border-rose-500/40 text-center shadow-[0_0_15px_rgba(244,63,94,0.3)]">
                   <Key className="w-4 h-4 text-rose-400 mx-auto animate-bounce" />

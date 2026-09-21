@@ -118,6 +118,9 @@ export interface FirebaseSavePayload {
   flaggedForReview?: boolean;
   flagReason?: string;
   focusTimeoutSetting?: number;
+  raceWins?: number;
+  racesParticipated?: number;
+  bestRaceWpm?: number;
 }
 
 export interface LeaderboardEntry {
@@ -135,6 +138,14 @@ export interface LeaderboardEntry {
   flagReason?: string;
   email?: string;
   isStaff?: boolean;
+  raceWins?: number;
+  racesParticipated?: number;
+  bestRaceWpm?: number;
+  maxCombo?: number;
+  pvpWins?: number;
+  pvpMatches?: number;
+  pvpPoints?: number;
+  bestWpm?: number;
 }
 
 export interface CloudResponse {
@@ -308,6 +319,15 @@ export async function saveProgressToCloud(
   if (apelido) savePayload.apelido = apelido;
   if (user.email) savePayload.email = user.email;
   if (flagReason) savePayload.flagReason = flagReason;
+  if (state.raceWins !== undefined) savePayload.raceWins = state.raceWins;
+  if (state.racesParticipated !== undefined) savePayload.racesParticipated = state.racesParticipated;
+  if (state.bestRaceWpm !== undefined) savePayload.bestRaceWpm = state.bestRaceWpm;
+
+  const highestWpmTracked = Math.max(
+    ppm,
+    state.arenaStats?.highestWpm || 0,
+    state.bestRaceWpm || 0
+  );
 
   const leaderboardPayload: LeaderboardEntry = {
     userId: user.uid,
@@ -321,7 +341,15 @@ export async function saveProgressToCloud(
     updatedAt: new Date().toISOString(),
     flaggedForReview: isFlagged,
     email: user.email || undefined,
-    isStaff: isStaff || undefined
+    isStaff: isStaff || undefined,
+    raceWins: state.raceWins || 0,
+    racesParticipated: state.racesParticipated || 0,
+    bestRaceWpm: state.bestRaceWpm || 0,
+    maxCombo: state.maxCombo || 0,
+    pvpWins: state.arenaStats?.wins || 0,
+    pvpMatches: state.arenaStats?.matchesPlayed || 0,
+    pvpPoints: state.arenaStats?.duelPoints || 0,
+    bestWpm: highestWpmTracked
   };
 
   if (apelido) leaderboardPayload.apelido = apelido;

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Shield, Key, Trash2, X, Clock, AlertTriangle, Users, Search, RefreshCw, BarChart, Database, Download, Upload, CheckCircle2, RotateCcw, FileText, Sliders, Battery, EyeOff, Filter, Swords, Sparkles, Coins, Zap, Trophy, Award, UserCheck, Plus, History, Gift, ArrowRight, Check, Terminal } from 'lucide-react';
+import { Shield, Key, Trash2, X, Clock, AlertTriangle, Users, Search, RefreshCw, BarChart, Database, Download, Upload, CheckCircle2, RotateCcw, FileText, Sliders, Battery, EyeOff, Filter, Swords, Sparkles, Coins, Zap, Trophy, Award, UserCheck, Plus, History, Gift, ArrowRight, Check, Terminal, Flag, Timer } from 'lucide-react';
 import {
+  auth,
   generateSessionCode,
   clearSessionCode,
   wipeDatabase,
@@ -28,6 +29,13 @@ import {
   TestGrantConfig,
   sanitizeStaffFromLeaderboard
 } from '../services/firebaseService';
+import {
+  launchClassroomRace,
+  cancelClassroomRace,
+  subscribeToActiveRace,
+  PRESET_RACE_TEXTS
+} from '../services/raceService';
+import { ClassroomRace, PresetRaceText } from '../types/race';
 import { SCHOOL_CLASSES_CONFIG } from './StudentModal';
 import { sound } from '../utils/audio';
 import { formatBytes, calculatePlayerRank } from '../utils/formatting';
@@ -46,6 +54,7 @@ interface AdminPanelProps {
   onOpenArena?: () => void;
   onOpenCosmetics?: () => void;
   onTriggerChallenge?: (level: number) => void;
+  onOpenRaceArena?: () => void;
 }
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({
@@ -57,15 +66,29 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   userEmail,
   onOpenArena,
   onOpenCosmetics,
-  onTriggerChallenge
+  onTriggerChallenge,
+  onOpenRaceArena
 }) => {
-  const [activeTab, setActiveTab] = useState<'locks' | 'dashboard' | 'backups' | 'wipe' | 'professores' | 'testes'>('locks');
+  const [activeTab, setActiveTab] = useState<'locks' | 'dashboard' | 'corrida' | 'backups' | 'wipe' | 'professores' | 'testes'>('locks');
   const [testActionMessage, setTestActionMessage] = useState<string | null>(null);
   
   const [settings, setSettings] = useState<SystemSettings | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [wipeConfirm, setWipeConfirm] = useState('');
   const [wipeStatus, setWipeStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+
+  // Estados para Corrida em Tempo Real da Turma
+  const [activeRace, setActiveRace] = useState<ClassroomRace | null>(null);
+  const [selectedPresetId, setSelectedPresetId] = useState<string>(PRESET_RACE_TEXTS[0].id);
+  const [customRaceTitle, setCustomRaceTitle] = useState<string>(PRESET_RACE_TEXTS[0].title);
+  const [customRaceText, setCustomRaceText] = useState<string>(PRESET_RACE_TEXTS[0].text);
+  const [customRaceSource, setCustomRaceSource] = useState<string>(PRESET_RACE_TEXTS[0].source);
+  const [raceTargetTurma, setRaceTargetTurma] = useState<string>('todas');
+  const [raceCountdownSec, setRaceCountdownSec] = useState<number>(5);
+  const [racePrizeBytes, setRacePrizeBytes] = useState<number>(25000);
+  const [isLaunchingRace, setIsLaunchingRace] = useState<boolean>(false);
+  const [isCancellingRace, setIsCancellingRace] = useState<boolean>(false);
+  const [raceActionFeedback, setRaceActionFeedback] = useState<string | null>(null);
 
   const [students, setStudents] = useState<LeaderboardEntry[]>([]);
   const [isStudentsLoading, setIsStudentsLoading] = useState(false);
@@ -136,6 +159,70 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       console.error('Error loading students:', e);
     } finally {
       setIsStudentsLoading(false);
+    }
+  };
+
+  // Escuta a corrida ativa da turma em tempo real
+  useEffect(() => {
+    const unsub = subscribeToActiveRace((race) => {
+      setActiveRace(race);
+    });
+    return () => unsub();
+  }, []);
+
+  const handleSelectPreset = (preset: PresetRaceText) => {
+    setSelectedPresetId(preset.id);
+    setCustomRaceTitle(preset.title);
+    setCustomRaceText(preset.text);
+    setCustomRaceSource(preset.source);
+  };
+
+  const handleLaunchRace = async () => {
+    const currentUser = auth.currentUser || {
+      uid: 'admin_' + (userEmail ? userEmail.replace(/[^a-zA-Z0-9]/g, '_') : 'teacher'),
+      email: userEmail || 'professor@escola.pr.gov.br'
+    };
+    if (!customRaceText.trim()) {
+      setRaceActionFeedback('O texto da corrida não pode estar vazio!');
+      return;
+    }
+    setIsLaunchingRace(true);
+    setRaceActionFeedback(null);
+    try {
+      await launchClassroomRace(
+        {
+          title: customRaceTitle,
+          text: customRaceText,
+          source: customRaceSource,
+          targetTurma: raceTargetTurma,
+          countdownSeconds: raceCountdownSec,
+          prizeBytes: racePrizeBytes
+        },
+        currentUser
+      );
+      sound.playPrestige();
+      setRaceActionFeedback('🚀 Corrida disparada com sucesso para a sessão escolar!');
+      setTimeout(() => setRaceActionFeedback(null), 5000);
+    } catch (err: any) {
+      sound.playChallengeFail();
+      console.error('Erro ao disparar corrida:', err);
+      setRaceActionFeedback(`Erro ao disparar corrida: ${err.message || err}`);
+    } finally {
+      setIsLaunchingRace(false);
+    }
+  };
+
+  const handleCancelRace = async () => {
+    setIsCancellingRace(true);
+    try {
+      await cancelClassroomRace();
+      sound.playWordComplete();
+      setRaceActionFeedback('Corrida ativa cancelada.');
+      setTimeout(() => setRaceActionFeedback(null), 3000);
+    } catch (err: any) {
+      setRaceActionFeedback(`Erro ao cancelar corrida: ${err.message}`);
+    } finally {
+      setIsCancellingRace(false);
     }
   };
 
@@ -699,68 +786,131 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-4xl bg-zinc-950 border border-purple-500/50 rounded-2xl shadow-[0_0_50px_rgba(168,85,247,0.15)] flex flex-col overflow-hidden max-h-[90vh]"
+            className="w-full max-w-5xl xl:max-w-6xl bg-zinc-950 border border-purple-500/50 rounded-2xl shadow-[0_0_50px_rgba(168,85,247,0.15)] flex flex-col overflow-hidden max-h-[92vh]"
           >
-            <div className="flex items-center justify-between p-5 border-b border-white/10 bg-purple-950/20">
-              <div className="flex items-center gap-3">
-                <Shield className="w-6 h-6 text-purple-400" />
-                <h2 className="text-xl font-bold text-white">Painel Administrativo</h2>
+            {/* Header Superior: Identificação e Botão Fechar */}
+            <div className="px-5 pt-4 pb-3 border-b border-white/10 bg-purple-950/20 flex flex-col gap-3.5">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-xl bg-purple-600/20 border border-purple-500/40 flex items-center justify-center text-purple-300 shadow-sm flex-shrink-0">
+                    <Shield className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-lg sm:text-xl font-black text-white tracking-tight truncate">
+                        Painel Administrativo
+                      </h2>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40 hidden sm:inline-block">
+                        {isSuperAdmin ? 'Super Admin' : 'Docente'}
+                      </span>
+                    </div>
+                    {userEmail && (
+                      <p className="text-xs text-zinc-400 font-mono truncate max-w-xs sm:max-w-md">
+                        {userEmail}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <button
+                  onClick={onClose}
+                  className="p-2 rounded-xl bg-zinc-900/80 hover:bg-white/10 text-zinc-400 hover:text-white border border-zinc-800 transition flex-shrink-0 cursor-pointer"
+                  title="Fechar Painel (ESC)"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
-              
-              <div className="flex bg-zinc-900 rounded-lg p-1 border border-zinc-800">
+
+              {/* Linha de Navegação Dedicada com Suporte a Overflow Suave */}
+              <div className="flex items-center gap-1.5 p-1.5 bg-zinc-900/90 rounded-xl border border-zinc-800/90 overflow-x-auto custom-scrollbar flex-wrap sm:flex-nowrap">
                 <button
                   onClick={() => setActiveTab('locks')}
-                  className={`px-4 py-1.5 rounded-md text-sm font-semibold transition-colors flex items-center gap-2 ${activeTab === 'locks' ? 'bg-purple-600/30 text-purple-300' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+                    activeTab === 'locks'
+                      ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30'
+                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
+                  }`}
                 >
                   <Key className="w-4 h-4" />
-                  Sessões
+                  <span>Sessões</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('dashboard')}
-                  className={`px-4 py-1.5 rounded-md text-sm font-semibold transition-colors flex items-center gap-2 ${activeTab === 'dashboard' ? 'bg-purple-600/30 text-purple-300' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+                    activeTab === 'dashboard'
+                      ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30'
+                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
+                  }`}
                 >
                   <BarChart className="w-4 h-4" />
-                  Progresso
+                  <span>Progresso</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('corrida')}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+                    activeTab === 'corrida'
+                      ? 'bg-amber-500 text-black shadow-md shadow-amber-500/30 font-black'
+                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
+                  }`}
+                  title="Lançador de Corrida da Turma em Tempo Real"
+                >
+                  <Flag className="w-4 h-4 text-amber-400" />
+                  <span>Corrida da Turma</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('backups')}
-                  className={`px-4 py-1.5 rounded-md text-sm font-semibold transition-colors flex items-center gap-2 ${activeTab === 'backups' ? 'bg-emerald-600/30 text-emerald-300' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+                    activeTab === 'backups'
+                      ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30'
+                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
+                  }`}
                   title="Backups e Restauração de Segurança"
                 >
                   <Database className="w-4 h-4 text-emerald-400" />
-                  Backups
+                  <span>Backups</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('testes')}
-                  className={`px-4 py-1.5 rounded-md text-sm font-semibold transition-colors flex items-center gap-2 ${activeTab === 'testes' ? 'bg-amber-600/30 text-amber-300' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+                    activeTab === 'testes'
+                      ? 'bg-amber-600 text-white shadow-md shadow-amber-600/30'
+                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
+                  }`}
                   title="Recursos de Teste e Desbloqueio Rápido (ADM)"
                 >
                   <Sparkles className="w-4 h-4 text-amber-400" />
-                  Testes ADM
+                  <span>Testes ADM</span>
                 </button>
+
                 {isSuperAdmin && (
                   <>
+                    <div className="h-4 w-[1px] bg-zinc-700/60 mx-1 hidden sm:block flex-shrink-0" />
                     <button
                       onClick={() => setActiveTab('professores')}
-                      className={`px-4 py-1.5 rounded-md text-sm font-semibold transition-colors flex items-center gap-2 ${activeTab === 'professores' ? 'bg-sky-600/30 text-sky-300' : 'text-zinc-500 hover:text-zinc-300'}`}
+                      className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+                        activeTab === 'professores'
+                          ? 'bg-sky-600 text-white shadow-md shadow-sky-600/30'
+                          : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
+                      }`}
                     >
                       <Users className="w-4 h-4" />
-                      Professores
+                      <span>Professores</span>
                     </button>
                     <button
                       onClick={() => setActiveTab('wipe')}
-                      className={`px-4 py-1.5 rounded-md text-sm font-semibold transition-colors flex items-center gap-2 ${activeTab === 'wipe' ? 'bg-red-600/30 text-red-300' : 'text-zinc-500 hover:text-zinc-300'}`}
+                      className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+                        activeTab === 'wipe'
+                          ? 'bg-red-600 text-white shadow-md shadow-red-600/40'
+                          : 'text-red-400/80 hover:text-red-300 hover:bg-red-950/40'
+                      }`}
+                      title="Wipe Total do Banco de Dados"
                     >
-                      <Trash2 className="w-4 h-4" />
-                      Wipe
+                      <Trash2 className="w-4 h-4 text-red-400" />
+                      <span>Wipe</span>
                     </button>
                   </>
                 )}
               </div>
-
-              <button onClick={onClose} className="p-2 rounded-xl hover:bg-white/10 text-zinc-400 transition">
-                <X className="w-5 h-5" />
-              </button>
             </div>
 
             <div className="p-6 overflow-y-auto">
@@ -1026,6 +1176,321 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         )}
                       </tbody>
                     </table>
+                  </div>
+                </section>
+              )}
+
+              {/* ABA: CORRIDA DA TURMA EM TEMPO REAL */}
+              {activeTab === 'corrida' && (
+                <section className="space-y-6">
+                  {/* Cabeçalho da Aba */}
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-zinc-800 pb-3">
+                    <div>
+                      <div className="flex items-center gap-2 text-amber-400 font-bold text-lg">
+                        <Flag className="w-5 h-5" />
+                        <h3>Corrida da Turma em Tempo Real</h3>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                          Sincronizado
+                        </span>
+                      </div>
+                      <p className="text-xs text-zinc-400 mt-0.5">
+                        Dispare uma prova de digitação com texto fixo para todos os alunos na sessão. O terminal de todos será interrompido com contagem regressiva e o primeiro a concluir 100% vence!
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {activeRace && activeRace.status !== 'cancelled' && onOpenRaceArena && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onClose();
+                            onOpenRaceArena();
+                          }}
+                          className="px-3.5 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 font-bold text-xs transition cursor-pointer flex items-center gap-1.5"
+                          title="Fechar Painel e Visualizar Corrida como Aluno no Terminal"
+                        >
+                          <Flag className="w-4 h-4" />
+                          <span>Ver Corrida como Aluno</span>
+                        </button>
+                      )}
+
+                      {activeRace && activeRace.status !== 'cancelled' && (
+                        <button
+                          type="button"
+                          onClick={handleCancelRace}
+                          disabled={isCancellingRace}
+                          className="px-3.5 py-1.5 rounded-xl bg-red-600/20 hover:bg-red-600/30 border border-red-500/40 text-red-300 font-bold text-xs transition cursor-pointer flex items-center gap-1.5"
+                        >
+                          <X className="w-4 h-4" />
+                          <span>{isCancellingRace ? 'Cancelando...' : 'Encerrar Corrida'}</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {raceActionFeedback && (
+                    <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-300 font-mono text-xs font-bold flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-amber-400" />
+                      <span>{raceActionFeedback}</span>
+                    </div>
+                  )}
+
+                  {/* MONITOR DA CORRIDA ATIVA (Caso exista) */}
+                  {activeRace && activeRace.status !== 'cancelled' && (
+                    <div className="p-5 rounded-2xl bg-gradient-to-r from-amber-950/40 via-[#181308] to-black border-2 border-amber-500/60 shadow-xl space-y-4">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xl">🏁</span>
+                          <h4 className="text-base font-bold text-white">{activeRace.title}</h4>
+                          <span className="text-xs text-zinc-400 font-mono">({activeRace.source})</span>
+                        </div>
+
+                        <span className={`px-3 py-1 rounded-full text-xs font-black uppercase font-mono ${
+                          activeRace.status === 'countdown'
+                            ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 animate-pulse'
+                            : activeRace.status === 'in_progress'
+                            ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse'
+                            : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                        }`}>
+                          {activeRace.status === 'countdown'
+                            ? '⏳ Em Contagem Regressiva...'
+                            : activeRace.status === 'in_progress'
+                            ? '🏎️ Corrida em Andamento!'
+                            : '🏆 Corrida Concluída!'}
+                        </span>
+                      </div>
+
+                      {/* Card de Vencedor */}
+                      {activeRace.winner && (
+                        <div className="p-4 rounded-xl bg-amber-500/15 border border-amber-500/40 flex items-center justify-between flex-wrap gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 rounded-xl bg-amber-500/30 border border-amber-400 flex items-center justify-center text-3xl shadow-md">
+                              🏆
+                            </div>
+                            <div>
+                              <span className="text-xs font-black uppercase text-amber-400 tracking-wider font-mono block">
+                                VENCEDOR DA CORRIDA
+                              </span>
+                              <span className="text-base font-black text-white">
+                                {activeRace.winner.apelido} ({activeRace.winner.nome})
+                              </span>
+                              <span className="text-xs text-zinc-300 block font-mono">
+                                Turma: {activeRace.winner.turma} • {activeRace.winner.wpm} PPM • {(activeRace.winner.timeMs / 1000).toFixed(1)}s
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="px-3 py-1.5 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-200 text-xs font-mono font-bold">
+                            Prêmio: +{formatBytes(activeRace.prizeBytes)} Bytes
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Lista de Concluintes (Pódio ao Vivo) */}
+                      {activeRace.finishers && activeRace.finishers.length > 0 && (
+                        <div className="space-y-2">
+                          <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider font-mono">
+                            Pódio de Chegada ({activeRace.finishers.length} aluno{activeRace.finishers.length > 1 ? 's' : ''}):
+                          </span>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                            {activeRace.finishers.map((f, idx) => (
+                              <div
+                                key={f.userId}
+                                className={`p-2.5 rounded-xl border flex items-center justify-between text-xs font-mono ${
+                                  idx === 0
+                                    ? 'bg-amber-500/10 border-amber-500/40 text-amber-200'
+                                    : idx === 1
+                                    ? 'bg-zinc-800/60 border-zinc-600 text-zinc-200'
+                                    : idx === 2
+                                    ? 'bg-amber-950/30 border-amber-700/50 text-amber-300'
+                                    : 'bg-zinc-900/60 border-zinc-800 text-zinc-400'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-sm">
+                                    {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}º`}
+                                  </span>
+                                  <div>
+                                    <span className="font-bold text-white block">{f.apelido}</span>
+                                    <span className="text-[10px] text-zinc-400">{f.turma}</span>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <span className="font-bold text-cyan-300 block">{f.wpm} PPM</span>
+                                  <span className="text-[10px] text-zinc-400">{(f.timeMs / 1000).toFixed(1)}s</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* FORMULÁRIO DE LANÇAMENTO DE NOVA CORRIDA */}
+                  <div className="p-5 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-5">
+                    <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+                      <div className="flex items-center gap-2 text-white font-bold text-sm">
+                        <Sparkles className="w-4 h-4 text-amber-400" />
+                        <span>Configurar e Lançar Nova Corrida</span>
+                      </div>
+                      <span className="text-xs text-zinc-500 font-mono">
+                        Texto fixo idêntico para todos os participantes
+                      </span>
+                    </div>
+
+                    {/* Catálogo de Textos Pré-Definidos */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-zinc-300 block uppercase tracking-wider font-mono">
+                        1. Escolha um Texto Literário/Pedagógico ou Crie o Seu:
+                      </label>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {PRESET_RACE_TEXTS.map((preset) => (
+                          <button
+                            key={preset.id}
+                            type="button"
+                            onClick={() => handleSelectPreset(preset)}
+                            className={`p-3 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between ${
+                              selectedPresetId === preset.id
+                                ? 'bg-amber-500/15 border-amber-500/60 shadow-sm'
+                                : 'bg-zinc-800/40 border-zinc-800 hover:bg-zinc-800 text-zinc-300'
+                            }`}
+                          >
+                            <div>
+                              <span className="text-xs font-bold text-white line-clamp-1">{preset.title}</span>
+                              <span className="text-[10px] text-zinc-400 line-clamp-1">{preset.source}</span>
+                            </div>
+                            <span className="text-[10px] text-amber-400 font-mono mt-2 font-semibold">
+                              {preset.text.length} caracteres
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Campos de Título e Fonte */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs text-zinc-400 font-mono block mb-1">Título da Prova:</label>
+                        <input
+                          type="text"
+                          value={customRaceTitle}
+                          onChange={(e) => setCustomRaceTitle(e.target.value)}
+                          className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-amber-400"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-zinc-400 font-mono block mb-1">Fonte / Referência:</label>
+                        <input
+                          type="text"
+                          value={customRaceSource}
+                          onChange={(e) => setCustomRaceSource(e.target.value)}
+                          className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-amber-400"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Área do Texto da Corrida */}
+                    <div>
+                      <div className="flex items-center justify-between text-xs text-zinc-400 font-mono mb-1">
+                        <label>Conteúdo do Texto a ser digitado pelos alunos:</label>
+                        <span>
+                          {customRaceText.trim().split(/\s+/).filter(Boolean).length} palavras • {customRaceText.length} caracteres
+                        </span>
+                      </div>
+                      <textarea
+                        rows={4}
+                        value={customRaceText}
+                        onChange={(e) => {
+                          setCustomRaceText(e.target.value);
+                          setSelectedPresetId('');
+                        }}
+                        className="w-full bg-zinc-950 border border-zinc-700 rounded-xl p-3 text-sm text-white font-mono leading-relaxed focus:outline-none focus:border-amber-400 custom-scrollbar"
+                        placeholder="Digite ou cole aqui o texto que todos os alunos deverão digitar..."
+                      />
+                    </div>
+
+                    {/* Opções de Turma, Contagem e Prêmio */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-zinc-800">
+                      {/* Turma Alvo */}
+                      <div>
+                        <label className="text-xs text-zinc-400 font-mono block mb-1">Turma Participante:</label>
+                        <select
+                          value={raceTargetTurma}
+                          onChange={(e) => setRaceTargetTurma(e.target.value)}
+                          className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-400 cursor-pointer"
+                        >
+                          <option value="todas">Geral (Todas as Turmas Ativas)</option>
+                          {SCHOOL_CLASSES_CONFIG.map((group) => (
+                            <optgroup key={group.grade} label={group.grade} className="bg-zinc-900 text-zinc-400">
+                              {group.classes.map((cls) => (
+                                <option key={cls} value={cls} className="bg-zinc-900 text-white font-medium">
+                                  Turma {cls}
+                                </option>
+                              ))}
+                            </optgroup>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Tempo de Contagem Regressiva */}
+                      <div>
+                        <label className="text-xs text-zinc-400 font-mono block mb-1">Contagem Regressiva:</label>
+                        <div className="flex gap-2">
+                          {[3, 5, 10].map((sec) => (
+                            <button
+                              key={sec}
+                              type="button"
+                              onClick={() => setRaceCountdownSec(sec)}
+                              className={`flex-1 py-2 rounded-xl text-xs font-mono font-bold border transition cursor-pointer ${
+                                raceCountdownSec === sec
+                                  ? 'bg-amber-500 text-black border-amber-400'
+                                  : 'bg-zinc-950 text-zinc-300 border-zinc-700 hover:border-zinc-500'
+                              }`}
+                            >
+                              {sec}s
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Prêmio em Bytes */}
+                      <div>
+                        <label className="text-xs text-zinc-400 font-mono block mb-1">Bônus para o Vencedor:</label>
+                        <div className="flex gap-1.5">
+                          {[10000, 25000, 50000, 100000].map((amt) => (
+                            <button
+                              key={amt}
+                              type="button"
+                              onClick={() => setRacePrizeBytes(amt)}
+                              className={`flex-1 py-2 rounded-xl text-[11px] font-mono font-bold border transition cursor-pointer ${
+                                racePrizeBytes === amt
+                                  ? 'bg-emerald-500 text-black border-emerald-400'
+                                  : 'bg-zinc-950 text-zinc-300 border-zinc-700 hover:border-zinc-500'
+                              }`}
+                            >
+                              {amt >= 1000 ? `${amt / 1000}k` : amt}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Botão de Lançamento */}
+                    <div className="pt-3">
+                      <button
+                        type="button"
+                        onClick={handleLaunchRace}
+                        disabled={isLaunchingRace || !customRaceText.trim()}
+                        className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 disabled:opacity-50 text-black font-black text-sm uppercase tracking-wider transition shadow-lg shadow-amber-500/30 flex items-center justify-center gap-2 cursor-pointer"
+                      >
+                        <Flag className="w-5 h-5 text-black" />
+                        <span>{isLaunchingRace ? 'Lançando Corrida...' : '🚀 LANÇAR CORRIDA PARA OS ALUNOS AGORA'}</span>
+                      </button>
+                      <p className="text-[11px] text-zinc-500 font-mono text-center mt-2">
+                        * Ao clicar, todos os alunos conectados receberão o aviso de largada imediatamente em tela cheia.
+                      </p>
+                    </div>
                   </div>
                 </section>
               )}

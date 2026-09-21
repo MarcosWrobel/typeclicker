@@ -1,5 +1,5 @@
 import React from 'react';
-import { Volume2, VolumeX, BarChart3, RefreshCw, Trophy, Cloud, Pause, Play, Shield } from 'lucide-react';
+import { Volume2, VolumeX, BarChart3, RefreshCw, Trophy, Cloud, Pause, Play, Shield, Eye } from 'lucide-react';
 import { GameState } from '../types';
 import { calculatePlayerRank } from '../utils/formatting';
 
@@ -11,6 +11,7 @@ interface HeaderProps {
   onTogglePause?: () => void;
   onToggleSound: () => void;
   onOpenMetrics: () => void;
+  onOpenAccessibility?: () => void;
   onOpenPrestige?: () => void;
   onOpenStudentModal?: () => void;
   onOpenLevels?: () => void;
@@ -34,6 +35,7 @@ export const Header: React.FC<HeaderProps> = ({
   onTogglePause,
   onToggleSound,
   onOpenMetrics,
+  onOpenAccessibility,
   onOpenStudentModal,
   onOpenLevels,
   onOpenLeaderboard,
@@ -95,6 +97,23 @@ export const Header: React.FC<HeaderProps> = ({
             <BarChart3 className="w-3.5 h-3.5 text-sky-400" />
             <span className="hidden sm:inline">Métricas</span>
           </button>
+
+          {/* Acessibilidade & Baixa Visão (A+ / A-) */}
+          {onOpenAccessibility && (
+            <button
+              type="button"
+              onClick={onOpenAccessibility}
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs font-bold transition shadow-sm cursor-pointer ${
+                state.accessibility?.highContrast || state.accessibility?.textScale !== 'normal'
+                  ? 'bg-amber-500 text-black border-amber-400 font-black shadow-amber-500/20'
+                  : 'bg-zinc-900/90 hover:bg-zinc-800 text-amber-300 hover:text-amber-200 border-zinc-800 hover:border-amber-500/40'
+              }`}
+              title="Acessibilidade e Baixa Visão (Ampliar Texto, Alto Contraste)"
+            >
+              <Eye className="w-3.5 h-3.5" />
+              <span className="font-mono text-[11px] font-black">A+</span>
+            </button>
+          )}
 
           {/* Separador vertical discreto */}
           <div className="h-5 w-[1px] bg-zinc-800 hidden sm:block" />

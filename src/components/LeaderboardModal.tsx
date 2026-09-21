@@ -1,6 +1,19 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Trophy, Medal, Loader2, Users, Search, Filter, Sparkles, GraduationCap } from 'lucide-react';
+import {
+  X,
+  Trophy,
+  Loader2,
+  Users,
+  Search,
+  Filter,
+  GraduationCap,
+  Flag,
+  Zap,
+  Flame,
+  Swords,
+  Database
+} from 'lucide-react';
 import { getGlobalLeaderboard, LeaderboardEntry, isStaffMember } from '../services/firebaseService';
 import { formatBytes } from '../utils/formatting';
 import { ALL_LEVELS } from '../data/levels';
@@ -12,19 +25,141 @@ import {
   SCHOOL_CLASSES_CONFIG
 } from '../constants/school';
 
+export type LeaderboardMetric = 'level' | 'wpm' | 'combo' | 'bytes' | 'pvp' | 'races';
+
+interface MetricTabDef {
+  id: LeaderboardMetric;
+  label: string;
+  shortLabel: string;
+  icon: React.ComponentType<{ className?: string }>;
+  color: string;
+  badgeBg: string;
+  badgeBorder: string;
+  badgeText: string;
+  activeBorder: string;
+  activeGlow: string;
+  title: string;
+  badgeTag: string;
+  description: string;
+}
+
+export const METRIC_TABS: MetricTabDef[] = [
+  {
+    id: 'level',
+    label: 'Nível & XP',
+    shortLabel: 'Nível',
+    icon: Trophy,
+    color: 'text-emerald-400',
+    badgeBg: 'bg-emerald-500/20',
+    badgeBorder: 'border-emerald-500/40',
+    badgeText: 'text-emerald-300',
+    activeBorder: 'border-emerald-500/50',
+    activeGlow: 'shadow-[0_0_50px_rgba(16,185,129,0.2)]',
+    title: 'RANKING ESCOLAR DE NÍVEL',
+    badgeTag: '🏆 Progressão Geral',
+    description: 'Classificação por nível da conta e experiência acumulada'
+  },
+  {
+    id: 'wpm',
+    label: 'Velocidade PPM',
+    shortLabel: 'Velocidade',
+    icon: Zap,
+    color: 'text-sky-400',
+    badgeBg: 'bg-sky-500/20',
+    badgeBorder: 'border-sky-500/40',
+    badgeText: 'text-sky-300',
+    activeBorder: 'border-sky-500/50',
+    activeGlow: 'shadow-[0_0_50px_rgba(14,165,233,0.2)]',
+    title: 'RANKING DE VELOCIDADE (PPM)',
+    badgeTag: '⚡ Palavras / Minuto',
+    description: 'Alunos com maior taxa de velocidade e agilidade na digitação'
+  },
+  {
+    id: 'combo',
+    label: 'Maior Combo',
+    shortLabel: 'Combo',
+    icon: Flame,
+    color: 'text-orange-400',
+    badgeBg: 'bg-orange-500/20',
+    badgeBorder: 'border-orange-500/40',
+    badgeText: 'text-orange-300',
+    activeBorder: 'border-orange-500/50',
+    activeGlow: 'shadow-[0_0_50px_rgba(249,115,22,0.2)]',
+    title: 'RANKING DE MAIOR COMBO',
+    badgeTag: '🔥 Teclas Sem Erro',
+    description: 'Maior sequência ininterrupta de acertos consecutivos sem falhas'
+  },
+  {
+    id: 'bytes',
+    label: 'Total de Bytes',
+    shortLabel: 'Bytes',
+    icon: Database,
+    color: 'text-purple-400',
+    badgeBg: 'bg-purple-500/20',
+    badgeBorder: 'border-purple-500/40',
+    badgeText: 'text-purple-300',
+    activeBorder: 'border-purple-500/50',
+    activeGlow: 'shadow-[0_0_50px_rgba(168,85,247,0.2)]',
+    title: 'RANKING TOTAL DE BYTES',
+    badgeTag: '💾 Bytes Vitalícios',
+    description: 'Classificação pelo total histórico acumulado de bytes digitados'
+  },
+  {
+    id: 'pvp',
+    label: 'Duelos PvP',
+    shortLabel: 'Coliseu 1x1',
+    icon: Swords,
+    color: 'text-rose-400',
+    badgeBg: 'bg-rose-500/20',
+    badgeBorder: 'border-rose-500/40',
+    badgeText: 'text-rose-300',
+    activeBorder: 'border-rose-500/50',
+    activeGlow: 'shadow-[0_0_50px_rgba(244,63,94,0.2)]',
+    title: 'RANKING DO COLISEU (PVP 1x1)',
+    badgeTag: '⚔️ Duelos em Tempo Real',
+    description: 'Classificação por vitórias em batalhas 1x1 e pontos de glória'
+  },
+  {
+    id: 'races',
+    label: 'Corridas da Turma',
+    shortLabel: 'Corridas',
+    icon: Flag,
+    color: 'text-amber-400',
+    badgeBg: 'bg-amber-500/20',
+    badgeBorder: 'border-amber-500/40',
+    badgeText: 'text-amber-300',
+    activeBorder: 'border-amber-500/50',
+    activeGlow: 'shadow-[0_0_50px_rgba(245,158,11,0.2)]',
+    title: 'RANKING DE CORRIDAS',
+    badgeTag: '🏁 Corridas em Sala',
+    description: 'Classificação por vitórias nas corridas ao vivo disparadas pelo professor'
+  }
+];
+
+const normalizeTab = (tab?: string): LeaderboardMetric => {
+  if (!tab || tab === 'points') return 'level';
+  if (tab === 'level' || tab === 'wpm' || tab === 'combo' || tab === 'bytes' || tab === 'pvp' || tab === 'races') {
+    return tab;
+  }
+  return 'level';
+};
+
 interface LeaderboardModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentUserId?: string;
   currentUserClass?: string;
+  initialTab?: LeaderboardMetric | 'points';
 }
 
 export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
   isOpen,
   onClose,
   currentUserId,
-  currentUserClass
+  currentUserClass,
+  initialTab = 'level'
 }) => {
+  const [activeRankTab, setActiveRankTab] = useState<LeaderboardMetric>(normalizeTab(initialTab));
   const [rankings, setRankings] = useState<LeaderboardEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,10 +171,12 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
+      if (initialTab) {
+        setActiveRankTab(normalizeTab(initialTab));
+      }
       loadLeaderboard(false);
-      // Se o aluno possui turma cadastrada, podemos opcionalmente deixá-lo no geral ou manter 'geral'
     }
-  }, [isOpen]);
+  }, [isOpen, initialTab]);
 
   const loadLeaderboard = async (force: boolean = false) => {
     setIsLoading(true);
@@ -124,9 +261,76 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
     setSelectedTurma('todas');
   };
 
+  const currentMetric = useMemo(() => {
+    return METRIC_TABS.find((m) => m.id === activeRankTab) || METRIC_TABS[0];
+  }, [activeRankTab]);
+
+  // Ordenação inteligente Client-Side em memória (Zero Leituras Adicionais)
+  const sortedRankings = useMemo(() => {
+    const list = [...rankings];
+    switch (activeRankTab) {
+      case 'level':
+        return list.sort((a, b) => {
+          if ((b.level || 0) !== (a.level || 0)) {
+            return (b.level || 0) - (a.level || 0);
+          }
+          return (b.points || 0) - (a.points || 0);
+        });
+
+      case 'wpm':
+        return list.sort((a, b) => {
+          const wpmA = a.bestWpm || a.wpm || 0;
+          const wpmB = b.bestWpm || b.wpm || 0;
+          if (wpmB !== wpmA) return wpmB - wpmA;
+          return (b.accuracy || 0) - (a.accuracy || 0);
+        });
+
+      case 'combo':
+        return list.sort((a, b) => {
+          const comboA = a.maxCombo || 0;
+          const comboB = b.maxCombo || 0;
+          if (comboB !== comboA) return comboB - comboA;
+          return (b.accuracy || 0) - (a.accuracy || 0);
+        });
+
+      case 'bytes':
+        return list.sort((a, b) => {
+          if ((b.points || 0) !== (a.points || 0)) {
+            return (b.points || 0) - (a.points || 0);
+          }
+          return (b.level || 0) - (a.level || 0);
+        });
+
+      case 'pvp':
+        return list.sort((a, b) => {
+          const winsA = a.pvpWins || 0;
+          const winsB = b.pvpWins || 0;
+          if (winsB !== winsA) return winsB - winsA;
+          const ptsA = a.pvpPoints || 0;
+          const ptsB = b.pvpPoints || 0;
+          if (ptsB !== ptsA) return ptsB - ptsA;
+          return (b.points || 0) - (a.points || 0);
+        });
+
+      case 'races':
+        return list.sort((a, b) => {
+          const winsA = a.raceWins || 0;
+          const winsB = b.raceWins || 0;
+          if (winsB !== winsA) return winsB - winsA;
+          const wpmA = a.bestRaceWpm || 0;
+          const wpmB = b.bestRaceWpm || 0;
+          if (wpmB !== wpmA) return wpmB - wpmA;
+          return (b.racesParticipated || 0) - (a.racesParticipated || 0);
+        });
+
+      default:
+        return list.sort((a, b) => (b.points || 0) - (a.points || 0));
+    }
+  }, [rankings, activeRankTab]);
+
   // Filtragem dos jogadores
   const filteredRankings = useMemo(() => {
-    return rankings.filter((player) => {
+    return sortedRankings.filter((player) => {
       // 1. Filtro de Série
       if (selectedSerie !== 'geral') {
         const playerSerie = getSerieIdFromTurma(player.turma);
@@ -150,23 +354,24 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
 
       return true;
     });
-  }, [rankings, selectedSerie, selectedTurma, searchQuery]);
+  }, [sortedRankings, selectedSerie, selectedTurma, searchQuery]);
 
   // Colocação do usuário atual no Geral e na sua Série
   const userGlobalPlacement = useMemo(() => {
     if (!currentUserId) return null;
-    const idx = rankings.findIndex((p) => p.userId === currentUserId);
+    const idx = sortedRankings.findIndex((p) => p.userId === currentUserId);
     return idx >= 0 ? idx + 1 : null;
-  }, [rankings, currentUserId]);
+  }, [sortedRankings, currentUserId]);
 
   const userSeriePlacement = useMemo(() => {
     if (!currentUserId || !currentUserSerie) return null;
-    const inSerie = rankings.filter((p) => getSerieIdFromTurma(p.turma) === currentUserSerie);
+    const inSerie = sortedRankings.filter((p) => getSerieIdFromTurma(p.turma) === currentUserSerie);
     const idx = inSerie.findIndex((p) => p.userId === currentUserId);
     return idx >= 0 ? idx + 1 : null;
-  }, [rankings, currentUserId, currentUserSerie]);
+  }, [sortedRankings, currentUserId, currentUserSerie]);
 
   const activeSerieConfig = SERIES_CONFIG.find((s) => s.id === selectedSerie) || SERIES_CONFIG[0];
+  const ActiveIcon = currentMetric.icon;
 
   return (
     <AnimatePresence>
@@ -183,23 +388,27 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
             animate={{ scale: 1, y: 0, opacity: 1 }}
             exit={{ scale: 0.95, y: 20, opacity: 0 }}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-4xl bg-[#10131a] border-2 border-emerald-500/40 rounded-2xl shadow-[0_0_50px_rgba(16,185,129,0.2)] flex flex-col max-h-[92vh] sm:max-h-[90vh] overflow-hidden"
+            className={`w-full max-w-4xl bg-[#10131a] border-2 rounded-2xl flex flex-col max-h-[92vh] sm:max-h-[90vh] overflow-hidden transition-all duration-300 ${currentMetric.activeBorder} ${currentMetric.activeGlow}`}
           >
             {/* Top Bar / Header */}
-            <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-white/10 bg-[#141822]">
+            <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 border-b border-white/10 bg-[#141822]">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/30 to-teal-500/20 border border-emerald-500/50 flex items-center justify-center text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.3)]">
-                  <Trophy className="w-5 h-5 text-emerald-400" />
+                <div
+                  className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all ${currentMetric.badgeBg} ${currentMetric.badgeBorder} ${currentMetric.color}`}
+                >
+                  <ActiveIcon className={`w-5 h-5 ${currentMetric.color}`} />
                 </div>
                 <div>
                   <h2 className="text-base sm:text-lg font-black text-white tracking-wide flex items-center gap-2">
-                    <span>RANKING ESCOLAR</span>
-                    <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                      Leopoldina
+                    <span>{currentMetric.title}</span>
+                    <span
+                      className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border ${currentMetric.badgeBg} ${currentMetric.badgeText} ${currentMetric.badgeBorder}`}
+                    >
+                      {currentMetric.badgeTag}
                     </span>
                   </h2>
                   <p className="text-xs text-zinc-400">
-                    Classificação por desempenho e velocidade de digitação
+                    {currentMetric.description}
                   </p>
                 </div>
               </div>
@@ -213,6 +422,32 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                 >
                   <X className="w-5 h-5" />
                 </button>
+              </div>
+            </div>
+
+            {/* Barra de Seleção de Métricas (6 Abas de Ranking) */}
+            <div className="flex-shrink-0 bg-[#0c0e15] border-b border-white/10 px-3 sm:px-6 py-2 overflow-x-auto">
+              <div className="flex items-center gap-1.5 sm:gap-2 min-w-max">
+                {METRIC_TABS.map((tab) => {
+                  const isSelected = activeRankTab === tab.id;
+                  const TabIcon = tab.icon;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setActiveRankTab(tab.id)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border select-none ${
+                        isSelected
+                          ? `${tab.badgeBg} ${tab.badgeText} ${tab.badgeBorder} shadow-sm ring-1 ring-white/10`
+                          : 'bg-zinc-900/60 text-zinc-400 border-zinc-800 hover:text-zinc-200 hover:bg-zinc-800/60'
+                      }`}
+                      title={tab.description}
+                    >
+                      <TabIcon className={`w-3.5 h-3.5 ${isSelected ? tab.color : 'text-zinc-500'}`} />
+                      <span>{tab.label}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -230,7 +465,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                       onClick={() => handleSelectSerie(serie.id)}
                       className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer select-none border ${
                         isActive
-                          ? 'bg-gradient-to-r from-emerald-950/80 to-teal-950/80 text-emerald-300 border-emerald-500/60 shadow-[0_0_14px_rgba(16,185,129,0.25)]'
+                          ? `${currentMetric.badgeBg} ${currentMetric.badgeText} ${currentMetric.badgeBorder} shadow-sm`
                           : 'bg-zinc-900/60 text-zinc-400 border-zinc-800 hover:text-zinc-200 hover:bg-zinc-800/60'
                       }`}
                       title={serie.description}
@@ -240,7 +475,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                       <span
                         className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full border ${
                           isActive
-                            ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                            ? `${currentMetric.badgeBg} ${currentMetric.badgeText} ${currentMetric.badgeBorder}`
                             : 'bg-zinc-800 text-zinc-400 border-zinc-700/50'
                         }`}
                       >
@@ -417,7 +652,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                         key={player.userId}
                         className={`flex items-center gap-3 sm:gap-4 p-3 sm:p-3.5 rounded-xl border transition-all ${
                           isCurrentUser
-                            ? 'border-emerald-500/60 bg-emerald-500/10 shadow-[0_0_15px_rgba(16,185,129,0.15)] ring-1 ring-emerald-500/30'
+                            ? `${currentMetric.activeBorder} ${currentMetric.badgeBg} shadow-[0_0_15px_rgba(16,185,129,0.15)] ring-1 ring-white/20`
                             : 'border-white/5 bg-[#12151e] hover:bg-zinc-800/60'
                         }`}
                       >
@@ -436,7 +671,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                                 {player.apelido || player.nome}
                               </span>
                               {isCurrentUser && (
-                                <span className="text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 px-2 py-0.2 rounded-full border border-emerald-500/40">
+                                <span className={`text-[10px] font-mono font-bold px-2 py-0.2 rounded-full border ${currentMetric.badgeBg} ${currentMetric.badgeText} ${currentMetric.badgeBorder}`}>
                                   Você
                                 </span>
                               )}
@@ -453,44 +688,226 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                                   • {playerSerieLabel}
                                 </span>
                               )}
-                              <span className="text-[11px] text-amber-300/90 font-mono">
-                                Nv. {player.level}
-                              </span>
+                              {activeRankTab === 'races' && (
+                                <span className="text-[11px] text-amber-300/90 font-mono">
+                                  🏁 {player.raceWins || 0} vitórias
+                                </span>
+                              )}
+                              {activeRankTab === 'pvp' && (
+                                <span className="text-[11px] text-rose-300/90 font-mono">
+                                  ⚔️ {player.pvpWins || 0} vitórias PvP
+                                </span>
+                              )}
+                              {activeRankTab === 'wpm' && (
+                                <span className="text-[11px] text-sky-300/90 font-mono">
+                                  ⚡ {Math.round(player.bestWpm || player.wpm || 0)} PPM
+                                </span>
+                              )}
+                              {activeRankTab === 'combo' && (
+                                <span className="text-[11px] text-orange-300/90 font-mono">
+                                  🔥 {player.maxCombo || 0}x combo
+                                </span>
+                              )}
+                              {activeRankTab === 'bytes' && (
+                                <span className="text-[11px] text-purple-300/90 font-mono">
+                                  💾 {formatBytes(player.points)}
+                                </span>
+                              )}
+                              {activeRankTab === 'level' && (
+                                <span className="text-[11px] text-emerald-300/90 font-mono">
+                                  Nv. {player.level}
+                                </span>
+                              )}
                             </div>
                           </div>
                         </div>
 
                         {/* Estatísticas no Desktop */}
-                        <div className="hidden sm:flex items-center gap-4 sm:gap-6 shrink-0">
-                          <div className="flex flex-col items-end">
-                            <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">PPM</span>
-                            <span className="font-mono font-bold text-emerald-400 text-sm">
-                              {Math.round(player.wpm)}
+                        {activeRankTab === 'races' ? (
+                          <div className="hidden sm:flex items-center gap-4 sm:gap-6 shrink-0">
+                            <div className="flex flex-col items-end">
+                              <span className="text-[10px] text-amber-400 uppercase font-bold tracking-wider">Vitórias</span>
+                              <span className="font-mono font-black text-amber-300 text-sm flex items-center gap-1">
+                                🏁 {player.raceWins || 0}
+                              </span>
+                            </div>
+                            <div className="flex flex-col items-end">
+                              <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Melhor PPM</span>
+                              <span className="font-mono font-bold text-emerald-400 text-sm">
+                                {player.bestRaceWpm ? Math.round(player.bestRaceWpm) : '-'}
+                              </span>
+                            </div>
+                            <div className="flex flex-col items-end w-20">
+                              <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Corridas</span>
+                              <span className="font-mono font-bold text-sky-400 text-sm">
+                                {player.racesParticipated || 0}
+                              </span>
+                            </div>
+                          </div>
+                        ) : activeRankTab === 'pvp' ? (
+                          <div className="hidden sm:flex items-center gap-4 sm:gap-6 shrink-0">
+                            <div className="flex flex-col items-end">
+                              <span className="text-[10px] text-rose-400 uppercase font-bold tracking-wider">Vitórias</span>
+                              <span className="font-mono font-black text-rose-300 text-sm flex items-center gap-1">
+                                ⚔️ {player.pvpWins || 0}
+                              </span>
+                            </div>
+                            <div className="flex flex-col items-end">
+                              <span className="text-[10px] text-amber-400 uppercase font-bold tracking-wider">Glória</span>
+                              <span className="font-mono font-bold text-amber-300 text-sm">
+                                {player.pvpPoints || 0} pts
+                              </span>
+                            </div>
+                            <div className="flex flex-col items-end w-20">
+                              <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Duelos</span>
+                              <span className="font-mono font-bold text-zinc-300 text-sm">
+                                {player.pvpMatches || 0}
+                              </span>
+                            </div>
+                          </div>
+                        ) : activeRankTab === 'wpm' ? (
+                          <div className="hidden sm:flex items-center gap-4 sm:gap-6 shrink-0">
+                            <div className="flex flex-col items-end">
+                              <span className="text-[10px] text-sky-400 uppercase font-bold tracking-wider">Velocidade</span>
+                              <span className="font-mono font-black text-sky-300 text-sm flex items-center gap-1">
+                                ⚡ {Math.round(player.bestWpm || player.wpm || 0)} PPM
+                              </span>
+                            </div>
+                            <div className="flex flex-col items-end">
+                              <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Precisão</span>
+                              <span className="font-mono font-bold text-emerald-400 text-sm">
+                                {Math.round(player.accuracy || 0)}%
+                              </span>
+                            </div>
+                            <div className="flex flex-col items-end w-20">
+                              <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Nível</span>
+                              <span className="font-mono font-bold text-zinc-300 text-sm">
+                                Nv. {player.level}
+                              </span>
+                            </div>
+                          </div>
+                        ) : activeRankTab === 'combo' ? (
+                          <div className="hidden sm:flex items-center gap-4 sm:gap-6 shrink-0">
+                            <div className="flex flex-col items-end">
+                              <span className="text-[10px] text-orange-400 uppercase font-bold tracking-wider">Maior Combo</span>
+                              <span className="font-mono font-black text-orange-300 text-sm flex items-center gap-1">
+                                🔥 {player.maxCombo || 0}x
+                              </span>
+                            </div>
+                            <div className="flex flex-col items-end">
+                              <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Precisão</span>
+                              <span className="font-mono font-bold text-emerald-400 text-sm">
+                                {Math.round(player.accuracy || 0)}%
+                              </span>
+                            </div>
+                            <div className="flex flex-col items-end w-20">
+                              <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Nível</span>
+                              <span className="font-mono font-bold text-zinc-300 text-sm">
+                                Nv. {player.level}
+                              </span>
+                            </div>
+                          </div>
+                        ) : activeRankTab === 'bytes' ? (
+                          <div className="hidden sm:flex items-center gap-4 sm:gap-6 shrink-0">
+                            <div className="flex flex-col items-end">
+                              <span className="text-[10px] text-purple-400 uppercase font-bold tracking-wider">Total Bytes</span>
+                              <span className="font-mono font-black text-purple-300 text-sm flex items-center gap-1">
+                                💾 {formatBytes(player.points)}
+                              </span>
+                            </div>
+                            <div className="flex flex-col items-end">
+                              <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">PPM</span>
+                              <span className="font-mono font-bold text-sky-400 text-sm">
+                                {Math.round(player.wpm || 0)}
+                              </span>
+                            </div>
+                            <div className="flex flex-col items-end w-20">
+                              <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Nível</span>
+                              <span className="font-mono font-bold text-amber-300 text-sm">
+                                Nv. {player.level}
+                              </span>
+                            </div>
+                          </div>
+                        ) : (
+                          // Nível / Geral
+                          <div className="hidden sm:flex items-center gap-4 sm:gap-6 shrink-0">
+                            <div className="flex flex-col items-end">
+                              <span className="text-[10px] text-emerald-400 uppercase font-bold tracking-wider">Nível</span>
+                              <span className="font-mono font-black text-emerald-300 text-sm">
+                                Nv. {player.level}
+                              </span>
+                            </div>
+                            <div className="flex flex-col items-end">
+                              <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Precisão</span>
+                              <span className="font-mono font-bold text-sky-400 text-sm">
+                                {Math.round(player.accuracy || 0)}%
+                              </span>
+                            </div>
+                            <div className="flex flex-col items-end w-24">
+                              <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Bytes</span>
+                              <span className="font-mono font-bold text-amber-300 text-sm">
+                                {formatBytes(player.points)}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Estatísticas no Mobile */}
+                        {activeRankTab === 'races' ? (
+                          <div className="sm:hidden flex flex-col items-end shrink-0 text-right">
+                            <span className="font-mono font-black text-amber-400 text-xs">
+                              🏁 {player.raceWins || 0} vit.
+                            </span>
+                            <span className="font-mono font-bold text-emerald-400 text-[11px]">
+                              {player.bestRaceWpm ? `${Math.round(player.bestRaceWpm)} PPM` : '-'}
                             </span>
                           </div>
-                          <div className="flex flex-col items-end">
-                            <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Precisão</span>
-                            <span className="font-mono font-bold text-sky-400 text-sm">
-                              {Math.round(player.accuracy || 0)}%
+                        ) : activeRankTab === 'pvp' ? (
+                          <div className="sm:hidden flex flex-col items-end shrink-0 text-right">
+                            <span className="font-mono font-black text-rose-400 text-xs">
+                              ⚔️ {player.pvpWins || 0} vit.
+                            </span>
+                            <span className="font-mono font-bold text-amber-400 text-[11px]">
+                              {player.pvpPoints || 0} pts
                             </span>
                           </div>
-                          <div className="flex flex-col items-end w-24">
-                            <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Pontos</span>
-                            <span className="font-mono font-bold text-amber-300 text-sm">
+                        ) : activeRankTab === 'wpm' ? (
+                          <div className="sm:hidden flex flex-col items-end shrink-0 text-right">
+                            <span className="font-mono font-black text-sky-400 text-xs">
+                              ⚡ {Math.round(player.bestWpm || player.wpm || 0)} PPM
+                            </span>
+                            <span className="font-mono font-bold text-emerald-400 text-[11px]">
+                              {Math.round(player.accuracy || 0)}% prec.
+                            </span>
+                          </div>
+                        ) : activeRankTab === 'combo' ? (
+                          <div className="sm:hidden flex flex-col items-end shrink-0 text-right">
+                            <span className="font-mono font-black text-orange-400 text-xs">
+                              🔥 {player.maxCombo || 0}x
+                            </span>
+                            <span className="font-mono font-bold text-emerald-400 text-[11px]">
+                              {Math.round(player.accuracy || 0)}% prec.
+                            </span>
+                          </div>
+                        ) : activeRankTab === 'bytes' ? (
+                          <div className="sm:hidden flex flex-col items-end shrink-0 text-right">
+                            <span className="font-mono font-black text-purple-400 text-xs">
+                              💾 {formatBytes(player.points)}
+                            </span>
+                            <span className="font-mono font-bold text-amber-300 text-[11px]">
+                              Nv. {player.level}
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="sm:hidden flex flex-col items-end shrink-0 text-right">
+                            <span className="font-mono font-bold text-emerald-400 text-xs">
+                              Nv. {player.level}
+                            </span>
+                            <span className="font-mono font-bold text-amber-300 text-[11px]">
                               {formatBytes(player.points)}
                             </span>
                           </div>
-                        </div>
-
-                        {/* Estatísticas no Mobile */}
-                        <div className="sm:hidden flex flex-col items-end shrink-0 text-right">
-                          <span className="font-mono font-bold text-emerald-400 text-xs">
-                            {Math.round(player.wpm)} PPM
-                          </span>
-                          <span className="font-mono font-bold text-amber-300 text-[11px]">
-                            {formatBytes(player.points)}
-                          </span>
-                        </div>
+                        )}
                       </div>
                     );
                   })}
@@ -502,32 +919,36 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
             <div className="flex-shrink-0 px-4 sm:px-6 py-3 border-t border-white/10 bg-[#141822] flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-zinc-400">
               <div className="flex items-center gap-2 font-mono text-[11px]">
                 <span>
-                  Exibindo <strong>{filteredRankings.length}</strong> de <strong>{rankings.length}</strong> digitadores
+                  Exibindo <strong>{filteredRankings.length}</strong> de <strong>{rankings.length}</strong> alunos
                 </span>
                 <span className="text-zinc-600 hidden sm:inline">•</span>
-                <span className="text-emerald-400 font-bold hidden sm:inline">
+                <span className={`${currentMetric.color} font-bold hidden sm:inline`}>
                   {selectedSerie === 'geral' ? 'Escola Inteira' : activeSerieConfig.label}
                 </span>
               </div>
 
               {/* Status do próprio aluno */}
               {userGlobalPlacement ? (
-                <div className="flex items-center gap-2 font-mono text-[11px]">
+                <div className="flex items-center gap-2 font-mono text-[11px] flex-wrap justify-end">
                   <span>
-                    Sua Colocação:
+                    Sua Colocação ({currentMetric.shortLabel}):
                   </span>
                   {userSeriePlacement && currentUserSerieLabel && (
                     <span className="px-2 py-0.5 rounded-md bg-purple-500/15 border border-purple-500/30 text-purple-300 font-bold">
                       {userSeriePlacement}º na Série ({currentUserSerieLabel})
                     </span>
                   )}
-                  <span className="px-2 py-0.5 rounded-md bg-amber-500/15 border border-amber-500/30 text-amber-300 font-bold">
+                  <span className={`px-2 py-0.5 rounded-md ${currentMetric.badgeBg} border ${currentMetric.badgeBorder} ${currentMetric.badgeText} font-bold`}>
                     {userGlobalPlacement}º no Geral
                   </span>
                 </div>
               ) : (
                 <span className="text-zinc-500 text-[11px] font-mono">
-                  Pratique no terminal para ingressar no ranking escolar!
+                  {activeRankTab === 'races'
+                    ? 'Participe de corridas em sala de aula para pontuar no ranking!'
+                    : activeRankTab === 'pvp'
+                    ? 'Participe de duelos na Arena 1x1 para ingressar no ranking!'
+                    : 'Pratique no terminal para ingressar no ranking escolar!'}
                 </span>
               )}
             </div>

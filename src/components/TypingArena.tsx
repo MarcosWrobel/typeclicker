@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Flame, Sparkles, Award, Keyboard, HelpCircle, AlertCircle, Zap, Gauge, Trophy, AlertTriangle, Timer, Activity, Pause, Play, Lock, Palette, Coins, Users, Swords, Target, Scroll } from 'lucide-react';
-import { CategoryId, FloatingText, DrillSession, KeyTelemetry } from '../types';
+import { CategoryId, FloatingText, DrillSession, KeyTelemetry, AccessibilitySettings } from '../types';
 import { BytezinhoSkinId, TerminalThemeId, AnimationEffectId } from '../types/cosmetics';
 import { TERMINAL_THEMES } from '../constants/themes';
 import { WORD_CATEGORIES } from '../data/words';
@@ -62,6 +62,7 @@ interface TypingArenaProps {
   onCancelDrill?: () => void;
   onStartDrill?: (keys?: string[]) => void;
   keyTelemetry?: Record<string, KeyTelemetry>;
+  accessibility?: AccessibilitySettings;
 }
 
 const THEME_STYLES: Record<string, {
@@ -152,7 +153,8 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
   drillSession = null,
   onCancelDrill,
   onStartDrill,
-  keyTelemetry = {}
+  keyTelemetry = {},
+  accessibility
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const internalInputRef = useRef<HTMLInputElement>(null);
@@ -160,6 +162,54 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
 
   const [isFocused, setIsFocused] = useState(true);
   const activeTerminalTheme = TERMINAL_THEMES[equippedTheme || 'matrix'] || TERMINAL_THEMES.matrix;
+
+  // Acessibilidade: Escala de caracteres e Modo Alto Contraste (Baixa Visão)
+  const isHighContrast = Boolean(accessibility?.highContrast);
+  const contrastTheme = accessibility?.contrastTheme || 'high_contrast_yellow';
+
+  const textScaleClass = React.useMemo(() => {
+    switch (accessibility?.textScale) {
+      case 'large':
+        return 'text-4xl sm:text-5xl md:text-6xl';
+      case 'huge':
+        return 'text-5xl sm:text-6xl md:text-7xl';
+      case 'mega':
+        return 'text-6xl sm:text-7xl md:text-8xl';
+      case 'normal':
+      default:
+        return 'text-3xl sm:text-4xl md:text-5xl';
+    }
+  }, [accessibility?.textScale]);
+
+  const highContrastCardClass = isHighContrast
+    ? contrastTheme === 'high_contrast_yellow'
+      ? 'bg-black border-4 border-amber-400 shadow-none'
+      : contrastTheme === 'high_contrast_cyan'
+      ? 'bg-black border-4 border-cyan-400 shadow-none'
+      : 'bg-black border-4 border-white shadow-none'
+    : '';
+
+  const highContrastCurrentCharClass = isHighContrast
+    ? contrastTheme === 'high_contrast_yellow'
+      ? 'text-black bg-amber-400 font-black ring-4 ring-white shadow-none'
+      : contrastTheme === 'high_contrast_cyan'
+      ? 'text-black bg-cyan-400 font-black ring-4 ring-white shadow-none'
+      : 'text-black bg-white font-black ring-4 ring-amber-400 shadow-none'
+    : '';
+
+  const highContrastDoneCharClass = isHighContrast
+    ? 'text-emerald-400 font-black opacity-100'
+    : '';
+
+  const highContrastPendingCharClass = isHighContrast
+    ? 'text-zinc-500 font-bold'
+    : '';
+
+  const cursorClass = accessibility?.thickCursor
+    ? 'h-2.5 sm:h-3 rounded-full bg-amber-400 ring-2 ring-white animate-pulse'
+    : `h-1 rounded-full animate-cursor-pulse ${activeTerminalTheme.classes.cursor}`;
+
+  const shouldShake = isErrorShaking && !accessibility?.reduceMotion;
 
   // Análise em tempo real de teclas com dificuldade motora
   const weakKeys = React.useMemo(() => {
@@ -597,21 +647,31 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
         <div
           ref={containerRef}
           onClick={handleCardClick}
-          className={`w-full max-w-2xl ${activeTerminalTheme.classes.cardBg} border-2 rounded-2xl p-3.5 sm:p-5 flex flex-col items-center justify-center transition-all min-w-0 ${activeTerminalTheme.classes.glowEffect || 'shadow-[0_12px_36px_rgba(0,0,0,0.6)]'} relative overflow-hidden cursor-text ${
+          className={`w-full max-w-2xl ${
+            isHighContrast ? highContrastCardClass : activeTerminalTheme.classes.cardBg
+          } border-2 rounded-2xl p-3.5 sm:p-5 flex flex-col items-center justify-center transition-all min-w-0 ${
+            isHighContrast ? '' : activeTerminalTheme.classes.glowEffect || 'shadow-[0_12px_36px_rgba(0,0,0,0.6)]'
+          } relative overflow-hidden cursor-text ${
             isPaused
               ? 'border-amber-500/90 shadow-[0_0_40px_rgba(245,158,11,0.3)] bg-[#0f1219]'
-              : isErrorShaking
+              : shouldShake
               ? 'animate-shake border-red-500/80 shadow-[0_0_24px_rgba(239,68,68,0.3)] bg-red-950/20'
               : !isFocused
               ? 'border-amber-500/40 shadow-[0_0_20px_rgba(245,158,11,0.1)]'
+              : isHighContrast
+              ? highContrastCardClass
               : `${activeTerminalTheme.classes.cardBorder}`
           }`}
         >
-          {/* Subtle Cyber Grid Background effect */}
-          <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px]" />
+          {/* Subtle Cyber Grid Background effect (suprimido em Alto Contraste para máxima nitidez) */}
+          {!isHighContrast && (
+            <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px]" />
+          )}
 
           {/* Animações e Efeitos Atmosféricos do Tema do Terminal */}
-          <TerminalThemeEffects themeId={equippedTheme || 'matrix'} isTyping={comboStreak > 0} />
+          {!isHighContrast && (
+            <TerminalThemeEffects themeId={equippedTheme || 'matrix'} isTyping={comboStreak > 0} />
+          )}
 
           {/* Top Word Label / Progress, Difficulty & Focus Status */}
           <div className="flex flex-wrap items-center justify-between w-full mb-3 text-xs text-zinc-400 font-mono gap-1.5">
@@ -643,14 +703,14 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
             </div>
           )}
 
-          {/* High-Contrast Interactive Characters */}
-          <div ref={wordContainerRef} className="font-mono text-3xl sm:text-4xl md:text-5xl tracking-widest font-bold my-2 sm:my-3 flex items-center justify-center flex-wrap gap-1 select-none">
+          {/* High-Contrast Interactive Characters com suporte a escala de acessibilidade */}
+          <div ref={wordContainerRef} className={`font-mono ${textScaleClass} tracking-widest font-bold my-2 sm:my-3 flex items-center justify-center flex-wrap gap-1 select-none`}>
             {currentWord.split('').map((char, index) => {
               const isDone = index < charIndex;
               const isCurrent = index === charIndex;
               const isPending = index > charIndex;
               const isJustTyped = index === charIndex - 1;
-              const animClasses = getLetterVfxClasses(equippedAnimation, isDone, isCurrent, isJustTyped);
+              const animClasses = !isHighContrast ? getLetterVfxClasses(equippedAnimation, isDone, isCurrent, isJustTyped) : '';
               const isTargetKey = Boolean(drillSession?.targetKeys?.includes(char.toLowerCase()));
 
               return (
@@ -658,11 +718,17 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
                   key={index}
                   className={`inline-block relative transition-all duration-75 px-1 py-0.5 rounded ${
                     isDone
-                      ? `char-done ${activeTerminalTheme.classes.charDone} ${animClasses} opacity-90`
+                      ? isHighContrast
+                        ? highContrastDoneCharClass
+                        : `char-done ${activeTerminalTheme.classes.charDone} ${animClasses} opacity-90`
                       : isCurrent
-                      ? `char-current ${activeTerminalTheme.classes.charCurrent} ${animClasses} bg-zinc-900/60 ring-2 ring-current/80 shadow-[0_0_15px_rgba(255,255,255,0.2)]`
+                      ? isHighContrast
+                        ? highContrastCurrentCharClass
+                        : `char-current ${activeTerminalTheme.classes.charCurrent} ${animClasses} bg-zinc-900/60 ring-2 ring-current/80 shadow-[0_0_15px_rgba(255,255,255,0.2)]`
+                      : isHighContrast
+                      ? highContrastPendingCharClass
                       : 'char-pending text-zinc-600'
-                  } ${isJustTyped ? animClasses : ''} ${
+                  } ${isJustTyped && !isHighContrast ? animClasses : ''} ${
                     isTargetKey && !isDone
                       ? 'border-b-2 border-amber-400 font-extrabold text-amber-200'
                       : ''
@@ -670,7 +736,7 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
                 >
                   {char === ' ' ? '␣' : char}
                   {isCurrent && (
-                    <span className={`absolute -bottom-1.5 left-0 right-0 h-1 rounded-full animate-cursor-pulse ${activeTerminalTheme.classes.cursor}`} />
+                    <span className={`absolute -bottom-1.5 left-0 right-0 ${cursorClass}`} />
                   )}
                   {isTargetKey && !isDone && (
                     <span className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.8)]" />
