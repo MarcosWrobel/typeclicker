@@ -22,6 +22,7 @@ import { sound } from '../utils/audio';
 import { formatBytes } from '../utils/formatting';
 import { combineAccent, isAccentKey, resolveDeadKey, getAccentDisplayName } from '../utils/keyboardAccents';
 import { getRandomWord } from '../data/words';
+import { CurricularTrackId } from '../types';
 
 interface ClassroomRaidArenaProps {
   isOpen: boolean;
@@ -33,6 +34,7 @@ interface ClassroomRaidArenaProps {
   rpgClass?: RpgClassType;
   userId: string;
   isAdmin?: boolean;
+  activeTrack?: CurricularTrackId;
   onClose: () => void;
   onClaimVictory: (prizeBytes: number, stats: { damage: number; words: number; wpm: number }) => void;
 }
@@ -55,12 +57,13 @@ export const ClassroomRaidArena: React.FC<ClassroomRaidArenaProps> = ({
   rpgClass,
   userId,
   isAdmin = false,
+  activeTrack = 'geral',
   onClose,
   onClaimVictory
 }) => {
   const activeRpgClass: RpgClassType = rpgClass || 'warrior';
   // Palavra atual a ser digitada
-  const [currentWord, setCurrentWord] = useState<string>(() => getRandomWord('medio'));
+  const [currentWord, setCurrentWord] = useState<string>(() => getRandomWord('medio', undefined, activeTrack));
   const [charIndex, setCharIndex] = useState<number>(0);
   const [pendingAccent, setPendingAccent] = useState<string | null>(null);
   const [wrongKeyStrike, setWrongKeyStrike] = useState<boolean>(false);
@@ -282,7 +285,7 @@ export const ClassroomRaidArena: React.FC<ClassroomRaidArenaProps> = ({
           setLocalWordsTyped((prev) => prev + 1);
 
           // Sorteia próxima palavra
-          const nextWord = getRandomWord('medio', word);
+          const nextWord = getRandomWord('medio', word, activeTrack);
           setCurrentWord(nextWord);
           currentWordRef.current = nextWord;
           setCharIndex(0);

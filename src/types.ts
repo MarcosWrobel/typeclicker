@@ -11,6 +11,7 @@ export * from './types/achievements';
 export * from './types/quests';
 export * from './types/race';
 export * from './types/curricular';
+export * from './types/curricularTracks';
 export * from './types/rpgClass';
 export * from './types/raid';
 

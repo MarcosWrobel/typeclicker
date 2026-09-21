@@ -2,7 +2,7 @@ import { initializeApp } from 'firebase/app';
 import { getFirestore, doc, setDoc, getDoc, collection, query, where, orderBy, limit, getDocs, deleteDoc, writeBatch, onSnapshot } from 'firebase/firestore';
 import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import firebaseConfig from '../../firebase-applet-config.json';
-import { GameState, CustomCurricularText } from '../types';
+import { GameState, CustomCurricularText, CurricularTrackId } from '../types';
 import { RpgClassType } from '../types/rpgClass';
 import { calculatePlayerRank, calculatePPM, calculateAccuracy } from '../utils/formatting';
 import { validateStateSanity } from '../utils/antiCheat';
@@ -95,6 +95,7 @@ export interface SystemSettings {
   expiresAt?: string;
   expiresAtMs?: number;
   activeTurma?: string | null;
+  activeTrack?: CurricularTrackId | null;
   allowedTeachers?: string[];
   focusTimeoutSetting?: number; // 5 (padrão), 10, 15 ou 0 (desativado para inclusão)
   reducedAlerts?: boolean; // desativar efeitos visuais estroboscópicos/piscantes nos vírus de rede
@@ -733,7 +734,11 @@ export async function deleteCustomCurricularText(textId: string): Promise<void> 
   await setDoc(docRef, { ...settings, customTexts: updatedTexts }, { merge: true });
 }
 
-export async function generateSessionCode(durationHours: number, targetTurma?: string | null): Promise<string> {
+export async function generateSessionCode(
+  durationHours: number,
+  targetTurma?: string | null,
+  trackId?: CurricularTrackId | null
+): Promise<string> {
   const user = auth.currentUser;
   const isAdmin = await checkIsAdminAsync(user);
   if (!isAdmin) throw new Error('Não autorizado');
@@ -751,7 +756,8 @@ export async function generateSessionCode(durationHours: number, targetTurma?: s
     activeCode: code,
     expiresAt: expiresAt.toISOString(),
     expiresAtMs: expiresAt.getTime(),
-    activeTurma: targetTurma && targetTurma.trim() !== '' ? targetTurma.trim() : null
+    activeTurma: targetTurma && targetTurma.trim() !== '' ? targetTurma.trim() : null,
+    activeTrack: trackId || 'geral'
   };
   
   try {
@@ -763,12 +769,30 @@ export async function generateSessionCode(durationHours: number, targetTurma?: s
   }
 }
 
+export async function updateActiveSessionTrack(trackId: CurricularTrackId): Promise<void> {
+  const user = auth.currentUser;
+  const isAdmin = await checkIsAdminAsync(user);
+  if (!isAdmin) throw new Error('Não autorizado');
+  try {
+    await setDoc(doc(db, 'system', 'settings'), { activeTrack: trackId }, { merge: true });
+  } catch (error: any) {
+    handleFirestoreError(error, OperationType.WRITE, `system/settings`);
+    throw error;
+  }
+}
+
 export async function clearSessionCode(): Promise<void> {
   const user = auth.currentUser;
   const isAdmin = await checkIsAdminAsync(user);
   if (!isAdmin) throw new Error('Não autorizado');
   try {
-    await setDoc(doc(db, 'system', 'settings'), { activeCode: null, expiresAt: null, expiresAtMs: null, activeTurma: null }, { merge: true });
+    await setDoc(doc(db, 'system', 'settings'), {
+      activeCode: null,
+      expiresAt: null,
+      expiresAtMs: null,
+      activeTurma: null,
+      activeTrack: null
+    }, { merge: true });
   } catch (error: any) {
     handleFirestoreError(error, OperationType.WRITE, `system/settings`);
     throw error;

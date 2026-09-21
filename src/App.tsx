@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { GameState, CategoryId, FloatingText, UpgradeDef, DrillSession, AccessibilitySettings, RpgClassType } from './types';
+import { GameState, CategoryId, FloatingText, UpgradeDef, DrillSession, AccessibilitySettings, RpgClassType, CurricularTrackId } from './types';
 import { RPG_CLASSES } from './types/rpgClass';
 import { loadSavedState, saveState, clearSavedState, INITIAL_STATE, sanitizeCosmetics, DEFAULT_ARENA_STATS, DEFAULT_ACCESSIBILITY } from './utils/storage';
 import { DEFAULT_COSMETICS, PlayerCosmetics } from './types/cosmetics';
@@ -463,6 +463,22 @@ export default function App() {
   // Focus Cadence Timer & Overload Mechanics (Pedagogical progression)
   const maxFocusBuffer = systemSettingsState?.focusTimeoutSetting !== undefined ? systemSettingsState.focusTimeoutSetting : 5.0;
   const isReducedAlerts = !!systemSettingsState?.reducedAlerts;
+  const activeCurricularTrack: CurricularTrackId = (systemSettingsState?.activeTrack as CurricularTrackId) || 'geral';
+  const activeTrackRef = useRef<CurricularTrackId>('geral');
+
+  // Sincroniza a trilha ativa da aula em tempo real (quando professor altera a trilha no Admin)
+  useEffect(() => {
+    if (activeTrackRef.current !== activeCurricularTrack) {
+      activeTrackRef.current = activeCurricularTrack;
+      if (!drillSessionRef.current) {
+        const newWord = getRandomWord(stateRef.current.selectedCategory, currentWordRef.current, activeCurricularTrack);
+        currentWordRef.current = newWord;
+        setCurrentWord(newWord);
+        setCharIndex(0);
+        setPendingAccent(null);
+      }
+    }
+  }, [activeCurricularTrack]);
 
   const [focusBufferSeconds, setFocusBufferSeconds] = useState<number>(5.0);
   const [isDraining, setIsDraining] = useState<boolean>(false);
@@ -945,7 +961,7 @@ export default function App() {
       setDrillSession(null);
       drillSessionRef.current = null;
     }
-    const nextWord = getRandomWord(cat, currentWordRef.current);
+    const nextWord = getRandomWord(cat, currentWordRef.current, activeTrackRef.current);
     setCurrentWord(nextWord);
     setCharIndex(0);
     setPendingAccent(null);
@@ -970,7 +986,7 @@ export default function App() {
   const handleCancelDrill = useCallback(() => {
     setDrillSession(null);
     drillSessionRef.current = null;
-    const newWord = getRandomWord(stateRef.current.selectedCategory);
+    const newWord = getRandomWord(stateRef.current.selectedCategory, undefined, activeTrackRef.current);
     setCurrentWord(newWord);
     setCharIndex(0);
     setPendingAccent(null);
@@ -1163,10 +1179,10 @@ export default function App() {
             spawnFloatingText(`🎯 REABILITAÇÃO CONCLUÍDA! +${drillCompletionBonus} B`, 'bonus');
             drillSessionRef.current = null;
             setDrillSession(null);
-            nextWord = getRandomWord(currState.selectedCategory);
+            nextWord = getRandomWord(currState.selectedCategory, undefined, activeTrackRef.current);
           }
         } else {
-          nextWord = getRandomWord(currState.selectedCategory, word);
+          nextWord = getRandomWord(currState.selectedCategory, word, activeTrackRef.current);
         }
 
         // Avaliação de sequência perfeita e drills
@@ -2209,7 +2225,8 @@ export default function App() {
             <TypingArena
               playerRankLevel={playerRank.level}
               currentWord={currentWord}
-            charIndex={charIndex}
+              activeTrack={activeCurricularTrack}
+              charIndex={charIndex}
             isErrorShaking={isErrorShaking}
             comboStreak={state.comboStreak}
             multiplier={state.multiplier}
@@ -2517,6 +2534,7 @@ export default function App() {
           rpgClass={state.rpgClass}
           userId={user?.uid || 'anon_player'}
           isAdmin={isAdmin}
+          activeTrack={activeCurricularTrack}
           onClose={handleCloseRaidArena}
           onClaimVictory={handleClaimRaidVictory}
         />

@@ -1,9 +1,9 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Flame, Sparkles, Award, Keyboard, HelpCircle, AlertCircle, Zap, Gauge, Trophy, AlertTriangle, Timer, Activity, Pause, Play, Lock, Palette, Coins, Users, Swords, Target, Scroll } from 'lucide-react';
-import { CategoryId, FloatingText, DrillSession, KeyTelemetry, AccessibilitySettings } from '../types';
+import { CategoryId, FloatingText, DrillSession, KeyTelemetry, AccessibilitySettings, CurricularTrackId } from '../types';
 import { BytezinhoSkinId, TerminalThemeId, AnimationEffectId } from '../types/cosmetics';
 import { TERMINAL_THEMES } from '../constants/themes';
-import { WORD_CATEGORIES } from '../data/words';
+import { WORD_CATEGORIES, getCurricularTrack, getTrackCategories } from '../data/words';
 import { isAccentKey, resolveDeadKey, getAccentDisplayName } from '../utils/keyboardAccents';
 import { BytezinhoMascot } from './BytezinhoMascot';
 import { TerminalThemeEffects } from './TerminalThemeEffects';
@@ -63,6 +63,7 @@ interface TypingArenaProps {
   onStartDrill?: (keys?: string[]) => void;
   keyTelemetry?: Record<string, KeyTelemetry>;
   accessibility?: AccessibilitySettings;
+  activeTrack?: CurricularTrackId;
 }
 
 const THEME_STYLES: Record<string, {
@@ -154,7 +155,8 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
   onCancelDrill,
   onStartDrill,
   keyTelemetry = {},
-  accessibility
+  accessibility,
+  activeTrack = 'geral'
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const internalInputRef = useRef<HTMLInputElement>(null);
@@ -355,8 +357,10 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
   const hitsInCurrentTier = comboStreak % 5;
   const isMaxMultiplier = multiplier >= 5.0;
 
-  // Dica pedagógica e tema dinâmico baseado na dificuldade selecionada
-  const activeCatObj = WORD_CATEGORIES.find(c => c.id === selectedCategory) || WORD_CATEGORIES[0];
+  // Trilha Curricular Ativa e categorias dinâmicas
+  const activeTrackConfig = getCurricularTrack(activeTrack);
+  const currentCategories = getTrackCategories(activeTrack);
+  const activeCatObj = currentCategories.find(c => c.id === selectedCategory) || currentCategories[0];
   const currentTheme = THEME_STYLES[activeCatObj.themeColor] || THEME_STYLES.emerald;
 
   return (
@@ -390,6 +394,12 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
             <span className="text-xs font-bold text-zinc-300 uppercase tracking-wider font-mono">
               Selecione a Dificuldade
             </span>
+            {activeTrack && activeTrack !== 'geral' && (
+              <span className="text-[10px] font-mono text-purple-200 bg-purple-950/90 border border-purple-500/50 px-2.5 py-0.5 rounded-full flex items-center gap-1.5 font-bold shadow-[0_0_10px_rgba(168,85,247,0.2)]">
+                <span>{activeTrackConfig.icon}</span>
+                <span>{activeTrackConfig.name}</span>
+              </span>
+            )}
             {isPaused && (
               <span className="text-[10px] font-mono text-amber-300 bg-amber-500/20 border border-amber-500/40 px-2 py-0.5 rounded-full flex items-center gap-1 font-bold animate-pulse">
                 <span>⏸️</span>
@@ -405,7 +415,7 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
         {/* 5 Difficulty Selectors - strictly bounded inside max-w-2xl and 100% accessible within margins */}
         <div className="w-full max-w-2xl px-1 min-w-0">
           <div className="grid grid-cols-5 gap-1.5 sm:gap-2 w-full">
-            {WORD_CATEGORIES.map((cat) => {
+            {currentCategories.map((cat) => {
               const isSelected = cat.id === selectedCategory;
               const isAllowed = isCategoryAllowed(cat.id, playerRankLevel);
               const theme = THEME_STYLES[cat.themeColor] || THEME_STYLES.emerald;

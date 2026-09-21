@@ -33,8 +33,11 @@ import {
   saveCustomCurricularText,
   deleteCustomCurricularText,
   saveProgressToCloud,
+  updateActiveSessionTrack,
   ADMIN_EMAILS
 } from '../services/firebaseService';
+import { CurricularTrackId } from '../types';
+import { CURRICULAR_TRACKS, getCurricularTrack, suggestTrackForTurma } from '../data/tracks';
 import { RpgClassType } from '../types/rpgClass';
 import {
   launchClassroomRace,
@@ -133,6 +136,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [selectedClassFilter, setSelectedClassFilter] = useState<string>('todas');
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
   const [targetTurmaForCode, setTargetTurmaForCode] = useState<string>('');
+  const [selectedTrackForCode, setSelectedTrackForCode] = useState<CurricularTrackId>('geral');
+  const [isChangingLiveTrack, setIsChangingLiveTrack] = useState<boolean>(false);
   const [updatingStudentId, setUpdatingStudentId] = useState<string | null>(null);
   const [isAutoBalancing, setIsAutoBalancing] = useState<boolean>(false);
   
@@ -876,13 +881,26 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     }
     setIsLoading(true);
     try {
-      await generateSessionCode(hours, targetTurmaForCode);
+      await generateSessionCode(hours, targetTurmaForCode, selectedTrackForCode);
       await loadSettings();
       sound.playPrestige();
     } catch (e) {
       alert("Erro ao gerar código");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleChangeLiveTrack = async (newTrack: CurricularTrackId) => {
+    setIsChangingLiveTrack(true);
+    try {
+      await updateActiveSessionTrack(newTrack);
+      await loadSettings();
+      sound.playUpgrade();
+    } catch (e: any) {
+      alert("Erro ao alterar a trilha da aula: " + (e.message || e));
+    } finally {
+      setIsChangingLiveTrack(false);
     }
   };
 
@@ -1230,37 +1248,82 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     Gere um código de aula temporário. Alunos precisarão digitar este código para desbloquear o jogo. Sem um código ativo, o acesso ao jogo fica bloqueado.
                   </p>
 
-                  <div className="bg-zinc-900 rounded-xl p-4 border border-zinc-800 flex items-center justify-between">
-                    <div>
-                      <div className="text-xs text-zinc-500 uppercase tracking-wider font-bold mb-1">Status da Aula</div>
-                      {isActive ? (
-                        <div>
-                          <div className="flex items-center gap-3">
-                            <span className="text-3xl font-black text-emerald-400 tracking-widest">{settings?.activeCode}</span>
-                            {settings?.activeTurma && (
-                              <span className="text-xs px-2.5 py-1 rounded-full font-mono font-bold bg-sky-950 text-sky-300 border border-sky-500/40">
-                                🎒 Turma: {settings.activeTurma}
-                              </span>
-                            )}
+                  <div className="bg-zinc-900 rounded-xl p-4 border border-zinc-800 flex flex-col gap-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-xs text-zinc-500 uppercase tracking-wider font-bold mb-1">Status da Aula</div>
+                        {isActive ? (
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-3xl font-black text-emerald-400 tracking-widest">{settings?.activeCode}</span>
+                              {settings?.activeTurma && (
+                                <span className="text-xs px-2.5 py-1 rounded-full font-mono font-bold bg-sky-950 text-sky-300 border border-sky-500/40">
+                                  🎒 Turma: {settings.activeTurma}
+                                </span>
+                              )}
+                              {settings?.activeTrack && (
+                                <span className="text-xs px-2.5 py-1 rounded-full font-mono font-bold bg-purple-950 text-purple-300 border border-purple-500/40 flex items-center gap-1.5 shadow-sm">
+                                  <span>{getCurricularTrack(settings.activeTrack).icon}</span>
+                                  <span>{getCurricularTrack(settings.activeTrack).name}</span>
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-xs text-emerald-500/70 mt-1.5 flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              Expira em: {new Date(settings!.expiresAt!).toLocaleTimeString()}
+                            </div>
                           </div>
-                          <div className="text-xs text-emerald-500/70 mt-1.5 flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            Expira em: {new Date(settings!.expiresAt!).toLocaleTimeString()}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="text-lg font-bold text-zinc-500">Nenhuma aula ativa</div>
+                        ) : (
+                          <div className="text-lg font-bold text-zinc-500">Nenhuma aula ativa</div>
+                        )}
+                      </div>
+                      
+                      {isActive && (
+                        <button
+                          onClick={handleClearCode}
+                          disabled={isLoading}
+                          className="px-4 py-2 bg-red-500/10 text-red-400 border border-red-500/30 rounded-lg text-sm hover:bg-red-500/20 font-bold transition cursor-pointer"
+                        >
+                          Encerrar
+                        </button>
                       )}
                     </div>
-                    
+
+                    {/* Alternador Rápido de Trilha em Aula Aberta */}
                     {isActive && (
-                      <button
-                        onClick={handleClearCode}
-                        disabled={isLoading}
-                        className="px-4 py-2 bg-red-500/10 text-red-400 border border-red-500/30 rounded-lg text-sm hover:bg-red-500/20 font-bold transition cursor-pointer"
-                      >
-                        Encerrar
-                      </button>
+                      <div className="pt-2.5 border-t border-zinc-800/80 flex flex-col gap-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-mono font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1">
+                            <BookOpen className="w-3.5 h-3.5 text-purple-400" />
+                            <span>Mudar Trilha da Aula em Tempo Real:</span>
+                          </span>
+                          {isChangingLiveTrack && (
+                            <span className="text-[10px] text-amber-400 font-mono animate-pulse">Sincronizando...</span>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-1.5">
+                          {CURRICULAR_TRACKS.map((t) => {
+                            const isCurrent = (settings?.activeTrack || 'geral') === t.id;
+                            return (
+                              <button
+                                key={t.id}
+                                type="button"
+                                disabled={isChangingLiveTrack}
+                                onClick={() => handleChangeLiveTrack(t.id)}
+                                className={`px-2 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 border text-center ${
+                                  isCurrent
+                                    ? 'bg-purple-600 text-white border-purple-400 shadow-md shadow-purple-600/30'
+                                    : 'bg-zinc-950 text-zinc-400 border-zinc-800 hover:text-zinc-200 hover:bg-zinc-800 hover:border-zinc-700'
+                                }`}
+                                title={`${t.discipline} • ${t.targetAudience}`}
+                              >
+                                <span>{t.icon}</span>
+                                <span className="truncate">{t.name.split('(')[0].trim()}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
                     )}
                   </div>
 
@@ -1279,7 +1342,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                     <select
                       value={targetTurmaForCode}
-                      onChange={(e) => setTargetTurmaForCode(e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setTargetTurmaForCode(val);
+                        if (val) {
+                          const suggested = suggestTrackForTurma(val);
+                          setSelectedTrackForCode(suggested);
+                        }
+                      }}
                       disabled={isLoading}
                       className="w-full bg-zinc-950 border border-zinc-700 focus:border-purple-400 rounded-xl px-3.5 py-2.5 text-sm text-zinc-100 focus:outline-none focus:ring-1 focus:ring-purple-400/50 transition font-mono font-bold cursor-pointer"
                     >
@@ -1300,6 +1370,54 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         <span>Selecione a turma para vincular e travar automaticamente nos alunos ao desbloquear.</span>
                       </p>
                     )}
+                  </div>
+
+                  {/* Seletor de Trilha Curricular Dinâmica */}
+                  <div className="space-y-2 bg-zinc-900/60 p-4 rounded-xl border border-zinc-800">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-zinc-200 uppercase tracking-wider font-mono flex items-center gap-1.5">
+                        <BookOpen className="w-4 h-4 text-emerald-400" />
+                        <span>Trilha Curricular da Aula:</span>
+                      </label>
+                      <span className="text-[10px] font-mono font-bold text-emerald-300 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-500/40">
+                        {getCurricularTrack(selectedTrackForCode).icon} {getCurricularTrack(selectedTrackForCode).name}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {CURRICULAR_TRACKS.map((track) => {
+                        const isSelected = selectedTrackForCode === track.id;
+                        return (
+                          <button
+                            key={track.id}
+                            type="button"
+                            onClick={() => setSelectedTrackForCode(track.id)}
+                            className={`p-3 rounded-xl border text-left transition flex flex-col gap-1 cursor-pointer ${
+                              isSelected
+                                ? 'bg-purple-950/50 border-purple-500 text-white shadow-[0_0_12px_rgba(168,85,247,0.25)]'
+                                : 'bg-zinc-950/80 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200 hover:bg-zinc-900'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-1.5 font-bold text-xs">
+                                <span className="text-base">{track.icon}</span>
+                                <span className={isSelected ? 'text-purple-200' : 'text-zinc-200'}>{track.name}</span>
+                              </div>
+                              {isSelected && (
+                                <span className="text-[9px] font-mono font-black text-purple-300 bg-purple-900/80 px-1.5 py-0.5 rounded border border-purple-400/40">
+                                  SELECIONADA
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[10px] text-zinc-400 line-clamp-1">{track.description}</p>
+                            <div className="mt-1 flex items-center justify-between text-[9px] font-mono text-zinc-500">
+                              <span>Público: <strong className="text-zinc-300">{track.targetAudience}</strong></span>
+                              <span>{track.discipline}</span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
 
                   <div className="flex gap-2">
