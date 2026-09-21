@@ -80,6 +80,18 @@ Para simular a intensidade de combate dos RPGs e exigir domínio de teclado sob 
 - **Modo de Fúria (< 30% HP):** O chefe entra em sobrecarga crítica com aura avermelhada, velocidade de ataque acelerada em +40% e dano de erro ampliado.
 - **Dano de Erro Escalonado:** Misses tornam-se progressivamente mais perigosos em andares avançados ($7 + \text{andar} \times 1.4$), dobrando sob debuffs e triplicando na fúria.
 
+### 8. Classes RPG de Digitador (Guerreiro, Arqueiro e Mago)
+Para aprofundar a identidade e a estratégia de cada estudante, a plataforma introduz três classes selecionáveis no painel de perfil (`StudentModal.tsx`), cada uma com passivas mecânicas de gameplay:
+- **⚔️ Guerreiro Veloz (Ímpeto & Fúria):**
+  - *Perfil:* Ideal para estudantes com alta cadência motora.
+  - *Passivas:* Ao manter velocidade acima de **55 PPM**, recebe $+25\%$ de Bytes por palavra e desfere golpes de impacto crítico nos Guardiões da Masmorra e Raids coletivas.
+- **🏹 Arqueiro do Combo (Precisão Cirúrgica):**
+  - *Perfil:* Foco em ritmo ininterrupto e eliminação de erros de digitação.
+  - *Passivas:* Multiplicadores de combo escalam até $+15\%$ mais rápido; a cada 20 acertos perfeitos consecutivos, desfecha disparos penetrantes que ignoram armadura de chefes.
+- **🧙 Mago Arcano (Síntese Quântica & Sobrecarga):**
+  - *Perfil:* Estrategistas focados em otimização de recursos e hardware.
+  - *Passivas:* Eleva a geração passiva de Bytes em $+20\%$ e estende a tolerância da Bateria de Foco, recarregando circuitos em dobro a cada palavra longa acertada.
+
 ---
 
 ## 🎯 Missões, Quests & Treinos Adaptativos
@@ -158,16 +170,31 @@ Uma esteira de aprendizado equilibrada com progressão matemática para acompanh
 - **Resolução Atômica e Premiação do Vencedor:** O primeiro aluno a completar 100% do texto é consagrado vencedor via transação atômica no Firestore (`runTransaction`), recebendo um prêmio massivo de Bytes, confetes animados e **+1 vitória de corrida** (`raceWins`).
 - **Ranking Geral de Corridas:** Tabela de classificação própria e exclusiva no `LeaderboardModal` (aba `[ 🏁 Corridas ]`), ranqueando os alunos por número de vitórias, melhor PPM e participações, com filtros de série/turma e pódio com medalhas.
 
-### 🎨 7. Temas & Efeitos Especiais de Terminal
-- Loja de cosméticos com mais de 12 temas retrô e modernos:
-  - *Matrix Code Rain*, *Cyberpunk Neon*, *Terminal Amber CRT*, *Laboratório Stealth CLI*, *Midnight Blue*, *Synthwave 80s*, *Solarized Dark*, *Paper Clean*, entre outros.
-- Efeitos visuais dinâmicos como linhas de varredura CRT, fósforo verde e animações de partícula.
+### 7. Raids Coletivas contra Chefes em Tempo Real (Classroom Raid Arena)
+- **Modo Cooperativo para Toda a Turma:** O professor pode invocar um Chefe de Raid colossal através do Painel Administrativo (`ClassroomRaidArena.tsx`), criando uma batalha em que **todos os estudantes da sala colaboram juntos** contra o mesmo adversário em tempo real.
+- **Barra de Vida Compartilhada:** Cada palavra acertada e cada golpe desferido por qualquer aluno reduz atômica e gradualmente o HP total do Guardião.
+- **Feed de Batalha & Telemetria ao Vivo:** Painel com animações dinâmicas mostrando em tempo real as contribuições de dano de cada colega de classe.
+- **MVP da Batalha & Recompensas Épicas:** Ao derrotar o chefe, o sistema elege o **MVP da Turma** (maior dano/PPM) e distribui recompensas volumosas de Bytes, Fragmentos Quânticos e Chaves de Masmorra para todos os participantes.
+- **Otimização Spark-Safe (`raidService.ts`):** Atualizações de progresso consolidadas em lotes periódicos, garantindo cooperação fluida sem exceder as cotas gratuitas do Firebase.
 
-### 🤖 8. Mascote Pedagógico "Bytezinho"
+### 8. Temas, Layouts & Efeitos Especiais de Terminal (30 Skins & Apps Populares)
+- **Mais de 30 Layouts e Skins Customizadas:**
+  - *Temas Clássicos e Sci-Fi:* Matrix Code Rain, Cyberpunk Neon, Terminal Amber CRT, Laboratório Stealth CLI, Midnight Blue, Synthwave 80s, Solarized Dark, Paper Clean, BIOS DOS, Arcade Cabinet, Steampunk Lab, Retrô Mac Classic, Speedrun Arena, Estação Espacial, Cockpit Imperial.
+  - *Skins de Cultura Pop e Jogos:* Minecraft Block, Shonen Combat, Mushroom Kingdom, Infinite Void, Slayer Dojo, Pocket Console, Manga Action, Green Hills Zone, Bat-Caverna Tática.
+  - *Novos Layouts Inspirados em Redes e Apps Populares (`SocialAppLayout.tsx`):*
+    - 💬 **WhatsApp Web:** Estilo de mensagens instantâneas com balões de conversa e status online.
+    - 📸 **Instagram Feed:** Estética dark minimalista com carrossel e contadores de curtidas interativos.
+    - ▶️ **YouTube Theater:** Modo cinema com player simulado, barra de progresso vermelha e selo 1080p60 HD.
+    - 🎵 **TikTok Stream:** Glitch neon vertical com visualizador de ritmo musical, badges dinâmicos e corações pulsantes.
+    - 🧱 **Roblox Studio:** Interface de modelador 3D com grid de studs, toolbox e viewport tático.
+- **Motor de Efeitos Visuais & Partículas Vetoriais (`fxEngine.ts`):** Sistema avançado em Canvas 2D nativo e confetes dinâmicos, renderizando partículas temáticas de alta performance sem quedas de FPS em computadores escolares.
+- **Miniaturas de Prévia na Loja (`CosmeticsShopModal.tsx`):** Cards visuais fieis demonstrando as cores, bordas e disposições da interface antes do resgate.
+
+### 9. Mascote Pedagógico "Bytezinho"
 - Personagem interativo que reage às ações do aluno.
 - Fornece dicas de postura física, posicionamento dos 10 dedos no teclado, lembretes de salvar o jogo e incentivos de superação.
 
-### 🏆 9. Rankings Escolares Multimétricas (Custo Zero no Firebase Spark)
+### 10. Rankings Escolares Multimétricas (Custo Zero no Firebase Spark)
 O `LeaderboardModal` foi expandido para ranquear os alunos em **6 categorias competitivas e pedagógicas independentes**:
 1. 🏆 **Nível & XP:** Progressão geral da conta e marcos alcançados.
 2. ⚡ **Velocidade (PPM):** Agilidade bruta em Palavras Por Minuto e precisão de digitação.
@@ -180,13 +207,26 @@ O `LeaderboardModal` foi expandido para ranquear os alunos em **6 categorias com
 - **Filtros Pedagógicos Integrados:** Filtros por Série (6º ao 9º ano, Ensino Médio), Turma específica, atalho "Minha Série" e cálculo dinâmico da colocação do próprio aluno em cada métrica.
 - **Exclusão Estrita de Professores:** Docentes e administradores nunca aparecem em nenhuma das 6 abas de classificação.
 
-### 🥇 10. Radar de Pódio Top 3 na Barra Lateral (Live Dual-Timer)
+### 11. Guerra de Turmas (Ranking Coletivo Inter-Turmas)
+- **Disputa Escolar Cooperativa:** Alternância instantânea no `LeaderboardModal` entre o modo individual e a **Guerra de Turmas**.
+- **Cálculo de Desempenho Coletivo:** Consolida a pontuação média, velocidade média (PPM) e soma de conquistas de cada sala (ex: 6º A, 7º B, 8º C, etc.).
+- **Pódio com Medalhas de Turma:** Exibição destacada das turmas campeãs (🥇 Ouro, 🥈 Prata, 🥉 Bronze), revelando inclusive o aluno destaque de cada equipe.
+- **Agregação em Memória (`turmasAggregator.ts`):** Todo o cálculo analítico ocorre localmente em tempo real no dispositivo do aluno, consumindo **zero requisições adicionais ao Firestore**.
+
+### 12. Radar de Pódio Top 3 na Barra Lateral (Live Dual-Timer)
 Para manter a motivação competitiva em alta sem exigir que os estudantes abram menus repetidamente:
 - **Pódio Contínuo no Canto Esquerdo:** Widget estilizado integrado diretamente na barra lateral de status (`StatsSidebar.tsx`), exibindo os 3 melhores alunos (🥇, 🥈, 🥉) com seus avatares, apelidos, turmas e pontuações em tempo real.
 - **Cronômetro 1 — Rotação Visual Local (12s):** A cada 12 segundos, o widget rotaciona automaticamente e suavemente entre as 6 métricas de ranking na memória do cliente com barra de progresso visual e controles manuais de avançar, voltar e pausar. Custo de banco: **0 leituras**.
 - **Cronômetro 2 — Sincronização Cloud em Background (3 min):** Atualiza os dados da nuvem em segundo plano a cada 180 segundos. Com 100 alunos ativos, gera apenas 1.500 leituras/aula (3% do limite diário do Spark).
 - **Congelamento Inteligente:** O timer é automaticamente pausado quando a aba do navegador perde o foco (`document.hidden`), eliminando qualquer leitura ociosa fora da aula.
 - **Acesso Rápido com 1 Clique:** Clicar em qualquer competidor do pódio abre o `LeaderboardModal` diretamente na aba daquela métrica.
+
+### 13. Central de Acessibilidade Pedagógica & Inclusão Motora
+Projetado para atender estudantes com deficiências visuais, motoras ou neurodiversidades através do `AccessibilityModal.tsx`:
+- **Modo Alto Contraste:** Otimização de paletas para máxima legibilidade de glifos e caracteres em telas de baixo brilho.
+- **Proteção contra Fotossensibilidade:** Desativação de flashes estroboscópicos, tremores de tela (*screen shake*) e avisos pulsantes de sobrecarga.
+- **Cadência Adaptativa da Bateria de Foco:** Seleção de tolerância sem limite de tempo, 10s ou 15s para alunos em processo inicial de letramento ou com limitações motoras.
+- **Ajustes de Tipografia:** Suporte a fontes com espaçamento ampliado e cursor de digitação de alta visibilidade.
 
 ---
 
@@ -211,6 +251,19 @@ O sistema possui uma suíte administrativa restrita acessível apenas por docent
 
 ### 🏁 4. Controle de Corridas Escolares em Tempo Real
 - **Painel de Telemetria ao Vivo:** Monitoramento da corrida ativa com identificação do vencedor em tempo real, pódio de colocação dos concluintes, PPM de cada aluno e botão de encerramento/cancelamento de emergência.
+
+### ⚔️ 5. Lançador de Raids Coletivas da Sala
+- **Disparo de Batalha Cooperativa:** O professor seleciona chefes calibrados (ex: *Sentinela de Dados*, *Leviatã de Fogo*, *Titã Quântico*) com HP escalonado para o tamanho da turma.
+- **Acompanhamento de Dano Coletivo:** Gráficos e barras de progresso ao vivo exibindo o impacto de cada carteira do laboratório na integridade do boss.
+
+### 📚 6. Biblioteca Curricular de Textos Pedagógicos por Disciplina
+- **Acervo Integrado por Área do Conhecimento:** Textos selecionados para Língua Portuguesa, História, Ciências, Informática e Literatura clássica.
+- **Envio Direto com 1 Clique:** Possibilidade de selecionar qualquer texto temático do acervo curricular e despachá-lo imediatamente como desafio oficial da Corrida da Turma.
+
+### 📑 7. Exportação de Boletim Escolar em CSV (UTF-8 BOM)
+- **Relatório Pedagógico Instantâneo:** Geração de planilha completa de avaliação contendo: Nome do Aluno, E-mail, Turma, Nível, PPM Médio, Acurácia (%), Maior Combo, Total de Bytes e Vitórias em Corridas.
+- **Compatibilidade Nativa com Excel e Planilhas:** Codificação com *BOM UTF-8* (`\uFEFF`), assegurando abertura imediata com acentuação correta e sem caracteres corrompidos.
+- **Zero Custo de Banco de Dados:** Processamento compilado a partir dos dados já carregados no cliente, resultando em **0 leituras e 0 gravações no Firestore**.
 
 ---
 
