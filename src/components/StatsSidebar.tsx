@@ -1,6 +1,7 @@
 import React from 'react';
-import { Cpu, Trophy, ChevronRight, Users } from 'lucide-react';
+import { Cpu, Trophy, ChevronRight, Users, Shield } from 'lucide-react';
 import { GameState } from '../types';
+import { RPG_CLASSES } from '../types/rpgClass';
 import { formatBytes, formatRate, calculatePlayerRank } from '../utils/formatting';
 import { TopPodiumWidget } from './TopPodiumWidget';
 import { LeaderboardMetric } from './LeaderboardModal';
@@ -60,6 +61,12 @@ export const StatsSidebar: React.FC<StatsSidebarProps> = ({
                 ) : isAdmin ? (
                   <span className="px-1.5 py-0.2 rounded-full bg-sky-500/20 border border-sky-500/30 text-[9px] font-bold text-sky-400 whitespace-nowrap">👨‍🏫 Prof</span>
                 ) : null}
+                {state.rpgClass && RPG_CLASSES[state.rpgClass] && (
+                  <span className={`px-1.5 py-0.2 rounded-full ${RPG_CLASSES[state.rpgClass].badgeBg} border ${RPG_CLASSES[state.rpgClass].badgeBorder} text-[9px] font-bold ${RPG_CLASSES[state.rpgClass].badgeText} whitespace-nowrap flex items-center gap-0.5`}>
+                    <span>{RPG_CLASSES[state.rpgClass].icon}</span>
+                    <span>{RPG_CLASSES[state.rpgClass].name}</span>
+                  </span>
+                )}
               </div>
               <span className="text-xs font-mono text-emerald-400/90 leading-tight truncate mt-0.5">
                 {state.studentClass ? `Turma: ${state.studentClass}` : 'Toque p/ escolher turma'}

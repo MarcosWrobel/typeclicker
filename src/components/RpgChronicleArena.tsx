@@ -24,6 +24,7 @@ import {
   Clock
 } from 'lucide-react';
 import { RpgFloorData, DungeonState, RpgActiveStatusEffect } from '../types/quests';
+import { RpgClassType, RPG_CLASSES } from '../types/rpgClass';
 import { sound } from '../utils/audio';
 import { formatBytes } from '../utils/formatting';
 import { combineAccent, isAccentKey, resolveDeadKey, getAccentDisplayName } from '../utils/keyboardAccents';
@@ -32,6 +33,7 @@ interface RpgChronicleArenaProps {
   isOpen: boolean;
   floorData: RpgFloorData;
   dungeon?: DungeonState;
+  rpgClass?: RpgClassType;
   onVictory: (floorData: RpgFloorData) => void;
   onClose: () => void;
   onNextFloor?: () => void;
@@ -52,6 +54,7 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
   isOpen,
   floorData,
   dungeon,
+  rpgClass,
   onVictory,
   onClose,
   onNextFloor,
@@ -523,6 +526,16 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
           }
         }
 
+        // Passiva de Classe: Guerreiro Veloz causa +25% de dano base
+        if (rpgClass === 'warrior') {
+          baseDamage = Math.max(1, Math.round(baseDamage * 1.25));
+        }
+
+        // Passiva de Classe: Mago dos Bytes regenera escudo ao acertar fraqueza
+        if (rpgClass === 'mage' && isWeakness) {
+          setPlayerShield((prev) => Math.min(maxShield, prev + 3));
+        }
+
         // Boss ferido momentaneamente
         setIsBossHurt(true);
         setTimeout(() => setIsBossHurt(false), 80);
@@ -542,10 +555,26 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
               clearDebuff();
             }
 
+            // Passiva de Classe: Mago dos Bytes restaura +10 de Escudo em palavra limpa
+            if (rpgClass === 'mage') {
+              setPlayerShield((prev) => Math.min(maxShield, prev + 10));
+              spawnDamage(0, false, '✨ Barreira Arcana (+10 Escudo)!');
+            }
+
             // Perk: Combo Crítico
             const comboLevel = dungeon?.perks?.criticalCombo ?? 0;
             const comboMultiplier = 1 + comboLevel * 0.05;
             wordBonusDamage = Math.round((8 + floorData.floor * 2) * comboMultiplier);
+
+            // Passiva de Classe: Arqueiro amplia o bônus de palavra limpa (+30%)
+            if (rpgClass === 'archer') {
+              wordBonusDamage = Math.round(wordBonusDamage * 1.30);
+            }
+            // Passiva de Classe: Guerreiro desfere impacto motor na palavra limpa (+25%)
+            if (rpgClass === 'warrior') {
+              wordBonusDamage = Math.round(wordBonusDamage * 1.25);
+            }
+
             spawnDamage(wordBonusDamage, true);
           }
           wordCleanRef.current = true;
@@ -1133,6 +1162,15 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
                     {dungeon.perks.shieldHardening > 0 && (
                       <span className="text-indigo-400" title="Mitigação de Escudo">
                         🛡️ Nv.{dungeon.perks.shieldHardening}/10
+                      </span>
+                    )}
+                    {rpgClass && RPG_CLASSES[rpgClass] && (
+                      <span
+                        className={`px-1.5 py-0.5 rounded border text-[9px] font-bold flex items-center gap-1 ${RPG_CLASSES[rpgClass].badgeBg} ${RPG_CLASSES[rpgClass].badgeBorder} ${RPG_CLASSES[rpgClass].badgeText}`}
+                        title={RPG_CLASSES[rpgClass].passives.map(p => `${p.title}: ${p.description}`).join(' | ')}
+                      >
+                        <span>{RPG_CLASSES[rpgClass].icon}</span>
+                        <span>{RPG_CLASSES[rpgClass].name}</span>
                       </span>
                     )}
                   </div>

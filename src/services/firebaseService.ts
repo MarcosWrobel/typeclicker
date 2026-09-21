@@ -2,7 +2,7 @@ import { initializeApp } from 'firebase/app';
 import { getFirestore, doc, setDoc, getDoc, collection, query, where, orderBy, limit, getDocs, deleteDoc, writeBatch, onSnapshot } from 'firebase/firestore';
 import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import firebaseConfig from '../../firebase-applet-config.json';
-import { GameState } from '../types';
+import { GameState, CustomCurricularText } from '../types';
 import { calculatePlayerRank, calculatePPM, calculateAccuracy } from '../utils/formatting';
 import { validateStateSanity } from '../utils/antiCheat';
 import { calculateMinBytesForLevel } from '../data/levels';
@@ -99,6 +99,7 @@ export interface SystemSettings {
   testerEmails?: string[];
   testGrantsHistory?: TestGrantConfig[];
   pendingTestGrants?: Record<string, TestGrantConfig>;
+  customTexts?: CustomCurricularText[];
 }
 
 export interface FirebaseSavePayload {
@@ -657,6 +658,45 @@ export function subscribeToSystemSettings(callback: (settings: SystemSettings | 
       callback(null);
     }
   });
+}
+
+export async function getCustomCurricularTexts(): Promise<CustomCurricularText[]> {
+  const settings = await getSystemSettings();
+  return settings?.customTexts || [];
+}
+
+export async function saveCustomCurricularText(text: Omit<CustomCurricularText, 'id' | 'createdAt'>): Promise<CustomCurricularText> {
+  const user = auth.currentUser;
+  const isStaff = await checkIsAdminAsync(user);
+  if (!isStaff) throw new Error('Apenas professores ou administradores podem cadastrar textos curriculares.');
+
+  const settings = (await getSystemSettings()) || {};
+  const currentTexts = settings.customTexts || [];
+
+  const newText: CustomCurricularText = {
+    ...text,
+    id: `txt_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+    createdAt: Date.now(),
+    authorName: (user?.displayName || user?.email || 'Professor').trim()
+  };
+
+  const updatedTexts = [newText, ...currentTexts];
+  const docRef = doc(db, 'system', 'settings');
+  await setDoc(docRef, { ...settings, customTexts: updatedTexts }, { merge: true });
+  return newText;
+}
+
+export async function deleteCustomCurricularText(textId: string): Promise<void> {
+  const user = auth.currentUser;
+  const isStaff = await checkIsAdminAsync(user);
+  if (!isStaff) throw new Error('Apenas professores ou administradores podem excluir textos curriculares.');
+
+  const settings = (await getSystemSettings()) || {};
+  const currentTexts = settings.customTexts || [];
+  const updatedTexts = currentTexts.filter((t) => t.id !== textId);
+
+  const docRef = doc(db, 'system', 'settings');
+  await setDoc(docRef, { ...settings, customTexts: updatedTexts }, { merge: true });
 }
 
 export async function generateSessionCode(durationHours: number): Promise<string> {

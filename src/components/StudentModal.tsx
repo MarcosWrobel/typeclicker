@@ -12,10 +12,12 @@ import {
   User as UserIcon, 
   GraduationCap, 
   Tag, 
-  LogIn
+  LogIn,
+  Shield
 } from 'lucide-react';
 import { sound } from '../utils/audio';
 import { GameState } from '../types';
+import { RPG_CLASSES, RpgClassType } from '../types/rpgClass';
 import { logoutUser, loginWithGoogle, isDevAdminModeActive, toggleDevAdminMode } from '../services/firebaseService';
 
 export interface AvatarOption {
@@ -54,7 +56,8 @@ interface StudentModalProps {
   currentAvatar?: string;
   currentNickname?: string;
   currentClass?: string;
-  onSave: (avatar: string, nickname: string, studentClass: string) => void;
+  currentRpgClass?: RpgClassType;
+  onSave: (avatar: string, nickname: string, studentClass: string, rpgClass?: RpgClassType) => void;
   onImportState: (state: GameState) => void;
   state: GameState;
   onClose?: () => void;
@@ -67,6 +70,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
   currentAvatar = '🐧',
   currentNickname = '',
   currentClass = '',
+  currentRpgClass,
   onSave,
   onImportState,
   state,
@@ -75,6 +79,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
 }) => {
   const [selectedAvatar, setSelectedAvatar] = useState<string>(currentAvatar || '🐧');
   const [nickname, setNickname] = useState<string>(currentNickname || state.studentNickname || '');
+  const [selectedRpgClass, setSelectedRpgClass] = useState<RpgClassType>(currentRpgClass || state.rpgClass || 'warrior');
   
   // Turma selecionada
   const initialTurma = currentClass || state.studentClass || '';
@@ -94,6 +99,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
     if (isOpen) {
       setSelectedAvatar(state.studentAvatar || '🐧');
       setNickname(state.studentNickname || '');
+      setSelectedRpgClass(state.rpgClass || 'warrior');
       const cls = state.studentClass || '';
       if (cls && !ALL_STANDARD_CLASSES.includes(cls)) {
         setSelectedTurma('');
@@ -105,7 +111,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
         setCustomTurma('');
       }
     }
-  }, [isOpen, state.studentAvatar, state.studentNickname, state.studentClass]);
+  }, [isOpen, state.studentAvatar, state.studentNickname, state.studentClass, state.rpgClass]);
 
   if (!isOpen) return null;
 
@@ -127,7 +133,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
     // Determina a turma final
     const finalTurma = isCustomMode ? customTurma.trim() : selectedTurma;
 
-    onSave(selectedAvatar, nickname.trim(), finalTurma);
+    onSave(selectedAvatar, nickname.trim(), finalTurma, selectedRpgClass);
   };
 
   const handleSelectAvatar = (emoji: string) => {
@@ -492,6 +498,68 @@ export const StudentModal: React.FC<StudentModalProps> = ({
                       {isSelected && (
                         <span className="absolute -bottom-1 -right-1 bg-emerald-500 text-zinc-950 p-0.5 rounded-full border-2 border-[#12151d]">
                           <Check className="w-2.5 h-2.5" strokeWidth={4} />
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Seção: Especialização de Classe RPG */}
+            <div className="space-y-2 pt-1">
+              <label className="block text-xs font-bold text-zinc-200 uppercase tracking-wider font-mono flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <Shield className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Classe de Especialização RPG:</span>
+                </span>
+                <span className="text-[11px] font-mono text-amber-400 font-normal">
+                  Passivas Únicas
+                </span>
+              </label>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                {(Object.values(RPG_CLASSES)).map((rpg) => {
+                  const isSelected = selectedRpgClass === rpg.id;
+                  return (
+                    <button
+                      key={rpg.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedRpgClass(rpg.id);
+                        sound.playKeyStroke();
+                      }}
+                      className={`p-3 rounded-2xl border text-left transition cursor-pointer flex flex-col justify-between relative ${
+                        isSelected
+                          ? `${rpg.badgeBg} ${rpg.badgeBorder} shadow-lg ring-1 ring-white/10 scale-[1.02]`
+                          : 'bg-[#0b0e14] border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900/60'
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between gap-1 mb-1.5">
+                          <span className="text-2xl">{rpg.icon}</span>
+                          <span className={`text-[10px] font-mono font-black uppercase px-2 py-0.5 rounded-full border ${
+                            isSelected ? `${rpg.badgeBorder} ${rpg.badgeText} bg-black/40` : 'text-zinc-500 border-zinc-800'
+                          }`}>
+                            {rpg.title}
+                          </span>
+                        </div>
+                        <h4 className="text-sm font-black text-white">{rpg.name}</h4>
+                        <p className="text-[10px] text-zinc-400 mt-1 leading-snug">{rpg.tagline}</p>
+                      </div>
+
+                      <div className="mt-2.5 pt-2 border-t border-white/5 space-y-1">
+                        {rpg.passives.map((p) => (
+                          <div key={p.title} className="text-[10px] text-zinc-300 flex items-start gap-1">
+                            <span>{p.icon}</span>
+                            <span className="font-semibold text-white truncate">{p.title}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {isSelected && (
+                        <span className="absolute -top-1.5 -right-1.5 bg-amber-400 text-black p-0.5 rounded-full shadow-md">
+                          <Check className="w-3 h-3" strokeWidth={4} />
                         </span>
                       )}
                     </button>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Shield, Key, Trash2, X, Clock, AlertTriangle, Users, Search, RefreshCw, BarChart, Database, Download, Upload, CheckCircle2, RotateCcw, FileText, Sliders, Battery, EyeOff, Filter, Swords, Sparkles, Coins, Zap, Trophy, Award, UserCheck, Plus, History, Gift, ArrowRight, Check, Terminal, Flag, Timer } from 'lucide-react';
+import { Shield, Key, Trash2, X, Clock, AlertTriangle, Users, Search, RefreshCw, BarChart, Database, Download, Upload, CheckCircle2, RotateCcw, FileText, Sliders, Battery, Eye, EyeOff, Filter, Swords, Sparkles, Coins, Zap, Trophy, Award, UserCheck, Plus, History, Gift, ArrowRight, Check, Terminal, Flag, Timer, BookOpen, Flame } from 'lucide-react';
 import {
   auth,
   generateSessionCode,
@@ -27,7 +27,9 @@ import {
   findUserSaveByEmail,
   TestGrantPayload,
   TestGrantConfig,
-  sanitizeStaffFromLeaderboard
+  sanitizeStaffFromLeaderboard,
+  saveCustomCurricularText,
+  deleteCustomCurricularText
 } from '../services/firebaseService';
 import {
   launchClassroomRace,
@@ -35,12 +37,18 @@ import {
   subscribeToActiveRace,
   PRESET_RACE_TEXTS
 } from '../services/raceService';
+import {
+  launchClassroomRaid,
+  cancelClassroomRaid,
+  subscribeToActiveRaid
+} from '../services/raidService';
 import { ClassroomRace, PresetRaceText } from '../types/race';
+import { ClassroomRaid, PRESET_RAID_BOSSES, PresetRaidBoss } from '../types/raid';
 import { SCHOOL_CLASSES_CONFIG } from './StudentModal';
 import { sound } from '../utils/audio';
 import { formatBytes, calculatePlayerRank } from '../utils/formatting';
 import { ALL_LEVELS, calculateMinBytesForLevel } from '../data/levels';
-import { GameState } from '../types';
+import { GameState, CustomCurricularText } from '../types';
 import { DEFAULT_COSMETICS } from '../types/cosmetics';
 import { getAllUnlockedCosmetics } from '../constants/cosmeticsCatalog';
 
@@ -55,6 +63,7 @@ interface AdminPanelProps {
   onOpenCosmetics?: () => void;
   onTriggerChallenge?: (level: number) => void;
   onOpenRaceArena?: () => void;
+  onOpenRaidArena?: () => void;
 }
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({
@@ -67,10 +76,21 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   onOpenArena,
   onOpenCosmetics,
   onTriggerChallenge,
-  onOpenRaceArena
+  onOpenRaceArena,
+  onOpenRaidArena
 }) => {
-  const [activeTab, setActiveTab] = useState<'locks' | 'dashboard' | 'corrida' | 'backups' | 'wipe' | 'professores' | 'testes'>('locks');
+  const [activeTab, setActiveTab] = useState<'locks' | 'dashboard' | 'corrida' | 'raid' | 'textos' | 'backups' | 'wipe' | 'professores' | 'testes'>('locks');
   const [testActionMessage, setTestActionMessage] = useState<string | null>(null);
+
+  // Estados para Textos Curriculares do Professor
+  const [newTextTitle, setNewTextTitle] = useState<string>('');
+  const [newTextDiscipline, setNewTextDiscipline] = useState<string>('Português');
+  const [newTextTurma, setNewTextTurma] = useState<string>('todas');
+  const [newTextContent, setNewTextContent] = useState<string>('');
+  const [isSavingText, setIsSavingText] = useState<boolean>(false);
+  const [textFeedback, setTextFeedback] = useState<string | null>(null);
+  const [selectedPreviewText, setSelectedPreviewText] = useState<CustomCurricularText | null>(null);
+  const [textFilterDiscipline, setTextFilterDiscipline] = useState<string>('todas');
   
   const [settings, setSettings] = useState<SystemSettings | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -89,6 +109,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [isLaunchingRace, setIsLaunchingRace] = useState<boolean>(false);
   const [isCancellingRace, setIsCancellingRace] = useState<boolean>(false);
   const [raceActionFeedback, setRaceActionFeedback] = useState<string | null>(null);
+
+  // Estados para Raid Coletiva contra Chefe
+  const [activeRaid, setActiveRaid] = useState<ClassroomRaid | null>(null);
+  const [selectedRaidBossId, setSelectedRaidBossId] = useState<string>(PRESET_RAID_BOSSES[0].id);
+  const [raidTargetTurma, setRaidTargetTurma] = useState<string>('todas');
+  const [raidMaxHp, setRaidMaxHp] = useState<number>(PRESET_RAID_BOSSES[0].maxHp);
+  const [raidTimeLimitSec, setRaidTimeLimitSec] = useState<number>(PRESET_RAID_BOSSES[0].timeLimitSeconds);
+  const [raidPrizeBytes, setRaidPrizeBytes] = useState<number>(PRESET_RAID_BOSSES[0].prizeBytes);
+  const [isLaunchingRaid, setIsLaunchingRaid] = useState<boolean>(false);
+  const [isCancellingRaid, setIsCancellingRaid] = useState<boolean>(false);
+  const [raidActionFeedback, setRaidActionFeedback] = useState<string | null>(null);
 
   const [students, setStudents] = useState<LeaderboardEntry[]>([]);
   const [isStudentsLoading, setIsStudentsLoading] = useState(false);
@@ -170,6 +201,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     return () => unsub();
   }, []);
 
+  // Escuta a Raid ativa da turma em tempo real
+  useEffect(() => {
+    const unsub = subscribeToActiveRaid((raid) => {
+      setActiveRaid(raid);
+    });
+    return () => unsub();
+  }, []);
+
   const handleSelectPreset = (preset: PresetRaceText) => {
     setSelectedPresetId(preset.id);
     setCustomRaceTitle(preset.title);
@@ -224,6 +263,182 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     } finally {
       setIsCancellingRace(false);
     }
+  };
+
+  const handleSelectRaidBoss = (boss: PresetRaidBoss) => {
+    setSelectedRaidBossId(boss.id);
+    setRaidMaxHp(boss.maxHp);
+    setRaidTimeLimitSec(boss.timeLimitSeconds);
+    setRaidPrizeBytes(boss.prizeBytes);
+  };
+
+  const handleLaunchRaid = async () => {
+    const currentUser = auth.currentUser || {
+      uid: 'admin_' + (userEmail ? userEmail.replace(/[^a-zA-Z0-9]/g, '_') : 'teacher'),
+      email: userEmail || 'professor@escola.pr.gov.br'
+    };
+
+    const boss = PRESET_RAID_BOSSES.find((b) => b.id === selectedRaidBossId) || PRESET_RAID_BOSSES[0];
+
+    setIsLaunchingRaid(true);
+    setRaidActionFeedback(null);
+    try {
+      await launchClassroomRaid(
+        {
+          bossId: boss.id,
+          bossName: boss.name,
+          bossSubtitle: boss.subtitle,
+          bossIcon: boss.icon,
+          maxHp: raidMaxHp,
+          timeLimitSeconds: raidTimeLimitSec,
+          prizeBytes: raidPrizeBytes,
+          targetTurma: raidTargetTurma
+        },
+        currentUser
+      );
+      sound.playChallengeSuccess();
+      setRaidActionFeedback(`🔥 Raid contra "${boss.name}" iniciada com sucesso!`);
+      setTimeout(() => setRaidActionFeedback(null), 5000);
+    } catch (err: any) {
+      sound.playError();
+      setRaidActionFeedback(`Erro ao iniciar Raid: ${err.message || err}`);
+    } finally {
+      setIsLaunchingRaid(false);
+    }
+  };
+
+  const handleCancelRaid = async () => {
+    setIsCancellingRaid(true);
+    try {
+      await cancelClassroomRaid();
+      sound.playWordComplete();
+      setRaidActionFeedback('Raid ativa cancelada.');
+      setTimeout(() => setRaidActionFeedback(null), 3000);
+    } catch (err: any) {
+      setRaidActionFeedback(`Erro ao cancelar Raid: ${err.message}`);
+    } finally {
+      setIsCancellingRaid(false);
+    }
+  };
+
+  // Exportação de Boletim Escolar (CSV) 100% In-Browser (0 Reads / Writes)
+  const handleExportCSV = () => {
+    const listToExport = filteredStudents.length > 0 ? filteredStudents : students;
+    if (!listToExport || listToExport.length === 0) {
+      alert('Nenhum dado de aluno disponível para exportação no momento.');
+      return;
+    }
+
+    const headers = [
+      'Nome',
+      'Apelido',
+      'Turma',
+      'Nivel',
+      'Total Bytes',
+      'PPM Atual',
+      'Melhor PPM',
+      'Precisao (%)',
+      'Vitorias Corridas',
+      'Participacoes Corridas',
+      'Vitorias PvP',
+      'Pontos PvP',
+      'Maior Combo',
+      'Alerta Anti-Cheat',
+      'Motivo Alerta',
+      'Ultima Atividade'
+    ];
+
+    const rows = listToExport.map((s) => {
+      const escape = (val: any) => `"${String(val ?? '').replace(/"/g, '""')}"`;
+      return [
+        escape(s.nome),
+        escape(s.apelido || ''),
+        escape(s.turma || ''),
+        s.level ?? 1,
+        s.points ?? 0,
+        s.wpm ?? 0,
+        s.bestWpm || s.wpm || 0,
+        s.accuracy ?? 100,
+        s.raceWins ?? 0,
+        s.racesParticipated ?? 0,
+        s.pvpWins ?? 0,
+        s.pvpPoints ?? 0,
+        s.maxCombo ?? 0,
+        s.flaggedForReview ? 'SIM' : 'NAO',
+        escape(s.flagReason || ''),
+        escape(s.updatedAt ? new Date(s.updatedAt).toLocaleString('pt-BR') : '')
+      ].join(';');
+    });
+
+    const csvContent = '\uFEFF' + [headers.join(';'), ...rows].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    const turmaSuffix = selectedClassFilter === 'todas' ? 'todas_turmas' : selectedClassFilter.replace(/[^a-zA-Z0-9]/g, '_');
+    const dateSuffix = new Date().toISOString().slice(0, 10);
+    link.setAttribute('download', `boletim_typeclicker_${turmaSuffix}_${dateSuffix}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    sound.playWordComplete();
+  };
+
+  // Gerenciamento de Textos Curriculares do Professor
+  const handleSaveCustomText = async () => {
+    if (!newTextTitle.trim()) {
+      setTextFeedback('Por favor, informe o título do texto curricular.');
+      return;
+    }
+    if (!newTextContent.trim() || newTextContent.trim().length < 20) {
+      setTextFeedback('O conteúdo deve ter pelo menos 20 caracteres para ser aproveitado.');
+      return;
+    }
+    setIsSavingText(true);
+    setTextFeedback(null);
+    try {
+      await saveCustomCurricularText({
+        title: newTextTitle.trim(),
+        discipline: newTextDiscipline,
+        targetTurma: newTextTurma,
+        content: newTextContent.trim()
+      });
+      await loadSettings();
+      setNewTextTitle('');
+      setNewTextContent('');
+      sound.playPrestige();
+      setTextFeedback('Texto curricular salvo e publicado com sucesso!');
+      setTimeout(() => setTextFeedback(null), 4000);
+    } catch (err: any) {
+      sound.playChallengeFail();
+      setTextFeedback(`Erro ao salvar texto: ${err.message || err}`);
+    } finally {
+      setIsSavingText(false);
+    }
+  };
+
+  const handleDeleteCustomText = async (textId: string) => {
+    if (!confirm('Deseja realmente remover este texto da biblioteca escolar?')) return;
+    try {
+      await deleteCustomCurricularText(textId);
+      await loadSettings();
+      sound.playWordComplete();
+    } catch (err: any) {
+      alert(`Erro ao excluir texto: ${err.message || err}`);
+    }
+  };
+
+  const handleUseCustomTextInRace = (text: CustomCurricularText) => {
+    setSelectedPresetId(text.id);
+    setCustomRaceTitle(text.title);
+    setCustomRaceText(text.content);
+    setCustomRaceSource(`Professor (${text.discipline} - ${text.authorName || 'Docente'})`);
+    if (text.targetTurma && text.targetTurma !== 'todas') {
+      setRaceTargetTurma(text.targetTurma);
+    }
+    setActiveTab('corrida');
+    sound.playPrestige();
   };
 
   // Ações Rápidas de Teste para o Administrador (Marcos Wrobel)
@@ -858,6 +1073,30 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   <span>Corrida da Turma</span>
                 </button>
                 <button
+                  onClick={() => setActiveTab('raid')}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+                    activeTab === 'raid'
+                      ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30 font-black'
+                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
+                  }`}
+                  title="Lançador de Raid Coletiva contra Chefe em Tempo Real"
+                >
+                  <Swords className="w-4 h-4 text-rose-400" />
+                  <span>Raid Coletiva</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('textos')}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+                    activeTab === 'textos'
+                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30 font-bold'
+                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
+                  }`}
+                  title="Biblioteca de Textos Curriculares e Pedagógicos do Professor"
+                >
+                  <BookOpen className="w-4 h-4 text-indigo-400" />
+                  <span>Textos Curriculares</span>
+                </button>
+                <button
                   onClick={() => setActiveTab('backups')}
                   className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
                     activeTab === 'backups'
@@ -1098,7 +1337,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         title="Atualizar Dados da Turma no Firestore"
                       >
                         <RefreshCw className={`w-3.5 h-3.5 text-purple-300 ${isStudentsLoading ? 'animate-spin' : ''}`} />
-                        <span>{isStudentsLoading ? 'Atualizando...' : 'Atualizar Dados da Turma'}</span>
+                        <span>{isStudentsLoading ? 'Atualizando...' : 'Atualizar Dados'}</span>
+                      </button>
+
+                      {/* Exportação de Boletim da Turma em CSV (0 leituras/escritas) */}
+                      <button
+                        onClick={handleExportCSV}
+                        disabled={isStudentsLoading || students.length === 0}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-950/60 hover:bg-emerald-900/80 border border-emerald-600/40 rounded-lg text-emerald-200 text-xs font-bold transition disabled:opacity-50 shadow-sm cursor-pointer"
+                        title="Exportar Boletim Escolar com PPM, Nível, Acurácia e Corridas em planilha CSV"
+                      >
+                        <Download className="w-3.5 h-3.5 text-emerald-300" />
+                        <span>Exportar Boletim (CSV)</span>
                       </button>
                     </div>
                   </div>
@@ -1340,7 +1590,56 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
 
                     {/* Catálogo de Textos Pré-Definidos */}
-                    <div className="space-y-2">
+                    <div className="space-y-3">
+                      {settings?.customTexts && settings.customTexts.length > 0 && (
+                        <div className="space-y-2 p-3 rounded-xl bg-indigo-950/25 border border-indigo-500/30">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
+                              <BookOpen className="w-3.5 h-3.5 text-indigo-400" />
+                              Textos Curriculares do Professor ({settings.customTexts.length})
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setActiveTab('textos')}
+                              className="text-[11px] text-indigo-400 hover:text-indigo-200 underline cursor-pointer font-mono"
+                            >
+                              + Adicionar / Gerenciar
+                            </button>
+                          </div>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                            {settings.customTexts.map((txt) => (
+                              <button
+                                key={txt.id}
+                                type="button"
+                                onClick={() => handleUseCustomTextInRace(txt)}
+                                className={`p-2.5 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between ${
+                                  selectedPresetId === txt.id
+                                    ? 'bg-indigo-500/25 border-indigo-500/80 shadow-md shadow-indigo-500/20'
+                                    : 'bg-zinc-900/70 border-zinc-700/60 hover:bg-zinc-800 text-zinc-300'
+                                }`}
+                              >
+                                <div>
+                                  <div className="flex items-center gap-1 mb-1">
+                                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                                      {txt.discipline}
+                                    </span>
+                                    {txt.targetTurma && txt.targetTurma !== 'todas' && (
+                                      <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-purple-500/20 text-purple-300">
+                                        {txt.targetTurma}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="text-xs font-bold text-white line-clamp-1">{txt.title}</span>
+                                </div>
+                                <span className="text-[10px] text-indigo-400 font-mono mt-1.5 font-semibold">
+                                  {txt.content.length} caracteres
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
                       <label className="text-xs font-bold text-zinc-300 block uppercase tracking-wider font-mono">
                         1. Escolha um Texto Literário/Pedagógico ou Crie o Seu:
                       </label>
@@ -1492,6 +1791,528 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       </p>
                     </div>
                   </div>
+                </section>
+              )}
+
+              {/* ABA: RAID COLETIVA CONTRA CHEFE EM TEMPO REAL */}
+              {activeTab === 'raid' && (
+                <section className="space-y-6">
+                  {/* Cabeçalho da Aba */}
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-zinc-800 pb-3">
+                    <div>
+                      <div className="flex items-center gap-2 text-rose-400 font-bold text-lg">
+                        <Swords className="w-5 h-5" />
+                        <h3>Raid Coletiva contra Chefe em Tempo Real</h3>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                          Multiplayer Co-op
+                        </span>
+                      </div>
+                      <p className="text-xs text-zinc-400 mt-0.5">
+                        Dispare um evento cooperativo para toda a turma! Um chefe titânico surge na tela dos alunos com HP compartilhado e contagem regressiva. Os alunos digitam juntos acumulando dano e usando as sinergias das classes RPG para derrotá-lo!
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {activeRaid && activeRaid.status === 'in_progress' && onOpenRaidArena && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onClose();
+                            onOpenRaidArena();
+                          }}
+                          className="px-3.5 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-300 font-bold text-xs transition cursor-pointer flex items-center gap-1.5"
+                          title="Fechar Painel e Entrar na Batalha com os Alunos"
+                        >
+                          <Swords className="w-4 h-4" />
+                          <span>Entrar na Batalha</span>
+                        </button>
+                      )}
+
+                      {activeRaid && activeRaid.status === 'in_progress' && (
+                        <button
+                          type="button"
+                          onClick={handleCancelRaid}
+                          disabled={isCancellingRaid}
+                          className="px-3.5 py-1.5 rounded-xl bg-red-600/20 hover:bg-red-600/30 border border-red-500/40 text-red-300 font-bold text-xs transition cursor-pointer flex items-center gap-1.5"
+                        >
+                          <X className="w-4 h-4" />
+                          <span>{isCancellingRaid ? 'Cancelando...' : 'Encerrar Raid'}</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {raidActionFeedback && (
+                    <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-300 font-mono text-xs font-bold flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-rose-400" />
+                      <span>{raidActionFeedback}</span>
+                    </div>
+                  )}
+
+                  {/* MONITOR DA RAID ATIVA (se houver uma em andamento) */}
+                  {activeRaid && activeRaid.status === 'in_progress' && (
+                    <div className="p-4 rounded-2xl bg-zinc-950 border-2 border-rose-500/50 shadow-[0_0_30px_rgba(244,63,94,0.15)] relative overflow-hidden">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="text-3xl p-2 bg-zinc-900 rounded-xl border border-rose-500/30 animate-pulse">
+                            {activeRaid.bossIcon}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 text-[10px] font-mono font-bold">
+                                EM ANDAMENTO
+                              </span>
+                              <span className="text-xs text-zinc-400 font-mono">
+                                Turma: <strong className="text-zinc-200 uppercase">{activeRaid.targetTurma}</strong>
+                              </span>
+                            </div>
+                            <h4 className="text-lg font-black text-white font-mono">{activeRaid.bossName}</h4>
+                            <p className="text-xs text-zinc-400 font-mono">{activeRaid.bossSubtitle}</p>
+                          </div>
+                        </div>
+
+                        <div className="text-right font-mono text-xs text-zinc-400">
+                          <div>Alunos Ativos: <strong className="text-indigo-400 text-sm">{Object.keys(activeRaid.participants || {}).length}</strong></div>
+                          <div>Dano Total: <strong className="text-rose-400 text-sm">{(activeRaid.totalDamageDealt || 0).toLocaleString()} HP</strong></div>
+                        </div>
+                      </div>
+
+                      {/* Barra de HP em Tempo Real */}
+                      <div className="mt-4">
+                        <div className="flex justify-between text-xs font-mono mb-1">
+                          <span className="text-rose-400 font-bold">VIDA RESTANTE DO CHEFE:</span>
+                          <span className="text-zinc-200">
+                            <strong>{activeRaid.currentHp.toLocaleString()}</strong> / {activeRaid.maxHp.toLocaleString()} HP (
+                            {Math.max(0, Math.round((activeRaid.currentHp / activeRaid.maxHp) * 100))}%)
+                          </span>
+                        </div>
+                        <div className="w-full h-3 rounded-full bg-zinc-900 overflow-hidden border border-zinc-800 p-0.5">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-rose-600 to-amber-500 transition-all duration-300"
+                            style={{
+                              width: `${Math.max(0, Math.min(100, Math.round((activeRaid.currentHp / activeRaid.maxHp) * 100)))}%`
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* FORMULÁRIO DE LANÇAMENTO DA RAID */}
+                  <div className="p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800 space-y-5">
+                    <div>
+                      <h4 className="text-sm font-bold text-zinc-200 font-mono flex items-center gap-2">
+                        <Flame className="w-4 h-4 text-rose-400" />
+                        1. Selecione o Chefe de Raid da Batalha:
+                      </h4>
+                      <p className="text-xs text-zinc-400 mt-1">
+                        Cada chefe possui temática própria, atributos de HP calibrados e exigências de cooperação:
+                      </p>
+                    </div>
+
+                    {/* Cards de Chefes Pré-definidos */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      {PRESET_RAID_BOSSES.map((boss) => {
+                        const isSelected = selectedRaidBossId === boss.id;
+                        return (
+                          <div
+                            key={boss.id}
+                            onClick={() => handleSelectRaidBoss(boss)}
+                            className={`p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between ${
+                              isSelected
+                                ? 'bg-rose-950/40 border-rose-500/80 shadow-[0_0_20px_rgba(244,63,94,0.25)]'
+                                : 'bg-zinc-950/60 border-zinc-800 hover:border-zinc-700'
+                            }`}
+                          >
+                            <div>
+                              <div className="flex items-center justify-between gap-2 mb-2">
+                                <span className="text-2xl">{boss.icon}</span>
+                                <span className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-700 text-[10px] font-mono text-zinc-300">
+                                  {boss.maxHp.toLocaleString()} HP
+                                </span>
+                              </div>
+                              <h5 className="font-bold text-white text-sm font-mono">{boss.name}</h5>
+                              <p className="text-[11px] text-zinc-400 font-mono mt-0.5 line-clamp-1">{boss.subtitle}</p>
+                              <p className="text-xs text-zinc-500 font-mono mt-2 line-clamp-2">{boss.description}</p>
+                            </div>
+
+                            <div className="mt-3 pt-2 border-t border-zinc-800/80 flex items-center justify-between text-[10px] font-mono text-zinc-400">
+                              <span>⏱️ {Math.floor(boss.timeLimitSeconds / 60)} min</span>
+                              <span className="text-amber-400 font-bold">+{formatBytes(boss.prizeBytes)}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Configuração de Parâmetros */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-zinc-800">
+                      {/* Turma Alvo */}
+                      <div>
+                        <label className="text-xs text-zinc-400 font-mono block mb-1">Turma Participante:</label>
+                        <select
+                          value={raidTargetTurma}
+                          onChange={(e) => setRaidTargetTurma(e.target.value)}
+                          className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-rose-400 cursor-pointer"
+                        >
+                          <option value="todas">Geral (Todas as Turmas Ativas)</option>
+                          {SCHOOL_CLASSES_CONFIG.map((group) => (
+                            <optgroup key={group.grade} label={group.grade} className="bg-zinc-900 text-zinc-400">
+                              {group.classes.map((cls) => (
+                                <option key={cls} value={cls} className="bg-zinc-900 text-white font-medium">
+                                  Turma {cls}
+                                </option>
+                              ))}
+                            </optgroup>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Tempo Limite */}
+                      <div>
+                        <label className="text-xs text-zinc-400 font-mono block mb-1">Tempo Limite da Batalha:</label>
+                        <div className="flex gap-2">
+                          {[120, 180, 240, 300].map((sec) => (
+                            <button
+                              key={sec}
+                              type="button"
+                              onClick={() => setRaidTimeLimitSec(sec)}
+                              className={`flex-1 py-2 rounded-xl text-xs font-mono font-bold transition border cursor-pointer ${
+                                raidTimeLimitSec === sec
+                                  ? 'bg-rose-500 text-white border-rose-400 shadow-md'
+                                  : 'bg-zinc-950 text-zinc-400 border-zinc-700 hover:border-zinc-500'
+                              }`}
+                            >
+                              {sec / 60}m
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Prêmio de Vitória por Aluno */}
+                      <div>
+                        <label className="text-xs text-zinc-400 font-mono block mb-1">Prêmio de Vitória por Aluno:</label>
+                        <div className="flex gap-2">
+                          {[25000, 50000, 100000, 250000].map((amt) => (
+                            <button
+                              key={amt}
+                              type="button"
+                              onClick={() => setRaidPrizeBytes(amt)}
+                              className={`flex-1 py-2 rounded-xl text-xs font-mono font-bold transition border cursor-pointer ${
+                                raidPrizeBytes === amt
+                                  ? 'bg-amber-500 text-black border-amber-400 font-black shadow-md'
+                                  : 'bg-zinc-950 text-zinc-400 border-zinc-700 hover:border-zinc-500'
+                              }`}
+                            >
+                              {amt >= 1000 ? `${amt / 1000}k` : amt}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Botão de Lançamento */}
+                    <div className="pt-3">
+                      <button
+                        type="button"
+                        onClick={handleLaunchRaid}
+                        disabled={isLaunchingRaid}
+                        className="w-full py-3.5 rounded-xl bg-gradient-to-r from-rose-600 via-red-500 to-rose-600 hover:from-rose-500 hover:to-red-400 disabled:opacity-50 text-white font-black text-sm uppercase tracking-wider transition shadow-lg shadow-rose-600/30 flex items-center justify-center gap-2 cursor-pointer"
+                      >
+                        <Swords className="w-5 h-5 text-white" />
+                        <span>{isLaunchingRaid ? 'Iniciando Batalha...' : '🚀 LANÇAR RAID COLETIVA PARA A SALA AGORA'}</span>
+                      </button>
+                      <p className="text-[11px] text-zinc-500 font-mono text-center mt-2">
+                        * Ao clicar, todos os alunos conectados receberão o alerta de batalha com o Chefe Coletivo em tempo real.
+                      </p>
+                    </div>
+                  </div>
+                </section>
+              )}
+
+              {activeTab === 'textos' && (
+                <section className="space-y-6">
+                  {/* Cabeçalho */}
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-zinc-800 pb-3">
+                    <div>
+                      <div className="flex items-center gap-2 text-indigo-400 font-bold text-lg">
+                        <BookOpen className="w-5 h-5" />
+                        <h3>Biblioteca de Textos Curriculares do Professor</h3>
+                      </div>
+                      <p className="text-xs text-zinc-400 mt-0.5">
+                        Cadastre e organize conteúdos de História, Ciências, Geografia, Português e outras matérias para usar em treinos e corridas da turma.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-mono px-3 py-1 bg-indigo-950/60 border border-indigo-500/30 text-indigo-300 rounded-lg">
+                        {settings?.customTexts?.length || 0} textos ativos
+                      </span>
+                    </div>
+                  </div>
+
+                  {textFeedback && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className={`p-3.5 rounded-xl border text-xs font-mono font-bold flex items-center gap-2 ${
+                        textFeedback.includes('Erro')
+                          ? 'bg-red-950/50 border-red-500/40 text-red-300'
+                          : 'bg-emerald-950/50 border-emerald-500/40 text-emerald-300'
+                      }`}
+                    >
+                      {textFeedback.includes('Erro') ? (
+                        <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0" />
+                      ) : (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                      )}
+                      <span>{textFeedback}</span>
+                    </motion.div>
+                  )}
+
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    {/* Formulário de Cadastro (5 colunas) */}
+                    <div className="lg:col-span-5 p-5 rounded-2xl bg-zinc-900/60 border border-indigo-500/30 space-y-4">
+                      <div className="flex items-center gap-2 pb-2 border-b border-zinc-800">
+                        <Plus className="w-4 h-4 text-indigo-400" />
+                        <h4 className="text-sm font-bold text-white">Cadastrar Novo Texto Curricular</h4>
+                      </div>
+
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-xs text-zinc-300 font-medium block mb-1">Título do Conteúdo:</label>
+                          <input
+                            type="text"
+                            placeholder="Ex: A Chegada do Homem à Lua"
+                            value={newTextTitle}
+                            onChange={(e) => setNewTextTitle(e.target.value)}
+                            className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-indigo-400"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-xs text-zinc-300 font-medium block mb-1">Disciplina / Matéria:</label>
+                            <select
+                              value={newTextDiscipline}
+                              onChange={(e) => setNewTextDiscipline(e.target.value)}
+                              className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-indigo-400 cursor-pointer"
+                            >
+                              <option value="Português">Português</option>
+                              <option value="História">História</option>
+                              <option value="Geografia">Geografia</option>
+                              <option value="Ciências">Ciências</option>
+                              <option value="Matemática">Matemática</option>
+                              <option value="Inglês">Inglês</option>
+                              <option value="Filosofia">Filosofia</option>
+                              <option value="Robótica">Robótica / TI</option>
+                              <option value="Geral">Geral / Literatura</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="text-xs text-zinc-300 font-medium block mb-1">Turma Alvo:</label>
+                            <select
+                              value={newTextTurma}
+                              onChange={(e) => setNewTextTurma(e.target.value)}
+                              className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-indigo-400 cursor-pointer"
+                            >
+                              <option value="todas">Todas as Turmas</option>
+                              {SCHOOL_CLASSES_CONFIG.map((group) => (
+                                <optgroup key={group.grade} label={group.grade} className="bg-zinc-900 text-zinc-400">
+                                  {group.classes.map((cls) => (
+                                    <option key={cls} value={cls} className="bg-zinc-900 text-white">
+                                      {cls}
+                                    </option>
+                                  ))}
+                                </optgroup>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+
+                        <div>
+                          <div className="flex items-center justify-between text-xs text-zinc-400 font-mono mb-1">
+                            <label className="text-zinc-300 font-medium font-sans">Texto a Ser Digitado:</label>
+                            <span>
+                              {newTextContent.trim().split(/\s+/).filter(Boolean).length} palavras • {newTextContent.length} carac.
+                            </span>
+                          </div>
+                          <textarea
+                            rows={6}
+                            placeholder="Insira o parágrafo ou texto que os alunos irão ler e digitar durante a atividade..."
+                            value={newTextContent}
+                            onChange={(e) => setNewTextContent(e.target.value)}
+                            className="w-full bg-zinc-950 border border-zinc-700 rounded-xl p-3 text-sm text-white font-mono leading-relaxed placeholder-zinc-500 focus:outline-none focus:border-indigo-400 custom-scrollbar"
+                          />
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={handleSaveCustomText}
+                          disabled={isSavingText || !newTextTitle.trim() || !newTextContent.trim()}
+                          className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-bold text-xs uppercase tracking-wider transition shadow-md shadow-indigo-600/30 flex items-center justify-center gap-2 cursor-pointer"
+                        >
+                          <BookOpen className="w-4 h-4 text-white" />
+                          <span>{isSavingText ? 'Salvando...' : 'Salvar Texto na Biblioteca'}</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Acervo de Textos Cadastrados (7 colunas) */}
+                    <div className="lg:col-span-7 space-y-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <h4 className="text-sm font-bold text-zinc-200 flex items-center gap-2">
+                          <FileText className="w-4 h-4 text-indigo-400" />
+                          Textos Salvos no Sistema
+                        </h4>
+
+                        {/* Filtro por Disciplina */}
+                        <div className="flex items-center gap-2">
+                          <Filter className="w-3.5 h-3.5 text-zinc-400" />
+                          <select
+                            value={textFilterDiscipline}
+                            onChange={(e) => setTextFilterDiscipline(e.target.value)}
+                            className="bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1 text-xs text-zinc-300 focus:outline-none cursor-pointer"
+                          >
+                            <option value="todas">Todas as Matérias</option>
+                            <option value="Português">Português</option>
+                            <option value="História">História</option>
+                            <option value="Geografia">Geografia</option>
+                            <option value="Ciências">Ciências</option>
+                            <option value="Matemática">Matemática</option>
+                            <option value="Inglês">Inglês</option>
+                            <option value="Filosofia">Filosofia</option>
+                            <option value="Robótica">Robótica / TI</option>
+                            <option value="Geral">Geral / Literatura</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {(!settings?.customTexts || settings.customTexts.length === 0) ? (
+                        <div className="p-8 rounded-2xl bg-zinc-900/30 border border-zinc-800 text-center space-y-2">
+                          <BookOpen className="w-8 h-8 text-zinc-600 mx-auto" />
+                          <p className="text-sm font-bold text-zinc-400">Nenhum texto cadastrado ainda.</p>
+                          <p className="text-xs text-zinc-500 max-w-sm mx-auto">
+                            Cadastre seu primeiro texto escolar no formulário ao lado para enriquecer a digitação pedagógica dos alunos.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2.5 max-h-[500px] overflow-y-auto pr-1 custom-scrollbar">
+                          {settings.customTexts
+                            .filter((t) => textFilterDiscipline === 'todas' || t.discipline === textFilterDiscipline)
+                            .map((t) => (
+                              <div
+                                key={t.id}
+                                className="p-3.5 rounded-xl bg-zinc-900/60 border border-zinc-800 hover:border-indigo-500/40 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                              >
+                                <div className="space-y-1 min-w-0 flex-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                                      {t.discipline}
+                                    </span>
+                                    {t.targetTurma && (
+                                      <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                                        Turma: {t.targetTurma}
+                                      </span>
+                                    )}
+                                    <span className="text-[10px] text-zinc-500 font-mono">
+                                      {new Date(t.createdAt).toLocaleDateString('pt-BR')} • por {t.authorName || 'Professor'}
+                                    </span>
+                                  </div>
+                                  <h5 className="text-sm font-bold text-white truncate">{t.title}</h5>
+                                  <p className="text-xs text-zinc-400 line-clamp-2 font-mono bg-zinc-950/60 p-2 rounded-lg border border-zinc-800/80">
+                                    {t.content}
+                                  </p>
+                                  <span className="text-[10px] text-zinc-500 font-mono block">
+                                    {t.content.trim().split(/\s+/).filter(Boolean).length} palavras • {t.content.length} caracteres
+                                  </span>
+                                </div>
+
+                                <div className="flex sm:flex-col items-center sm:items-end justify-end gap-1.5 flex-shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleUseCustomTextInRace(t)}
+                                    className="px-2.5 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                                    title="Carregar este texto imediatamente na Corrida da Turma"
+                                  >
+                                    <Flag className="w-3.5 h-3.5 text-amber-400" />
+                                    <span>Usar em Corrida</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => setSelectedPreviewText(t)}
+                                    className="px-2.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                                  >
+                                    <Eye className="w-3.5 h-3.5" />
+                                    <span>Ler</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteCustomText(t.id)}
+                                    className="px-2 py-1.5 rounded-lg bg-red-950/30 hover:bg-red-950/60 text-red-400 border border-red-900/40 text-xs font-medium transition flex items-center gap-1 cursor-pointer"
+                                    title="Remover texto"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Modal de Leitura Completa de Texto */}
+                  {selectedPreviewText && (
+                    <div
+                      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+                      onClick={() => setSelectedPreviewText(null)}
+                    >
+                      <div
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-full max-w-lg bg-zinc-900 border border-indigo-500/50 rounded-2xl p-6 shadow-2xl space-y-4"
+                      >
+                        <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+                          <div>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-400 font-mono">
+                              {selectedPreviewText.discipline} • Turma {selectedPreviewText.targetTurma || 'todas'}
+                            </span>
+                            <h3 className="text-lg font-bold text-white">{selectedPreviewText.title}</h3>
+                          </div>
+                          <button
+                            onClick={() => setSelectedPreviewText(null)}
+                            className="p-1 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white"
+                          >
+                            <X className="w-5 h-5" />
+                          </button>
+                        </div>
+
+                        <div className="p-4 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-200 text-sm font-mono leading-relaxed max-h-[300px] overflow-y-auto custom-scrollbar whitespace-pre-wrap">
+                          {selectedPreviewText.content}
+                        </div>
+
+                        <div className="flex items-center justify-between pt-2">
+                          <span className="text-xs text-zinc-500 font-mono">
+                            {selectedPreviewText.content.trim().split(/\s+/).filter(Boolean).length} palavras
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleUseCustomTextInRace(selectedPreviewText);
+                              setSelectedPreviewText(null);
+                            }}
+                            className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-black text-xs uppercase tracking-wider transition flex items-center gap-2 cursor-pointer"
+                          >
+                            <Flag className="w-4 h-4 text-black" />
+                            <span>Lançar Corrida com Este Texto</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </section>
               )}
 

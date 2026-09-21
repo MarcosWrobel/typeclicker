@@ -3,12 +3,16 @@ import { ArenaStats } from './types/arena';
 import { AchievementDef, AchievementReward, AchievementCategory, AchievementContext } from './types/achievements';
 import { QuestsState } from './types/quests';
 import { ClassroomRace, ClassroomRaceFinisher } from './types/race';
+import { RpgClassType } from './types/rpgClass';
 
 export * from './types/cosmetics';
 export * from './types/arena';
 export * from './types/achievements';
 export * from './types/quests';
 export * from './types/race';
+export * from './types/curricular';
+export * from './types/rpgClass';
+export * from './types/raid';
 
 export type CategoryId = 'iniciante' | 'facil' | 'medio' | 'avancado' | 'expert';
 
@@ -80,6 +84,8 @@ export interface GameState {
   bestRaceWpm?: number;
   // Sistema de Acessibilidade & Baixa Visão
   accessibility?: AccessibilitySettings;
+  // Classe RPG de Especialização (Guerreiro, Arqueiro, Mago)
+  rpgClass?: RpgClassType;
   // Novos campos opcionais com retrocompatibilidade garantida
   schemaVersion?: number;
   flaggedForReview?: boolean;

@@ -12,7 +12,11 @@ import {
   Zap,
   Flame,
   Swords,
-  Database
+  Database,
+  Shield,
+  Award,
+  Star,
+  Medal
 } from 'lucide-react';
 import { getGlobalLeaderboard, LeaderboardEntry, isStaffMember } from '../services/firebaseService';
 import { formatBytes } from '../utils/formatting';
@@ -24,6 +28,12 @@ import {
   getSerieLabelFromTurma,
   SCHOOL_CLASSES_CONFIG
 } from '../constants/school';
+import {
+  aggregateClassStats,
+  sortClassStats,
+  ClassStats,
+  ClassRankingSortMetric
+} from '../utils/turmasAggregator';
 
 export type LeaderboardMetric = 'level' | 'wpm' | 'combo' | 'bytes' | 'pvp' | 'races';
 
@@ -168,6 +178,10 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
   const [selectedSerie, setSelectedSerie] = useState<SerieId>('geral');
   const [selectedTurma, setSelectedTurma] = useState<string>('todas');
   const [searchQuery, setSearchQuery] = useState<string>('');
+
+  // Modo de visualização: Individual vs Guerra de Turmas
+  const [viewMode, setViewMode] = useState<'individual' | 'guerra_turmas'>('individual');
+  const [classSortMetric, setClassSortMetric] = useState<ClassRankingSortMetric>('score');
 
   useEffect(() => {
     if (isOpen) {
@@ -370,6 +384,26 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
     return idx >= 0 ? idx + 1 : null;
   }, [sortedRankings, currentUserId, currentUserSerie]);
 
+  // Agregação de estatísticas para a Guerra de Turmas (100% In-Memory, 0 Reads / Writes)
+  const classStatsList = useMemo(() => {
+    const raw = aggregateClassStats(rankings);
+    const filtered = selectedSerie === 'geral' ? raw : raw.filter((c) => c.serieId === selectedSerie);
+    const searched = searchQuery.trim()
+      ? filtered.filter(
+          (c) =>
+            c.turma.toLowerCase().includes(searchQuery.toLowerCase().trim()) ||
+            c.serieLabel.toLowerCase().includes(searchQuery.toLowerCase().trim())
+        )
+      : filtered;
+    return sortClassStats(searched, classSortMetric);
+  }, [rankings, selectedSerie, searchQuery, classSortMetric]);
+
+  const userClassRank = useMemo(() => {
+    if (!currentUserClass) return null;
+    const idx = classStatsList.findIndex((c) => c.turma.toLowerCase() === currentUserClass.trim().toLowerCase());
+    return idx >= 0 ? idx + 1 : null;
+  }, [classStatsList, currentUserClass]);
+
   const activeSerieConfig = SERIES_CONFIG.find((s) => s.id === selectedSerie) || SERIES_CONFIG[0];
   const ActiveIcon = currentMetric.icon;
 
@@ -392,28 +426,74 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
           >
             {/* Top Bar / Header */}
             <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 border-b border-white/10 bg-[#141822]">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 min-w-0">
                 <div
-                  className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all ${currentMetric.badgeBg} ${currentMetric.badgeBorder} ${currentMetric.color}`}
+                  className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all flex-shrink-0 ${
+                    viewMode === 'guerra_turmas'
+                      ? 'bg-amber-500/20 border-amber-500/50 text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.25)]'
+                      : `${currentMetric.badgeBg} ${currentMetric.badgeBorder} ${currentMetric.color}`
+                  }`}
                 >
-                  <ActiveIcon className={`w-5 h-5 ${currentMetric.color}`} />
+                  {viewMode === 'guerra_turmas' ? (
+                    <Shield className="w-5 h-5 text-amber-400" />
+                  ) : (
+                    <ActiveIcon className={`w-5 h-5 ${currentMetric.color}`} />
+                  )}
                 </div>
-                <div>
-                  <h2 className="text-base sm:text-lg font-black text-white tracking-wide flex items-center gap-2">
-                    <span>{currentMetric.title}</span>
+                <div className="min-w-0">
+                  <h2 className="text-base sm:text-lg font-black text-white tracking-wide flex items-center gap-2 truncate">
+                    <span>
+                      {viewMode === 'guerra_turmas'
+                        ? 'GUERRA DE TURMAS: CAMPEONATO'
+                        : currentMetric.title}
+                    </span>
                     <span
-                      className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border ${currentMetric.badgeBg} ${currentMetric.badgeText} ${currentMetric.badgeBorder}`}
+                      className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border hidden sm:inline-block ${
+                        viewMode === 'guerra_turmas'
+                          ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                          : `${currentMetric.badgeBg} ${currentMetric.badgeText} ${currentMetric.badgeBorder}`
+                      }`}
                     >
-                      {currentMetric.badgeTag}
+                      {viewMode === 'guerra_turmas' ? '🛡️ Disputa Coletiva' : currentMetric.badgeTag}
                     </span>
                   </h2>
-                  <p className="text-xs text-zinc-400">
-                    {currentMetric.description}
+                  <p className="text-xs text-zinc-400 truncate">
+                    {viewMode === 'guerra_turmas'
+                      ? 'Classificação inter-classes por rendimento geral, média de nível, velocidade e bytes'
+                      : currentMetric.description}
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {/* Alternador de Modo: Individual vs Guerra de Turmas */}
+                <div className="flex items-center p-1 bg-zinc-900/90 rounded-xl border border-white/10">
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('individual')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      viewMode === 'individual'
+                        ? 'bg-zinc-800 text-white shadow-sm'
+                        : 'text-zinc-400 hover:text-zinc-200'
+                    }`}
+                  >
+                    <Users className="w-3.5 h-3.5" />
+                    <span>Individual</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('guerra_turmas')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black transition cursor-pointer ${
+                      viewMode === 'guerra_turmas'
+                        ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-black shadow-md shadow-amber-500/20'
+                        : 'text-amber-400 hover:text-amber-300'
+                    }`}
+                  >
+                    <Shield className="w-3.5 h-3.5" />
+                    <span>Guerra de Turmas 🛡️</span>
+                  </button>
+                </div>
+
                 <button
                   type="button"
                   onClick={onClose}
@@ -425,29 +505,58 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
               </div>
             </div>
 
-            {/* Barra de Seleção de Métricas (6 Abas de Ranking) */}
+            {/* Barra de Seleção de Métricas (Individual vs Guerra de Turmas) */}
             <div className="flex-shrink-0 bg-[#0c0e15] border-b border-white/10 px-3 sm:px-6 py-2 overflow-x-auto">
               <div className="flex items-center gap-1.5 sm:gap-2 min-w-max">
-                {METRIC_TABS.map((tab) => {
-                  const isSelected = activeRankTab === tab.id;
-                  const TabIcon = tab.icon;
-                  return (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      onClick={() => setActiveRankTab(tab.id)}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border select-none ${
-                        isSelected
-                          ? `${tab.badgeBg} ${tab.badgeText} ${tab.badgeBorder} shadow-sm ring-1 ring-white/10`
-                          : 'bg-zinc-900/60 text-zinc-400 border-zinc-800 hover:text-zinc-200 hover:bg-zinc-800/60'
-                      }`}
-                      title={tab.description}
-                    >
-                      <TabIcon className={`w-3.5 h-3.5 ${isSelected ? tab.color : 'text-zinc-500'}`} />
-                      <span>{tab.label}</span>
-                    </button>
-                  );
-                })}
+                {viewMode === 'individual' ? (
+                  METRIC_TABS.map((tab) => {
+                    const isSelected = activeRankTab === tab.id;
+                    const TabIcon = tab.icon;
+                    return (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => setActiveRankTab(tab.id)}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border select-none ${
+                          isSelected
+                            ? `${tab.badgeBg} ${tab.badgeText} ${tab.badgeBorder} shadow-sm ring-1 ring-white/10`
+                            : 'bg-zinc-900/60 text-zinc-400 border-zinc-800 hover:text-zinc-200 hover:bg-zinc-800/60'
+                        }`}
+                        title={tab.description}
+                      >
+                        <TabIcon className={`w-3.5 h-3.5 ${isSelected ? tab.color : 'text-zinc-500'}`} />
+                        <span>{tab.label}</span>
+                      </button>
+                    );
+                  })
+                ) : (
+                  <>
+                    {[
+                      { id: 'score' as ClassRankingSortMetric, label: '🏆 Rendimento Geral', desc: 'Pontuação ponderada de engajamento, nível e velocidade' },
+                      { id: 'avgLevel' as ClassRankingSortMetric, label: '📈 Média de Nível', desc: 'Média aritmética do nível dos alunos da sala' },
+                      { id: 'avgWpm' as ClassRankingSortMetric, label: '⚡ Velocidade Coletiva (PPM)', desc: 'Média de palavras por minuto de toda a turma' },
+                      { id: 'totalBytes' as ClassRankingSortMetric, label: '💾 Volume de Bytes', desc: 'Total acumulado de bytes digitados pela turma' },
+                      { id: 'raceWins' as ClassRankingSortMetric, label: '🏁 Vitórias em Corridas', desc: 'Total de vitórias em corridas escolares ao vivo' }
+                    ].map((metric) => {
+                      const isSelected = classSortMetric === metric.id;
+                      return (
+                        <button
+                          key={metric.id}
+                          type="button"
+                          onClick={() => setClassSortMetric(metric.id)}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border select-none ${
+                            isSelected
+                              ? 'bg-amber-500/20 text-amber-300 border-amber-500/60 shadow-sm ring-1 ring-amber-500/20'
+                              : 'bg-zinc-900/60 text-zinc-400 border-zinc-800 hover:text-zinc-200 hover:bg-zinc-800/60'
+                          }`}
+                          title={metric.desc}
+                        >
+                          <span>{metric.label}</span>
+                        </button>
+                      );
+                    })}
+                  </>
+                )}
               </div>
             </div>
 
@@ -487,47 +596,56 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
               </div>
             </div>
 
-            {/* Barra de Filtro de Turma, Busca e Atalho Minha Série */}
+            {/* Barra de Filtro Secundário e Busca */}
             <div className="flex-shrink-0 px-3 sm:px-6 py-2.5 bg-[#12151f] border-b border-white/5 flex flex-wrap items-center justify-between gap-2.5">
               <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
-                {/* Seletor de Turma Específica */}
-                <div className="flex items-center gap-1.5 bg-zinc-900/90 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs">
-                  <Filter className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
-                  <select
-                    value={selectedTurma}
-                    onChange={(e) => setSelectedTurma(e.target.value)}
-                    className="bg-transparent text-xs font-semibold text-zinc-200 focus:outline-none cursor-pointer"
-                    title="Filtrar por Turma Específica"
-                  >
-                    <option value="todas" className="bg-[#12151f] text-white">
-                      {selectedSerie === 'geral' ? 'Todas as Turmas' : `Todas do ${activeSerieConfig.shortLabel}`}
-                    </option>
-                    {availableTurmasForActiveSerie.map((t) => (
-                      <option key={t} value={t} className="bg-[#12151f] text-white">
-                        Turma {t}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {viewMode === 'individual' ? (
+                  <>
+                    {/* Seletor de Turma Específica */}
+                    <div className="flex items-center gap-1.5 bg-zinc-900/90 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs">
+                      <Filter className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                      <select
+                        value={selectedTurma}
+                        onChange={(e) => setSelectedTurma(e.target.value)}
+                        className="bg-transparent text-xs font-semibold text-zinc-200 focus:outline-none cursor-pointer"
+                        title="Filtrar por Turma Específica"
+                      >
+                        <option value="todas" className="bg-[#12151f] text-white">
+                          {selectedSerie === 'geral' ? 'Todas as Turmas' : `Todas do ${activeSerieConfig.shortLabel}`}
+                        </option>
+                        {availableTurmasForActiveSerie.map((t) => (
+                          <option key={t} value={t} className="bg-[#12151f] text-white">
+                            Turma {t}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
-                {/* Atalho Rápido "Minha Série" se disponível */}
-                {currentUserSerie && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedSerie(currentUserSerie);
-                      setSelectedTurma('todas');
-                    }}
-                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer border ${
-                      selectedSerie === currentUserSerie
-                        ? 'bg-purple-500/20 text-purple-300 border-purple-500/40 shadow-[0_0_10px_rgba(168,85,247,0.25)]'
-                        : 'bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border-zinc-800'
-                    }`}
-                    title={`Ver Ranking do ${currentUserSerieLabel}`}
-                  >
-                    <GraduationCap className="w-3.5 h-3.5 text-purple-400" />
-                    <span>Minha Série: {currentUserSerieLabel}</span>
-                  </button>
+                    {/* Atalho Rápido "Minha Série" se disponível */}
+                    {currentUserSerie && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedSerie(currentUserSerie);
+                          setSelectedTurma('todas');
+                        }}
+                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer border ${
+                          selectedSerie === currentUserSerie
+                            ? 'bg-purple-500/20 text-purple-300 border-purple-500/40 shadow-[0_0_10px_rgba(168,85,247,0.25)]'
+                            : 'bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border-zinc-800'
+                        }`}
+                        title={`Ver Ranking do ${currentUserSerieLabel}`}
+                      >
+                        <GraduationCap className="w-3.5 h-3.5 text-purple-400" />
+                        <span>Minha Série: {currentUserSerieLabel}</span>
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <div className="flex items-center gap-2 text-xs text-amber-300 font-bold">
+                    <Shield className="w-4 h-4 text-amber-400" />
+                    <span>Disputa Inter-Classes • {classStatsList.length} turmas avaliadas</span>
+                  </div>
                 )}
               </div>
 
@@ -573,6 +691,205 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                     Tentar Novamente
                   </button>
                 </div>
+              ) : viewMode === 'guerra_turmas' ? (
+                classStatsList.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-64 text-zinc-500 gap-3 text-center">
+                    <Shield className="w-12 h-12 opacity-40 text-amber-400" />
+                    <div>
+                      <p className="text-sm font-semibold text-zinc-300">
+                        Nenhuma turma encontrada nesta seleção.
+                      </p>
+                      <p className="text-xs text-zinc-500 mt-1">
+                        {searchQuery
+                          ? `Nenhum resultado para "${searchQuery}".`
+                          : `Ainda não há turmas com alunos cadastrados nesta série.`}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {/* Pódio das 3 Melhores Turmas */}
+                    {classStatsList.length >= 2 && (
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                        {/* 2º Lugar (Prata) */}
+                        <div className="order-2 sm:order-1 p-4 rounded-2xl bg-gradient-to-b from-slate-400/10 via-zinc-900/60 to-zinc-950 border border-slate-400/30 flex flex-col items-center text-center justify-between">
+                          <div className="flex flex-col items-center gap-1.5">
+                            <span className="text-2xl">🥈</span>
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-slate-400/20 text-slate-200 border border-slate-400/30">
+                              2º Lugar • {classStatsList[1].serieLabel}
+                            </span>
+                            <h4 className="text-base font-black text-white mt-1">{classStatsList[1].turma}</h4>
+                            <span className="text-[11px] text-zinc-400">{classStatsList[1].studentCount} alunos</span>
+                          </div>
+                          <div className="w-full mt-3 pt-3 border-t border-white/5 grid grid-cols-3 gap-1 text-center font-mono">
+                            <div>
+                              <span className="text-[10px] text-zinc-500 block">Nível</span>
+                              <span className="text-xs font-bold text-emerald-400">{classStatsList[1].avgLevel}</span>
+                            </div>
+                            <div>
+                              <span className="text-[10px] text-zinc-500 block">PPM</span>
+                              <span className="text-xs font-bold text-sky-400">{classStatsList[1].avgWpm}</span>
+                            </div>
+                            <div>
+                              <span className="text-[10px] text-zinc-500 block">Score</span>
+                              <span className="text-xs font-bold text-amber-400">{classStatsList[1].compositeScore}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 1º Lugar (Ouro - Campeã) */}
+                        <div className="order-1 sm:order-2 p-5 rounded-2xl bg-gradient-to-b from-yellow-500/20 via-amber-950/40 to-zinc-950 border-2 border-yellow-500/60 shadow-[0_0_25px_rgba(234,179,8,0.2)] flex flex-col items-center text-center justify-between scale-105 z-10">
+                          <div className="flex flex-col items-center gap-1.5">
+                            <span className="text-3xl animate-bounce">🥇</span>
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-black uppercase tracking-wider bg-yellow-500/30 text-yellow-300 border border-yellow-500/50 shadow-sm">
+                              🏆 Turma Campeã • {classStatsList[0].serieLabel}
+                            </span>
+                            <h4 className="text-lg font-black text-white mt-1">{classStatsList[0].turma}</h4>
+                            <span className="text-xs text-zinc-300 font-semibold">{classStatsList[0].studentCount} alunos ativos</span>
+                          </div>
+                          <div className="w-full mt-3 pt-3 border-t border-yellow-500/20 grid grid-cols-3 gap-1 text-center font-mono">
+                            <div>
+                              <span className="text-[10px] text-zinc-400 block">Nível Médio</span>
+                              <span className="text-sm font-black text-emerald-400">{classStatsList[0].avgLevel}</span>
+                            </div>
+                            <div>
+                              <span className="text-[10px] text-zinc-400 block">PPM Médio</span>
+                              <span className="text-sm font-black text-sky-400">{classStatsList[0].avgWpm}</span>
+                            </div>
+                            <div>
+                              <span className="text-[10px] text-zinc-400 block">Pontos</span>
+                              <span className="text-sm font-black text-yellow-400">{classStatsList[0].compositeScore}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 3º Lugar (Bronze, se existir) */}
+                        {classStatsList[2] ? (
+                          <div className="order-3 p-4 rounded-2xl bg-gradient-to-b from-orange-600/10 via-zinc-900/60 to-zinc-950 border border-orange-600/30 flex flex-col items-center text-center justify-between">
+                            <div className="flex flex-col items-center gap-1.5">
+                              <span className="text-2xl">🥉</span>
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-orange-600/20 text-orange-300 border border-orange-600/30">
+                                3º Lugar • {classStatsList[2].serieLabel}
+                              </span>
+                              <h4 className="text-base font-black text-white mt-1">{classStatsList[2].turma}</h4>
+                              <span className="text-[11px] text-zinc-400">{classStatsList[2].studentCount} alunos</span>
+                            </div>
+                            <div className="w-full mt-3 pt-3 border-t border-white/5 grid grid-cols-3 gap-1 text-center font-mono">
+                              <div>
+                                <span className="text-[10px] text-zinc-500 block">Nível</span>
+                                <span className="text-xs font-bold text-emerald-400">{classStatsList[2].avgLevel}</span>
+                              </div>
+                              <div>
+                                <span className="text-[10px] text-zinc-500 block">PPM</span>
+                                <span className="text-xs font-bold text-sky-400">{classStatsList[2].avgWpm}</span>
+                              </div>
+                              <div>
+                                <span className="text-[10px] text-zinc-500 block">Score</span>
+                                <span className="text-xs font-bold text-amber-400">{classStatsList[2].compositeScore}</span>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="hidden sm:block order-3" />
+                        )}
+                      </div>
+                    )}
+
+                    {/* Lista Completa de Classificação das Turmas */}
+                    <div className="space-y-2.5">
+                      <h4 className="text-xs font-bold font-mono uppercase tracking-wider text-zinc-400 flex items-center gap-2">
+                        <Shield className="w-4 h-4 text-amber-400" />
+                        Classificação Completa das Turmas ({classStatsList.length})
+                      </h4>
+
+                      {classStatsList.map((cls, idx) => {
+                        const rank = idx + 1;
+                        const isUserClass = currentUserClass && currentUserClass.trim().toLowerCase() === cls.turma.toLowerCase();
+
+                        return (
+                          <div
+                            key={cls.turma}
+                            className={`p-3.5 sm:p-4 rounded-xl border transition flex flex-col md:flex-row md:items-center justify-between gap-3 ${
+                              isUserClass
+                                ? 'bg-purple-950/30 border-purple-500/60 shadow-[0_0_15px_rgba(168,85,247,0.15)]'
+                                : rank === 1
+                                ? 'bg-yellow-950/20 border-yellow-500/40'
+                                : 'bg-zinc-900/50 border-zinc-800/80 hover:border-zinc-700'
+                            }`}
+                          >
+                            {/* Esquerda: Posição, Turma e Série */}
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm border flex-shrink-0 ${
+                                rank === 1
+                                  ? 'bg-yellow-500/20 border-yellow-500/60 text-yellow-300'
+                                  : rank === 2
+                                  ? 'bg-slate-400/20 border-slate-400/60 text-slate-200'
+                                  : rank === 3
+                                  ? 'bg-orange-600/20 border-orange-600/60 text-orange-300'
+                                  : 'bg-zinc-800/60 border-zinc-700/60 text-zinc-400'
+                              }`}>
+                                {rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `${rank}º`}
+                              </div>
+
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <h5 className="text-base font-black text-white">{cls.turma}</h5>
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-zinc-800 text-zinc-300 border border-zinc-700">
+                                    {cls.serieLabel}
+                                  </span>
+                                  {isUserClass && (
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/30 text-purple-200 border border-purple-500/50 flex items-center gap-1">
+                                      <Star className="w-3 h-3 text-purple-300 fill-current" />
+                                      Sua Turma!
+                                    </span>
+                                  )}
+                                </div>
+                                {cls.bestPlayer && (
+                                  <p className="text-[11px] text-zinc-400 font-mono mt-0.5">
+                                    ⭐ Líder: <span className="text-zinc-200 font-bold">{cls.bestPlayer.apelido || cls.bestPlayer.nome}</span> (Nív. {cls.bestPlayer.level} • {cls.bestPlayer.wpm} PPM)
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Direita: Métricas Coletivas */}
+                            <div className="flex items-center gap-2 sm:gap-3 flex-wrap font-mono text-xs justify-between md:justify-end border-t md:border-t-0 pt-2 md:pt-0 border-white/5">
+                              <div className="text-center px-2 py-1 bg-zinc-950/60 rounded-lg border border-zinc-800/80">
+                                <span className="text-[9px] text-zinc-500 block uppercase">Alunos</span>
+                                <span className="font-bold text-zinc-200">{cls.studentCount}</span>
+                              </div>
+
+                              <div className="text-center px-2 py-1 bg-zinc-950/60 rounded-lg border border-zinc-800/80">
+                                <span className="text-[9px] text-zinc-500 block uppercase">Nível Médio</span>
+                                <span className="font-bold text-emerald-400">{cls.avgLevel}</span>
+                              </div>
+
+                              <div className="text-center px-2 py-1 bg-zinc-950/60 rounded-lg border border-zinc-800/80">
+                                <span className="text-[9px] text-zinc-500 block uppercase">PPM Médio</span>
+                                <span className="font-bold text-sky-400">{cls.avgWpm}</span>
+                              </div>
+
+                              <div className="text-center px-2 py-1 bg-zinc-950/60 rounded-lg border border-zinc-800/80">
+                                <span className="text-[9px] text-zinc-500 block uppercase">Precisão</span>
+                                <span className="font-bold text-indigo-300">{cls.avgAccuracy}%</span>
+                              </div>
+
+                              <div className="text-center px-2 py-1 bg-zinc-950/60 rounded-lg border border-zinc-800/80">
+                                <span className="text-[9px] text-zinc-500 block uppercase">Corridas</span>
+                                <span className="font-bold text-amber-400">{cls.totalRaceWins} vitórias</span>
+                              </div>
+
+                              <div className="text-center px-2.5 py-1 bg-amber-500/10 rounded-lg border border-amber-500/30">
+                                <span className="text-[9px] text-amber-400 block uppercase font-bold">Rendimento</span>
+                                <span className="font-black text-amber-300 text-sm">{cls.compositeScore} pts</span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )
               ) : filteredRankings.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-64 text-zinc-500 gap-3 text-center">
                   <Users className="w-12 h-12 opacity-40" />
@@ -915,41 +1232,71 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
               )}
             </div>
 
-            {/* Footer com Estatísticas e Posição do Aluno */}
+            {/* Footer com Estatísticas e Posição do Aluno / Turma */}
             <div className="flex-shrink-0 px-4 sm:px-6 py-3 border-t border-white/10 bg-[#141822] flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-zinc-400">
-              <div className="flex items-center gap-2 font-mono text-[11px]">
-                <span>
-                  Exibindo <strong>{filteredRankings.length}</strong> de <strong>{rankings.length}</strong> alunos
-                </span>
-                <span className="text-zinc-600 hidden sm:inline">•</span>
-                <span className={`${currentMetric.color} font-bold hidden sm:inline`}>
-                  {selectedSerie === 'geral' ? 'Escola Inteira' : activeSerieConfig.label}
-                </span>
-              </div>
+              {viewMode === 'guerra_turmas' ? (
+                <>
+                  <div className="flex items-center gap-2 font-mono text-[11px]">
+                    <Shield className="w-3.5 h-3.5 text-amber-400" />
+                    <span>
+                      Exibindo <strong>{classStatsList.length}</strong> turmas avaliadas
+                    </span>
+                    <span className="text-zinc-600 hidden sm:inline">•</span>
+                    <span className="text-amber-400 font-bold hidden sm:inline">
+                      {selectedSerie === 'geral' ? 'Escola Inteira' : activeSerieConfig.label}
+                    </span>
+                  </div>
 
-              {/* Status do próprio aluno */}
-              {userGlobalPlacement ? (
-                <div className="flex items-center gap-2 font-mono text-[11px] flex-wrap justify-end">
-                  <span>
-                    Sua Colocação ({currentMetric.shortLabel}):
-                  </span>
-                  {userSeriePlacement && currentUserSerieLabel && (
-                    <span className="px-2 py-0.5 rounded-md bg-purple-500/15 border border-purple-500/30 text-purple-300 font-bold">
-                      {userSeriePlacement}º na Série ({currentUserSerieLabel})
+                  {userClassRank && currentUserClass ? (
+                    <div className="flex items-center gap-2 font-mono text-[11px]">
+                      <span>Sua Turma ({currentUserClass}):</span>
+                      <span className="px-2 py-0.5 rounded-md bg-amber-500/20 border border-amber-500/40 text-amber-300 font-bold">
+                        {userClassRank}º Lugar na Guerra de Turmas
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-zinc-500 text-[11px] font-mono">
+                      Defina sua turma no perfil para defender sua sala na Guerra de Turmas!
                     </span>
                   )}
-                  <span className={`px-2 py-0.5 rounded-md ${currentMetric.badgeBg} border ${currentMetric.badgeBorder} ${currentMetric.badgeText} font-bold`}>
-                    {userGlobalPlacement}º no Geral
-                  </span>
-                </div>
+                </>
               ) : (
-                <span className="text-zinc-500 text-[11px] font-mono">
-                  {activeRankTab === 'races'
-                    ? 'Participe de corridas em sala de aula para pontuar no ranking!'
-                    : activeRankTab === 'pvp'
-                    ? 'Participe de duelos na Arena 1x1 para ingressar no ranking!'
-                    : 'Pratique no terminal para ingressar no ranking escolar!'}
-                </span>
+                <>
+                  <div className="flex items-center gap-2 font-mono text-[11px]">
+                    <span>
+                      Exibindo <strong>{filteredRankings.length}</strong> de <strong>{rankings.length}</strong> alunos
+                    </span>
+                    <span className="text-zinc-600 hidden sm:inline">•</span>
+                    <span className={`${currentMetric.color} font-bold hidden sm:inline`}>
+                      {selectedSerie === 'geral' ? 'Escola Inteira' : activeSerieConfig.label}
+                    </span>
+                  </div>
+
+                  {/* Status do próprio aluno */}
+                  {userGlobalPlacement ? (
+                    <div className="flex items-center gap-2 font-mono text-[11px] flex-wrap justify-end">
+                      <span>
+                        Sua Colocação ({currentMetric.shortLabel}):
+                      </span>
+                      {userSeriePlacement && currentUserSerieLabel && (
+                        <span className="px-2 py-0.5 rounded-md bg-purple-500/15 border border-purple-500/30 text-purple-300 font-bold">
+                          {userSeriePlacement}º na Série ({currentUserSerieLabel})
+                        </span>
+                      )}
+                      <span className={`px-2 py-0.5 rounded-md ${currentMetric.badgeBg} border ${currentMetric.badgeBorder} ${currentMetric.badgeText} font-bold`}>
+                        {userGlobalPlacement}º no Geral
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-zinc-500 text-[11px] font-mono">
+                      {activeRankTab === 'races'
+                        ? 'Participe de corridas em sala de aula para pontuar no ranking!'
+                        : activeRankTab === 'pvp'
+                        ? 'Participe de duelos na Arena 1x1 para ingressar no ranking!'
+                        : 'Pratique no terminal para ingressar no ranking escolar!'}
+                    </span>
+                  )}
+                </>
               )}
             </div>
           </motion.div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { GameState, CategoryId, FloatingText, UpgradeDef, DrillSession, AccessibilitySettings } from './types';
+import { GameState, CategoryId, FloatingText, UpgradeDef, DrillSession, AccessibilitySettings, RpgClassType } from './types';
 import { loadSavedState, saveState, clearSavedState, INITIAL_STATE, sanitizeCosmetics, DEFAULT_ARENA_STATS, DEFAULT_ACCESSIBILITY } from './utils/storage';
 import { DEFAULT_COSMETICS, PlayerCosmetics } from './types/cosmetics';
 import { TERMINAL_THEMES } from './constants/themes';
@@ -38,9 +38,13 @@ import { RpgDungeonModal } from './components/RpgDungeonModal';
 import { RpgChestMinigame } from './components/RpgChestMinigame';
 import { RpgChronicleArena } from './components/RpgChronicleArena';
 import { ClassroomRaceArena } from './components/ClassroomRaceArena';
+import { ClassroomRaidArena } from './components/ClassroomRaidArena';
 import { AccessibilityModal } from './components/AccessibilityModal';
 import { subscribeToActiveRace } from './services/raceService';
+import { subscribeToActiveRaid } from './services/raidService';
 import { ClassroomRace } from './types/race';
+import { ClassroomRaid } from './types/raid';
+import { Swords } from 'lucide-react';
 import { checkPendingAchievements, getOverallAchievementsStats, syncRetroactiveAchievements } from './services/achievementEngine';
 import {
   syncQuestsState,
@@ -107,6 +111,12 @@ export default function App() {
   const [activeRace, setActiveRace] = useState<ClassroomRace | null>(null);
   const [isRaceArenaOpen, setIsRaceArenaOpen] = useState<boolean>(false);
   const [dismissedRaceId, setDismissedRaceId] = useState<string | null>(null);
+
+  // Raid Coletiva contra Chefe (Lançada pelo Professor)
+  const [activeRaid, setActiveRaid] = useState<ClassroomRaid | null>(null);
+  const [isRaidArenaOpen, setIsRaidArenaOpen] = useState<boolean>(false);
+  const [dismissedRaidId, setDismissedRaidId] = useState<string | null>(null);
+
   const [leaderboardInitialTab, setLeaderboardInitialTab] = useState<LeaderboardMetric>('level');
 
   const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
@@ -367,6 +377,42 @@ export default function App() {
 
     return () => unsubRace();
   }, [state.studentClass, dismissedRaceId, isAdmin, isAdminOpen]);
+
+  // Escuta Raids Coletivas em tempo real disparadas pelo professor
+  useEffect(() => {
+    const unsubRaid = subscribeToActiveRaid((raid) => {
+      setActiveRaid(raid);
+
+      if (!raid || raid.status === 'cancelled') {
+        setIsRaidArenaOpen(false);
+        return;
+      }
+
+      // Validação de expiração: raids criadas há mais de 20 minutos são ignoradas
+      const isRecent = raid.createdAtMs && Date.now() - raid.createdAtMs < 20 * 60 * 1000;
+      if (!isRecent) {
+        setIsRaidArenaOpen(false);
+        return;
+      }
+
+      if (raid.status === 'in_progress') {
+        if (isAdmin && isAdminOpen) {
+          return;
+        }
+
+        const isTarget =
+          raid.targetTurma === 'todas' ||
+          !raid.targetTurma ||
+          (state.studentClass && state.studentClass.trim().toLowerCase() === raid.targetTurma.trim().toLowerCase());
+
+        if (isTarget && raid.id !== dismissedRaidId) {
+          setIsRaidArenaOpen(true);
+        }
+      }
+    });
+
+    return () => unsubRaid();
+  }, [state.studentClass, dismissedRaidId, isAdmin, isAdminOpen]);
 
   const [pendingAccent, setPendingAccent] = useState<string | null>(null);
   const [recentWordComplete, setRecentWordComplete] = useState<boolean>(false);
@@ -1006,6 +1052,12 @@ export default function App() {
         nextMultiplier = Math.min(5.0, Number((nextMultiplier + 0.2).toFixed(1)));
       }
 
+      // Passiva Arqueiro do Combo: Concentração de Precisão (a cada 20 acertos sem errar ganha +0.2x até 6.0x)
+      if (!currentOverloaded && currState.rpgClass === 'archer' && nextCombo % 20 === 0 && nextMultiplier < 6.0) {
+        nextMultiplier = Math.min(6.0, Number((nextMultiplier + 0.2).toFixed(1)));
+        spawnFloatingText(`🎯 Concentração (+0.2x Multiplicador: ${nextMultiplier}x)!`, 'bonus');
+      }
+
       // Fator de Dificuldade selecionada (Iniciante 1.0x até Expert 2.5x)
       const activeCategory = WORD_CATEGORIES.find((c) => c.id === currState.selectedCategory) || WORD_CATEGORIES[0];
       const diffBonusMultiplier = activeCategory.bonusMultiplier || 1.0;
@@ -1020,7 +1072,17 @@ export default function App() {
       if (isWordFinished) {
         // Word completed bonus escalado com o tamanho da palavra e equilibrado
         const baseWordBonus = Math.round(word.length * (currState.bytesPerChar * 1.5 + 4) * nextMultiplier * prestigeMult);
-        const wordBonus = Math.round(baseWordBonus * diffBonusMultiplier);
+        let wordBonus = Math.round(baseWordBonus * diffBonusMultiplier);
+
+        // Passiva Guerreiro Veloz: Ímpeto Motor (+25% Bytes por palavra se PPM >= 55)
+        const currentPpm = currState.totalActiveSeconds > 3
+          ? Math.round((currState.correctKeys / 5) / (currState.totalActiveSeconds / 60))
+          : 0;
+        if (currState.rpgClass === 'warrior' && currentPpm >= 55) {
+          wordBonus = Math.round(wordBonus * 1.25);
+          spawnFloatingText('⚡ Ímpeto Motor (+25% Bytes)!', 'bonus');
+        }
+
         const totalEarned = earned + wordBonus;
 
         sound.playWordComplete();
@@ -1195,14 +1257,21 @@ export default function App() {
         spawnFloatingText(`⚡ SOBRECARGA! -${bytesLost} B`, 'error');
       }
 
+      // Passiva Arqueiro do Combo: Rede de Segurança (50% de chance de salvar o combo no 1º erro)
+      const isArcherComboSaved = currState.rpgClass === 'archer' && nextErrors === 1 && Math.random() < 0.50;
+      if (isArcherComboSaved) {
+        sound.playUpgrade();
+        spawnFloatingText('🛡️ Rede de Segurança (Combo Salvo!)', 'bonus');
+      }
+
       setState((prev) => ({
         ...prev,
         bytes: Math.max(0, prev.bytes - bytesLost),
         wrongKeys: prev.wrongKeys + 1,
-        comboStreak: 0,
-        multiplier: nextErrors >= 3 ? 0.5 : 1.0,
+        comboStreak: isArcherComboSaved ? prev.comboStreak : 0,
+        multiplier: isArcherComboSaved ? prev.multiplier : (nextErrors >= 3 ? 0.5 : 1.0),
         keyTelemetry: updatedTelem,
-        perfectWordsStreak: 0
+        perfectWordsStreak: isArcherComboSaved ? prev.perfectWordsStreak : 0
       }));
 
       // Disparo do Modo Foco (quando o aluno erra sucessivamente a mesma tecla ou sobrecarga persistente)
@@ -1365,7 +1434,8 @@ export default function App() {
       if (isUnlimitedBuffer) {
         if (curr.autoBytesPerSec > 0) {
           const prestigeMult = 1 + curr.prestigeCores * 0.2;
-          const tickBytes = (curr.autoBytesPerSec * 0.1) * prestigeMult;
+          const mageBonus = curr.rpgClass === 'mage' ? 1.25 : 1.0;
+          const tickBytes = (curr.autoBytesPerSec * 0.1) * prestigeMult * mageBonus;
 
           setState((prev) => ({
             ...prev,
@@ -1389,7 +1459,8 @@ export default function App() {
         // Active typing: passive generation functions normally
         if (curr.autoBytesPerSec > 0) {
           const prestigeMult = 1 + curr.prestigeCores * 0.2;
-          const tickBytes = (curr.autoBytesPerSec * 0.1) * prestigeMult;
+          const mageBonus = curr.rpgClass === 'mage' ? 1.25 : 1.0;
+          const tickBytes = (curr.autoBytesPerSec * 0.1) * prestigeMult * mageBonus;
 
           setState((prev) => ({
             ...prev,
@@ -1522,13 +1593,14 @@ export default function App() {
   }, []);
 
   // Save student credentials from onboarding or header
-  const handleSaveStudentCredentials = useCallback((avatar: string, nickname: string, studentClass: string) => {
+  const handleSaveStudentCredentials = useCallback((avatar: string, nickname: string, studentClass: string, rpgClass?: RpgClassType) => {
     setState((prev) => {
       const updated: GameState = {
         ...prev,
         studentAvatar: avatar,
         studentNickname: nickname,
-        studentClass: studentClass
+        studentClass: studentClass,
+        rpgClass: rpgClass || prev.rpgClass || 'warrior'
       };
       saveState(updated, auth.currentUser?.uid);
       if (auth.currentUser) {
@@ -1853,6 +1925,37 @@ export default function App() {
     }
   }, [activeRace]);
 
+  // Handlers para a Raid Coletiva contra Chefe
+  const handleClaimRaidVictory = useCallback(
+    (prizeBytes: number, stats: { damage: number; words: number; wpm: number }) => {
+      sound.playPrestige();
+      setState((prev) => {
+        const newBytes = prev.bytes + prizeBytes;
+        const newTotalEarned = prev.totalBytesEarned + prizeBytes;
+
+        const updated: GameState = {
+          ...prev,
+          bytes: newBytes,
+          totalBytesEarned: newTotalEarned
+        };
+        saveState(updated, auth.currentUser?.uid);
+        if (auth.currentUser) {
+          saveProgressToCloud(updated).catch(console.error);
+        }
+        return updated;
+      });
+      spawnFloatingText(`+${formatBytes(prizeBytes)} 🏆 Vitória na Raid Coletiva!`, 'bonus');
+    },
+    [spawnFloatingText]
+  );
+
+  const handleCloseRaidArena = useCallback(() => {
+    setIsRaidArenaOpen(false);
+    if (activeRaid) {
+      setDismissedRaidId(activeRaid.id);
+    }
+  }, [activeRaid]);
+
   const handleOpenRaceLeaderboard = useCallback(() => {
     setLeaderboardInitialTab('races');
     setIsLeaderboardOpen(true);
@@ -1982,9 +2085,44 @@ export default function App() {
           />
         }
         arena={
-          <TypingArena
-            playerRankLevel={playerRank.level}
-            currentWord={currentWord}
+          <>
+            {activeRaid && activeRaid.status === 'in_progress' && !isRaidArenaOpen && (
+              <div
+                onClick={() => setIsRaidArenaOpen(true)}
+                className="mb-3 p-3.5 rounded-2xl bg-gradient-to-r from-rose-950/90 via-red-900/80 to-rose-950/90 border-2 border-rose-500/70 shadow-[0_0_25px_rgba(244,63,94,0.4)] flex items-center justify-between gap-3 cursor-pointer hover:scale-[1.01] transition animate-pulse"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-3xl">{activeRaid.bossIcon || '👹'}</span>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 rounded bg-rose-500 text-white font-mono text-[10px] font-black tracking-wider uppercase">
+                        RAID COLETIVA ATIVA
+                      </span>
+                      <span className="text-xs text-rose-200 font-mono">
+                        {activeRaid.currentHp.toLocaleString()} / {activeRaid.maxHp.toLocaleString()} HP
+                      </span>
+                    </div>
+                    <div className="text-sm font-bold text-white font-mono">
+                      {activeRaid.bossName} — Ameaça à Sala de Aula!
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsRaidArenaOpen(true);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-rose-500 hover:bg-rose-400 text-white font-mono font-black text-xs uppercase tracking-wider shadow-lg flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                >
+                  <Swords className="w-4 h-4" />
+                  <span>Entrar na Batalha</span>
+                </button>
+              </div>
+            )}
+            <TypingArena
+              playerRankLevel={playerRank.level}
+              currentWord={currentWord}
             charIndex={charIndex}
             isErrorShaking={isErrorShaking}
             comboStreak={state.comboStreak}
@@ -2038,7 +2176,8 @@ export default function App() {
             keyTelemetry={state.keyTelemetry}
             accessibility={state.accessibility}
           />
-        }
+        </>
+      }
         shop={
           <ShopPanel
             state={state}
@@ -2077,6 +2216,7 @@ export default function App() {
         currentAvatar={state.studentAvatar || '🐧'}
         currentNickname={state.studentNickname}
         currentClass={state.studentClass}
+        currentRpgClass={state.rpgClass}
         onClose={() => setIsStudentModalOpen(false)}
         onSave={handleSaveStudentCredentials}
         onImportState={handleImportState}
@@ -2202,6 +2342,7 @@ export default function App() {
           isOpen={true}
           floorData={activeRpgFloor}
           dungeon={state.quests?.dungeon}
+          rpgClass={state.rpgClass}
           availableKeys={state.quests?.dungeon?.keys ?? 0}
           onConsumeKey={handleConsumeDungeonKey}
           isAdmin={isAdmin}
@@ -2255,6 +2396,7 @@ export default function App() {
         onOpenCosmetics={() => setIsCosmeticsOpen(true)}
         onTriggerChallenge={(lvl) => setActiveChallengeLevel(lvl || 10)}
         onOpenRaceArena={() => setIsRaceArenaOpen(true)}
+        onOpenRaidArena={() => setIsRaidArenaOpen(true)}
       />
 
       {/* Arena de Corrida Escolar Sincronizada em Tempo Real */}
@@ -2272,6 +2414,23 @@ export default function App() {
           onClaimWin={handleClaimRaceWin}
           onFinishNonWinner={handleFinishRaceNonWinner}
           onOpenRaceLeaderboard={handleOpenRaceLeaderboard}
+        />
+      )}
+
+      {/* Arena de Raid Coletiva contra Chefe em Tempo Real */}
+      {activeRaid && (
+        <ClassroomRaidArena
+          isOpen={isRaidArenaOpen}
+          raid={activeRaid}
+          studentName={state.studentName || user?.displayName || 'Aluno'}
+          studentNickname={state.studentNickname}
+          studentAvatar={state.studentAvatar || '👾'}
+          studentClass={state.studentClass || ''}
+          rpgClass={state.rpgClass}
+          userId={user?.uid || 'anon_player'}
+          isAdmin={isAdmin}
+          onClose={handleCloseRaidArena}
+          onClaimVictory={handleClaimRaidVictory}
         />
       )}
 
