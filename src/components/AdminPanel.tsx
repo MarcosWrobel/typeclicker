@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Shield, Key, Trash2, X, Clock, AlertTriangle, Users, Search, RefreshCw, BarChart, Database, Download, Upload, CheckCircle2, RotateCcw, FileText, Sliders, Battery, Eye, EyeOff, Filter, Swords, Sparkles, Coins, Zap, Trophy, Award, UserCheck, Plus, History, Gift, ArrowRight, Check, Terminal, Flag, Timer, BookOpen, Flame, GraduationCap, Sword } from 'lucide-react';
+import { Shield, Key, Trash2, X, Clock, AlertTriangle, Users, Search, RefreshCw, BarChart, Database, Download, Upload, CheckCircle2, RotateCcw, FileText, Sliders, Battery, Eye, EyeOff, Filter, Swords, Sparkles, Coins, Zap, Trophy, Award, UserCheck, Plus, History, Gift, ArrowRight, Check, Terminal, Flag, Timer, BookOpen, Flame, GraduationCap, Sword, Activity } from 'lucide-react';
+import { fetchFirestoreMetrics, FirestoreMetricsData } from '../services/adminMetricsService';
 import {
   auth,
   generateSessionCode,
@@ -88,8 +89,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   onOpenRaceArena,
   onOpenRaidArena
 }) => {
-  const [activeTab, setActiveTab] = useState<'locks' | 'dashboard' | 'corrida' | 'raid' | 'textos' | 'backups' | 'wipe' | 'professores' | 'testes'>('locks');
+  const [activeTab, setActiveTab] = useState<'locks' | 'dashboard' | 'corrida' | 'raid' | 'textos' | 'backups' | 'monitoramento' | 'wipe' | 'professores' | 'testes'>('locks');
   const [testActionMessage, setTestActionMessage] = useState<string | null>(null);
+
+  // Estados para Monitoramento de Banco & Cotas do Firestore (Cloud Monitoring)
+  const [metricsData, setMetricsData] = useState<FirestoreMetricsData | null>(null);
+  const [isMetricsLoading, setIsMetricsLoading] = useState<boolean>(false);
+  const [metricsError, setMetricsError] = useState<string | null>(null);
+  const [autoRefreshMetrics, setAutoRefreshMetrics] = useState<boolean>(false);
 
   // Estados para Textos Curriculares do Professor
   const [newTextTitle, setNewTextTitle] = useState<string>('');
@@ -717,12 +724,41 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         loadStudents(selectedClassFilter);
       } else if (activeTab === 'backups') {
         loadBackups();
+      } else if (activeTab === 'monitoramento') {
+        loadMetrics();
       } else if (activeTab === 'testes') {
         checkTargetAccount(targetEmail);
         if (students.length === 0) loadStudents('todas');
       }
     }
   }, [isOpen, activeTab, selectedClassFilter, targetEmail]);
+
+  // Carregamento de Métricas do Firestore & Cotas Spark
+  const loadMetrics = async (forceRefresh: boolean = false) => {
+    setIsMetricsLoading(true);
+    setMetricsError(null);
+    try {
+      const data = await fetchFirestoreMetrics(forceRefresh);
+      setMetricsData(data);
+    } catch (err: any) {
+      console.warn('Erro ao carregar métricas do Firestore:', err);
+      setMetricsError(err.message || 'Erro ao carregar métricas do Firestore.');
+    } finally {
+      setIsMetricsLoading(false);
+    }
+  };
+
+  // Auto-refresh de métricas a cada 30 segundos se ativo (o backend serve do cache de 3 min)
+  useEffect(() => {
+    if (!isOpen || activeTab !== 'monitoramento' || !autoRefreshMetrics) return;
+
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      loadMetrics(false);
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [isOpen, activeTab, autoRefreshMetrics]);
 
   // Polling Controlado (60s) para o Dashboard do Professor:
   // Só executa se o painel estiver aberto na aba 'dashboard' E se a janela estiver visível e com foco.
@@ -1203,6 +1239,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 >
                   <Database className="w-4 h-4 text-emerald-400" />
                   <span>Backups</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('monitoramento')}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+                    activeTab === 'monitoramento'
+                      ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/30 font-black'
+                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
+                  }`}
+                  title="Monitoramento de Cotas Spark & Saúde do Firestore (Cloud Monitoring)"
+                >
+                  <Activity className="w-4 h-4 text-cyan-400" />
+                  <span>Monitoramento Banco</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('testes')}
@@ -2881,6 +2929,199 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         })}
                       </div>
                     )}
+                  </div>
+                </section>
+              )}
+
+              {activeTab === 'monitoramento' && (
+                <section className="space-y-6">
+                  {/* Cabeçalho e Controles */}
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-zinc-800 pb-3">
+                    <div>
+                      <div className="flex items-center gap-2 text-cyan-400 font-bold text-lg">
+                        <Activity className="w-5 h-5" />
+                        <h3>Monitoramento de Banco & Cotas do Firestore</h3>
+                      </div>
+                      <p className="text-xs text-zinc-400 mt-0.5">
+                        Acompanhe o consumo diário de leituras, escritas e recursos do Plano Spark fornecido pela infraestrutura do Google Cloud.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-3 w-full sm:w-auto flex-wrap">
+                      {/* Toggle Auto-Refresh */}
+                      <label className="flex items-center gap-2 text-xs text-zinc-300 bg-zinc-900/90 border border-zinc-800 px-3 py-1.5 rounded-xl cursor-pointer select-none hover:border-zinc-700 transition">
+                        <input
+                          type="checkbox"
+                          checked={autoRefreshMetrics}
+                          onChange={(e) => setAutoRefreshMetrics(e.target.checked)}
+                          className="rounded border-zinc-700 bg-zinc-800 text-cyan-500 focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                        />
+                        <span className="flex items-center gap-1.5">
+                          <Timer className="w-3.5 h-3.5 text-cyan-400" />
+                          Auto-Refresh (30s)
+                        </span>
+                      </label>
+
+                      <button
+                        onClick={() => loadMetrics(true)}
+                        disabled={isMetricsLoading}
+                        className="px-4 py-1.5 bg-cyan-500 hover:bg-cyan-400 disabled:opacity-50 text-black font-black text-xs rounded-xl transition flex items-center justify-center gap-2 shadow-md shadow-cyan-950/40 cursor-pointer"
+                        title="Forçar atualização das métricas agora"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${isMetricsLoading ? 'animate-spin' : ''}`} />
+                        <span>{isMetricsLoading ? 'Carregando...' : 'Atualizar Agora'}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Aviso Discreto de Latência GCP */}
+                  <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-cyan-950/20 border border-cyan-500/30 text-xs text-cyan-300/90">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-cyan-400 flex-shrink-0" />
+                      <span>⏱️ Métricas consolidadas com ~3-5 min de atraso via GCP.</span>
+                    </div>
+                    {metricsData && (
+                      <span className="text-[11px] text-zinc-400 hidden sm:inline">
+                        Última leitura: {new Date(metricsData.timestamp).toLocaleTimeString('pt-BR')}
+                        {metricsData.isFromCache ? ` (Cache: ${metricsData.cachedSecondsAgo}s)` : ''}
+                      </span>
+                    )}
+                  </div>
+
+                  {metricsError && (
+                    <div className="p-3 bg-red-950/40 border border-red-500/40 rounded-xl text-xs text-red-300 flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                      <span>{metricsError}</span>
+                    </div>
+                  )}
+
+                  {/* Grid de 4 Cards Explicativos */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {/* Card 1: Leituras Hoje */}
+                    <div className="p-4 rounded-2xl bg-zinc-900/90 border border-zinc-800 flex flex-col justify-between shadow-sm relative overflow-hidden">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-zinc-400">Leituras Hoje</span>
+                        <Database className="w-4 h-4 text-emerald-400" />
+                      </div>
+                      <div className="my-1">
+                        <div className="text-2xl font-black text-zinc-100 flex items-baseline gap-1.5">
+                          {metricsData ? metricsData.reads.used.toLocaleString('pt-BR') : '---'}
+                          <span className="text-xs font-medium text-zinc-500">
+                            / {metricsData ? metricsData.reads.quota.toLocaleString('pt-BR') : '50.000'}
+                          </span>
+                        </div>
+                        <div className="text-xs font-bold mt-0.5 text-emerald-400">
+                          {metricsData ? `${metricsData.reads.percent}% da cota Spark` : 'Aguardando...'}
+                        </div>
+                      </div>
+                      {/* Barra de Progresso */}
+                      <div className="w-full h-2 bg-zinc-800 rounded-full mt-3 overflow-hidden">
+                        <div
+                          className={`h-full transition-all duration-500 rounded-full ${
+                            (metricsData?.reads.percent || 0) > 85
+                              ? 'bg-rose-500'
+                              : (metricsData?.reads.percent || 0) > 60
+                              ? 'bg-amber-500'
+                              : 'bg-emerald-500'
+                          }`}
+                          style={{ width: `${Math.min(100, metricsData?.reads.percent || 0)}%` }}
+                        />
+                      </div>
+                      <span className="text-[10px] text-zinc-500 mt-2">Limite diário: 50.000 leituras (00:00 UTC)</span>
+                    </div>
+
+                    {/* Card 2: Escritas Hoje */}
+                    <div className="p-4 rounded-2xl bg-zinc-900/90 border border-zinc-800 flex flex-col justify-between shadow-sm relative overflow-hidden">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-zinc-400">Escritas Hoje</span>
+                        <Zap className="w-4 h-4 text-amber-400" />
+                      </div>
+                      <div className="my-1">
+                        <div className="text-2xl font-black text-zinc-100 flex items-baseline gap-1.5">
+                          {metricsData ? metricsData.writes.used.toLocaleString('pt-BR') : '---'}
+                          <span className="text-xs font-medium text-zinc-500">
+                            / {metricsData ? metricsData.writes.quota.toLocaleString('pt-BR') : '20.000'}
+                          </span>
+                        </div>
+                        <div className="text-xs font-bold mt-0.5 text-amber-400">
+                          {metricsData ? `${metricsData.writes.percent}% da cota Spark` : 'Aguardando...'}
+                        </div>
+                      </div>
+                      {/* Barra de Progresso */}
+                      <div className="w-full h-2 bg-zinc-800 rounded-full mt-3 overflow-hidden">
+                        <div
+                          className={`h-full transition-all duration-500 rounded-full ${
+                            (metricsData?.writes.percent || 0) > 85
+                              ? 'bg-rose-500'
+                              : (metricsData?.writes.percent || 0) > 60
+                              ? 'bg-amber-500'
+                              : 'bg-amber-400'
+                          }`}
+                          style={{ width: `${Math.min(100, metricsData?.writes.percent || 0)}%` }}
+                        />
+                      </div>
+                      <span className="text-[10px] text-zinc-500 mt-2">Limite diário: 20.000 escritas (00:00 UTC)</span>
+                    </div>
+
+                    {/* Card 3: Status do Servidor */}
+                    <div className="p-4 rounded-2xl bg-zinc-900/90 border border-zinc-800 flex flex-col justify-between shadow-sm relative overflow-hidden">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-zinc-400">Status do Servidor</span>
+                        <Terminal className="w-4 h-4 text-cyan-400" />
+                      </div>
+                      <div className="my-1">
+                        <div className="text-base font-black flex items-center gap-2">
+                          <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                          <span className="text-zinc-100">
+                            {metricsData?.server.status === 'warning' ? 'Atenção (Cotas)' : 'Normal'}
+                          </span>
+                        </div>
+                        <div className="text-xs font-medium mt-1 text-zinc-400">
+                          0 msgs pendentes no buffer
+                        </div>
+                      </div>
+                      <div className="text-[11px] text-zinc-500 mt-2 space-y-0.5 border-t border-zinc-800/80 pt-2">
+                        <div>Memória RSS: <strong className="text-zinc-300">{metricsData?.server.memoryRssMb ?? '--'} MB</strong></div>
+                        <div className="truncate">Ambiente: <strong className="text-zinc-300">{metricsData?.server.environment ?? '--'}</strong></div>
+                      </div>
+                    </div>
+
+                    {/* Card 4: Total de Registros de Alunos */}
+                    <div className="p-4 rounded-2xl bg-zinc-900/90 border border-zinc-800 flex flex-col justify-between shadow-sm relative overflow-hidden">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-zinc-400">Total de Alunos</span>
+                        <Users className="w-4 h-4 text-indigo-400" />
+                      </div>
+                      <div className="my-1">
+                        <div className="text-2xl font-black text-indigo-300 flex items-baseline gap-1.5">
+                          {metricsData ? metricsData.studentsCount.toLocaleString('pt-BR') : '---'}
+                          <span className="text-xs font-normal text-zinc-400">contas</span>
+                        </div>
+                        <div className="text-xs font-medium mt-0.5 text-zinc-400">
+                          Registros na coleção /saves
+                        </div>
+                      </div>
+                      <div className="text-[10px] text-zinc-500 mt-3 pt-2 border-t border-zinc-800/80">
+                        Contagem agregada via Firestore count() (1 leitura)
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Informações Complementares & Boas Práticas do Laboratório */}
+                  <div className="p-4 rounded-2xl bg-zinc-900/50 border border-zinc-800 text-xs text-zinc-400 space-y-2">
+                    <h4 className="font-bold text-zinc-200 flex items-center gap-2">
+                      <Shield className="w-4 h-4 text-cyan-400" />
+                      Políticas de Conservação de Quota do TypeClicker
+                    </h4>
+                    <p>
+                      • <strong>Throttling de 60 segundos</strong>: O jogo agrupa todas as teclas e pontuações dos alunos, disparando saves periódicos de 60s para manter o consumo diário seguro abaixo de 20.000 escritas mesmo com mais de 300 alunos em aula simultânea.
+                    </p>
+                    <p>
+                      • <strong>Deduplicação Singleflight</strong>: Consultas simultâneas ao ranking e ao pódio escolar compartilham promessas ativas na nuvem, evitando picos de centenas de leituras simultâneas.
+                    </p>
+                    <p>
+                      • <strong>Cache do Monitoramento</strong>: O backend retém os resultados por 3 minutos em memória para permitir que múltiplos professores acessem o painel administrativo sem consumir requisições adicionais à Cloud Monitoring API.
+                    </p>
                   </div>
                 </section>
               )}
