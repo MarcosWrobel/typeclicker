@@ -1,10 +1,13 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Cpu, Trophy, ChevronRight, Users, Shield } from 'lucide-react';
 import { GameState } from '../types';
 import { RPG_CLASSES } from '../types/rpgClass';
 import { formatBytes, formatRate, calculatePlayerRank } from '../utils/formatting';
 import { TopPodiumWidget } from './TopPodiumWidget';
 import { LeaderboardMetric } from './LeaderboardModal';
+import { Level100PioneersWidget } from './Level100PioneersWidget';
+import { useLeaderboardPodium } from '../hooks/useLeaderboardPodium';
+import { Level100PioneerSlot } from '../services/firebaseService';
 
 interface StatsSidebarProps {
   state: GameState;
@@ -18,6 +21,7 @@ interface StatsSidebarProps {
   currentUserId?: string;
   isAdmin?: boolean;
   isSuperAdmin?: boolean;
+  pioneers?: Level100PioneerSlot[];
 }
 
 export const StatsSidebar: React.FC<StatsSidebarProps> = ({
@@ -31,8 +35,16 @@ export const StatsSidebar: React.FC<StatsSidebarProps> = ({
   onOpenLeaderboardTab,
   currentUserId,
   isAdmin = false,
-  isSuperAdmin = false
+  isSuperAdmin = false,
+  pioneers
 }) => {
+  const { pioneers: hookPioneers } = useLeaderboardPodium();
+  const effectivePioneers = pioneers || hookPioneers;
+  const myPioneerSlot = useMemo(() => {
+    if (!currentUserId) return null;
+    return effectivePioneers.find((s) => s.isFilled && s.player?.userId === currentUserId);
+  }, [effectivePioneers, currentUserId]);
+
   const prestigeBonusPercent = state.prestigeCores * 20;
   const playerRank = calculatePlayerRank(state.totalBytesEarned);
 
@@ -60,6 +72,14 @@ export const StatsSidebar: React.FC<StatsSidebarProps> = ({
                   <span className="px-1.5 py-0.2 rounded-full bg-red-500/20 border border-red-500/30 text-[9px] font-bold text-red-400 whitespace-nowrap">👑 ADM</span>
                 ) : isAdmin ? (
                   <span className="px-1.5 py-0.2 rounded-full bg-sky-500/20 border border-sky-500/30 text-[9px] font-bold text-sky-400 whitespace-nowrap">👨‍🏫 Prof</span>
+                ) : myPioneerSlot ? (
+                  <span
+                    className="px-1.5 py-0.2 rounded-full bg-amber-500/20 border border-amber-400/60 text-[9px] font-mono font-bold text-amber-300 whitespace-nowrap flex items-center gap-0.5 shadow-sm"
+                    title={`Pioneiro do Nível 100 • #${myPioneerSlot.rank} na história do colégio`}
+                  >
+                    <span>{myPioneerSlot.rank === 1 ? '🥇' : myPioneerSlot.rank === 2 ? '🥈' : '🥉'}</span>
+                    <span>Pioneiro #{myPioneerSlot.rank}</span>
+                  </span>
                 ) : null}
                 {state.rpgClass && RPG_CLASSES[state.rpgClass] && (
                   <span className={`px-1.5 py-0.2 rounded-full ${RPG_CLASSES[state.rpgClass].badgeBg} border ${RPG_CLASSES[state.rpgClass].badgeBorder} text-[9px] font-bold ${RPG_CLASSES[state.rpgClass].badgeText} whitespace-nowrap flex items-center gap-0.5`}>
@@ -156,6 +176,20 @@ export const StatsSidebar: React.FC<StatsSidebarProps> = ({
           </div>
         </div>
       </button>
+
+      {/* Card Dourado de Destaque: Pioneiros Nível 100 */}
+      <Level100PioneersWidget
+        slots={effectivePioneers}
+        variant="sidebar"
+        currentUserId={currentUserId}
+        onOpenDetails={() => {
+          if (onOpenLeaderboardTab) {
+            onOpenLeaderboardTab('level');
+          } else if (onOpenLeaderboard) {
+            onOpenLeaderboard();
+          }
+        }}
+      />
 
       {/* Pódio Top 3 Escolar (Destaque sem entrar em menu) */}
       <TopPodiumWidget

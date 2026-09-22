@@ -94,6 +94,8 @@ export interface GameState {
   // Buff Temporário da Bênção do Guardião (Vitórias com 2 ou 3 estrelas)
   bossBuffExpiresAt?: number;
   bossBuffMultiplier?: number;
+  // Data e hora em que atingiu o Nível 100 pela primeira vez (Pioneiros do Leopoldina)
+  reachedLevel100At?: string;
   // Travas escolares gerenciadas pelo professor
   isClassLocked?: boolean;
   isRpgClassLocked?: boolean;
@@ -102,6 +104,17 @@ export interface GameState {
   flaggedForReview?: boolean;
   flagReason?: string;
   lastSyncTimestamp?: number;
+}
+
+export interface Level100Pioneer {
+  rank: 1 | 2 | 3;
+  userId: string;
+  nome: string;
+  apelido?: string;
+  turma: string;
+  avatar?: string;
+  reachedAt: string;
+  rpgClass?: RpgClassType;
 }
 
 export interface BossMasteryRecord {

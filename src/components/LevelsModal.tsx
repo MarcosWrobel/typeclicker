@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Trophy, X, CheckCircle2, Lock, Sparkles, Search, ArrowRight, Target, ChevronRight, Award, GraduationCap } from 'lucide-react';
+import { Trophy, X, CheckCircle2, Lock, Sparkles, Search, ArrowRight, Target, ChevronRight, Award, GraduationCap, Crown } from 'lucide-react';
 import { ALL_LEVELS, LEVEL_TIERS, LevelDef, PlayerRank } from '../data/levels';
 import { formatBytes } from '../utils/formatting';
+import { Level100PioneerSlot } from '../services/firebaseService';
 
 interface LevelsModalProps {
   isOpen: boolean;
@@ -10,6 +11,7 @@ interface LevelsModalProps {
   totalBytesEarned: number;
   studentName?: string;
   studentAvatar?: string;
+  pioneers?: Level100PioneerSlot[];
 }
 
 export const LevelsModal: React.FC<LevelsModalProps> = ({
@@ -18,7 +20,8 @@ export const LevelsModal: React.FC<LevelsModalProps> = ({
   currentRank,
   totalBytesEarned,
   studentName,
-  studentAvatar = '🐧'
+  studentAvatar = '🐧',
+  pioneers
 }) => {
   const [selectedTier, setSelectedTier] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -256,7 +259,7 @@ export const LevelsModal: React.FC<LevelsModalProps> = ({
                 <div
                   key={lvl.level}
                   ref={isCurrent ? currentLevelRef : null}
-                  className={`relative p-3.5 sm:p-4 rounded-2xl transition-all duration-200 border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${
+                  className={`relative p-3.5 sm:p-4 rounded-2xl transition-all duration-200 border flex flex-col items-start justify-between gap-3 ${
                     isCurrent
                       ? 'bg-gradient-to-r from-amber-950/60 via-zinc-900 to-emerald-950/40 border-2 border-amber-400 shadow-[0_0_30px_rgba(245,158,11,0.35)] ring-2 ring-amber-400/20'
                       : isUnlocked
@@ -264,100 +267,159 @@ export const LevelsModal: React.FC<LevelsModalProps> = ({
                       : 'bg-[#0a0d13]/60 hover:bg-[#0e121a] border-zinc-800/80 opacity-80'
                   }`}
                 >
-                  {/* Left: Level Badge & Title */}
-                  <div className="flex items-center gap-3.5">
-                    {/* Level Number & Badge */}
-                    <div className="flex items-center gap-2">
-                      <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center text-xl sm:text-2xl border ${
-                        isCurrent
-                          ? 'bg-amber-500/20 border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.4)]'
-                          : isUnlocked
-                          ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
-                          : 'bg-zinc-800/60 border-zinc-700/60 text-zinc-500'
-                      }`}>
-                        {lvl.badge}
-                      </div>
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 w-full">
+                    {/* Left: Level Badge & Title */}
+                    <div className="flex items-center gap-3.5">
+                      {/* Level Number & Badge */}
+                      <div className="flex items-center gap-2">
+                        <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center text-xl sm:text-2xl border ${
+                          isCurrent
+                            ? 'bg-amber-500/20 border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.4)]'
+                            : isUnlocked
+                            ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+                            : 'bg-zinc-800/60 border-zinc-700/60 text-zinc-500'
+                        }`}>
+                          {lvl.badge}
+                        </div>
 
-                      <div className="text-left">
-                        <div className="flex items-center gap-2">
-                          <span className={`font-mono text-xs font-black px-2 py-0.5 rounded-md border ${
-                            isCurrent
-                              ? 'bg-amber-400 text-zinc-950 border-amber-300'
-                              : isUnlocked
-                              ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/40'
-                              : 'bg-zinc-800 text-zinc-400 border-zinc-700'
-                          }`}>
-                            #{lvl.level.toString().padStart(2, '0')}
-                          </span>
-                          <span className={`text-[10px] font-mono uppercase tracking-wider font-semibold ${lvl.tierColor}`}>
-                            {lvl.tier}
-                          </span>
-                          {lvl.isMilestone && (
-                            <span className="text-[9px] font-mono font-bold bg-purple-950/80 text-purple-300 border border-purple-500/40 px-1.5 py-0.2 rounded">
-                              ★ Marco
+                        <div className="text-left">
+                          <div className="flex items-center gap-2">
+                            <span className={`font-mono text-xs font-black px-2 py-0.5 rounded-md border ${
+                              isCurrent
+                                ? 'bg-amber-400 text-zinc-950 border-amber-300'
+                                : isUnlocked
+                                ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/40'
+                                : 'bg-zinc-800 text-zinc-400 border-zinc-700'
+                            }`}>
+                              #{lvl.level.toString().padStart(2, '0')}
                             </span>
-                          )}
-                        </div>
-
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <h4 className={`text-sm sm:text-base font-black ${
-                            isCurrent ? 'text-amber-300' : isUnlocked ? 'text-white' : 'text-zinc-300'
-                          }`}>
-                            {lvl.title}
-                          </h4>
-                          {isCurrent && (
-                            <span className="text-[10px] font-mono font-extrabold bg-amber-500 text-zinc-950 px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse">
-                              Você está aqui!
+                            <span className={`text-[10px] font-mono uppercase tracking-wider font-semibold ${lvl.tierColor}`}>
+                              {lvl.tier}
                             </span>
-                          )}
-                        </div>
-
-                        <p className="text-xs text-zinc-400 mt-0.5 line-clamp-1 sm:line-clamp-none">
-                          {lvl.description}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Right: Requirements & Status */}
-                  <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto border-t sm:border-t-0 pt-2 sm:pt-0 border-zinc-800/60">
-                    <div className="text-left sm:text-right">
-                      <span className="text-[10px] font-mono text-zinc-400 block">
-                        Requer no total
-                      </span>
-                      <span className={`text-xs sm:text-sm font-mono font-black ${
-                        isCurrent ? 'text-amber-300' : isUnlocked ? 'text-emerald-400' : 'text-zinc-300'
-                      }`}>
-                        {formatBytes(lvl.minBytes)}
-                      </span>
-                    </div>
-
-                    {/* Status Badge */}
-                    <div className="flex-shrink-0">
-                      {isUnlocked && (
-                        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 text-xs font-mono font-bold">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                          <span>Conquistado</span>
-                        </div>
-                      )}
-
-                      {isCurrent && (
-                        <div className="flex flex-col items-end">
-                          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500 text-zinc-950 text-xs font-mono font-black shadow-[0_0_15px_rgba(245,158,11,0.4)]">
-                            <Sparkles className="w-3.5 h-3.5 text-zinc-950 animate-spin" />
-                            <span>Nv. Atual ({currentRank.progressPercent}%)</span>
+                            {lvl.isMilestone && (
+                              <span className="text-[9px] font-mono font-bold bg-purple-950/80 text-purple-300 border border-purple-500/40 px-1.5 py-0.2 rounded">
+                                ★ Marco
+                              </span>
+                            )}
                           </div>
-                        </div>
-                      )}
 
-                      {isLocked && (
-                        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 text-xs font-mono">
-                          <Lock className="w-3.5 h-3.5 text-zinc-500" />
-                          <span>Faltam {formatBytes(bytesToReach)}</span>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <h4 className={`text-sm sm:text-base font-black ${
+                              isCurrent ? 'text-amber-300' : isUnlocked ? 'text-white' : 'text-zinc-300'
+                            }`}>
+                              {lvl.title}
+                            </h4>
+                            {isCurrent && (
+                              <span className="text-[10px] font-mono font-extrabold bg-amber-500 text-zinc-950 px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse">
+                                Você está aqui!
+                              </span>
+                            )}
+                          </div>
+
+                          <p className="text-xs text-zinc-400 mt-0.5 line-clamp-1 sm:line-clamp-none">
+                            {lvl.description}
+                          </p>
                         </div>
-                      )}
+                      </div>
+                    </div>
+
+                    {/* Right: Requirements & Status */}
+                    <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto border-t sm:border-t-0 pt-2 sm:pt-0 border-zinc-800/60">
+                      <div className="text-left sm:text-right">
+                        <span className="text-[10px] font-mono text-zinc-400 block">
+                          Requer no total
+                        </span>
+                        <span className={`text-xs sm:text-sm font-mono font-black ${
+                          isCurrent ? 'text-amber-300' : isUnlocked ? 'text-emerald-400' : 'text-zinc-300'
+                        }`}>
+                          {formatBytes(lvl.minBytes)}
+                        </span>
+                      </div>
+
+                      {/* Status Badge */}
+                      <div className="flex-shrink-0">
+                        {isUnlocked && (
+                          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 text-xs font-mono font-bold">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                            <span>Conquistado</span>
+                          </div>
+                        )}
+
+                        {isCurrent && (
+                          <div className="flex flex-col items-end">
+                            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500 text-zinc-950 text-xs font-mono font-black shadow-[0_0_15px_rgba(245,158,11,0.4)]">
+                              <Sparkles className="w-3.5 h-3.5 text-zinc-950 animate-spin" />
+                              <span>Nv. Atual ({currentRank.progressPercent}%)</span>
+                            </div>
+                          </div>
+                        )}
+
+                        {isLocked && (
+                          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 text-xs font-mono">
+                            <Lock className="w-3.5 h-3.5 text-zinc-500" />
+                            <span>Faltam {formatBytes(bytesToReach)}</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
+
+                  {/* Galeria de Pioneiros da História no Nível 100 */}
+                  {lvl.level === 100 && pioneers && pioneers.length > 0 && (
+                    <div className="w-full mt-3 pt-3 border-t border-amber-500/30 flex flex-col gap-2">
+                      <div className="flex items-center justify-between flex-wrap gap-1">
+                        <div className="flex items-center gap-1.5">
+                          <Crown className="w-4 h-4 text-amber-400 animate-pulse" />
+                          <span className="text-xs font-mono font-black text-amber-300 tracking-wider">
+                            PIONEIROS DA HISTÓRIA • TOP 3
+                          </span>
+                        </div>
+                        <span className="text-[10px] font-mono text-zinc-400">
+                          {pioneers.filter((p) => p.isFilled).length} de 3 Vagas Preenchidas
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        {pioneers.map((slot) => {
+                          if (slot.isFilled && slot.player) {
+                            const medal = slot.rank === 1 ? '🥇 1º' : slot.rank === 2 ? '🥈 2º' : '🥉 3º';
+                            const borderCol =
+                              slot.rank === 1
+                                ? 'border-amber-400/70 bg-amber-500/10'
+                                : slot.rank === 2
+                                ? 'border-slate-400/70 bg-slate-500/10'
+                                : 'border-amber-700/70 bg-amber-800/10';
+                            return (
+                              <div
+                                key={slot.rank}
+                                className={`p-2.5 rounded-xl border ${borderCol} flex items-center gap-2`}
+                              >
+                                <span className="text-xl select-none">{slot.player.avatar || '👑'}</span>
+                                <div className="flex flex-col min-w-0 text-left font-mono">
+                                  <span className="text-xs font-bold text-white truncate">
+                                    {medal} {slot.player.apelido || slot.player.nome}
+                                  </span>
+                                  <span className="text-[10px] text-zinc-400 truncate">
+                                    Turma {slot.player.turma || 'Geral'}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          }
+                          return (
+                            <div
+                              key={slot.rank}
+                              className="p-2.5 rounded-xl border border-dashed border-amber-500/30 bg-black/40 flex items-center gap-2 text-zinc-500 font-mono"
+                            >
+                              <Lock className="w-3.5 h-3.5 text-amber-500/50" />
+                              <span className="text-[11px] text-amber-300/70 italic">
+                                Vaga #{slot.rank} em Aberto
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })

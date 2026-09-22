@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { getGlobalLeaderboard, LeaderboardEntry, isStaffMember } from '../services/firebaseService';
+import { getGlobalLeaderboard, LeaderboardEntry, isStaffMember, extractLevel100Pioneers, Level100PioneerSlot } from '../services/firebaseService';
 import { LeaderboardMetric } from '../components/LeaderboardModal';
 
 const METRIC_ORDER: LeaderboardMetric[] = ['level', 'wpm', 'combo', 'bytes', 'pvp', 'races'];
@@ -9,6 +9,7 @@ const CLOUD_SYNC_INTERVAL_SEC = 180; // 3 minutos para nova consulta ao Firestor
 export interface UseLeaderboardPodiumReturn {
   currentMetric: LeaderboardMetric;
   top3: LeaderboardEntry[];
+  pioneers: Level100PioneerSlot[];
   rotationRemaining: number;
   rotationProgress: number; // 0 a 100%
   syncRemaining: number;
@@ -185,9 +186,14 @@ export function useLeaderboardPodium(): UseLeaderboardPodiumReturn {
   const top3 = top3ByMetric[currentMetric] || [];
   const rotationProgress = Math.max(0, Math.min(100, ((ROTATION_INTERVAL_SEC - rotationRemaining) / ROTATION_INTERVAL_SEC) * 100));
 
+  const pioneers = useMemo(() => {
+    return extractLevel100Pioneers(allPlayers);
+  }, [allPlayers]);
+
   return {
     currentMetric,
     top3,
+    pioneers,
     rotationRemaining,
     rotationProgress,
     syncRemaining,

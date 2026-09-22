@@ -157,6 +157,14 @@ export interface LeaderboardEntry {
   pvpMatches?: number;
   pvpPoints?: number;
   bestWpm?: number;
+  reachedLevel100At?: string;
+}
+
+export interface Level100PioneerSlot {
+  rank: 1 | 2 | 3;
+  player?: LeaderboardEntry;
+  reachedAt?: string;
+  isFilled: boolean;
 }
 
 export interface CloudResponse {
@@ -372,6 +380,7 @@ export async function saveProgressToCloud(
   if (state.rpgClass) leaderboardPayload.rpgClass = state.rpgClass;
   if (state.isClassLocked !== undefined) leaderboardPayload.isClassLocked = state.isClassLocked;
   if (state.isRpgClassLocked !== undefined) leaderboardPayload.isRpgClassLocked = state.isRpgClassLocked;
+  if (state.reachedLevel100At) leaderboardPayload.reachedLevel100At = state.reachedLevel100At;
 
   try {
     const cleanSavePayload = removeUndefinedFields(savePayload);
@@ -566,6 +575,46 @@ export async function getGlobalLeaderboard(forceRefresh: boolean = false): Promi
     handleFirestoreError(error, OperationType.LIST, `leaderboard`);
     return cachedLeaderboard ? cachedLeaderboard.data : [];
   }
+}
+
+/**
+ * Filtra e extrai os 3 primeiros alunos a alcançarem o Nível 100 na história do colégio.
+ * Ordenação estritamente cronológica por reachedLevel100At ou updatedAt.
+ * Exclui rigorosamente contas de professores e equipe staff.
+ */
+export function extractLevel100Pioneers(players: LeaderboardEntry[]): Level100PioneerSlot[] {
+  // Apenas estudantes com level >= 100
+  const eligible = players.filter(
+    (p) => !isStaffMember(p) && (p.level >= 100 || (p as any).isMaxLevel)
+  );
+
+  // Ordenação cronológica por data de conquista do nível 100
+  eligible.sort((a, b) => {
+    const timeA = a.reachedLevel100At
+      ? new Date(a.reachedLevel100At).getTime()
+      : a.updatedAt
+      ? new Date(a.updatedAt).getTime()
+      : 0;
+    const timeB = b.reachedLevel100At
+      ? new Date(b.reachedLevel100At).getTime()
+      : b.updatedAt
+      ? new Date(b.updatedAt).getTime()
+      : 0;
+    if (timeA !== timeB) return timeA - timeB;
+    return (b.points || 0) - (a.points || 0);
+  });
+
+  const top3 = eligible.slice(0, 3);
+
+  return [1, 2, 3].map((rank) => {
+    const player = top3[rank - 1];
+    return {
+      rank: rank as 1 | 2 | 3,
+      player: player || undefined,
+      reachedAt: player?.reachedLevel100At || player?.updatedAt,
+      isFilled: Boolean(player)
+    };
+  });
 }
 
 export async function getAdminDashboardData(turmaFilter?: string): Promise<LeaderboardEntry[]> {

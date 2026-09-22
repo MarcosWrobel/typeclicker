@@ -437,7 +437,8 @@ export function loadSavedState(userId?: string | null): GameState {
       isRpgClassLocked: Boolean(parsed.isRpgClassLocked),
       bossMastery: parsed.bossMastery && typeof parsed.bossMastery === 'object' ? parsed.bossMastery : {},
       bossBuffExpiresAt: Number.isFinite(parsed.bossBuffExpiresAt) ? parsed.bossBuffExpiresAt : 0,
-      bossBuffMultiplier: Number.isFinite(parsed.bossBuffMultiplier) ? parsed.bossBuffMultiplier : 0
+      bossBuffMultiplier: Number.isFinite(parsed.bossBuffMultiplier) ? parsed.bossBuffMultiplier : 0,
+      reachedLevel100At: typeof parsed.reachedLevel100At === 'string' ? parsed.reachedLevel100At : undefined
     };
   } catch (e) {
     console.warn('Falha ao carregar estado salvo:', e);

@@ -18,7 +18,8 @@ import {
   Star,
   Medal
 } from 'lucide-react';
-import { getGlobalLeaderboard, LeaderboardEntry, isStaffMember } from '../services/firebaseService';
+import { getGlobalLeaderboard, LeaderboardEntry, isStaffMember, extractLevel100Pioneers } from '../services/firebaseService';
+import { Level100PioneersWidget } from './Level100PioneersWidget';
 import { formatBytes } from '../utils/formatting';
 import { ALL_LEVELS } from '../data/levels';
 import {
@@ -352,6 +353,21 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
         return list.sort((a, b) => (b.points || 0) - (a.points || 0));
     }
   }, [rankings, activeRankTab]);
+
+  // Pioneiros da História no Nível 100 (Top 3 Alunos)
+  const level100Pioneers = useMemo(() => {
+    return extractLevel100Pioneers(rankings);
+  }, [rankings]);
+
+  const pioneerMap = useMemo(() => {
+    const map: Record<string, { rank: 1 | 2 | 3; reachedAt?: string }> = {};
+    level100Pioneers.forEach((slot) => {
+      if (slot.isFilled && slot.player?.userId) {
+        map[slot.player.userId] = { rank: slot.rank, reachedAt: slot.reachedAt };
+      }
+    });
+    return map;
+  }, [level100Pioneers]);
 
   // Filtragem dos jogadores
   const filteredRankings = useMemo(() => {
@@ -932,10 +948,20 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                 </div>
               ) : (
                 <div className="flex flex-col gap-2.5">
+                  {/* Banner Triunfal dos 3 Pioneiros Nível 100 na Aba Nível */}
+                  {activeRankTab === 'level' && (
+                    <Level100PioneersWidget
+                      slots={level100Pioneers}
+                      variant="banner"
+                      currentUserId={currentUserId}
+                    />
+                  )}
+
                   {filteredRankings.map((player, index) => {
                     const isCurrentUser = player.userId === currentUserId;
                     const rankPosition = index + 1;
                     const playerSerieLabel = getSerieLabelFromTurma(player.turma);
+                    const pioneerInfo = pioneerMap[player.userId];
 
                     let rankBadge = (
                       <div className="w-10 h-10 shrink-0 rounded-xl flex items-center justify-center font-black text-sm border bg-zinc-800/60 border-zinc-700/60 text-zinc-300">
@@ -998,6 +1024,15 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                               <span className="font-bold text-white truncate text-sm sm:text-base">
                                 {player.apelido || player.nome}
                               </span>
+                              {pioneerInfo && (
+                                <span
+                                  className="px-2 py-0.5 rounded-full text-[10px] font-mono font-black border shadow-sm flex items-center gap-1 bg-amber-500/20 text-amber-300 border-amber-400/60"
+                                  title={`Pioneiro do Nível 100 - #${pioneerInfo.rank} da história do colégio!`}
+                                >
+                                  <span>{pioneerInfo.rank === 1 ? '🥇' : pioneerInfo.rank === 2 ? '🥈' : '🥉'}</span>
+                                  <span>Pioneiro #{pioneerInfo.rank}</span>
+                                </span>
+                              )}
                               {isCurrentUser && (
                                 <span className={`text-[10px] font-mono font-bold px-2 py-0.2 rounded-full border ${currentMetric.badgeBg} ${currentMetric.badgeText} ${currentMetric.badgeBorder}`}>
                                   Você

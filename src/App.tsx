@@ -23,6 +23,8 @@ import { StudentModal } from './components/StudentModal';
 import { LevelsModal } from './components/LevelsModal';
 import { HelpModal } from './components/HelpModal';
 import { LeaderboardModal, LeaderboardMetric } from './components/LeaderboardModal';
+import { Level100CelebrationModal } from './components/Level100CelebrationModal';
+import { useLeaderboardPodium } from './hooks/useLeaderboardPodium';
 import { ArenaModal } from './components/ArenaModal';
 import { TimeAttackModal } from './components/TimeAttackModal';
 import { ArenaStats, getArenaRank } from './types/arena';
@@ -122,6 +124,10 @@ export default function App() {
   const [dismissedRaidId, setDismissedRaidId] = useState<string | null>(null);
 
   const [leaderboardInitialTab, setLeaderboardInitialTab] = useState<LeaderboardMetric>('level');
+  const [celebratingPioneerRank, setCelebratingPioneerRank] = useState<1 | 2 | 3 | null>(null);
+
+  // Sincronização e consulta dos Pioneiros Nível 100
+  const { pioneers: podiumPioneers } = useLeaderboardPodium();
 
   const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
   const [isAppLocked, setIsAppLocked] = useState<boolean>(true);
@@ -156,6 +162,7 @@ export default function App() {
     isRaceArenaOpen ||
     isRaidArenaOpen ||
     activeChallengeLevel !== null ||
+    celebratingPioneerRank !== null ||
     (isAppLocked && !isAdmin)
   );
 
@@ -1853,13 +1860,40 @@ export default function App() {
         }, 4000); // Wait for level up animation to finish
       }
 
+      // Marco Histórico: Registro de Pioneiro do Nível 100
+      if (newLevel >= 100 && !stateRef.current.reachedLevel100At) {
+        const timestamp = new Date().toISOString();
+        setState(prev => ({ ...prev, reachedLevel100At: timestamp }));
+
+        // Se não for membro da equipe escolar (staff), verifica celebração de vaga de pioneiro
+        if (!isAdmin && !checkIsSuperAdmin(user)) {
+          const openSlot = podiumPioneers.find((p) => !p.isFilled);
+          if (openSlot) {
+            setCelebratingPioneerRank(openSlot.rank);
+          } else {
+            const mySlot = podiumPioneers.find((p) => p.player?.userId === user?.uid);
+            if (mySlot) {
+              setCelebratingPioneerRank(mySlot.rank);
+            }
+          }
+        }
+      }
+
       if (user) {
         syncNow('levelup').then(() => {
           spawnFloatingText(`☁️ Nv. ${playerRank.level} salvo na nuvem!`, 'bonus');
         }).catch(() => {});
       }
     }
-  }, [playerRank.level, playerRank.title, playerRank.badge, user, spawnFloatingText, syncNow]);
+  }, [playerRank.level, playerRank.title, playerRank.badge, user, spawnFloatingText, syncNow, isAdmin, podiumPioneers]);
+
+  // Retrocompatibilidade silenciosa: assegura registro da data do Nv. 100 caso já alcançado anteriormente
+  useEffect(() => {
+    if (playerRank.level >= 100 && !state.reachedLevel100At) {
+      const timestamp = new Date().toISOString();
+      setState(prev => ({ ...prev, reachedLevel100At: timestamp }));
+    }
+  }, [playerRank.level, state.reachedLevel100At]);
 
   const handleTriggerCloudSave = async () => {
     if (!user) return;
@@ -2244,6 +2278,7 @@ export default function App() {
             achievementsCount={getOverallAchievementsStats(state)}
             onOpenLeaderboard={handleOpenGeneralLeaderboard}
             onOpenLeaderboardTab={handleOpenLeaderboardTab}
+            pioneers={podiumPioneers}
           />
         }
         arena={
@@ -2410,7 +2445,20 @@ export default function App() {
         totalBytesEarned={state.totalBytesEarned}
         studentName={state.studentNickname || state.studentName}
         studentAvatar={state.studentAvatar}
+        pioneers={podiumPioneers}
       />
+
+      {/* Modal Triunfal de Celebração dos Pioneiros Nível 100 */}
+      {celebratingPioneerRank !== null && (
+        <Level100CelebrationModal
+          isOpen={true}
+          onClose={() => setCelebratingPioneerRank(null)}
+          rank={celebratingPioneerRank}
+          studentName={state.studentNickname || state.studentName || 'Digitador Pioneiro'}
+          studentAvatar={state.studentAvatar}
+          studentClass={state.studentClass}
+        />
+      )}
 
       {/* Teacher Help & Pedagogical Guidelines Modal */}
       <HelpModal
