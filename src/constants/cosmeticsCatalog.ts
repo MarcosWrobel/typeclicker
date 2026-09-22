@@ -1031,8 +1031,12 @@ export const ANIMATION_CONFIGS: Record<AnimationEffectId, AnimationConfig> = {
   }
 };
 
+import { CARD_FRAME_CONFIGS, CardFrameId } from '../types/cardFrames';
+export { CARD_FRAME_CONFIGS };
+export type { CardFrameId };
+
 /**
- * Helper de ADM: Desbloqueia 100% de todos os cosméticos (Layouts, Temas, Skins, Sons e Animações)
+ * Helper de ADM: Desbloqueia 100% de todos os cosméticos (Layouts, Temas, Skins, Sons, Animações e Molduras de Card)
  * e concede saldo farto de tokens para testes rápidos do Professor Marcos Wrobel.
  */
 export function getAllUnlockedCosmetics(current?: PlayerCosmetics): PlayerCosmetics {
@@ -1042,6 +1046,7 @@ export function getAllUnlockedCosmetics(current?: PlayerCosmetics): PlayerCosmet
     equippedSound: current?.equippedSound || 'mechanical',
     equippedLayout: current?.equippedLayout || 'default_terminal',
     equippedAnimation: current?.equippedAnimation || 'confetti_classic',
+    equippedCardFrame: current?.equippedCardFrame || 'basic',
     levelTokens: Math.max(current?.levelTokens ?? 0, 9999),
     duelTokens: Math.max(current?.duelTokens ?? 0, 9999),
     quantumFragments: Math.max(current?.quantumFragments ?? 0, 9999),
@@ -1050,6 +1055,7 @@ export function getAllUnlockedCosmetics(current?: PlayerCosmetics): PlayerCosmet
     unlockedSounds: Object.keys(KEY_SOUNDS) as KeySoundThemeId[],
     unlockedLayouts: Object.keys(LAYOUT_CONFIGS) as LayoutSkinId[],
     unlockedAnimations: Object.keys(ANIMATION_CONFIGS) as AnimationEffectId[],
+    unlockedCardFrames: Object.keys(CARD_FRAME_CONFIGS) as CardFrameId[],
   };
 }
 

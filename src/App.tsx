@@ -23,6 +23,7 @@ import { StudentModal } from './components/StudentModal';
 import { LevelsModal } from './components/LevelsModal';
 import { HelpModal } from './components/HelpModal';
 import { LeaderboardModal, LeaderboardMetric } from './components/LeaderboardModal';
+import { StudentProfileCardModal } from './components/StudentProfileCardModal';
 import { Level100CelebrationModal } from './components/Level100CelebrationModal';
 import { useLeaderboardPodium } from './hooks/useLeaderboardPodium';
 import { ArenaModal } from './components/ArenaModal';
@@ -65,7 +66,7 @@ import {
 import { AchievementDef, AchievementContext } from './types/achievements';
 import { RpgFloorData, QuestEvent } from './types/quests';
 import { calculatePlayerRank, formatBytes } from './utils/formatting';
-import { auth, loginWithGoogle, logoutUser, subscribeToAuthChanges, loadProgressFromCloud, saveProgressToCloud, checkIsAdminAsync, checkIsSuperAdmin, getSystemSettings, subscribeToSystemSettings, claimPendingTestGrants, ADMIN_EMAILS } from './services/firebaseService';
+import { auth, loginWithGoogle, logoutUser, subscribeToAuthChanges, loadProgressFromCloud, saveProgressToCloud, checkIsAdminAsync, checkIsSuperAdmin, getSystemSettings, subscribeToSystemSettings, claimPendingTestGrants, ADMIN_EMAILS, LeaderboardEntry } from './services/firebaseService';
 import { isCategoryAllowed, getMinAllowedCategoryLevel } from './utils/difficulty';
 import { useGameSync } from './hooks/useGameSync';
 import { Loader2 } from 'lucide-react';
@@ -126,6 +127,10 @@ export default function App() {
   const [leaderboardInitialTab, setLeaderboardInitialTab] = useState<LeaderboardMetric>('level');
   const [celebratingPioneerRank, setCelebratingPioneerRank] = useState<1 | 2 | 3 | null>(null);
 
+  // Card Colecionável de Perfil do Aluno
+  const [isProfileCardOpen, setIsProfileCardOpen] = useState<boolean>(false);
+  const [selectedProfileCardPlayer, setSelectedProfileCardPlayer] = useState<Partial<LeaderboardEntry> | GameState | null>(null);
+
   // Sincronização e consulta dos Pioneiros Nível 100
   const { pioneers: podiumPioneers } = useLeaderboardPodium();
 
@@ -149,6 +154,7 @@ export default function App() {
     isLevelsModalOpen ||
     isHelpOpen ||
     isLeaderboardOpen ||
+    isProfileCardOpen ||
     isCosmeticsOpen ||
     isAccessibilityOpen ||
     isAchievementsOpen ||
@@ -2278,6 +2284,14 @@ export default function App() {
             achievementsCount={getOverallAchievementsStats(state)}
             onOpenLeaderboard={handleOpenGeneralLeaderboard}
             onOpenLeaderboardTab={handleOpenLeaderboardTab}
+            onOpenProfileCard={() => {
+              setSelectedProfileCardPlayer(state);
+              setIsProfileCardOpen(true);
+            }}
+            onSelectPlayer={(player) => {
+              setSelectedProfileCardPlayer(player);
+              setIsProfileCardOpen(true);
+            }}
             pioneers={podiumPioneers}
           />
         }
@@ -2504,6 +2518,30 @@ export default function App() {
         cosmetics={currentCosmetics}
         onUpdateCosmetics={handleUpdateCosmetics}
         isAdmin={isAdmin}
+        state={state}
+      />
+
+      {/* Modal do Card Colecionável de Perfil do Aluno */}
+      <StudentProfileCardModal
+        isOpen={isProfileCardOpen}
+        onClose={() => {
+          setIsProfileCardOpen(false);
+          setSelectedProfileCardPlayer(null);
+        }}
+        player={selectedProfileCardPlayer}
+        pioneerRank={
+          selectedProfileCardPlayer
+            ? (selectedProfileCardPlayer as any).userId
+              ? podiumPioneers.find((s) => s.isFilled && s.player?.userId === (selectedProfileCardPlayer as any).userId)?.rank
+              : podiumPioneers.find((s) => s.isFilled && s.player?.userId === user?.uid)?.rank
+            : undefined
+        }
+        isCurrentPlayer={
+          !selectedProfileCardPlayer ||
+          'totalBytesEarned' in selectedProfileCardPlayer ||
+          (selectedProfileCardPlayer as any).userId === user?.uid
+        }
+        currentCosmetics={currentCosmetics}
       />
 
       {/* Modal de Acessibilidade & Baixa Visão (A+ / A-) */}

@@ -20,11 +20,13 @@ import { formatBytes } from '../utils/formatting';
 export interface TopPodiumWidgetProps {
   currentUserId?: string;
   onOpenLeaderboardTab?: (metric: LeaderboardMetric) => void;
+  onSelectPlayer?: (player: any) => void;
 }
 
 export const TopPodiumWidget: React.FC<TopPodiumWidgetProps> = ({
   currentUserId,
-  onOpenLeaderboardTab
+  onOpenLeaderboardTab,
+  onSelectPlayer
 }) => {
   const {
     currentMetric,
@@ -152,16 +154,27 @@ export const TopPodiumWidget: React.FC<TopPodiumWidgetProps> = ({
               'border-amber-700/50 bg-amber-700/10 text-amber-500'
             ];
 
+            const displayName = player.apelido || player.nome;
             return (
               <div
                 key={player.userId}
-                onClick={() => onOpenLeaderboardTab && onOpenLeaderboardTab(currentMetric)}
+                onClick={() => {
+                  if (onSelectPlayer) {
+                    onSelectPlayer(player);
+                  } else if (onOpenLeaderboardTab) {
+                    onOpenLeaderboardTab(currentMetric);
+                  }
+                }}
                 className={`flex items-center justify-between px-2 py-1.5 rounded-xl border transition-all cursor-pointer ${
                   isUser
                     ? 'border-emerald-500/60 bg-emerald-500/15 shadow-[0_0_10px_rgba(16,185,129,0.2)] ring-1 ring-emerald-400/30'
-                    : 'border-white/5 bg-[#12151f] hover:bg-zinc-800/60'
+                    : 'border-white/5 bg-[#12151f] hover:bg-zinc-800/60 hover:border-amber-500/40'
                 }`}
-                title={`Clique para abrir o Ranking de ${metricDef.label}`}
+                title={
+                  onSelectPlayer
+                    ? `Clique para ver o Card Colecionável de ${displayName}`
+                    : `Clique para abrir o Ranking de ${metricDef.label}`
+                }
               >
                 <div className="flex items-center gap-2 min-w-0">
                   <div className={`w-5 h-5 rounded-md border flex items-center justify-center text-xs font-bold shrink-0 ${medalGradients[idx] || ''}`}>

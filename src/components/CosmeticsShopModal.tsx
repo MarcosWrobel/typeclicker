@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Sparkles, Check, Lock, Volume2, Palette, Bot, Coins, LayoutGrid, Flame, Swords, Play } from 'lucide-react';
+import { X, Sparkles, Check, Lock, Volume2, Palette, Bot, Coins, LayoutGrid, Flame, Swords, Play, Award } from 'lucide-react';
 import { PlayerCosmetics, TerminalThemeId, BytezinhoSkinId, KeySoundThemeId, LayoutSkinId, AnimationEffectId, CosmeticCurrency } from '../types/cosmetics';
 import { TERMINAL_THEMES, BYTEZINHO_SKINS, KEY_SOUNDS } from '../constants/themes';
 import { LAYOUT_CONFIGS, ANIMATION_CONFIGS, getAllUnlockedCosmetics } from '../constants/cosmeticsCatalog';
+import { CARD_FRAME_CONFIGS, CardFrameId } from '../types/cardFrames';
+import { StudentProfileCard } from './StudentProfileCard';
+import { GameState } from '../types';
 import { audioSynthesizer } from '../services/audioSynthesizer';
 import { triggerUpgradePurchaseVfx, getLetterVfxClasses } from '../services/fxEngine';
 import { BytezinhoAvatar } from './BytezinhoAvatar';
@@ -14,20 +17,23 @@ interface CosmeticsShopModalProps {
   cosmetics: PlayerCosmetics;
   onUpdateCosmetics: (updated: PlayerCosmetics) => void;
   isAdmin?: boolean;
+  state?: GameState;
 }
 
-type ShopTab = 'layouts' | 'themes' | 'skins' | 'sounds' | 'animations';
+type ShopTab = 'layouts' | 'themes' | 'skins' | 'sounds' | 'animations' | 'cards';
 
 export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
   isOpen,
   onClose,
   cosmetics,
   onUpdateCosmetics,
-  isAdmin = false
+  isAdmin = false,
+  state
 }) => {
   const [activeTab, setActiveTab] = useState<ShopTab>('themes');
   const [playingPreview, setPlayingPreview] = useState<KeySoundThemeId | null>(null);
   const [testingAnimationId, setTestingAnimationId] = useState<AnimationEffectId | null>(null);
+  const [previewFrameId, setPreviewFrameId] = useState<CardFrameId | null>(null);
   const [currencyFilter, setCurrencyFilter] = useState<'all' | 'tokens' | 'duel_coins' | 'quantum_fragments'>('all');
 
   useEffect(() => {
@@ -102,6 +108,48 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
         levelTokens: isAdmin ? currentTokens : Math.max(0, currentTokens - price),
         unlockedLayouts: [...(cosmetics.unlockedLayouts || ['default_terminal']), layoutId],
         equippedLayout: layoutId
+      });
+    }
+  };
+
+  // Desbloqueio e Equipamento de Molduras de Card
+  const handleUnlockOrEquipCardFrame = (frameId: CardFrameId, price: number, currency: CosmeticCurrency = 'tokens') => {
+    const isUnlocked = cosmetics.unlockedCardFrames?.includes(frameId) ?? (frameId === 'basic');
+
+    if (isUnlocked) {
+      onUpdateCosmetics({
+        ...cosmetics,
+        equippedCardFrame: frameId
+      });
+      return;
+    }
+
+    if (currency === 'quantum_fragments') {
+      if (!isAdmin && currentQuantumFragments < price) return;
+      audioSynthesizer.playUnlockJingle();
+      onUpdateCosmetics({
+        ...cosmetics,
+        quantumFragments: isAdmin ? currentQuantumFragments : Math.max(0, currentQuantumFragments - price),
+        unlockedCardFrames: [...(cosmetics.unlockedCardFrames || ['basic']), frameId],
+        equippedCardFrame: frameId
+      });
+    } else if (currency === 'duel_coins') {
+      if (!isAdmin && currentDuelTokens < price) return;
+      audioSynthesizer.playUnlockJingle();
+      onUpdateCosmetics({
+        ...cosmetics,
+        duelTokens: isAdmin ? currentDuelTokens : Math.max(0, currentDuelTokens - price),
+        unlockedCardFrames: [...(cosmetics.unlockedCardFrames || ['basic']), frameId],
+        equippedCardFrame: frameId
+      });
+    } else {
+      if (!isAdmin && currentTokens < price) return;
+      audioSynthesizer.playUnlockJingle();
+      onUpdateCosmetics({
+        ...cosmetics,
+        levelTokens: isAdmin ? currentTokens : Math.max(0, currentTokens - price),
+        unlockedCardFrames: [...(cosmetics.unlockedCardFrames || ['basic']), frameId],
+        equippedCardFrame: frameId
       });
     }
   };
@@ -447,8 +495,8 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
             </div>
           </div>
 
-          {/* Abas de Navegação - 5 colunas responsivas sem sobreposição */}
-          <div className="flex-shrink-0 grid grid-cols-5 border-b border-[#232838] bg-[#12151e] px-1 sm:px-6 gap-1 sm:gap-2 pt-2">
+          {/* Abas de Navegação - 6 colunas responsivas */}
+          <div className="flex-shrink-0 grid grid-cols-3 sm:grid-cols-6 border-b border-[#232838] bg-[#12151e] px-1 sm:px-6 gap-1 sm:gap-2 pt-2">
             <button
               type="button"
               onClick={() => setActiveTab('layouts')}
@@ -531,6 +579,23 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
               <span className="truncate">Animações</span>
               <span className="hidden sm:inline-block text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-zinc-800 text-zinc-300 flex-shrink-0">
                 {Object.keys(ANIMATION_CONFIGS).length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('cards')}
+              className={`flex items-center justify-center gap-1.5 sm:gap-2 py-2 sm:py-2.5 px-1 sm:px-3 rounded-t-xl text-xs sm:text-sm font-bold transition cursor-pointer border-b-2 min-w-0 ${
+                activeTab === 'cards'
+                  ? 'bg-[#181c28] text-purple-300 border-purple-400'
+                  : 'text-zinc-400 hover:text-zinc-200 border-transparent hover:bg-zinc-800/40'
+              }`}
+              title="Molduras & Estilos do Card de Perfil"
+            >
+              <Sparkles className="w-4 h-4 flex-shrink-0 text-amber-400" />
+              <span className="truncate">Cards</span>
+              <span className="hidden sm:inline-block text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-zinc-800 text-zinc-300 flex-shrink-0">
+                {Object.keys(CARD_FRAME_CONFIGS).length}
               </span>
             </button>
           </div>
@@ -1903,6 +1968,161 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                       </div>
                     );
                   })}
+              </div>
+            )}
+
+            {/* ABA 5: MOLDURAS & ESTILOS DO CARD DE PERFIL */}
+            {activeTab === 'cards' && (
+              <div className="flex flex-col lg:flex-row items-start gap-6">
+                {/* Lado Esquerdo: Preview ao Vivo do Card do Aluno */}
+                <div className="w-full lg:w-auto flex flex-col items-center gap-2 lg:sticky lg:top-0 shrink-0 mx-auto">
+                  <div className="flex items-center gap-1.5 text-xs font-mono font-bold text-zinc-400">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Prévia em Tempo Real</span>
+                  </div>
+                  <StudentProfileCard
+                    player={state || {
+                      nome: 'Digitador Modelo',
+                      apelido: 'Lenda Leopoldina',
+                      turma: '9º A',
+                      level: 42,
+                      points: 2500000,
+                      wpm: 68,
+                      accuracy: 97,
+                      maxCombo: 84,
+                      pvpWins: 12,
+                      raceWins: 5,
+                      rpgClass: 'mage',
+                      achievementsCount: 9
+                    }}
+                    overrideFrameId={previewFrameId || cosmetics.equippedCardFrame || 'basic'}
+                    isCurrentPlayer={true}
+                    className="scale-95 sm:scale-100 origin-top"
+                  />
+                  <span className="text-[10px] font-mono text-zinc-500 text-center">
+                    Moldura exibida: <strong className="text-zinc-300">{CARD_FRAME_CONFIGS[previewFrameId || cosmetics.equippedCardFrame || 'basic']?.name || 'Padrão'}</strong>
+                  </span>
+                </div>
+
+                {/* Lado Direito: Grid de Molduras Disponíveis */}
+                <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {Object.values(CARD_FRAME_CONFIGS)
+                    .filter((frame) => {
+                      const itemCurrency = frame.currency || 'tokens';
+                      if (currencyFilter === 'tokens') return itemCurrency === 'tokens';
+                      if (currencyFilter === 'duel_coins') return itemCurrency === 'duel_coins';
+                      if (currencyFilter === 'quantum_fragments') return itemCurrency === 'quantum_fragments';
+                      return true;
+                    })
+                    .map((frame) => {
+                      const isUnlocked = cosmetics.unlockedCardFrames?.includes(frame.id) ?? (frame.id === 'basic');
+                      const isEquipped = (cosmetics.equippedCardFrame || 'basic') === frame.id;
+                      const isPreviewing = (previewFrameId || cosmetics.equippedCardFrame || 'basic') === frame.id;
+                      const isQuantumCurrency = frame.currency === 'quantum_fragments';
+                      const isDuelCurrency = frame.currency === 'duel_coins';
+                      const canAfford = isAdmin || (
+                        isQuantumCurrency ? currentQuantumFragments >= frame.price :
+                        isDuelCurrency ? currentDuelTokens >= frame.price :
+                        currentTokens >= frame.price
+                      );
+
+                      return (
+                        <div
+                          key={frame.id}
+                          onMouseEnter={() => setPreviewFrameId(frame.id)}
+                          className={`p-3.5 rounded-2xl border transition-all flex flex-col justify-between gap-3 ${
+                            isEquipped
+                              ? 'bg-[#181a28] border-amber-500/70 shadow-[0_0_20px_rgba(245,158,11,0.2)] ring-1 ring-amber-500/40'
+                              : isPreviewing
+                              ? 'bg-[#151824] border-purple-500/60'
+                              : isUnlocked
+                              ? 'bg-[#12151e] border-zinc-700/60 hover:border-zinc-500'
+                              : 'bg-[#0f1118]/80 border-zinc-800/70'
+                          }`}
+                        >
+                          <div>
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-2xl select-none">{frame.icon}</span>
+                                <div>
+                                  <h4 className="text-sm font-bold text-white flex items-center gap-1.5">
+                                    <span>{frame.name}</span>
+                                    {isEquipped && (
+                                      <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-0.5">
+                                        <Check className="w-3 h-3" /> Equipado
+                                      </span>
+                                    )}
+                                  </h4>
+                                  <span className={`text-[10px] font-mono block mt-0.5 ${frame.accentText}`}>
+                                    {frame.subtitle}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full border bg-zinc-800 text-zinc-300 border-zinc-700/60 uppercase">
+                                {frame.badge}
+                              </span>
+                            </div>
+
+                            <p className="text-[11px] text-zinc-400 font-mono mt-2 leading-relaxed">
+                              {frame.description}
+                            </p>
+                          </div>
+
+                          {/* Botões de Ação */}
+                          <div className="flex items-center gap-2 pt-2 border-t border-white/5">
+                            <button
+                              type="button"
+                              onClick={() => setPreviewFrameId(frame.id)}
+                              className={`px-2.5 py-1.5 rounded-xl text-xs font-mono font-semibold transition cursor-pointer border ${
+                                isPreviewing
+                                  ? 'bg-purple-500/20 text-purple-300 border-purple-500/40'
+                                  : 'bg-zinc-800/80 hover:bg-zinc-700 text-zinc-400 hover:text-white border-zinc-700/60'
+                              }`}
+                            >
+                              {isPreviewing ? 'Visualizando' : 'Testar'}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleUnlockOrEquipCardFrame(frame.id, frame.price, frame.currency)}
+                              disabled={!isUnlocked && !canAfford}
+                              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl text-xs font-mono font-bold transition cursor-pointer ${
+                                isEquipped
+                                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 cursor-default'
+                                  : isUnlocked
+                                  ? 'bg-purple-600 hover:bg-purple-500 text-white shadow-md'
+                                  : canAfford
+                                  ? 'bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black shadow-md'
+                                  : 'bg-zinc-800/60 text-zinc-500 border border-zinc-700/40 cursor-not-allowed'
+                              }`}
+                            >
+                              {isEquipped ? (
+                                <>
+                                  <Check className="w-3.5 h-3.5" />
+                                  <span>Em Uso</span>
+                                </>
+                              ) : isUnlocked ? (
+                                <>
+                                  <Sparkles className="w-3.5 h-3.5" />
+                                  <span>Equipar Card</span>
+                                </>
+                              ) : canAfford ? (
+                                <>
+                                  <span>Desbloquear ({frame.price === 0 ? 'Grátis' : `${frame.price} Tokens`})</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Lock className="w-3 h-3 text-zinc-500" />
+                                  <span>Faltam Tokens</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
               </div>
             )}
           </div>

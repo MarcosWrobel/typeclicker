@@ -180,6 +180,9 @@ export type KeySoundThemeId =
   | 'spin_dash'
   | 'sonar_batarang';
 
+import { CardFrameId } from './cardFrames';
+export type { CardFrameId };
+
 export interface PlayerCosmetics {
   levelTokens: number;
   duelTokens: number; // Moedas de Duelo (Arena Coins ⚔️)
@@ -196,6 +199,8 @@ export interface PlayerCosmetics {
   equippedAnimation?: AnimationEffectId;
   unlockedEffects?: LevelUpEffectId[];
   equippedEffect?: LevelUpEffectId;
+  unlockedCardFrames?: CardFrameId[];
+  equippedCardFrame?: CardFrameId;
 }
 
 export const DEFAULT_COSMETICS: PlayerCosmetics = {
@@ -214,5 +219,7 @@ export const DEFAULT_COSMETICS: PlayerCosmetics = {
   equippedAnimation: 'confetti_classic',
   unlockedEffects: ['confetti'],
   equippedEffect: 'confetti',
+  unlockedCardFrames: ['basic'],
+  equippedCardFrame: 'basic',
 };
 

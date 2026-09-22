@@ -328,6 +328,25 @@ export function sanitizeCosmetics(rawCosmetics?: Partial<PlayerCosmetics> | null
     ? rawCosmetics.equippedSound
     : 'mechanical';
 
+  const validCardFrames = [
+    'basic',
+    'foil',
+    'neon',
+    'gold',
+    'magma',
+    'cosmic',
+    'matrix',
+    'steampunk'
+  ];
+
+  const unlockedCardFrames = Array.isArray(rawCosmetics.unlockedCardFrames) && rawCosmetics.unlockedCardFrames.length > 0
+    ? Array.from(new Set(['basic', ...rawCosmetics.unlockedCardFrames.filter(f => validCardFrames.includes(f as any))])) as any
+    : ['basic'];
+
+  const equippedCardFrame = (rawCosmetics.equippedCardFrame && unlockedCardFrames.includes(rawCosmetics.equippedCardFrame))
+    ? rawCosmetics.equippedCardFrame
+    : 'basic';
+
   const levelTokens = Number.isFinite(rawCosmetics.levelTokens) && (rawCosmetics.levelTokens as number) >= 0
     ? Math.floor(rawCosmetics.levelTokens as number)
     : 0;
@@ -353,7 +372,9 @@ export function sanitizeCosmetics(rawCosmetics?: Partial<PlayerCosmetics> | null
     equippedTheme,
     equippedSkin,
     equippedSound,
-    equippedAnimation
+    equippedAnimation,
+    unlockedCardFrames,
+    equippedCardFrame
   };
 }
 

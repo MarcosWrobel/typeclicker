@@ -18,6 +18,8 @@ interface StatsSidebarProps {
   achievementsCount?: { unlocked: number; total: number };
   onOpenLeaderboard?: () => void;
   onOpenLeaderboardTab?: (metric: LeaderboardMetric) => void;
+  onOpenProfileCard?: () => void;
+  onSelectPlayer?: (player: any) => void;
   currentUserId?: string;
   isAdmin?: boolean;
   isSuperAdmin?: boolean;
@@ -33,6 +35,8 @@ export const StatsSidebar: React.FC<StatsSidebarProps> = ({
   achievementsCount,
   onOpenLeaderboard,
   onOpenLeaderboardTab,
+  onOpenProfileCard,
+  onSelectPlayer,
   currentUserId,
   isAdmin = false,
   isSuperAdmin = false,
@@ -96,6 +100,24 @@ export const StatsSidebar: React.FC<StatsSidebarProps> = ({
           <div className="text-zinc-500 group-hover:text-emerald-300 transition-colors pl-1 flex-shrink-0">
             <ChevronRight className="w-4 h-4" />
           </div>
+        </button>
+      )}
+
+      {/* Botão de Destaque: Meu Card Colecionável de Aluno */}
+      {onOpenProfileCard && (
+        <button
+          type="button"
+          onClick={onOpenProfileCard}
+          className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-amber-500/15 hover:from-amber-500/25 hover:to-amber-500/25 border border-amber-500/40 hover:border-amber-400 text-amber-300 hover:text-amber-200 text-xs font-mono font-bold flex items-center justify-between transition cursor-pointer shadow-sm group"
+          title="Ver seu Card Colecionável 3D e Galeria de Insígnias"
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-base select-none">🎴</span>
+            <span className="font-mono tracking-wide">Meu Card de Aluno</span>
+          </div>
+          <span className="text-[10px] text-amber-400/80 group-hover:text-amber-300 font-normal">
+            Ver 3D →
+          </span>
         </button>
       )}
 
@@ -182,6 +204,7 @@ export const StatsSidebar: React.FC<StatsSidebarProps> = ({
         slots={effectivePioneers}
         variant="sidebar"
         currentUserId={currentUserId}
+        onSelectPlayer={onSelectPlayer}
         onOpenDetails={() => {
           if (onOpenLeaderboardTab) {
             onOpenLeaderboardTab('level');
@@ -194,6 +217,7 @@ export const StatsSidebar: React.FC<StatsSidebarProps> = ({
       {/* Pódio Top 3 Escolar (Destaque sem entrar em menu) */}
       <TopPodiumWidget
         currentUserId={currentUserId}
+        onSelectPlayer={onSelectPlayer}
         onOpenLeaderboardTab={onOpenLeaderboardTab || (onOpenLeaderboard ? () => onOpenLeaderboard() : undefined)}
       />
 

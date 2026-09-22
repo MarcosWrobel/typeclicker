@@ -158,6 +158,8 @@ export interface LeaderboardEntry {
   pvpPoints?: number;
   bestWpm?: number;
   reachedLevel100At?: string;
+  cardFrame?: string;
+  achievementsCount?: number;
 }
 
 export interface Level100PioneerSlot {
@@ -381,6 +383,9 @@ export async function saveProgressToCloud(
   if (state.isClassLocked !== undefined) leaderboardPayload.isClassLocked = state.isClassLocked;
   if (state.isRpgClassLocked !== undefined) leaderboardPayload.isRpgClassLocked = state.isRpgClassLocked;
   if (state.reachedLevel100At) leaderboardPayload.reachedLevel100At = state.reachedLevel100At;
+  if (state.cosmetics?.equippedCardFrame) leaderboardPayload.cardFrame = state.cosmetics.equippedCardFrame;
+  const unlockedAchCount = state.achievements ? Object.keys(state.achievements).length : 0;
+  if (unlockedAchCount > 0) leaderboardPayload.achievementsCount = unlockedAchCount;
 
   try {
     const cleanSavePayload = removeUndefinedFields(savePayload);

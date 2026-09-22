@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { getGlobalLeaderboard, LeaderboardEntry, isStaffMember, extractLevel100Pioneers } from '../services/firebaseService';
 import { Level100PioneersWidget } from './Level100PioneersWidget';
+import { StudentProfileCardModal } from './StudentProfileCardModal';
 import { formatBytes } from '../utils/formatting';
 import { ALL_LEVELS } from '../data/levels';
 import {
@@ -184,16 +185,23 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
   const [viewMode, setViewMode] = useState<'individual' | 'guerra_turmas'>('individual');
   const [classSortMetric, setClassSortMetric] = useState<ClassRankingSortMetric>('score');
 
+  // Aluno selecionado para exibição do Card Colecionável de Perfil
+  const [selectedCardPlayer, setSelectedCardPlayer] = useState<LeaderboardEntry | null>(null);
+
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        onClose();
+        if (selectedCardPlayer) {
+          setSelectedCardPlayer(null);
+        } else {
+          onClose();
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, selectedCardPlayer]);
 
   useEffect(() => {
     if (isOpen) {
@@ -954,6 +962,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                       slots={level100Pioneers}
                       variant="banner"
                       currentUserId={currentUserId}
+                      onSelectPlayer={setSelectedCardPlayer}
                     />
                   )}
 
@@ -1004,11 +1013,13 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                     return (
                       <div
                         key={player.userId}
-                        className={`flex items-center gap-3 sm:gap-4 p-3 sm:p-3.5 rounded-xl border transition-all ${
+                        onClick={() => setSelectedCardPlayer(player)}
+                        className={`flex items-center gap-3 sm:gap-4 p-3 sm:p-3.5 rounded-xl border transition-all cursor-pointer group hover:scale-[1.006] hover:border-amber-500/40 hover:shadow-[0_0_15px_rgba(245,158,11,0.12)] ${
                           isCurrentUser
                             ? `${currentMetric.activeBorder} ${currentMetric.badgeBg} shadow-[0_0_15px_rgba(16,185,129,0.15)] ring-1 ring-white/20`
-                            : 'border-white/5 bg-[#12151e] hover:bg-zinc-800/60'
+                            : 'border-white/5 bg-[#12151e] hover:bg-zinc-800/80'
                         }`}
+                        title={`Clique para ver o Card Colecionável de ${player.apelido || player.nome}`}
                       >
                         {/* Posição / Medalha */}
                         {rankBadge}
@@ -1271,6 +1282,12 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                             </span>
                           </div>
                         )}
+
+                        {/* Indicador Visual do Card Colecionável */}
+                        <div className="hidden md:flex items-center gap-1 text-[11px] font-mono text-amber-400/80 group-hover:text-amber-300 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 px-2 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 shadow-sm">
+                          <span>Card</span>
+                          <span>🎴</span>
+                        </div>
                       </div>
                     );
                   })}
@@ -1348,6 +1365,15 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
           </motion.div>
         </motion.div>
       )}
+
+      {/* Modal do Card Colecionável de Perfil ao clicar em qualquer Aluno */}
+      <StudentProfileCardModal
+        isOpen={selectedCardPlayer !== null}
+        onClose={() => setSelectedCardPlayer(null)}
+        player={selectedCardPlayer}
+        pioneerRank={selectedCardPlayer?.userId ? pioneerMap[selectedCardPlayer.userId]?.rank : undefined}
+        isCurrentPlayer={selectedCardPlayer?.userId === currentUserId}
+      />
     </AnimatePresence>
   );
 };

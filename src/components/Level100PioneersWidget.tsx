@@ -7,6 +7,7 @@ interface Level100PioneersWidgetProps {
   variant?: 'sidebar' | 'banner' | 'modal';
   currentUserId?: string;
   onOpenDetails?: () => void;
+  onSelectPlayer?: (player: any) => void;
 }
 
 const RANK_BADGES = {
@@ -43,7 +44,8 @@ export const Level100PioneersWidget: React.FC<Level100PioneersWidgetProps> = ({
   slots,
   variant = 'sidebar',
   currentUserId,
-  onOpenDetails
+  onOpenDetails,
+  onSelectPlayer
 }) => {
   const formatDate = (isoString?: string) => {
     if (!isoString) return '';
@@ -90,10 +92,22 @@ export const Level100PioneersWidget: React.FC<Level100PioneersWidgetProps> = ({
               return (
                 <div
                   key={slot.rank}
+                  onClick={(e) => {
+                    if (onSelectPlayer && slot.player) {
+                      e.stopPropagation();
+                      onSelectPlayer(slot.player);
+                    }
+                  }}
                   className={`flex items-center justify-between gap-2 p-1.5 rounded-xl border ${badge.border} ${badge.bg} text-xs font-mono transition-all ${
+                    onSelectPlayer ? 'hover:scale-[1.02] hover:border-amber-400 cursor-pointer' : ''
+                  } ${
                     isMe ? 'ring-1 ring-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.3)]' : ''
                   }`}
-                  title={`${badge.title}: ${displayName} (${slot.player.turma}) em ${formatDate(slot.reachedAt)}`}
+                  title={
+                    onSelectPlayer
+                      ? `Clique para ver o Card Colecionável de ${displayName}`
+                      : `${badge.title}: ${displayName} (${slot.player.turma}) em ${formatDate(slot.reachedAt)}`
+                  }
                 >
                   <div className="flex items-center gap-1.5 min-w-0">
                     <span className="text-base select-none flex-shrink-0">{slot.player.avatar || badge.icon}</span>
@@ -177,9 +191,17 @@ export const Level100PioneersWidget: React.FC<Level100PioneersWidgetProps> = ({
             return (
               <div
                 key={slot.rank}
-                className={`flex flex-col items-center p-3.5 rounded-2xl border ${badge.border} ${badge.bg} ${badge.glow} relative text-center min-w-0 transition-transform duration-200 hover:scale-[1.02] ${
+                onClick={() => {
+                  if (onSelectPlayer && slot.player) {
+                    onSelectPlayer(slot.player);
+                  }
+                }}
+                className={`flex flex-col items-center p-3.5 rounded-2xl border ${badge.border} ${badge.bg} ${badge.glow} relative text-center min-w-0 transition-all duration-200 ${
+                  onSelectPlayer ? 'hover:scale-[1.03] hover:border-amber-300 cursor-pointer group' : 'hover:scale-[1.02]'
+                } ${
                   isMe ? 'ring-2 ring-amber-400' : ''
                 }`}
+                title={onSelectPlayer ? `Clique para ver o Card Colecionável de ${displayName}` : undefined}
               >
                 {/* Badge de Posição */}
                 <div className={`absolute -top-2.5 px-3 py-0.5 rounded-full text-[10px] font-black font-mono tracking-wider border shadow-md ${badge.text} bg-black/90 ${badge.border}`}>
@@ -197,6 +219,13 @@ export const Level100PioneersWidget: React.FC<Level100PioneersWidgetProps> = ({
                 <span className="text-xs font-mono text-amber-300 font-bold mt-0.5">
                   Turma {slot.player.turma || 'Geral'}
                 </span>
+
+                {onSelectPlayer && (
+                  <div className="mt-1.5 px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-[10px] font-mono text-amber-300 group-hover:bg-amber-500/30 transition flex items-center gap-1">
+                    <span>Ver Card</span>
+                    <span>🎴</span>
+                  </div>
+                )}
 
                 <div className="mt-2 pt-2 border-t border-white/10 w-full flex items-center justify-center gap-1 text-[10px] font-mono text-zinc-400">
                   <Calendar className="w-3 h-3 text-zinc-500" />
