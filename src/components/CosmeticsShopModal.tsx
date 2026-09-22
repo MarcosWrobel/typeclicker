@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Sparkles, Check, Lock, Volume2, Palette, Bot, Coins, LayoutGrid, Flame, Swords, Play } from 'lucide-react';
 import { PlayerCosmetics, TerminalThemeId, BytezinhoSkinId, KeySoundThemeId, LayoutSkinId, AnimationEffectId, CosmeticCurrency } from '../types/cosmetics';
@@ -29,6 +29,17 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
   const [playingPreview, setPlayingPreview] = useState<KeySoundThemeId | null>(null);
   const [testingAnimationId, setTestingAnimationId] = useState<AnimationEffectId | null>(null);
   const [currencyFilter, setCurrencyFilter] = useState<'all' | 'tokens' | 'duel_coins' | 'quantum_fragments'>('all');
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 

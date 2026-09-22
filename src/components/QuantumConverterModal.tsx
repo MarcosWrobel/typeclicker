@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Sparkles, Zap, Lock, ArrowRight, ShieldCheck, RefreshCw, Cpu, Award } from 'lucide-react';
 import { formatBytes, formatNumber } from '../utils/formatting';
@@ -42,6 +42,17 @@ export const QuantumConverterModal: React.FC<QuantumConverterModalProps> = ({
   const [selectedCount, setSelectedCount] = useState<number>(1);
   const [isConverting, setIsConverting] = useState<boolean>(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 

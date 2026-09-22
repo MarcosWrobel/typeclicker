@@ -279,16 +279,29 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
     lastCharIndexRef.current = charIndex;
   }, [charIndex, currentWord, activeTerminalTheme, equippedAnimation]);
 
-  // Mantém o input focado para captura de digitação direta no laboratório
+  // Desfoca imediatamente o input invisível e suspende o foco quando o jogo estiver pausado
+  useEffect(() => {
+    if (isPaused) {
+      inputRef.current?.blur();
+      setIsFocused(false);
+    }
+  }, [isPaused, inputRef]);
+
+  // Mantém o input focado para captura de digitação direta no laboratório quando o jogo estiver ativo
   useEffect(() => {
     if (isPaused) return;
 
     const focusInput = () => {
       if (isPaused) return;
+
+      // Salvaguarda extra: se houver qualquer modal ou overlay z-50 ativo no DOM, aborta imediatamente
+      const hasActiveModal = Boolean(document.querySelector('.fixed.inset-0.z-50, .fixed.inset-0.z-\\[100\\]'));
+      if (hasActiveModal) return;
+
       if (inputRef.current && document.activeElement !== inputRef.current) {
-        // Não rouba foco se o aluno estiver editando campo modal de texto
+        // Não rouba foco se o aluno ou professor estiver editando campos, selects ou botões de diálogo
         const activeTag = document.activeElement?.tagName?.toLowerCase();
-        if (activeTag !== 'input' && activeTag !== 'textarea') {
+        if (activeTag !== 'input' && activeTag !== 'textarea' && activeTag !== 'select') {
           inputRef.current.focus({ preventScroll: true });
         }
       }
@@ -307,6 +320,7 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
 
   // Processa caracteres digitados no input nativo (suporta composição de acentos ABNT2)
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (isPaused) return;
     const val = e.target.value;
     if (!val) return;
 
@@ -323,6 +337,8 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
 
   // Captura eventos de teclas mortas (Dead) e cancelamento de acentuação
   const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (isPaused) return;
+
     // Tecla Escape: se tiver acento pendente, cancela o acento (ABNT2).
     // Se não tiver acento pendente, permite a propagação para o listener unificado do App.tsx.
     if (e.key === 'Escape') {
@@ -920,7 +936,10 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
 
           {/* Pause Shield & Action Overlay */}
           {isPaused && (
-            <div className="absolute inset-0 z-20 bg-[#0d1017]/95 backdrop-blur-sm rounded-2xl p-4 sm:p-8 flex flex-col items-center justify-center text-center border-2 border-amber-500 shadow-[0_0_40px_rgba(245,158,11,0.3)] select-none animate-fadeIn">
+            <div
+              onClick={onResume}
+              className="absolute inset-0 z-20 bg-[#0d1017]/95 backdrop-blur-sm rounded-2xl p-4 sm:p-8 flex flex-col items-center justify-center text-center border-2 border-amber-500 shadow-[0_0_40px_rgba(245,158,11,0.3)] select-none animate-fadeIn cursor-pointer"
+            >
               {/* Ícone Pulsante de Pausa */}
               <div className="relative mb-3">
                 <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-amber-500/20 border-2 border-amber-400 flex items-center justify-center text-amber-400 shadow-[0_0_25px_rgba(245,158,11,0.5)]">

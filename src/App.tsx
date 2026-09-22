@@ -129,6 +129,34 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState<boolean>(true);
   const [systemSettingsState, setSystemSettingsState] = useState<any>(null);
 
+  // Estado consolidado: indica se qualquer janela sobreposta (modal, arena secundária ou trava) está ativa
+  const isAnyModalOpen = Boolean(
+    isAdminOpen ||
+    isStudentModalOpen ||
+    isMetricsOpen ||
+    isPrestigeOpen ||
+    isLevelsModalOpen ||
+    isHelpOpen ||
+    isLeaderboardOpen ||
+    isCosmeticsOpen ||
+    isAccessibilityOpen ||
+    isAchievementsOpen ||
+    isQuestsOpen ||
+    isDungeonOpen ||
+    isChestMinigameOpen ||
+    activeRpgFloor !== null ||
+    isArenaOpen ||
+    isConverterOpen ||
+    isRaceArenaOpen ||
+    isRaidArenaOpen ||
+    activeChallengeLevel !== null ||
+    activeFocusDrill !== null ||
+    (isAppLocked && !isAdmin)
+  );
+
+  const isAnyModalOpenRef = useRef<boolean>(false);
+  isAnyModalOpenRef.current = isAnyModalOpen;
+
   // Verificação da Trava Escolar
   const handleUnlockCode = async (code: string): Promise<boolean> => {
     setIsVerifyingLock(true);
@@ -581,6 +609,14 @@ export default function App() {
     });
   }, []);
 
+  // Ativa a pausa do jogo automaticamente ao entrar em qualquer janela sobreposta (modal / arena secundária)
+  useEffect(() => {
+    if (isAnyModalOpen) {
+      handlePauseGame();
+      typingInputRef.current?.blur();
+    }
+  }, [isAnyModalOpen, handlePauseGame]);
+
   // Global keyboard shortcut to pause or resume STRICTLY with Esc or Pause key anywhere on the page
   // (Ignoring when typing inside text inputs, textareas or when modal dialogs are open)
   useEffect(() => {
@@ -606,26 +642,7 @@ export default function App() {
       }
 
       // If any major modal is active, allow Esc to close modal natively (handled by modals)
-      if (
-        isMetricsOpen ||
-        isPrestigeOpen ||
-        isLevelsModalOpen ||
-        isHelpOpen ||
-        isLeaderboardOpen ||
-        isStudentModalOpen ||
-        isCosmeticsOpen ||
-        isAchievementsOpen ||
-        isQuestsOpen ||
-        isDungeonOpen ||
-        activeRpgFloor !== null ||
-        isArenaOpen ||
-        isRaceArenaOpen ||
-        isRaidArenaOpen ||
-        isConverterOpen ||
-        isAdminOpen ||
-        activeChallengeLevel !== null ||
-        (isAppLocked && !isAdmin)
-      ) {
+      if (isAnyModalOpen) {
         return;
       }
 
@@ -637,25 +654,7 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
   }, [
     handleTogglePause,
-    isMetricsOpen,
-    isPrestigeOpen,
-    isLevelsModalOpen,
-    isHelpOpen,
-    isLeaderboardOpen,
-    isStudentModalOpen,
-    isCosmeticsOpen,
-    isAchievementsOpen,
-    isQuestsOpen,
-    isDungeonOpen,
-    activeRpgFloor,
-    isArenaOpen,
-    isRaceArenaOpen,
-    isRaidArenaOpen,
-    isConverterOpen,
-    isAdminOpen,
-    activeChallengeLevel,
-    isAppLocked,
-    isAdmin
+    isAnyModalOpen
   ]);
 
   // Recalculate base rates from purchased upgrades
@@ -1357,7 +1356,7 @@ export default function App() {
   }, [spawnFloatingText, activeFocusDrill, checkAndAwardAchievements, applyQuestEvents]);
 
   const handleDeadKey = useCallback((accent: string) => {
-    if (isPausedRef.current) return;
+    if (isPausedRef.current || isAnyModalOpenRef.current) return;
     setPendingAccent(accent);
   }, []);
 
@@ -1368,8 +1367,8 @@ export default function App() {
   // Global keydown typing listener (ABNT2 Linux fallback)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Se estiver em pausa, a digitação fica suspensa (Escape para despausar é gerido pelo listener unificado)
-      if (isPausedRef.current) {
+      // Se estiver em pausa ou com janela sobreposta aberta, a digitação do jogo base fica suspensa
+      if (isPausedRef.current || isAnyModalOpen) {
         return;
       }
 
@@ -1379,26 +1378,7 @@ export default function App() {
       }
 
       // Não captura digitação do jogo base se a Arena 1x1 ou outros modais estiverem abertos
-      if (
-        isArenaOpen ||
-        isMetricsOpen ||
-        isPrestigeOpen ||
-        isLevelsModalOpen ||
-        isHelpOpen ||
-        isLeaderboardOpen ||
-        isStudentModalOpen ||
-        isCosmeticsOpen ||
-        isAchievementsOpen ||
-        isQuestsOpen ||
-        isDungeonOpen ||
-        activeRpgFloor !== null ||
-        isConverterOpen ||
-        isAdminOpen ||
-        activeChallengeLevel !== null ||
-        activeFocusDrill !== null ||
-        isRaceArenaOpen ||
-        isRaidArenaOpen
-      ) {
+      if (isAnyModalOpen) {
         return;
       }
 
@@ -1463,24 +1443,7 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [
     handleTypeChar,
-    isArenaOpen,
-    isRaceArenaOpen,
-    isRaidArenaOpen,
-    isMetricsOpen,
-    isPrestigeOpen,
-    isLevelsModalOpen,
-    isHelpOpen,
-    isLeaderboardOpen,
-    isStudentModalOpen,
-    isCosmeticsOpen,
-    isAchievementsOpen,
-    isQuestsOpen,
-    isDungeonOpen,
-    activeRpgFloor,
-    isConverterOpen,
-    isAdminOpen,
-    activeChallengeLevel,
-    activeFocusDrill
+    isAnyModalOpen
   ]);
 
   // 100ms Interval: Cadence Buffer & Idle/Draining Tick Loop
@@ -1488,7 +1451,7 @@ export default function App() {
     let tickCounter = 0;
 
     const idleTimer = setInterval(() => {
-      if (isPausedRef.current) return;
+      if (isPausedRef.current || isAnyModalOpenRef.current) return;
 
       tickCounter++;
       const currentBuffer = focusBufferRef.current;
@@ -1562,7 +1525,7 @@ export default function App() {
   // 1000ms Interval: Active practice time tracker
   useEffect(() => {
     const secTimer = setInterval(() => {
-      if (isPausedRef.current || isDrainingRef.current) return;
+      if (isPausedRef.current || isAnyModalOpenRef.current || isDrainingRef.current) return;
       setState((prev) => ({
         ...prev,
         totalActiveSeconds: prev.totalActiveSeconds + 1
@@ -2137,7 +2100,7 @@ export default function App() {
               equippedAnimation={currentCosmetics.equippedAnimation || 'confetti_classic'}
             />
             <PauseOverlay
-              isOpen={isPaused}
+              isOpen={isPaused && !isAnyModalOpen}
               onResume={handleResumeGame}
               studentName={state.studentNickname || state.studentName}
               selectedCategory={state.selectedCategory}
@@ -2149,7 +2112,7 @@ export default function App() {
         header={
           <Header
             state={state}
-            isPaused={isPaused}
+            isPaused={isPaused || isAnyModalOpen}
             isAdmin={isAdmin}
             isSuperAdmin={checkIsSuperAdmin(user)}
             onTogglePause={handleTogglePause}
@@ -2248,7 +2211,7 @@ export default function App() {
             isOverloaded={isOverloaded}
             isOverheating={isOverloaded || isDraining}
             drainRatePerSec={Math.max(1, Math.round(state.bytesPerChar * 1.2) + Math.round(state.bytes * 0.003))}
-            isPaused={isPaused}
+            isPaused={isPaused || isAnyModalOpen}
             onResume={handleResumeGame}
             onPause={handlePauseGame}
             equippedSkin={currentCosmetics.equippedSkin || 'classic'}
@@ -2286,7 +2249,7 @@ export default function App() {
             state={state}
             onBuyUpgrade={handleBuyUpgrade}
             onOpenPrestige={() => setIsPrestigeOpen(true)}
-            isPaused={isPaused}
+            isPaused={isPaused || isAnyModalOpen}
             equippedAnimation={currentCosmetics.equippedAnimation || 'confetti_classic'}
           />
         }

@@ -184,6 +184,17 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
   const [classSortMetric, setClassSortMetric] = useState<ClassRankingSortMetric>('score');
 
   useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
+  useEffect(() => {
     if (isOpen) {
       if (initialTab) {
         setActiveRankTab(normalizeTab(initialTab));

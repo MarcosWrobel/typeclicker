@@ -207,6 +207,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
+  // Fechamento pelo teclado com Escape (compatível com a dica visual do header "Fechar Painel (ESC)")
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   // Escuta a corrida ativa da turma em tempo real
   useEffect(() => {
     const unsub = subscribeToActiveRace((race) => {
