@@ -133,6 +133,8 @@ export default function App() {
   const [systemSettingsState, setSystemSettingsState] = useState<any>(null);
 
   // Estado consolidado: indica se qualquer janela sobreposta (modal, arena secundária ou trava) está ativa
+  // NOTA: O Modo Foco de Calibração (activeFocusDrill) é intencionalmente EXCEÇÃO a esta regra,
+  // permitindo que o jogador retome a digitação no terminal de forma fluida após calibrar erros, sem pausar o jogo.
   const isAnyModalOpen = Boolean(
     isAdminOpen ||
     isStudentModalOpen ||
@@ -154,7 +156,6 @@ export default function App() {
     isRaceArenaOpen ||
     isRaidArenaOpen ||
     activeChallengeLevel !== null ||
-    activeFocusDrill !== null ||
     (isAppLocked && !isAdmin)
   );
 
@@ -580,6 +581,9 @@ export default function App() {
   const drillSessionRef = useRef<DrillSession | null>(null);
   drillSessionRef.current = drillSession;
 
+  const activeFocusDrillRef = useRef<{ targetKey: string; words: string[] } | null>(null);
+  activeFocusDrillRef.current = activeFocusDrill;
+
   const lastKeyTimestampRef = useRef<number>(performance.now());
   const lastMissedCharRef = useRef<string>('');
   const sameCharMissCountRef = useRef<number>(0);
@@ -648,8 +652,9 @@ export default function App() {
         return;
       }
 
-      // If any major modal is active, allow Esc to close modal natively (handled by modals)
-      if (isAnyModalOpen) {
+      // If any major modal is active, allow Esc to close modal natively (handled by modals).
+      // O activeFocusDrill trata o Esc diretamente no FocusDrillModal (onSkip) sem pausar o jogo.
+      if (isAnyModalOpen || activeFocusDrill !== null) {
         return;
       }
 
@@ -661,7 +666,8 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
   }, [
     handleTogglePause,
-    isAnyModalOpen
+    isAnyModalOpen,
+    activeFocusDrill
   ]);
 
   // Recalculate base rates from purchased upgrades
@@ -1037,7 +1043,7 @@ export default function App() {
     spawnFloatingText('Treino encerrado', 'error');
   }, [spawnFloatingText]);
 
-  // Handlers para o Modo Foco de Calibração (Sem tempo limite)
+  // Handlers para o Modo Foco de Calibração (Sem tempo limite e com retorno fluido sem pausa)
   const handleFocusDrillSuccess = useCallback((reward: number) => {
     setState((prev) => {
       const nextState: GameState = {
@@ -1056,7 +1062,13 @@ export default function App() {
     setOverloadRecoveryCount(0);
     overloadRecoveryRef.current = 0;
     setActiveFocusDrill(null);
+    activeFocusDrillRef.current = null;
+    setIsPaused(false);
+    isPausedRef.current = false;
     spawnFloatingText(`⚡ CIRCUITO RESTABELECIDO! +${reward} B`, 'success');
+    setTimeout(() => {
+      typingInputRef.current?.focus({ preventScroll: true });
+    }, 50);
   }, [spawnFloatingText, checkAndAwardAchievements, applyQuestEvents]);
 
   const handleFocusDrillSkip = useCallback(() => {
@@ -1067,7 +1079,13 @@ export default function App() {
     setOverloadRecoveryCount(0);
     overloadRecoveryRef.current = 0;
     setActiveFocusDrill(null);
+    activeFocusDrillRef.current = null;
+    setIsPaused(false);
+    isPausedRef.current = false;
     spawnFloatingText('Modo foco dispensado', 'error');
+    setTimeout(() => {
+      typingInputRef.current?.focus({ preventScroll: true });
+    }, 50);
   }, [spawnFloatingText]);
 
   // Processador central de caracteres digitados (com suporte a acentos ABNT2 e composição)
@@ -1390,10 +1408,12 @@ export default function App() {
           ? session.drillWords.slice(0, 3)
           : [`${expectedChar}${expectedChar}${expectedChar}`, `${expectedChar}a${expectedChar}`, `${expectedChar}o${expectedChar}`];
 
-        setActiveFocusDrill({
+        const focusData = {
           targetKey: expectedChar,
           words: focusWords
-        });
+        };
+        setActiveFocusDrill(focusData);
+        activeFocusDrillRef.current = focusData;
         sameCharMissCountRef.current = 0;
         lastMissedCharRef.current = '';
         sound.playGlitch();
@@ -1402,7 +1422,7 @@ export default function App() {
   }, [spawnFloatingText, activeFocusDrill, checkAndAwardAchievements, applyQuestEvents]);
 
   const handleDeadKey = useCallback((accent: string) => {
-    if (isPausedRef.current || isAnyModalOpenRef.current) return;
+    if (isPausedRef.current || isAnyModalOpenRef.current || activeFocusDrillRef.current) return;
     setPendingAccent(accent);
   }, []);
 
@@ -1413,8 +1433,9 @@ export default function App() {
   // Global keydown typing listener (ABNT2 Linux fallback)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Se estiver em pausa ou com janela sobreposta aberta, a digitação do jogo base fica suspensa
-      if (isPausedRef.current || isAnyModalOpen) {
+      // Se estiver em pausa ou com janela sobreposta aberta, a digitação do jogo base fica suspensa.
+      // O activeFocusDrill é tratado com exclusividade pelo FocusDrillModal sem acionar a pausa global.
+      if (isPausedRef.current || isAnyModalOpen || activeFocusDrill !== null) {
         return;
       }
 
@@ -1424,7 +1445,7 @@ export default function App() {
       }
 
       // Não captura digitação do jogo base se a Arena 1x1 ou outros modais estiverem abertos
-      if (isAnyModalOpen) {
+      if (isAnyModalOpen || activeFocusDrill !== null) {
         return;
       }
 
@@ -1489,7 +1510,8 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [
     handleTypeChar,
-    isAnyModalOpen
+    isAnyModalOpen,
+    activeFocusDrill
   ]);
 
   // 100ms Interval: Cadence Buffer & Idle/Draining Tick Loop
@@ -1497,7 +1519,7 @@ export default function App() {
     let tickCounter = 0;
 
     const idleTimer = setInterval(() => {
-      if (isPausedRef.current || isAnyModalOpenRef.current) return;
+      if (isPausedRef.current || isAnyModalOpenRef.current || activeFocusDrillRef.current) return;
 
       tickCounter++;
       const currentBuffer = focusBufferRef.current;
@@ -1571,7 +1593,7 @@ export default function App() {
   // 1000ms Interval: Active practice time tracker
   useEffect(() => {
     const secTimer = setInterval(() => {
-      if (isPausedRef.current || isAnyModalOpenRef.current || isDrainingRef.current) return;
+      if (isPausedRef.current || isAnyModalOpenRef.current || activeFocusDrillRef.current || isDrainingRef.current) return;
       setState((prev) => ({
         ...prev,
         totalActiveSeconds: prev.totalActiveSeconds + 1
@@ -1590,8 +1612,8 @@ export default function App() {
     return () => clearInterval(saveTimer);
   }, []);
 
-  // Buy upgrade action
-  const handleBuyUpgrade = useCallback((upgrade: UpgradeDef) => {
+  // Buy upgrade action (retorna true se efetuado, false se saldo insuficiente)
+  const handleBuyUpgrade = useCallback((upgrade: UpgradeDef): boolean => {
     const curr = stateRef.current;
     const currentCount = curr.upgrades[upgrade.id] || 0;
     const cost = getUpgradeCost(upgrade, currentCount);
@@ -1604,22 +1626,24 @@ export default function App() {
       };
       const { bytesPerChar, autoBytesPerSec } = computeBaseRates(nextUpgrades);
 
-      setState((prev) => {
-        const nextState: GameState = {
-          ...prev,
-          bytes: prev.bytes - cost,
-          upgrades: nextUpgrades,
-          bytesPerChar,
-          autoBytesPerSec
-        };
-        return checkAndAwardAchievements(nextState);
-      });
+      const nextState: GameState = {
+        ...curr,
+        bytes: curr.bytes - cost,
+        upgrades: nextUpgrades,
+        bytesPerChar,
+        autoBytesPerSec
+      };
+      const awardedState = checkAndAwardAchievements(nextState);
+      stateRef.current = awardedState; // Sincroniza imediatamente o ref para suportar compras contínuas no clique mantido
+      setState(awardedState);
 
       setRecentUpgradeBought(upgrade.name);
       setTimeout(() => setRecentUpgradeBought(null), 2500);
 
       spawnFloatingText(`+NÍVEL: ${upgrade.name}`, 'level');
+      return true;
     }
+    return false;
   }, [computeBaseRates, spawnFloatingText, checkAndAwardAchievements]);
 
   // Prestige confirm action
@@ -2146,7 +2170,7 @@ export default function App() {
               equippedAnimation={currentCosmetics.equippedAnimation || 'confetti_classic'}
             />
             <PauseOverlay
-              isOpen={isPaused && !isAnyModalOpen}
+              isOpen={isPaused && !isAnyModalOpen && activeFocusDrill === null}
               onResume={handleResumeGame}
               studentName={state.studentNickname || state.studentName}
               selectedCategory={state.selectedCategory}

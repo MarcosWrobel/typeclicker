@@ -156,6 +156,8 @@ export const FocusDrillModal: React.FC<FocusDrillModalProps> = ({
       if (statusRef.current !== 'playing') return;
 
       if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
         onSkip();
         return;
       }

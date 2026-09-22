@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Keyboard,
   Zap,
@@ -22,7 +22,7 @@ import { triggerUpgradePurchaseVfx } from '../services/fxEngine';
 
 interface ShopPanelProps {
   state: GameState;
-  onBuyUpgrade: (upgrade: UpgradeDef) => void;
+  onBuyUpgrade: (upgrade: UpgradeDef) => boolean | void;
   onOpenPrestige: () => void;
   isPaused?: boolean;
   equippedAnimation?: AnimationEffectId;
@@ -45,7 +45,18 @@ export const ShopPanel: React.FC<ShopPanelProps> = ({
 }) => {
   const [filter, setFilter] = useState<'all' | 'active' | 'passive'>('all');
   const [lastBoughtId, setLastBoughtId] = useState<string | null>(null);
+  const [holdingUpgradeId, setHoldingUpgradeId] = useState<string | null>(null);
+  const [holdLevelsBought, setHoldLevelsBought] = useState<number>(0);
   const [floatingAlerts, setFloatingAlerts] = useState<FloatingUpgradeAlert[]>([]);
+
+  const holdTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const holdIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isHoldingRef = useRef<boolean>(false);
+  const activeHoldingUpgradeRef = useRef<UpgradeDef | null>(null);
+  const currentButtonRectRef = useRef<DOMRect | null>(null);
+  const hasHandledPointerDownRef = useRef<boolean>(false);
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
   const getUpgradeIcon = (iconName: string) => {
     switch (iconName) {
@@ -62,39 +73,174 @@ export const ShopPanel: React.FC<ShopPanelProps> = ({
     }
   };
 
-  const handleUpgradeClick = (upgrade: UpgradeDef, e: React.MouseEvent<HTMLButtonElement>) => {
-    const count = state.upgrades[upgrade.id] || 0;
+  const stopHolding = useCallback(() => {
+    if (holdTimeoutRef.current) {
+      clearTimeout(holdTimeoutRef.current);
+      holdTimeoutRef.current = null;
+    }
+    if (holdIntervalRef.current) {
+      clearTimeout(holdIntervalRef.current);
+      holdIntervalRef.current = null;
+    }
+    isHoldingRef.current = false;
+    activeHoldingUpgradeRef.current = null;
+    setHoldingUpgradeId(null);
+    setHoldLevelsBought(0);
+  }, []);
+
+  // Cleanup on unmount or pause
+  useEffect(() => {
+    return () => {
+      stopHolding();
+    };
+  }, [stopHolding]);
+
+  // Window-level pointerup / pointercancel ensures holding always releases reliably
+  useEffect(() => {
+    const handleGlobalPointerUp = () => {
+      if (isHoldingRef.current || holdTimeoutRef.current || holdIntervalRef.current) {
+        stopHolding();
+      }
+    };
+
+    window.addEventListener('pointerup', handleGlobalPointerUp);
+    window.addEventListener('pointercancel', handleGlobalPointerUp);
+    return () => {
+      window.removeEventListener('pointerup', handleGlobalPointerUp);
+      window.removeEventListener('pointercancel', handleGlobalPointerUp);
+    };
+  }, [stopHolding]);
+
+  const executePurchase = useCallback((upgrade: UpgradeDef, buttonRect?: DOMRect) => {
+    const count = stateRef.current.upgrades[upgrade.id] || 0;
     const cost = getUpgradeCost(upgrade, count);
-    if (state.bytes < cost) return;
+    if (stateRef.current.bytes < cost) {
+      return false;
+    }
 
     // Dispara a compra no estado global
-    onBuyUpgrade(upgrade);
+    const success = onBuyUpgrade(upgrade);
+    if (success === false) return false;
+
+    const nextCount = count + 1;
+    const isMilestone = nextCount % 5 === 0;
 
     // Marca o ID para animação de pulso no card
     setLastBoughtId(upgrade.id);
     setTimeout(() => {
       setLastBoughtId((curr) => (curr === upgrade.id ? null : curr));
-    }, 500);
+    }, 400);
 
     // Dispara o efeito visual customizado equipado a cada compra (com boost em marcos de 5 em 5)
-    const rect = e.currentTarget.getBoundingClientRect();
-    const isMilestone = (count + 1) % 5 === 0;
-    triggerUpgradePurchaseVfx(equippedAnimation, rect, isMilestone);
+    if (buttonRect && (isMilestone || !isHoldingRef.current)) {
+      triggerUpgradePurchaseVfx(equippedAnimation, buttonRect, isMilestone);
+    }
 
+    // Cria ou atualiza tag flutuante pedagógica
+    setFloatingAlerts((prev) => {
+      const existing = prev.find((a) => a.upgradeId === upgrade.id);
+      if (existing && isHoldingRef.current) {
+        return prev.map((a) =>
+          a.id === existing.id
+            ? {
+                ...a,
+                text: `Nv. ${nextCount}!`,
+                detail: upgrade.type === 'passive' ? `+${upgrade.value}/s` : `+${upgrade.value}/tecla`
+              }
+            : a
+        );
+      }
 
-    // Cria tag flutuante pedagógica
-    const newAlert: FloatingUpgradeAlert = {
-      id: Date.now() + Math.random(),
-      upgradeId: upgrade.id,
-      text: `Nv. ${count + 1}!`,
-      detail: upgrade.type === 'passive' ? `+${upgrade.value}/s` : `+${upgrade.value}/tecla`,
-      type: upgrade.type
-    };
+      const newAlert: FloatingUpgradeAlert = {
+        id: Date.now() + Math.random(),
+        upgradeId: upgrade.id,
+        text: `Nv. ${nextCount}!`,
+        detail: upgrade.type === 'passive' ? `+${upgrade.value}/s` : `+${upgrade.value}/tecla`,
+        type: upgrade.type
+      };
+      return [...prev.slice(-3), newAlert];
+    });
 
-    setFloatingAlerts((prev) => [...prev, newAlert]);
     setTimeout(() => {
-      setFloatingAlerts((prev) => prev.filter((a) => a.id !== newAlert.id));
+      setFloatingAlerts((prev) => prev.filter((a) => a.upgradeId !== upgrade.id || a.id > Date.now() - 700));
     }, 800);
+
+    return true;
+  }, [onBuyUpgrade, equippedAnimation]);
+
+  const startHolding = (upgrade: UpgradeDef, e: React.PointerEvent<HTMLButtonElement>) => {
+    if (e.button !== 0) return; // Apenas botão primário (mouse esquerdo / touch)
+    e.preventDefault();
+
+    stopHolding();
+
+    const button = e.currentTarget;
+    const rect = button.getBoundingClientRect();
+    currentButtonRectRef.current = rect;
+    activeHoldingUpgradeRef.current = upgrade;
+    hasHandledPointerDownRef.current = true;
+
+    // Compra imediata do primeiro nível com feedback instantâneo
+    const bought = executePurchase(upgrade, rect);
+    if (!bought) {
+      return;
+    }
+
+    let boughtInSession = 1;
+    setHoldLevelsBought(1);
+
+    // Timeout inicial para detecção de clique pressionado e segurado
+    holdTimeoutRef.current = setTimeout(() => {
+      isHoldingRef.current = true;
+      setHoldingUpgradeId(upgrade.id);
+
+      let intervalMs = 130;
+      let tickCount = 0;
+
+      const scheduleNextTick = () => {
+        holdIntervalRef.current = setTimeout(() => {
+          if (!isHoldingRef.current || !activeHoldingUpgradeRef.current) {
+            stopHolding();
+            return;
+          }
+
+          tickCount++;
+          const targetUpgrade = activeHoldingUpgradeRef.current;
+          const rect = currentButtonRectRef.current || undefined;
+          const success = executePurchase(targetUpgrade, rect);
+
+          if (!success) {
+            stopHolding();
+            return;
+          }
+
+          boughtInSession++;
+          setHoldLevelsBought(boughtInSession);
+
+          // Rampa de aceleração gradual conforme o usuário segura por mais tempo
+          if (tickCount > 15) {
+            intervalMs = 45;
+          } else if (tickCount > 8) {
+            intervalMs = 65;
+          } else if (tickCount > 3) {
+            intervalMs = 95;
+          }
+
+          scheduleNextTick();
+        }, intervalMs);
+      };
+
+      scheduleNextTick();
+    }, 260); // 260ms para engatar a compra contínua
+  };
+
+  const handleButtonClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    // Previne duplo disparo caso o pointerdown já tenha executado a compra inicial
+    if (hasHandledPointerDownRef.current) {
+      hasHandledPointerDownRef.current = false;
+      e.preventDefault();
+      return;
+    }
   };
 
   const filteredUpgrades = UPGRADES.filter((u) => {
@@ -161,14 +307,22 @@ export const ShopPanel: React.FC<ShopPanelProps> = ({
           </button>
         </div>
 
-        {/* Aviso de Pausa Compacto */}
-        {isPaused && (
+        {/* Aviso de Pausa Compacto / Dica de Compra Contínua */}
+        {isPaused ? (
           <div className="mt-1.5 px-2 py-1 rounded bg-amber-500/15 border border-amber-400/40 text-amber-200 text-[10px] font-mono flex items-center justify-between">
             <span className="font-bold flex items-center gap-1 truncate">
               <span>🛒</span>
               <span>Pausa: Loja Liberada!</span>
             </span>
             <span className="text-[9px] text-zinc-400">Sem dreno</span>
+          </div>
+        ) : (
+          <div className="mt-1 px-1.5 py-0.5 rounded bg-zinc-900/60 border border-zinc-800/60 text-[9px] font-mono text-zinc-400 flex items-center justify-between">
+            <span className="flex items-center gap-1">
+              <span className="text-amber-400">⚡</span>
+              <span>Segure o clique para compra contínua</span>
+            </span>
+            <span className="text-emerald-400 text-[8px] font-bold uppercase tracking-wider">Turbo</span>
           </div>
         )}
       </div>
@@ -250,22 +404,41 @@ export const ShopPanel: React.FC<ShopPanelProps> = ({
                 </div>
               </div>
 
-              {/* Lado Direito: Botão de Compra Compacto */}
+              {/* Lado Direito: Botão de Compra Compacto com Suporte a Pressionar e Segurar */}
               <motion.button
-                disabled={!canAfford}
-                whileTap={canAfford ? { scale: 0.92 } : {}}
-                onClick={(e) => handleUpgradeClick(upgrade, e)}
-                className={`px-2 py-1 sm:px-2.5 sm:py-1 rounded-lg font-mono text-xs font-bold flex items-center gap-1 flex-shrink-0 transition-all cursor-pointer select-none ${
-                  canAfford
-                    ? 'bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white shadow-[0_0_10px_rgba(16,185,129,0.3)]'
+                disabled={!canAfford && holdingUpgradeId !== upgrade.id}
+                onPointerDown={(e) => startHolding(upgrade, e)}
+                onPointerUp={stopHolding}
+                onPointerLeave={stopHolding}
+                onPointerCancel={stopHolding}
+                onClick={handleButtonClick}
+                whileTap={canAfford ? { scale: 0.94 } : {}}
+                className={`px-2 py-1 sm:px-2.5 sm:py-1 rounded-lg font-mono text-xs font-bold flex items-center gap-1 flex-shrink-0 transition-all cursor-pointer select-none relative overflow-hidden ${
+                  holdingUpgradeId === upgrade.id
+                    ? 'bg-gradient-to-r from-amber-500 via-emerald-500 to-teal-400 text-black shadow-[0_0_15px_rgba(245,158,11,0.6)] ring-2 ring-amber-300 scale-105'
+                    : canAfford
+                    ? 'bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white shadow-[0_0_10px_rgba(16,185,129,0.3)] active:scale-95'
                     : 'bg-zinc-800/50 text-zinc-500 border border-zinc-800 cursor-not-allowed'
                 }`}
-                title={canAfford ? `Comprar ${upgrade.name} por ${formatBytes(cost)}` : `Necessário ${formatBytes(cost)} (Saldo insuficiente)`}
+                title={
+                  canAfford
+                    ? `Comprar ${upgrade.name} por ${formatBytes(cost)} (Segure para compra contínua)`
+                    : `Necessário ${formatBytes(cost)} (Saldo insuficiente)`
+                }
               >
-                <span className="text-[11px]">🪙</span>
-                <span className={canAfford ? 'text-amber-200' : 'text-zinc-500'}>
-                  {formatBytes(cost)}
-                </span>
+                {holdingUpgradeId === upgrade.id ? (
+                  <>
+                    <Zap className="w-3.5 h-3.5 text-amber-950 animate-bounce" />
+                    <span className="font-black text-amber-950 text-[11px]">+{holdLevelsBought}</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-[11px]">🪙</span>
+                    <span className={canAfford ? 'text-amber-200' : 'text-zinc-500'}>
+                      {formatBytes(cost)}
+                    </span>
+                  </>
+                )}
               </motion.button>
             </div>
           );
