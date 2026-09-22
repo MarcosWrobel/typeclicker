@@ -18,19 +18,12 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isSignedIn() && (
-        request.auth.token.email == 'wrobel.marcos@gmail.com' ||
-        request.auth.token.email == 'marcos.wrobel@escola.pr.gov.br' ||
-        request.auth.token.email == 'wrobel.marcos3@gmail.com'
-      );
-    }
-
-    function isSessionActive() {
-      let settings = get(/databases/$(database)/documents/system/settings).data;
-      return settings != null &&
-             settings.activeCode != null &&
-             settings.expiresAtMs != null &&
-             settings.expiresAtMs > request.time.toMillis();
+      return isSignedIn() &&
+             request.auth.token.email_verified == true && (
+               request.auth.token.email == 'wrobel.marcos@gmail.com' ||
+               request.auth.token.email == 'marcos.wrobel@escola.pr.gov.br' ||
+               request.auth.token.email == 'wrobel.marcos3@gmail.com'
+             );
     }
 
     function isOwner(userId) {
@@ -47,8 +40,11 @@ service cloud.firestore {
       return data.keys().hasAll(['userId', 'nome', 'level', 'points']) &&
              data.userId is string && data.userId.size() <= 128 &&
              data.nome is string && data.nome.size() <= 100 &&
-             data.level is number &&
-             data.points is number;
+             data.level is number && data.level >= 1 && data.level <= 100 &&
+             data.points is number && data.points >= 0 &&
+             (!('avatar' in data) || (data.avatar is string && data.avatar.size() <= 32)) &&
+             (!('cardFrame' in data) || (data.cardFrame is string && data.cardFrame.size() <= 64)) &&
+             (!('apelido' in data) || (data.apelido is string && data.apelido.size() <= 100));
     }
 
     match /saves/{userId} {
@@ -59,20 +55,31 @@ service cloud.firestore {
     }
 
     match /leaderboard/{userId} {
-      allow read, write: if isAdmin();
-      // Public read for signed-in users so they can see the ranking
       allow read: if isSignedIn();
-      allow create, update: if isValidId(userId) && isOwner(userId) && isValidLeaderboardEntry(incoming()) && incoming().userId == request.auth.uid;
+      allow create, update: if !isAdmin() &&
+                              isValidId(userId) &&
+                              isOwner(userId) &&
+                              incoming().turma != 'Professor' &&
+                              incoming().get('isStaff', false) == false &&
+                              isValidLeaderboardEntry(incoming()) &&
+                              incoming().userId == request.auth.uid;
       allow delete: if isAdmin() || (isValidId(userId) && isOwner(userId));
     }
 
     match /system/settings {
-      allow read: if true;
+      allow read: if isSignedIn();
       allow write: if isAdmin();
     }
 
     match /arena_rooms/{roomId} {
-      allow read, write: if isSignedIn();
+      allow read: if isSignedIn();
+      allow create, delete: if isAdmin();
+      allow update: if isSignedIn() && (
+        isAdmin() ||
+        (roomId == 'active_classroom_raid' && incoming().diff(resource.data).affectedKeys().hasOnly(['currentHp', 'participants', 'status'])) ||
+        (roomId == 'active_classroom_race' && incoming().diff(resource.data).affectedKeys().hasOnly(['participants', 'finishers', 'winner'])) ||
+        (roomId != 'active_classroom_raid' && roomId != 'active_classroom_race')
+      );
     }
 
     match /backups/{backupId} {

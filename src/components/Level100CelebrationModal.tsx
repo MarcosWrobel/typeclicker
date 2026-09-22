@@ -22,35 +22,42 @@ export const Level100CelebrationModal: React.FC<Level100CelebrationModalProps> =
   studentClass
 }) => {
   useEffect(() => {
-    if (isOpen) {
-      sound.playPrestige();
+    if (!isOpen) return;
 
-      // Chuva de confetes dourados e triunfais
-      const duration = 3.5 * 1000;
-      const end = Date.now() + duration;
+    sound.playPrestige();
 
-      const frame = () => {
-        confetti({
-          particleCount: 4,
-          angle: 60,
-          spread: 55,
-          origin: { x: 0 },
-          colors: ['#fbbf24', '#f59e0b', '#d97706', '#ffffff']
-        });
-        confetti({
-          particleCount: 4,
-          angle: 120,
-          spread: 55,
-          origin: { x: 1 },
-          colors: ['#fbbf24', '#f59e0b', '#d97706', '#ffffff']
-        });
+    // Chuva de confetes dourados e triunfais
+    const duration = 3.5 * 1000;
+    const end = Date.now() + duration;
+    let animId: number | null = null;
 
-        if (Date.now() < end) {
-          requestAnimationFrame(frame);
-        }
-      };
-      frame();
-    }
+    const frame = () => {
+      confetti({
+        particleCount: 4,
+        angle: 60,
+        spread: 55,
+        origin: { x: 0 },
+        colors: ['#fbbf24', '#f59e0b', '#d97706', '#ffffff']
+      });
+      confetti({
+        particleCount: 4,
+        angle: 120,
+        spread: 55,
+        origin: { x: 1 },
+        colors: ['#fbbf24', '#f59e0b', '#d97706', '#ffffff']
+      });
+
+      if (Date.now() < end) {
+        animId = requestAnimationFrame(frame);
+      }
+    };
+    animId = requestAnimationFrame(frame);
+
+    return () => {
+      if (animId !== null) {
+        cancelAnimationFrame(animId);
+      }
+    };
   }, [isOpen]);
 
   const rankTitles = {

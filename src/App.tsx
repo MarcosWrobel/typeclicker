@@ -1206,7 +1206,6 @@ export default function App() {
       const earned = Math.max(1, Math.round(currState.bytesPerChar * effectiveMultiplier * prestigeMult * diffBonusMultiplier));
       const activeSoundTheme = currState.cosmetics?.equippedSound || 'mechanical';
       sound.playKeyStroke(nextCombo, activeSoundTheme);
-      audioSynthesizer.playKeySound(activeSoundTheme, nextCombo);
 
       const isWordFinished = index + 1 >= word.length;
 
@@ -2050,17 +2049,21 @@ export default function App() {
   }, [checkAndAwardAchievements]);
 
   const handleUpdateAccessibility = useCallback((newSettings: AccessibilitySettings) => {
+    let nextState: GameState | null = null;
     setState(prev => {
       const next: GameState = {
         ...prev,
         accessibility: newSettings
       };
-      saveState(next, auth.currentUser?.uid);
-      if (auth.currentUser) {
-        saveProgressToCloud(next).catch(console.error);
-      }
+      nextState = next;
       return next;
     });
+    if (nextState) {
+      saveState(nextState, auth.currentUser?.uid);
+      if (auth.currentUser) {
+        saveProgressToCloud(nextState).catch(console.error);
+      }
+    }
   }, []);
 
   const handleAdminUpdateGameState = useCallback((updatedState: GameState) => {
@@ -2075,6 +2078,7 @@ export default function App() {
   const handleClaimRaceWin = useCallback(
     (prizeBytes: number, stats: { wpm: number; timeMs: number }) => {
       sound.playPrestige();
+      let updatedState: GameState | null = null;
       setState((prev) => {
         const newBytes = prev.bytes + prizeBytes;
         const newTotalEarned = prev.totalBytesEarned + prizeBytes;
@@ -2090,18 +2094,23 @@ export default function App() {
           racesParticipated: newRaces,
           bestRaceWpm: newBestWpm
         };
-        saveState(updated, auth.currentUser?.uid);
-        if (auth.currentUser) {
-          saveProgressToCloud(updated).catch(console.error);
-        }
+        updatedState = updated;
         return updated;
       });
+
+      if (updatedState) {
+        saveState(updatedState, auth.currentUser?.uid);
+        if (auth.currentUser) {
+          saveProgressToCloud(updatedState).catch(console.error);
+        }
+      }
       spawnFloatingText(`+${formatBytes(prizeBytes)} 🏁 Vitória na Corrida!`, 'bonus');
     },
     [spawnFloatingText]
   );
 
   const handleFinishRaceNonWinner = useCallback((stats: { wpm: number; timeMs: number }) => {
+    let updatedState: GameState | null = null;
     setState((prev) => {
       const newRaces = (prev.racesParticipated || 0) + 1;
       const newBestWpm = Math.max(prev.bestRaceWpm || 0, Math.round(stats.wpm));
@@ -2111,12 +2120,16 @@ export default function App() {
         racesParticipated: newRaces,
         bestRaceWpm: newBestWpm
       };
-      saveState(updated, auth.currentUser?.uid);
-      if (auth.currentUser) {
-        saveProgressToCloud(updated).catch(console.error);
-      }
+      updatedState = updated;
       return updated;
     });
+
+    if (updatedState) {
+      saveState(updatedState, auth.currentUser?.uid);
+      if (auth.currentUser) {
+        saveProgressToCloud(updatedState).catch(console.error);
+      }
+    }
   }, []);
 
   const handleCloseRaceArena = useCallback(() => {
@@ -2130,6 +2143,7 @@ export default function App() {
   const handleClaimRaidVictory = useCallback(
     (prizeBytes: number, stats: { damage: number; words: number; wpm: number }) => {
       sound.playPrestige();
+      let updatedState: GameState | null = null;
       setState((prev) => {
         const newBytes = prev.bytes + prizeBytes;
         const newTotalEarned = prev.totalBytesEarned + prizeBytes;
@@ -2139,12 +2153,16 @@ export default function App() {
           bytes: newBytes,
           totalBytesEarned: newTotalEarned
         };
-        saveState(updated, auth.currentUser?.uid);
-        if (auth.currentUser) {
-          saveProgressToCloud(updated).catch(console.error);
-        }
+        updatedState = updated;
         return updated;
       });
+
+      if (updatedState) {
+        saveState(updatedState, auth.currentUser?.uid);
+        if (auth.currentUser) {
+          saveProgressToCloud(updatedState).catch(console.error);
+        }
+      }
       spawnFloatingText(`+${formatBytes(prizeBytes)} 🏆 Vitória na Raid Coletiva!`, 'bonus');
     },
     [spawnFloatingText]

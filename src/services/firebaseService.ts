@@ -365,7 +365,6 @@ export async function saveProgressToCloud(
     avatar,
     updatedAt: new Date().toISOString(),
     flaggedForReview: isFlagged,
-    email: user.email || undefined,
     isStaff: isStaff || undefined,
     raceWins: state.raceWins || 0,
     racesParticipated: state.racesParticipated || 0,
@@ -494,6 +493,7 @@ export async function loadProgressFromCloud(): Promise<CloudLoadResponse> {
 
 // Cache em memória para o ranking escolar (evita leituras redundantes na cota Spark)
 let cachedLeaderboard: { timestamp: number; data: LeaderboardEntry[] } | null = null;
+let inFlightLeaderboardPromise: Promise<LeaderboardEntry[]> | null = null;
 const LEADERBOARD_CACHE_TTL_MS = 40000; // 40 segundos de cache
 
 export function isStaffMember(
@@ -535,51 +535,62 @@ export async function getGlobalLeaderboard(forceRefresh: boolean = false): Promi
     return cachedLeaderboard.data;
   }
 
-  try {
-    const q = query(collection(db, 'leaderboard'), orderBy('points', 'desc'), limit(250));
-    const querySnapshot = await getDocs(q);
-    
-    // Lista unificada de e-mails de staff (Super Admins + Professores autorizados)
-    const staffEmails = new Set<string>(ADMIN_EMAILS.map((e) => e.trim().toLowerCase()));
-    try {
-      const settings = await getSystemSettings();
-      if (settings?.allowedTeachers) {
-        settings.allowedTeachers.forEach((e) => staffEmails.add(e.trim().toLowerCase()));
-      }
-    } catch (e) {
-      // Ignora falha de settings offline
-    }
-
-    const currentUserId = user.uid;
-    const isCurrentUserStaff = await checkIsAdminAsync(user);
-
-    const rankings: LeaderboardEntry[] = [];
-    querySnapshot.forEach((docSnap) => {
-      const entry = docSnap.data() as LeaderboardEntry;
-      
-      // Se o usuário logado for staff, garante que ele nunca apareça no próprio ranking
-      if (isCurrentUserStaff && (entry.userId === currentUserId || docSnap.id === currentUserId)) {
-        return;
-      }
-
-      // Regra estrita: Professores e Administradores não aparecem nos ranks
-      if (isStaffMember(entry, staffEmails)) {
-        return;
-      }
-
-      rankings.push(entry);
-    });
-    
-    cachedLeaderboard = {
-      timestamp: now,
-      data: rankings
-    };
-
-    return rankings;
-  } catch (error: any) {
-    handleFirestoreError(error, OperationType.LIST, `leaderboard`);
-    return cachedLeaderboard ? cachedLeaderboard.data : [];
+  // Padrão Singleflight: se já existe consulta idêntica em trânsito, reutiliza a promessa
+  if (inFlightLeaderboardPromise) {
+    return inFlightLeaderboardPromise;
   }
+
+  inFlightLeaderboardPromise = (async () => {
+    try {
+      const q = query(collection(db, 'leaderboard'), orderBy('points', 'desc'), limit(250));
+      const querySnapshot = await getDocs(q);
+      
+      // Lista unificada de e-mails de staff (Super Admins + Professores autorizados)
+      const staffEmails = new Set<string>(ADMIN_EMAILS.map((e) => e.trim().toLowerCase()));
+      try {
+        const settings = await getSystemSettings();
+        if (settings?.allowedTeachers) {
+          settings.allowedTeachers.forEach((e) => staffEmails.add(e.trim().toLowerCase()));
+        }
+      } catch (e) {
+        // Ignora falha de settings offline
+      }
+
+      const currentUserId = user.uid;
+      const isCurrentUserStaff = await checkIsAdminAsync(user);
+
+      const rankings: LeaderboardEntry[] = [];
+      querySnapshot.forEach((docSnap) => {
+        const entry = docSnap.data() as LeaderboardEntry;
+        
+        // Se o usuário logado for staff, garante que ele nunca apareça no próprio ranking
+        if (isCurrentUserStaff && (entry.userId === currentUserId || docSnap.id === currentUserId)) {
+          return;
+        }
+
+        // Regra estrita: Professores e Administradores não aparecem nos ranks
+        if (isStaffMember(entry, staffEmails)) {
+          return;
+        }
+
+        rankings.push(entry);
+      });
+      
+      cachedLeaderboard = {
+        timestamp: Date.now(),
+        data: rankings
+      };
+
+      return rankings;
+    } catch (error: any) {
+      handleFirestoreError(error, OperationType.LIST, `leaderboard`);
+      return cachedLeaderboard ? cachedLeaderboard.data : [];
+    } finally {
+      inFlightLeaderboardPromise = null;
+    }
+  })();
+
+  return inFlightLeaderboardPromise;
 }
 
 /**

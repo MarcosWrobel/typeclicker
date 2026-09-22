@@ -6,7 +6,6 @@ import { formatBytes, formatRate, calculatePlayerRank } from '../utils/formattin
 import { TopPodiumWidget } from './TopPodiumWidget';
 import { LeaderboardMetric } from './LeaderboardModal';
 import { Level100PioneersWidget } from './Level100PioneersWidget';
-import { useLeaderboardPodium } from '../hooks/useLeaderboardPodium';
 import { Level100PioneerSlot } from '../services/firebaseService';
 
 interface StatsSidebarProps {
@@ -42,8 +41,7 @@ export const StatsSidebar: React.FC<StatsSidebarProps> = ({
   isSuperAdmin = false,
   pioneers
 }) => {
-  const { pioneers: hookPioneers } = useLeaderboardPodium();
-  const effectivePioneers = pioneers || hookPioneers;
+  const effectivePioneers = pioneers || [];
   const myPioneerSlot = useMemo(() => {
     if (!currentUserId) return null;
     return effectivePioneers.find((s) => s.isFilled && s.player?.userId === currentUserId);

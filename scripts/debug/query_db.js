@@ -1,8 +1,14 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, getDocs } from "firebase/firestore";
 import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 
-const config = JSON.parse(fs.readFileSync("./firebase-applet-config.json", "utf-8"));
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const configPath = fs.existsSync("./firebase-applet-config.json")
+  ? "./firebase-applet-config.json"
+  : path.resolve(__dirname, "../../firebase-applet-config.json");
+const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
 const app = initializeApp(config);
 const db = getFirestore(app, config.firestoreDatabaseId);
 

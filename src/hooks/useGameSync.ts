@@ -71,6 +71,8 @@ export function useGameSync({
   const lastSyncedStateRef = useRef<GameState | null>(null);
   const lastSyncTimeRef = useRef<number>(Date.now());
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const isSyncInProgressRef = useRef<boolean>(false);
+  const pendingSyncSnapshotRef = useRef<GameState | null>(null);
 
   // Buffer offline isolado para o aluno atual
   const pushToOfflineBuffer = useCallback((snapshot: GameState) => {
@@ -123,43 +125,64 @@ export function useGameSync({
     }
   }, []);
 
-  // Executa o envio em nuvem com cálculo de delta anti-cheat
+  // Executa o envio em nuvem com cálculo de delta anti-cheat e proteção por mutex/fila
   const executeSync = useCallback(async (forced: boolean = false, reason: SyncReason = 'timer') => {
     const currentUser = userRef.current;
     if (!currentUser) return;
 
-    const currentSnapshot = stateRef.current;
-    const now = Date.now();
-    const elapsedSeconds = Math.max(1, (now - lastSyncTimeRef.current) / 1000);
-
-    // Se a máquina estiver offline, armazena no buffer local do aluno
-    if (!navigator.onLine) {
-      pushToOfflineBuffer(currentSnapshot);
-      saveState(currentSnapshot, currentUser.uid);
+    // Mutex de concorrência: se já houver envio em trânsito, enfileira o snapshot mais recente
+    if (isSyncInProgressRef.current) {
+      pendingSyncSnapshotRef.current = { ...stateRef.current };
       return;
     }
 
+    isSyncInProgressRef.current = true;
+    setIsSyncing(true);
+
     try {
-      setIsSyncing(true);
-      const res = await saveProgressToCloud(currentSnapshot, lastSyncedStateRef.current, elapsedSeconds);
-      if (res.success) {
-        lastSyncedStateRef.current = { ...currentSnapshot };
-        lastSyncTimeRef.current = now;
-        setHasPendingChanges(false);
-        clearCurrentOfflineBuffer();
-        // Também atualiza o save local isolado do aluno
-        saveState(currentSnapshot, currentUser.uid);
-        onSyncSuccess?.();
-      } else {
-        pushToOfflineBuffer(currentSnapshot);
-        saveState(currentSnapshot, currentUser.uid);
-        onSyncError?.(res.message);
+      let keepRunning = true;
+      while (keepRunning) {
+        const currentSnapshot = pendingSyncSnapshotRef.current || stateRef.current;
+        pendingSyncSnapshotRef.current = null;
+
+        const now = Date.now();
+        const elapsedSeconds = Math.max(1, (now - lastSyncTimeRef.current) / 1000);
+
+        // Se a máquina estiver offline, armazena no buffer local do aluno
+        if (!navigator.onLine) {
+          pushToOfflineBuffer(currentSnapshot);
+          saveState(currentSnapshot, currentUser.uid);
+          break;
+        }
+
+        try {
+          const res = await saveProgressToCloud(currentSnapshot, lastSyncedStateRef.current, elapsedSeconds);
+          if (res.success) {
+            lastSyncedStateRef.current = { ...currentSnapshot };
+            lastSyncTimeRef.current = now;
+            setHasPendingChanges(false);
+            clearCurrentOfflineBuffer();
+            // Também atualiza o save local isolado do aluno
+            saveState(currentSnapshot, currentUser.uid);
+            onSyncSuccess?.();
+          } else {
+            pushToOfflineBuffer(currentSnapshot);
+            saveState(currentSnapshot, currentUser.uid);
+            onSyncError?.(res.message);
+          }
+        } catch (err: any) {
+          pushToOfflineBuffer(currentSnapshot);
+          saveState(currentSnapshot, currentUser.uid);
+          onSyncError?.(err.message || 'Erro de conexão.');
+        }
+
+        // Se durante a transmissão acima chegou um novo snapshot, realiza nova iteração imediatamente
+        if (!pendingSyncSnapshotRef.current) {
+          keepRunning = false;
+        }
       }
-    } catch (err: any) {
-      pushToOfflineBuffer(currentSnapshot);
-      saveState(currentSnapshot, currentUser.uid);
-      onSyncError?.(err.message || 'Erro de conexão.');
     } finally {
+      isSyncInProgressRef.current = false;
       setIsSyncing(false);
     }
   }, [onSyncSuccess, onSyncError, pushToOfflineBuffer, clearCurrentOfflineBuffer]);
@@ -186,6 +209,8 @@ export function useGameSync({
   useEffect(() => {
     lastSyncedStateRef.current = null;
     lastSyncTimeRef.current = Date.now();
+    isSyncInProgressRef.current = false;
+    pendingSyncSnapshotRef.current = null;
     if (timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;

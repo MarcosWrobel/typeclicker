@@ -179,6 +179,9 @@ export const ClassroomRaidArena: React.FC<ClassroomRaidArenaProps> = ({
         calculatedWpm
       );
     } catch (e) {
+      // Reintegra o dano e palavras pendentes ao buffer para não perder progresso na oscilação de rede
+      pendingDamageRef.current += dmg;
+      pendingWordsRef.current += words;
       console.warn('Erro ao sincronizar contribuição de raid:', e);
     }
   }, [raid.id, userId, studentName, studentNickname, studentAvatar, studentClass, activeRpgClass]);
