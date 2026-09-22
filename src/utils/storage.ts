@@ -61,6 +61,9 @@ export const INITIAL_STATE: GameState = {
   studentClass: '',
   studentAvatar: '🐧',
   completedChallenges: [],
+  bossMastery: {},
+  bossBuffExpiresAt: 0,
+  bossBuffMultiplier: 0,
   cosmetics: { ...DEFAULT_COSMETICS },
   arenaStats: { ...DEFAULT_ARENA_STATS },
   keyTelemetry: {},
@@ -431,7 +434,10 @@ export function loadSavedState(userId?: string | null): GameState {
       quests: syncQuestsState(parsed.quests),
       accessibility: sanitizeAccessibility(parsed.accessibility),
       isClassLocked: Boolean(parsed.isClassLocked),
-      isRpgClassLocked: Boolean(parsed.isRpgClassLocked)
+      isRpgClassLocked: Boolean(parsed.isRpgClassLocked),
+      bossMastery: parsed.bossMastery && typeof parsed.bossMastery === 'object' ? parsed.bossMastery : {},
+      bossBuffExpiresAt: Number.isFinite(parsed.bossBuffExpiresAt) ? parsed.bossBuffExpiresAt : 0,
+      bossBuffMultiplier: Number.isFinite(parsed.bossBuffMultiplier) ? parsed.bossBuffMultiplier : 0
     };
   } catch (e) {
     console.warn('Falha ao carregar estado salvo:', e);

@@ -89,6 +89,11 @@ export interface GameState {
   accessibility?: AccessibilitySettings;
   // Classe RPG de Especialização (Guerreiro, Arqueiro, Mago)
   rpgClass?: RpgClassType;
+  // Maestria dos Guardiões de Nível a cada 10 níveis (estrelas e tempo)
+  bossMastery?: Record<number, BossMasteryRecord>;
+  // Buff Temporário da Bênção do Guardião (Vitórias com 2 ou 3 estrelas)
+  bossBuffExpiresAt?: number;
+  bossBuffMultiplier?: number;
   // Travas escolares gerenciadas pelo professor
   isClassLocked?: boolean;
   isRpgClassLocked?: boolean;
@@ -97,6 +102,12 @@ export interface GameState {
   flaggedForReview?: boolean;
   flagReason?: string;
   lastSyncTimestamp?: number;
+}
+
+export interface BossMasteryRecord {
+  stars: number; // 1 a 3
+  bestTimeSeconds: number;
+  defeatedAt: number;
 }
 
 export type TextScale = 'normal' | 'large' | 'huge' | 'mega';

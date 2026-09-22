@@ -1185,7 +1185,12 @@ export default function App() {
       const activeCategory = WORD_CATEGORIES.find((c) => c.id === currState.selectedCategory) || WORD_CATEGORIES[0];
       const diffBonusMultiplier = activeCategory.bonusMultiplier || 1.0;
 
-      const earned = Math.max(1, Math.round(currState.bytesPerChar * nextMultiplier * prestigeMult * diffBonusMultiplier));
+      // Bênção do Guardião (Buff ativo de vitória em Desafio de Nível com estrelas)
+      const isBossBuffActive = Boolean(currState.bossBuffExpiresAt && Date.now() < currState.bossBuffExpiresAt);
+      const bossBuffExtra = isBossBuffActive ? (currState.bossBuffMultiplier || 0) : 0;
+      const effectiveMultiplier = Number((nextMultiplier + bossBuffExtra).toFixed(2));
+
+      const earned = Math.max(1, Math.round(currState.bytesPerChar * effectiveMultiplier * prestigeMult * diffBonusMultiplier));
       const activeSoundTheme = currState.cosmetics?.equippedSound || 'mechanical';
       sound.playKeyStroke(nextCombo, activeSoundTheme);
       audioSynthesizer.playKeySound(activeSoundTheme, nextCombo);
@@ -1194,7 +1199,7 @@ export default function App() {
 
       if (isWordFinished) {
         // Word completed bonus escalado com o tamanho da palavra e equilibrado
-        const baseWordBonus = Math.round(word.length * (currState.bytesPerChar * 1.5 + 4) * nextMultiplier * prestigeMult);
+        const baseWordBonus = Math.round(word.length * (currState.bytesPerChar * 1.5 + 4) * effectiveMultiplier * prestigeMult);
         let wordBonus = Math.round(baseWordBonus * diffBonusMultiplier);
 
         // Passiva Guerreiro Veloz: Ímpeto Motor (+25% Bytes por palavra se PPM >= 55)
@@ -1863,23 +1868,44 @@ export default function App() {
     sound.playUpgrade();
   };
 
-  const handleChallengeSuccess = useCallback((reward: number) => {
+  const handleChallengeSuccess = useCallback((reward: number, stars: number = 3, timeSpent: number = 0) => {
+    const defeatedLvl = activeChallengeLevel;
     setActiveChallengeLevel(null);
     setState((prev) => {
       const completed = [...(prev.completedChallenges || [])];
-      if (activeChallengeLevel && !completed.includes(activeChallengeLevel)) {
-        completed.push(activeChallengeLevel);
+      if (defeatedLvl && !completed.includes(defeatedLvl)) {
+        completed.push(defeatedLvl);
       }
+
+      // Salva maestria de estrelas e melhor tempo por nível
+      const nextMastery = { ...(prev.bossMastery || {}) };
+      if (defeatedLvl) {
+        const prevRecord = nextMastery[defeatedLvl];
+        nextMastery[defeatedLvl] = {
+          stars: Math.max(stars, prevRecord?.stars || 0),
+          bestTimeSeconds: prevRecord && prevRecord.bestTimeSeconds > 0 ? Math.min(timeSpent, prevRecord.bestTimeSeconds) : timeSpent,
+          defeatedAt: Date.now()
+        };
+      }
+
+      // Bênção do Guardião: Buff temporário de multiplicador por 15 minutos
+      const buffMultiplier = stars === 3 ? 0.30 : stars === 2 ? 0.15 : 0.05;
+      const buffDurationMs = 15 * 60 * 1000;
+
       const nextState: GameState = {
         ...prev,
         bytes: prev.bytes + reward,
         totalBytesEarned: prev.totalBytesEarned + reward,
-        completedChallenges: completed
+        completedChallenges: completed,
+        bossMastery: nextMastery,
+        bossBuffExpiresAt: Date.now() + buffDurationMs,
+        bossBuffMultiplier: buffMultiplier
       };
       const stateWithQuests = applyQuestEvents(nextState, [{ type: 'boss_defeated', amount: 1 }]);
       return checkAndAwardAchievements(stateWithQuests);
     });
-    spawnFloatingText(`+${formatBytes(reward)} B (DESAFIO)!`, 'bonus');
+    sound.playAchievement();
+    spawnFloatingText(`🏆 Guardião Nv. ${defeatedLvl} Superado (${stars}★)! +${formatBytes(reward)}`, 'bonus');
   }, [activeChallengeLevel, spawnFloatingText, checkAndAwardAchievements, applyQuestEvents]);
 
   const handleChallengeFail = useCallback(() => {
@@ -2266,7 +2292,11 @@ export default function App() {
               charIndex={charIndex}
             isErrorShaking={isErrorShaking}
             comboStreak={state.comboStreak}
-            multiplier={state.multiplier}
+            multiplier={
+              Boolean(state.bossBuffExpiresAt && Date.now() < state.bossBuffExpiresAt)
+                ? Number((state.multiplier + (state.bossBuffMultiplier || 0)).toFixed(2))
+                : state.multiplier
+            }
             maxCombo={state.maxCombo}
             selectedCategory={state.selectedCategory}
             onSelectCategory={handleSelectCategory}

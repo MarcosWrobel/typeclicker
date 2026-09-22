@@ -3636,7 +3636,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         </p>
                       </div>
                       <div className="flex items-center gap-2 flex-wrap">
-                        {[10, 20, 30, 50, 100].map((lvl) => (
+                        {[10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map((lvl) => (
                           <button
                             key={lvl}
                             type="button"
