@@ -184,7 +184,7 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
         return 'max-w-3xl lg:max-w-4xl';
       case 'words':
       default:
-        return 'max-w-2xl';
+        return 'max-w-2xl md:max-w-3xl';
     }
   }, [typingMode]);
 
@@ -196,7 +196,7 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
         return 'max-w-3xl lg:max-w-4xl';
       case 'words':
       default:
-        return 'max-w-2xl';
+        return 'max-w-2xl md:max-w-3xl';
     }
   }, [typingMode]);
 
@@ -207,10 +207,14 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
       case 'sentences':
         return 'tracking-normal sm:tracking-wide';
       case 'words':
-      default:
-        return 'tracking-widest';
+      default: {
+        const len = currentWord?.length || 0;
+        if (len >= 14) return 'tracking-wide';
+        if (len >= 9) return 'tracking-wide sm:tracking-wider';
+        return 'tracking-wider sm:tracking-widest';
+      }
     }
-  }, [typingMode]);
+  }, [typingMode, currentWord]);
 
   const textScaleClass = React.useMemo(() => {
     if (typingMode === 'sentences') {
@@ -241,19 +245,68 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
       }
     }
 
-    // Default 'words' mode (letras grandes de foco para palavras curtas)
+    // Default 'words' mode: Escalonamento adaptativo inteligente e proeminente baseado no comprimento da palavra
+    // Garante palavras grandes, legíveis e com forte coesão no centro do terminal, prevenindo overflow
+    const len = currentWord?.length || 0;
+
+    // Palavras ultra-longas (>= 14 letras, ex: semicondutividade, interoperabilidade, otorrinolaringologista)
+    if (len >= 14) {
+      switch (accessibility?.textScale) {
+        case 'mega':
+          return 'text-2xl sm:text-3xl md:text-4xl';
+        case 'huge':
+          return 'text-2xl sm:text-3xl md:text-4xl';
+        case 'large':
+          return 'text-2xl sm:text-3xl md:text-4xl';
+        case 'normal':
+        default:
+          return 'text-2xl sm:text-3xl md:text-4xl';
+      }
+    }
+
+    // Palavras médias-longas (9 a 13 letras, ex: tecnologia, computador, programador)
+    if (len >= 9) {
+      switch (accessibility?.textScale) {
+        case 'mega':
+          return 'text-4xl sm:text-5xl md:text-6xl';
+        case 'huge':
+          return 'text-3xl sm:text-4xl md:text-5xl';
+        case 'large':
+          return 'text-3xl sm:text-4xl md:text-5xl';
+        case 'normal':
+        default:
+          return 'text-3xl sm:text-4xl md:text-5xl';
+      }
+    }
+
+    // Palavras médias (6 a 8 letras, ex: sistema, codigo, teclado, python)
+    if (len >= 6) {
+      switch (accessibility?.textScale) {
+        case 'mega':
+          return 'text-5xl sm:text-6xl md:text-7xl';
+        case 'huge':
+          return 'text-4xl sm:text-5xl md:text-6xl';
+        case 'large':
+          return 'text-4xl sm:text-5xl md:text-6xl';
+        case 'normal':
+        default:
+          return 'text-3xl sm:text-4xl md:text-5xl';
+      }
+    }
+
+    // Palavras curtas (<= 5 letras, ex: byte, web, pixel, dado, rede)
     switch (accessibility?.textScale) {
-      case 'large':
-        return 'text-4xl sm:text-5xl md:text-6xl';
-      case 'huge':
-        return 'text-5xl sm:text-6xl md:text-7xl';
       case 'mega':
         return 'text-6xl sm:text-7xl md:text-8xl';
+      case 'huge':
+        return 'text-5xl sm:text-6xl md:text-7xl';
+      case 'large':
+        return 'text-4xl sm:text-5xl md:text-6xl';
       case 'normal':
       default:
-        return 'text-3xl sm:text-4xl md:text-5xl';
+        return 'text-4xl sm:text-5xl md:text-6xl';
     }
-  }, [accessibility?.textScale, typingMode]);
+  }, [accessibility?.textScale, typingMode, currentWord]);
 
   // Agrupamento por tokens/palavras para quebra natural de linha (Word-Boundary Wrapping)
   // Garante que uma palavra nunca se quebre no meio da sílaba ao atingir o fim da linha
@@ -573,7 +626,7 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
           {/* 1. Header Unificado (Opção C: Cápsula Dupla Integrada + Fita de Ações e Status) */}
           <div className="w-full flex flex-col gap-2 mb-3 border-b border-[#232838]/70 pb-2.5 select-none">
             {/* Linha Superior: Duas Cápsulas Irmãs Simétricas (Modo à esquerda + Dificuldade à direita) */}
-            <div className="w-full flex items-center justify-between gap-2 flex-wrap lg:flex-nowrap min-w-0">
+            <div className="w-full flex items-center justify-between gap-2 flex-wrap md:flex-nowrap min-w-0">
               {/* Cápsula 1: Tipo de Digitação (Modo) */}
               <div className="flex items-center gap-1 p-1 bg-[#0b0e14]/90 border border-[#1e2433] rounded-xl shadow-inner flex-shrink-0">
                 <button
@@ -764,22 +817,27 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
           {/* High-Contrast Interactive Characters com suporte a escala de acessibilidade e agrupamento de palavras intactas */}
           <div
             ref={wordContainerRef}
-            className={`font-mono ${textScaleClass} ${trackingClass} font-bold my-1 sm:my-2 h-[105px] sm:h-[125px] 2xl:h-[140px] max-h-[140px] overflow-hidden flex items-center justify-center flex-wrap gap-y-2 select-none w-full leading-relaxed arena-typing-box`}
+            className={`font-mono ${textScaleClass} ${trackingClass} font-bold my-1 sm:my-2 h-[105px] sm:h-[125px] 2xl:h-[140px] max-h-[140px] overflow-hidden flex items-center justify-center flex-wrap gap-y-2 select-none w-full max-w-full px-3 sm:px-6 ${typingMode === 'words' ? 'leading-tight' : 'leading-relaxed'} arena-typing-box`}
           >
-            {wordTokens.map((token, tokenIdx) => (
-              <span key={tokenIdx} className="inline-flex flex-nowrap items-center">
-                {token.chars.map(({ char, index }) => {
-                  const isDone = index < charIndex;
-                  const isCurrent = index === charIndex;
-                  const isPending = index > charIndex;
-                  const isJustTyped = index === charIndex - 1;
-                  const animClasses = !isHighContrast ? getLetterVfxClasses(equippedAnimation, isDone, isCurrent, isJustTyped) : '';
-                  const isTargetKey = Boolean(drillSession?.targetKeys?.includes(char.toLowerCase()));
+            {wordTokens.map((token, tokenIdx) => {
+              const charPadding = (typingMode === 'words' && (currentWord?.length || 0) >= 14)
+                ? 'px-0.5 py-0.5'
+                : 'px-0.5 sm:px-1 py-0.5';
 
-                  return (
-                    <span
-                      key={index}
-                      className={`inline-block relative transition-all duration-75 px-1 py-0.5 rounded ${
+              return (
+                <span key={tokenIdx} className="inline-flex flex-nowrap items-center max-w-full justify-center">
+                  {token.chars.map(({ char, index }) => {
+                    const isDone = index < charIndex;
+                    const isCurrent = index === charIndex;
+                    const isPending = index > charIndex;
+                    const isJustTyped = index === charIndex - 1;
+                    const animClasses = !isHighContrast ? getLetterVfxClasses(equippedAnimation, isDone, isCurrent, isJustTyped) : '';
+                    const isTargetKey = Boolean(drillSession?.targetKeys?.includes(char.toLowerCase()));
+
+                    return (
+                      <span
+                        key={index}
+                        className={`inline-block relative transition-all duration-75 ${charPadding} rounded ${
                         isDone
                           ? isHighContrast
                             ? highContrastDoneCharClass
@@ -812,7 +870,8 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
                   );
                 })}
               </span>
-            ))}
+            );
+          })}
           </div>
 
           {!isFocused && (
