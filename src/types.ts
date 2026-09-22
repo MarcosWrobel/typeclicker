@@ -16,6 +16,7 @@ export * from './types/rpgClass';
 export * from './types/raid';
 
 export type CategoryId = 'iniciante' | 'facil' | 'medio' | 'avancado' | 'expert';
+export type TypingMode = 'words' | 'sentences' | 'code';
 
 export interface WordCategory {
   id: CategoryId;
@@ -57,6 +58,7 @@ export interface GameState {
   prestigeCount: number;
   upgrades: Record<string, number>;
   selectedCategory: CategoryId;
+  typingMode?: TypingMode;
   soundEnabled: boolean;
   studentName: string;
   studentNickname: string;

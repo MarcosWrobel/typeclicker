@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { GameState, CategoryId, FloatingText, UpgradeDef, DrillSession, AccessibilitySettings, RpgClassType, CurricularTrackId } from './types';
+import { GameState, CategoryId, FloatingText, UpgradeDef, DrillSession, AccessibilitySettings, RpgClassType, CurricularTrackId, TypingMode } from './types';
 import { RPG_CLASSES } from './types/rpgClass';
 import { loadSavedState, saveState, clearSavedState, INITIAL_STATE, sanitizeCosmetics, DEFAULT_ARENA_STATS, DEFAULT_ACCESSIBILITY } from './utils/storage';
 import { DEFAULT_COSMETICS, PlayerCosmetics } from './types/cosmetics';
 import { TERMINAL_THEMES } from './constants/themes';
 import { CosmeticsShopModal } from './components/CosmeticsShopModal';
-import { getRandomWord, WORD_CATEGORIES } from './data/words';
+import { getRandomWord, getTextForMode, WORD_CATEGORIES } from './data/words';
 import { gerarTreinoAdaptativo } from './services/adaptiveDrillEngine';
 import { UPGRADES, getUpgradeCost } from './data/upgrades';
 import { sound } from './utils/audio';
@@ -24,6 +24,7 @@ import { LevelsModal } from './components/LevelsModal';
 import { HelpModal } from './components/HelpModal';
 import { LeaderboardModal, LeaderboardMetric } from './components/LeaderboardModal';
 import { ArenaModal } from './components/ArenaModal';
+import { TimeAttackModal } from './components/TimeAttackModal';
 import { ArenaStats, getArenaRank } from './types/arena';
 import { AdminPanel } from './components/AdminPanel';
 import { SessionLockOverlay } from './components/SessionLockOverlay';
@@ -70,7 +71,8 @@ import { Loader2 } from 'lucide-react';
 export default function App() {
   const suppressLevelUpRef = useRef<boolean>(true);
   const [state, setState] = useState<GameState>(() => loadSavedState());
-  const [currentWord, setCurrentWord] = useState<string>(() => getRandomWord(state.selectedCategory));
+  const [typingMode, setTypingMode] = useState<TypingMode>(state.typingMode || 'words');
+  const [currentWord, setCurrentWord] = useState<string>(() => getTextForMode(state.typingMode || 'words', state.selectedCategory));
   const [charIndex, setCharIndex] = useState<number>(0);
   const [isErrorShaking, setIsErrorShaking] = useState<boolean>(false);
   const [floatingTexts, setFloatingTexts] = useState<FloatingText[]>([]);
@@ -95,6 +97,7 @@ export default function App() {
   const [isStudentModalOpen, setIsStudentModalOpen] = useState<boolean>(false);
   const [isCosmeticsOpen, setIsCosmeticsOpen] = useState<boolean>(false);
   const [isArenaOpen, setIsArenaOpen] = useState<boolean>(false);
+  const [isTimeAttackOpen, setIsTimeAttackOpen] = useState<boolean>(false);
   const [isConverterOpen, setIsConverterOpen] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [activeChallengeLevel, setActiveChallengeLevel] = useState<number | null>(null);
@@ -146,6 +149,7 @@ export default function App() {
     isChestMinigameOpen ||
     activeRpgFloor !== null ||
     isArenaOpen ||
+    isTimeAttackOpen ||
     isConverterOpen ||
     isRaceArenaOpen ||
     isRaidArenaOpen ||
@@ -564,6 +568,9 @@ export default function App() {
   const currentWordRef = useRef(currentWord);
   currentWordRef.current = currentWord;
 
+  const typingModeRef = useRef<TypingMode>(typingMode);
+  typingModeRef.current = typingMode;
+
   const charIndexRef = useRef(charIndex);
   charIndexRef.current = charIndex;
 
@@ -960,11 +967,49 @@ export default function App() {
       setDrillSession(null);
       drillSessionRef.current = null;
     }
-    const nextWord = getRandomWord(cat, currentWordRef.current, activeTrackRef.current);
+    const nextWord = getTextForMode(typingModeRef.current, cat, currentWordRef.current, activeTrackRef.current);
     setCurrentWord(nextWord);
     setCharIndex(0);
     setPendingAccent(null);
   }, [checkAndAwardAchievements]);
+
+  // Handler para alternar o Modo de Digitação (Palavras, Frases, Código)
+  const handleSelectTypingMode = useCallback((mode: TypingMode) => {
+    setTypingMode(mode);
+    typingModeRef.current = mode;
+    setState((prev) => ({ ...prev, typingMode: mode }));
+    if (drillSessionRef.current) {
+      setDrillSession(null);
+      drillSessionRef.current = null;
+    }
+    const nextText = getTextForMode(mode, stateRef.current.selectedCategory, undefined, activeTrackRef.current);
+    setCurrentWord(nextText);
+    setCharIndex(0);
+    setPendingAccent(null);
+  }, []);
+
+  // Handler para recompensas do Desafio Time Attack / Sprint
+  const handleTimeAttackReward = useCallback((bytesReward: number, duelTokensReward: number, wpm: number) => {
+    setState((prev) => {
+      const currentCosmetics = prev.cosmetics || { ...DEFAULT_COSMETICS };
+      const nextCosmetics = {
+        ...currentCosmetics,
+        duelTokens: (currentCosmetics.duelTokens || 0) + duelTokensReward
+      };
+      return {
+        ...prev,
+        bytes: prev.bytes + bytesReward,
+        totalBytesEarned: prev.totalBytesEarned + bytesReward,
+        cosmetics: nextCosmetics
+      };
+    });
+    spawnFloatingText(`⚡ SPRINT: ${wpm} WPM! +${bytesReward} B`, 'bonus');
+    if (duelTokensReward > 0) {
+      setTimeout(() => {
+        spawnFloatingText(`⚔️ +${duelTokensReward} Moeda(s) de Duelo!`, 'bonus');
+      }, 500);
+    }
+  }, [spawnFloatingText]);
 
   // Handlers para o Treino Corretivo Adaptativo (Drill Engine)
   const handleStartDrill = useCallback((customKeys?: string[]) => {
@@ -985,7 +1030,7 @@ export default function App() {
   const handleCancelDrill = useCallback(() => {
     setDrillSession(null);
     drillSessionRef.current = null;
-    const newWord = getRandomWord(stateRef.current.selectedCategory, undefined, activeTrackRef.current);
+    const newWord = getTextForMode(typingModeRef.current, stateRef.current.selectedCategory, undefined, activeTrackRef.current);
     setCurrentWord(newWord);
     setCharIndex(0);
     setPendingAccent(null);
@@ -1146,9 +1191,10 @@ export default function App() {
         const totalEarned = earned + wordBonus;
 
         sound.playWordComplete();
+        const modeLabel = typingModeRef.current === 'sentences' ? 'FRASE' : typingModeRef.current === 'code' ? 'CÓDIGO' : 'PALAVRA';
         const bonusMsg = diffBonusMultiplier > 1.0
           ? `+${wordBonus} BÔNUS [${activeCategory.name.toUpperCase()}]!`
-          : `+${wordBonus} BÔNUS DE PALAVRA!`;
+          : `+${wordBonus} BÔNUS DE ${modeLabel}!`;
         spawnFloatingText(bonusMsg, 'bonus');
 
         setRecentWordComplete(true);
@@ -1178,10 +1224,10 @@ export default function App() {
             spawnFloatingText(`🎯 REABILITAÇÃO CONCLUÍDA! +${drillCompletionBonus} B`, 'bonus');
             drillSessionRef.current = null;
             setDrillSession(null);
-            nextWord = getRandomWord(currState.selectedCategory, undefined, activeTrackRef.current);
+            nextWord = getTextForMode(typingModeRef.current, currState.selectedCategory, undefined, activeTrackRef.current);
           }
         } else {
-          nextWord = getRandomWord(currState.selectedCategory, word, activeTrackRef.current);
+          nextWord = getTextForMode(typingModeRef.current, currState.selectedCategory, word, activeTrackRef.current);
         }
 
         // Avaliação de sequência perfeita e drills
@@ -2127,6 +2173,7 @@ export default function App() {
             onOpenAdmin={() => setIsAdminOpen(true)}
             onOpenCosmetics={() => setIsCosmeticsOpen(true)}
             onOpenArena={() => setIsArenaOpen(true)}
+            onOpenTimeAttack={() => setIsTimeAttackOpen(true)}
             onResetGame={handleResetGame}
             isSaving={isSyncing}
             isOnline={isOnline}
@@ -2189,6 +2236,9 @@ export default function App() {
               playerRankLevel={playerRank.level}
               currentWord={currentWord}
               activeTrack={activeCurricularTrack}
+              typingMode={typingMode}
+              onSelectTypingMode={handleSelectTypingMode}
+              onOpenTimeAttack={() => setIsTimeAttackOpen(true)}
               charIndex={charIndex}
             isErrorShaking={isErrorShaking}
             comboStreak={state.comboStreak}
@@ -2419,6 +2469,15 @@ export default function App() {
           onClose={() => setActiveRpgFloor(null)}
         />
       )}
+
+      {/* Time Attack Arcade Sprint Modal */}
+      <TimeAttackModal
+        isOpen={isTimeAttackOpen}
+        onClose={() => setIsTimeAttackOpen(false)}
+        onSuccessReward={handleTimeAttackReward}
+        activeTrack={activeCurricularTrack}
+        playerLevel={playerRank.level}
+      />
 
       {/* Arena 1x1 Multiplayer Modal (Nível 100 ou Administrador) */}
       <ArenaModal

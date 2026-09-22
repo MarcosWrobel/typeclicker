@@ -1,5 +1,5 @@
 import React from 'react';
-import { Volume2, VolumeX, BarChart3, RefreshCw, Trophy, Cloud, Pause, Play, Shield, Eye } from 'lucide-react';
+import { Volume2, VolumeX, BarChart3, RefreshCw, Trophy, Cloud, Pause, Play, Shield, Eye, Timer } from 'lucide-react';
 import { GameState } from '../types';
 import { calculatePlayerRank } from '../utils/formatting';
 
@@ -20,6 +20,7 @@ interface HeaderProps {
   onOpenAdmin?: () => void;
   onOpenCosmetics?: () => void;
   onOpenArena?: () => void;
+  onOpenTimeAttack?: () => void;
   onResetGame: () => void;
   isSaving: boolean;
   isOnline?: boolean;
@@ -42,6 +43,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenAdmin,
   onOpenCosmetics,
   onOpenArena,
+  onOpenTimeAttack,
   onResetGame,
   isSaving,
   isOnline = true,
@@ -87,6 +89,19 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Navegação e Controles Rápidos */}
         <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap justify-end flex-shrink-0">
+          {/* Time Attack Arcade Sprint */}
+          {onOpenTimeAttack && (
+            <button
+              type="button"
+              onClick={onOpenTimeAttack}
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-950/60 to-orange-950/60 hover:from-amber-900/80 hover:to-orange-900/80 text-amber-300 border border-amber-500/40 text-xs font-bold transition shadow-sm cursor-pointer"
+              title="Time Attack (Sprint 30s/60s): Teste seu WPM puro!"
+            >
+              <Timer className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden sm:inline">Sprint</span>
+            </button>
+          )}
+
           {/* Métricas Pedagógicas */}
           <button
             type="button"

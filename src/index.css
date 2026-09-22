@@ -188,4 +188,59 @@
   animation: fx-screen-rumble 0.22s ease-in-out both;
 }
 
+/* ==========================================================================
+   Perfis de Display Escolar: Chromebook Samsung (<=820px) vs Monitor 24" (>820px)
+   ========================================================================== */
 
+/* Regras de densidade vertical automática para Chromebooks (1366x768 / 1280x720) */
+@media (max-height: 820px) {
+  /* Redução de padding do cabeçalho institucional */
+  header {
+    padding-top: 0.35rem !important;
+    padding-bottom: 0.35rem !important;
+  }
+
+  /* Compactação do card do terminal */
+  .arena-terminal-card {
+    padding: 0.65rem 0.85rem !important;
+  }
+
+  /* Área do texto de digitação estável em telas baixas */
+  .arena-typing-box {
+    height: 95px !important;
+    min-height: 95px !important;
+    max-height: 95px !important;
+    margin-top: 0.25rem !important;
+    margin-bottom: 0.25rem !important;
+  }
+
+  /* Compactação da barra de cadência e buffers */
+  .arena-metrics-bar {
+    margin-top: 0.35rem !important;
+    padding: 0.35rem 0.6rem !important;
+  }
+
+  /* Mascote compacto horizontal para economizar altura */
+  .mascot-container {
+    padding: 0.35rem 0.75rem !important;
+  }
+
+  .mascot-avatar {
+    width: 2.25rem !important;
+    height: 2.25rem !important;
+  }
+
+  /* Dock de atividades mais enxuto */
+  .arena-dock-bar {
+    padding: 0.35rem 0.5rem !important;
+    margin-top: 0.25rem !important;
+  }
+
+  .arena-dock-btn {
+    padding-top: 0.35rem !important;
+    padding-bottom: 0.35rem !important;
+    padding-left: 0.6rem !important;
+    padding-right: 0.6rem !important;
+    font-size: 0.75rem !important;
+  }
+}

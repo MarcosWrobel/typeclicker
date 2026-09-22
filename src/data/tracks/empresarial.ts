@@ -23,7 +23,9 @@ export const EMPRESARIAL_TRACK: CurricularTrackConfig = {
         'texto', 'fonte', 'foco', 'envio', 'prazo', 'soma', 'linha', 'vaga', 'lucro', 'custo',
         'caixa', 'saldo', 'cargo', 'meta', 'hora', 'plano', 'taxa', 'juro', 'setor', 'ramal',
         'bloco', 'ponto', 'folha', 'valor', 'total', 'grupo', 'termo', 'marca', 'anexo', 'aviso',
-        'email', 'fluxo', 'meta', 'dado', 'guia', 'sede', 'fase', 'base', 'meta', 'venda'
+        'email', 'fluxo', 'meta', 'dado', 'guia', 'sede', 'fase', 'base', 'meta', 'venda',
+        'cheque', 'cupom', 'dolar', 'frete', 'ganho', 'gasto', 'mídia', 'pagar', 'preço', 'renda',
+        'sócio', 'título', 'visto', 'ativo', 'bruto', 'líquido', 'lucros', 'prazos', 'perda', 'teto'
       ]
     },
     {
@@ -40,7 +42,10 @@ export const EMPRESARIAL_TRACK: CurricularTrackConfig = {
         'filtro', 'backup', 'reunião', 'cliente', 'recibo', 'fatura', 'contrato', 'despesa',
         'receita', 'estoque', 'cotação', 'equipe', 'gestor', 'ofício', 'agenda', 'recado',
         'crédito', 'débito', 'boleto', 'tributo', 'cálculo', 'função', 'página', 'gráfico',
-        'modelo', 'manual', 'trabalho', 'tarefa', 'projeto', 'rotina', 'quadro', 'painel'
+        'modelo', 'manual', 'trabalho', 'tarefa', 'projeto', 'rotina', 'quadro', 'painel',
+        'acordo', 'aluguel', 'análise', 'atestado', 'balanço', 'bancário', 'cartório', 'cédula',
+        'cheque', 'compra', 'contábil', 'correio', 'crachá', 'desconto', 'diária', 'edital',
+        'empréstimo', 'extrato', 'gerente', 'holerite', 'imposto', 'índice', 'jurídico', 'licença'
       ]
     },
     {
@@ -57,7 +62,11 @@ export const EMPRESARIAL_TRACK: CurricularTrackConfig = {
         'empresa', 'negócio', 'negociação', 'orçamento', 'provento', 'desconto', 'comissão',
         'auditoria', 'processo', 'parecer', 'certidão', 'recursos', 'logística', 'estratégia',
         'indicador', 'conversão', 'mercado', 'produção', 'operação', 'desempenho', 'pesquisa',
-        'inventário', 'fornecedor', 'pagamento', 'cobrança', 'conferência', 'expedição', 'diretoria'
+        'inventário', 'fornecedor', 'pagamento', 'cobrança', 'conferência', 'expedição', 'diretoria',
+        'acionista', 'alimentação', 'amortização', 'aplicação', 'assessoria', 'benefício', 'cadastral',
+        'conciliação', 'declaração', 'documento', 'duplicata', 'eficiência', 'estatuto', 'fidelização',
+        'investimento', 'liquidação', 'matrícula', 'notificação', 'patrimônio', 'precificação',
+        'procuração', 'rentabilidade', 'secretaria', 'solicitação', 'transação', 'viabilidade'
       ]
     },
     {
@@ -74,7 +83,11 @@ export const EMPRESARIAL_TRACK: CurricularTrackConfig = {
         'gerenciamento', 'organização', 'confidencial', 'faturamento', 'conciliação',
         'departamento', 'colaborativo', 'automação', 'comunicação', 'apresentação',
         'cronograma', 'rendimento', 'sustentabilidade', 'planejamento', 'estatística',
-        'administração', 'competitividade', 'profissional', 'reestruturação'
+        'administração', 'competitividade', 'profissional', 'reestruturação',
+        'acompanhamento', 'competências', 'concessionária', 'demonstrativo', 'empreendimento',
+        'estabelecido', 'flexibilização', 'funcionalidade', 'gerenciador', 'implementação',
+        'interpessoal', 'monitoramento', 'operacionalidade', 'padronização', 'planejamento',
+        'priorização', 'processamento', 'qualificação', 'rentabilização', 'sindicalização'
       ]
     },
     {
@@ -90,7 +103,10 @@ export const EMPRESARIAL_TRACK: CurricularTrackConfig = {
         'telecomunicação', 'empreendedorismo', 'sustentabilidade', 'conformidade',
         'desburocratização', 'planejamento-estratégico', 'inteligência-competitiva',
         'responsabilidade-social', 'liderança-operacional', 'governança-corporativa',
-        'interdisciplinaridade', 'transformação-digital', 'desenvolvimento-humano'
+        'interdisciplinaridade', 'transformação-digital', 'desenvolvimento-humano',
+        'internacionalização', 'descentralização-processos', 'reestruturação-societária',
+        'interoperabilidade-sistemas', 'sustentabilidade-financeira', 'gerenciamento-riscos',
+        'otimização-processos', 'gestão-conhecimento', 'compliance-corporativo'
       ]
     }
   ]

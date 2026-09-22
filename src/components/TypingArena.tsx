@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Flame, Sparkles, Award, Keyboard, HelpCircle, AlertCircle, Zap, Gauge, Trophy, AlertTriangle, Timer, Activity, Pause, Play, Lock, Palette, Coins, Users, Swords, Target, Scroll } from 'lucide-react';
-import { CategoryId, FloatingText, DrillSession, KeyTelemetry, AccessibilitySettings, CurricularTrackId } from '../types';
+import { CategoryId, FloatingText, DrillSession, KeyTelemetry, AccessibilitySettings, CurricularTrackId, TypingMode } from '../types';
 import { BytezinhoSkinId, TerminalThemeId, AnimationEffectId } from '../types/cosmetics';
 import { TERMINAL_THEMES } from '../constants/themes';
 import { WORD_CATEGORIES, getCurricularTrack, getTrackCategories } from '../data/words';
@@ -64,6 +64,9 @@ interface TypingArenaProps {
   keyTelemetry?: Record<string, KeyTelemetry>;
   accessibility?: AccessibilitySettings;
   activeTrack?: CurricularTrackId;
+  typingMode?: TypingMode;
+  onSelectTypingMode?: (mode: TypingMode) => void;
+  onOpenTimeAttack?: () => void;
 }
 
 const THEME_STYLES: Record<string, {
@@ -156,7 +159,10 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
   onStartDrill,
   keyTelemetry = {},
   accessibility,
-  activeTrack = 'geral'
+  activeTrack = 'geral',
+  typingMode = 'words',
+  onSelectTypingMode,
+  onOpenTimeAttack
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const internalInputRef = useRef<HTMLInputElement>(null);
@@ -169,7 +175,73 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
   const isHighContrast = Boolean(accessibility?.highContrast);
   const contrastTheme = accessibility?.contrastTheme || 'high_contrast_yellow';
 
+  // Estratégia Híbrida: Largura adaptativa suave por modo de digitação
+  const outerMaxWidthClass = React.useMemo(() => {
+    switch (typingMode) {
+      case 'code':
+        return 'max-w-4xl xl:max-w-5xl';
+      case 'sentences':
+        return 'max-w-3xl lg:max-w-4xl';
+      case 'words':
+      default:
+        return 'max-w-2xl';
+    }
+  }, [typingMode]);
+
+  const cardMaxWidthClass = React.useMemo(() => {
+    switch (typingMode) {
+      case 'code':
+        return 'max-w-4xl xl:max-w-5xl';
+      case 'sentences':
+        return 'max-w-3xl lg:max-w-4xl';
+      case 'words':
+      default:
+        return 'max-w-2xl';
+    }
+  }, [typingMode]);
+
+  const trackingClass = React.useMemo(() => {
+    switch (typingMode) {
+      case 'code':
+        return 'tracking-normal';
+      case 'sentences':
+        return 'tracking-normal sm:tracking-wide';
+      case 'words':
+      default:
+        return 'tracking-widest';
+    }
+  }, [typingMode]);
+
   const textScaleClass = React.useMemo(() => {
+    if (typingMode === 'sentences') {
+      switch (accessibility?.textScale) {
+        case 'large':
+          return 'text-2xl sm:text-3xl md:text-4xl';
+        case 'huge':
+          return 'text-3xl sm:text-4xl md:text-5xl';
+        case 'mega':
+          return 'text-4xl sm:text-5xl md:text-6xl';
+        case 'normal':
+        default:
+          return 'text-lg sm:text-xl md:text-2xl';
+      }
+    }
+
+    if (typingMode === 'code') {
+      switch (accessibility?.textScale) {
+        case 'large':
+          return 'text-xl sm:text-2xl md:text-3xl';
+        case 'huge':
+          return 'text-2xl sm:text-3xl md:text-4xl';
+        case 'mega':
+          return 'text-3xl sm:text-4xl md:text-5xl';
+        case 'normal':
+        default:
+          return 'text-base sm:text-lg md:text-xl';
+      }
+    }
+
+    // Default 'words' mode (letras grandes de foco para palavras curtas)
     switch (accessibility?.textScale) {
       case 'large':
         return 'text-4xl sm:text-5xl md:text-6xl';
@@ -181,7 +253,54 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
       default:
         return 'text-3xl sm:text-4xl md:text-5xl';
     }
-  }, [accessibility?.textScale]);
+  }, [accessibility?.textScale, typingMode]);
+
+  // Agrupamento por tokens/palavras para quebra natural de linha (Word-Boundary Wrapping)
+  // Garante que uma palavra nunca se quebre no meio da sílaba ao atingir o fim da linha
+  const wordTokens = React.useMemo(() => {
+    if (!currentWord) return [];
+
+    if (typingMode === 'words') {
+      return [{
+        chars: currentWord.split('').map((char, index) => ({ char, index }))
+      }];
+    }
+
+    const tokens: Array<{ chars: Array<{ char: string; index: number }> }> = [];
+    let currentChars: Array<{ char: string; index: number }> = [];
+    let inWord = false;
+
+    for (let i = 0; i < currentWord.length; i++) {
+      const char = currentWord[i];
+      const isSpace = char === ' ';
+
+      if (isSpace) {
+        if (inWord) {
+          // Espaço imediatamente após uma palavra fica ancorado a ela para quebras de linha perfeitas
+          currentChars.push({ char, index: i });
+          tokens.push({ chars: currentChars });
+          currentChars = [];
+          inWord = false;
+        } else {
+          // Espaços múltiplos consecutivos ou no início
+          currentChars.push({ char, index: i });
+        }
+      } else {
+        if (!inWord && currentChars.length > 0) {
+          tokens.push({ chars: currentChars });
+          currentChars = [];
+        }
+        inWord = true;
+        currentChars.push({ char, index: i });
+      }
+    }
+
+    if (currentChars.length > 0) {
+      tokens.push({ chars: currentChars });
+    }
+
+    return tokens;
+  }, [currentWord, typingMode]);
 
   const highContrastCardClass = isHighContrast
     ? contrastTheme === 'high_contrast_yellow'
@@ -380,7 +499,7 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
   const currentTheme = THEME_STYLES[activeCatObj.themeColor] || THEME_STYLES.emerald;
 
   return (
-    <div className="w-full flex-1 min-w-0 flex flex-col items-center justify-center p-2 sm:p-3 max-w-3xl mx-auto relative overflow-x-hidden gap-1.5 sm:gap-2">
+    <div className={`w-full flex-1 min-w-0 flex flex-col items-center justify-start pt-2 sm:pt-3 px-2 sm:px-3 pb-4 ${outerMaxWidthClass} mx-auto relative overflow-x-hidden gap-2 sm:gap-2.5 transition-[max-width] duration-300 ease-in-out`}>
       {/* Input invisível com suporte nativo a IME e Dead Keys do laboratório / Chromium / Firefox */}
       <input
         ref={inputRef}
@@ -400,135 +519,8 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
         spellCheck="false"
       />
 
-      {/* Difficulty Selection Header & Tabs */}
-      <div className="w-full flex flex-col items-center gap-1.5 min-w-0 flex-shrink-0">
-        <div className="flex items-center justify-between w-full max-w-2xl px-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="p-1 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
-              <Gauge className="w-3.5 h-3.5" />
-            </div>
-            <span className="text-xs font-bold text-zinc-300 uppercase tracking-wider font-mono">
-              Selecione a Dificuldade
-            </span>
-            {activeTrack && activeTrack !== 'geral' && (
-              <span className="text-[10px] font-mono text-purple-200 bg-purple-950/90 border border-purple-500/50 px-2.5 py-0.5 rounded-full flex items-center gap-1.5 font-bold shadow-[0_0_10px_rgba(168,85,247,0.2)]">
-                <span>{activeTrackConfig.icon}</span>
-                <span>{activeTrackConfig.name}</span>
-              </span>
-            )}
-            {isPaused && (
-              <span className="text-[10px] font-mono text-amber-300 bg-amber-500/20 border border-amber-500/40 px-2 py-0.5 rounded-full flex items-center gap-1 font-bold animate-pulse">
-                <span>⏸️</span>
-                <span>Pausa Ativa (Ajuste liberado)</span>
-              </span>
-            )}
-          </div>
-          <span className="text-[11px] font-mono text-zinc-400 hidden sm:inline">
-            Dificuldades maiores rendem mais Bytes!
-          </span>
-        </div>
-
-        {/* 5 Difficulty Selectors - strictly bounded inside max-w-2xl and 100% accessible within margins */}
-        <div className="w-full max-w-2xl px-1 min-w-0">
-          <div className="grid grid-cols-5 gap-1.5 sm:gap-2 w-full">
-            {currentCategories.map((cat) => {
-              const isSelected = cat.id === selectedCategory;
-              const isAllowed = isCategoryAllowed(cat.id, playerRankLevel);
-              const theme = THEME_STYLES[cat.themeColor] || THEME_STYLES.emerald;
-              
-              return (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => {
-                    if (isAllowed) onSelectCategory(cat.id);
-                  }}
-                  disabled={!isAllowed}
-                  className={`group relative flex flex-col items-center justify-center p-1.5 sm:p-2 rounded-xl text-center transition-all border min-w-0 ${
-                    isSelected
-                      ? `${theme.buttonActive}`
-                      : !isAllowed 
-                        ? 'bg-[#161214] text-red-900/60 border-red-950/30 cursor-not-allowed opacity-50'
-                        : 'bg-[#151922] text-zinc-400 border-[#232833] hover:text-zinc-200 hover:bg-[#1a1f2b] hover:border-zinc-700 cursor-pointer'
-                  } ${isPaused ? 'ring-1 ring-amber-500/40' : ''}`}
-                  title={
-                    !isAllowed
-                      ? "Nível de rank alto demais para este aquecimento!"
-                      : isPaused
-                      ? `Jogo pausado - clique para selecionar ${cat.name}`
-                      : `${cat.name} (${cat.bonusMultiplier}x Bytes)`
-                  }
-                >
-                  <div className="flex items-center justify-center gap-1 sm:gap-1.5 w-full min-w-0">
-                    <span className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full flex-shrink-0 ${
-                      isSelected ? 'bg-current animate-pulse' : !isAllowed ? 'bg-red-900/60' : 'bg-zinc-600 group-hover:bg-zinc-400'
-                    }`} />
-                    <span className={`font-bold text-[11px] sm:text-xs truncate ${!isAllowed ? 'line-through' : ''}`}>
-                      {cat.name}
-                    </span>
-                  </div>
-                  <span className={`text-[9px] sm:text-[10px] font-mono font-bold px-1.5 sm:px-2 py-0.5 rounded-full mt-1 transition-all truncate max-w-full ${
-                    isSelected
-                      ? `${theme.badgeActive}`
-                      : !isAllowed
-                        ? 'bg-red-950/20 text-red-900/50'
-                        : 'bg-zinc-800/90 text-zinc-400 group-hover:text-zinc-300'
-                  }`}>
-                    {!isAllowed ? (
-                      <span className="flex items-center justify-center gap-0.5">
-                        <Lock className="w-2.5 h-2.5 inline flex-shrink-0" />
-                        <span className="hidden sm:inline">Bloqueado</span>
-                        <span className="inline sm:hidden">Bloq.</span>
-                      </span>
-                    ) : (
-                      <>
-                        <span className="inline sm:hidden">{cat.bonusMultiplier}x</span>
-                        <span className="hidden sm:inline">
-                          {cat.bonusMultiplier > 1 ? `+${Math.round((cat.bonusMultiplier - 1) * 100)}%` : '1.0x Base'}
-                        </span>
-                      </>
-                    )}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="w-full max-w-2xl bg-[#12151d] border border-[#202530] rounded-xl p-2.5 sm:px-3.5 sm:py-2.5 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-inner">
-          <div className="flex items-center gap-2 text-zinc-300 min-w-0">
-            <span className={`px-2.5 py-0.5 rounded-md font-mono font-bold text-[11px] whitespace-nowrap border ${currentTheme.badgeActive}`}>
-              {activeCatObj.name} ({activeCatObj.badge})
-            </span>
-            <span className="text-[11px] text-zinc-400 truncate">
-              {activeCatObj.description}
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5 font-mono font-bold text-[11px] text-amber-300 whitespace-nowrap bg-amber-500/10 px-2.5 py-1 rounded-md border border-amber-500/30 self-start sm:self-auto">
-            <Zap className="w-3.5 h-3.5 text-amber-400" />
-            <span>Multiplicador: {activeCatObj.bonusMultiplier}x Bytes</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Mascote Interativo Bytezinho (Amigo virtual do aluno) */}
-      <BytezinhoMascot
-        comboStreak={comboStreak}
-        multiplier={multiplier}
-        isError={isErrorShaking}
-        recentWordComplete={recentWordComplete}
-        recentUpgradeBought={recentUpgradeBought}
-        consecutiveErrors={consecutiveErrors}
-        isDraining={isDraining}
-        isOverloaded={isOverloaded}
-        isOverheating={isOverheating ?? (isOverloaded || isDraining)}
-        skin={equippedSkin}
-        weakKeys={weakKeys.map(k => k.char)}
-        onMascotClick={onMascotClick}
-      />
-
       {/* Main Interactive Typing Box */}
-      <div className="w-full flex flex-col items-center justify-center my-1 relative flex-shrink-0">
+      <div className="w-full flex flex-col items-center justify-start my-0.5 relative flex-shrink-0">
         {/* Floating Particle Texts */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           {floatingTexts.map((f) => (
@@ -548,136 +540,13 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
           ))}
         </div>
 
-        {/* Notificação / Recomendação Espontânea de Treino (Disparada em erros ou hesitação) */}
-        {suggestedDrillPrompt && !drillSession && (
-          <div className="w-full max-w-2xl mb-2 bg-gradient-to-r from-amber-950/95 via-purple-950/95 to-indigo-950/95 border-2 border-amber-400/90 rounded-xl p-3 sm:px-4 sm:py-3.5 shadow-[0_0_30px_rgba(245,158,11,0.4)] animate-in fade-in zoom-in-95 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 z-20">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/60 flex items-center justify-center text-amber-300 flex-shrink-0 animate-bounce">
-                <Target className="w-5 h-5 text-amber-400" />
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-xs font-black text-amber-300 font-mono uppercase tracking-wider flex items-center gap-1.5">
-                    <span>💡 Sugestão Pedagógica</span>
-                    <span className="text-[10px] px-2 py-0.2 rounded-full bg-amber-500/30 text-amber-200 border border-amber-500/50 font-bold">
-                      Calibração Recomendada
-                    </span>
-                  </span>
-                </div>
-                <p className="text-[11px] sm:text-xs text-zinc-200 font-sans mt-0.5 leading-snug">
-                  Detectamos hesitação nas teclas{' '}
-                  {suggestedDrillPrompt.keys.map((k) => (
-                    <strong key={k} className="mx-0.5 px-1.5 py-0.5 bg-amber-500/30 text-amber-200 rounded border border-amber-400/50 font-mono uppercase">
-                      {k}
-                    </strong>
-                  ))}
-                  . Recalibre seus dedos em 30s e ganhe bônus de Bytes!
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 self-end sm:self-center flex-shrink-0">
-              <button
-                type="button"
-                onClick={() => {
-                  if (onStartDrill) onStartDrill(suggestedDrillPrompt.keys);
-                  setSuggestedDrillPrompt(null);
-                }}
-                className="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-indigo-600 hover:from-amber-400 hover:to-indigo-500 text-white font-mono font-bold text-xs shadow-[0_0_15px_rgba(245,158,11,0.5)] transition cursor-pointer flex items-center gap-1.5"
-              >
-                <Target className="w-3.5 h-3.5" />
-                <span>Iniciar Treino</span>
-              </button>
-              <button
-                type="button"
-                onClick={handleDismissSuggestion}
-                className="px-2.5 py-1.5 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 text-zinc-400 hover:text-white font-mono text-xs border border-zinc-700 transition cursor-pointer"
-                title="Dispensar sugestão temporariamente"
-              >
-                Depois
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Botão de Acesso Rápido Permanente na Arena (Sem precisar abrir menus) */}
-        {weakKeys.length > 0 && !drillSession && !suggestedDrillPrompt && (
-          <div className="w-full max-w-2xl mb-2 flex items-center justify-between p-2 px-3 sm:px-4 rounded-xl bg-gradient-to-r from-amber-950/40 via-purple-950/40 to-indigo-950/40 border border-amber-500/40 hover:border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.15)] transition animate-in fade-in">
-            <div className="flex items-center gap-2 text-xs font-mono text-amber-300 min-w-0">
-              <div className="w-6 h-6 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 flex-shrink-0 animate-pulse">
-                <Target className="w-3.5 h-3.5" />
-              </div>
-              <span className="font-bold truncate">Calibração Motora Disponível:</span>
-              <span className="text-zinc-400 hidden sm:inline">teclas</span>
-              <div className="flex gap-1">
-                {weakKeys.map(k => (
-                  <span key={k.char} className="px-1.5 py-0.2 bg-amber-500/20 text-amber-200 rounded border border-amber-500/40 uppercase font-black text-[11px]">
-                    {k.char}
-                  </span>
-                ))}
-              </div>
-            </div>
-            {onStartDrill && (
-              <button
-                type="button"
-                onClick={() => onStartDrill(weakKeys.map(k => k.char))}
-                className="px-3 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 hover:text-amber-200 border border-amber-500/50 text-xs font-mono font-bold transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap ml-2 shadow-sm"
-              >
-                <span>Calibrar Agora (+Bônus)</span>
-                <span>→</span>
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* Banner Pedagógico de Treino Corretivo Adaptativo */}
-        {drillSession && (
-          <div className="w-full max-w-2xl mb-2 bg-gradient-to-r from-indigo-950/90 via-purple-950/90 to-indigo-950/90 border-2 border-indigo-500/60 rounded-xl p-2.5 sm:px-4 sm:py-3 flex items-center justify-between shadow-[0_0_24px_rgba(99,102,241,0.3)] animate-in fade-in">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-lg bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-300 flex-shrink-0">
-                <Target className="w-4 h-4 animate-pulse" />
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-xs font-black text-white font-mono tracking-wider">
-                    TREINO CORRETIVO ADAPTATIVO
-                  </span>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-indigo-500/30 text-indigo-200 border border-indigo-400/40 font-bold">
-                    {drillSession.currentIndex + 1} / {drillSession.totalWords}
-                  </span>
-                </div>
-                <div className="text-[11px] text-zinc-300 font-mono mt-0.5 flex items-center gap-1.5 flex-wrap">
-                  <span className="text-zinc-400">Teclas em foco:</span>
-                  {drillSession.targetKeys.map(k => (
-                    <span
-                      key={k}
-                      className="px-1.5 py-0.5 bg-amber-500/20 text-amber-300 border border-amber-500/40 rounded uppercase font-bold text-xs shadow-sm"
-                    >
-                      {k}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-            {onCancelDrill && (
-              <button
-                type="button"
-                onClick={onCancelDrill}
-                className="text-[11px] font-mono font-bold text-zinc-400 hover:text-white px-2.5 py-1.5 rounded-lg bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-700/60 transition cursor-pointer whitespace-nowrap ml-2"
-                title="Cancelar treino e retornar ao vocabulário regular"
-              >
-                Encerrar Treino
-              </button>
-            )}
-          </div>
-        )}
-
         {/* Word Display Card */}
         <div
           ref={containerRef}
           onClick={handleCardClick}
-          className={`w-full max-w-2xl ${
+          className={`w-full ${cardMaxWidthClass} ${
             isHighContrast ? highContrastCardClass : activeTerminalTheme.classes.cardBg
-          } border-2 rounded-2xl p-3.5 sm:p-5 flex flex-col items-center justify-center transition-all min-w-0 ${
+          } arena-terminal-card border-2 rounded-2xl p-3 sm:p-4 flex flex-col items-center justify-start transition-[max-width,border-color,background-color,box-shadow] duration-300 ease-in-out min-w-0 ${
             isHighContrast ? '' : activeTerminalTheme.classes.glowEffect || 'shadow-[0_12px_36px_rgba(0,0,0,0.6)]'
           } relative overflow-hidden cursor-text ${
             isPaused
@@ -701,26 +570,187 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
             <TerminalThemeEffects themeId={equippedTheme || 'matrix'} isTyping={comboStreak > 0} />
           )}
 
-          {/* Top Word Label / Progress, Difficulty & Focus Status */}
-          <div className="flex flex-wrap items-center justify-between w-full mb-3 text-xs text-zinc-400 font-mono gap-1.5">
-            <div className="flex items-center gap-2">
-              <span className="flex items-center gap-1.5">
-                <span className={`w-2 h-2 rounded-full ${isFocused ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
-                <span>{isFocused ? 'TECLADO ATIVO' : 'CLIQUE PARA FOCAR'}</span>
-              </span>
-              <span className="hidden sm:inline-flex items-center gap-1 text-[10px] text-zinc-500 font-mono bg-zinc-900/60 px-1.5 py-0.5 rounded border border-zinc-800">
-                <kbd className="px-1 py-0.2 rounded bg-zinc-800 text-zinc-300 font-bold text-[9px]">Esc</kbd>
-                <span>pausar</span>
-              </span>
+          {/* 1. Header Unificado (Opção C: Cápsula Dupla Integrada + Fita de Ações e Status) */}
+          <div className="w-full flex flex-col gap-2 mb-3 border-b border-[#232838]/70 pb-2.5 select-none">
+            {/* Linha Superior: Duas Cápsulas Irmãs Simétricas (Modo à esquerda + Dificuldade à direita) */}
+            <div className="w-full flex items-center justify-between gap-2 flex-wrap lg:flex-nowrap min-w-0">
+              {/* Cápsula 1: Tipo de Digitação (Modo) */}
+              <div className="flex items-center gap-1 p-1 bg-[#0b0e14]/90 border border-[#1e2433] rounded-xl shadow-inner flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelectTypingMode?.('words');
+                  }}
+                  className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition cursor-pointer ${
+                    typingMode === 'words'
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 shadow-[0_0_10px_rgba(16,185,129,0.25)]'
+                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
+                  }`}
+                  title="Palavras isoladas por dificuldade"
+                >
+                  <span>🔤</span>
+                  <span>Palavras</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelectTypingMode?.('sentences');
+                  }}
+                  className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition cursor-pointer ${
+                    typingMode === 'sentences'
+                      ? 'bg-sky-500/20 text-sky-300 border border-sky-500/50 shadow-[0_0_10px_rgba(56,189,248,0.25)]'
+                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
+                  }`}
+                  title="Frases completas com pontuação real ABNT2"
+                >
+                  <span>💬</span>
+                  <span>Frases</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelectTypingMode?.('code');
+                  }}
+                  className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition cursor-pointer ${
+                    typingMode === 'code'
+                      ? 'bg-purple-500/20 text-purple-300 border border-purple-500/50 shadow-[0_0_10px_rgba(168,85,247,0.25)]'
+                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
+                  }`}
+                  title="Código & Símbolos especiais: {}, [], (), <>, ;, ===, =>"
+                >
+                  <span>💻</span>
+                  <span>Código</span>
+                </button>
+              </div>
+
+              {/* Cápsula 2: Dificuldade (Com a mesma linguagem visual da Cápsula 1) */}
+              <div className="flex items-center gap-1 p-1 bg-[#0b0e14]/90 border border-[#1e2433] rounded-xl shadow-inner flex-1 min-w-0 justify-between">
+                {currentCategories.map((cat, idx) => {
+                  const isSelected = cat.id === selectedCategory;
+                  const isAllowed = isCategoryAllowed(cat.id, playerRankLevel);
+                  const theme = THEME_STYLES[cat.themeColor] || THEME_STYLES.emerald;
+                  const shortNames = ['Inic', 'Básico', 'Médio', 'Avanç', 'Mestre'];
+                  const shortName = shortNames[idx] || cat.name;
+
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (isAllowed) onSelectCategory(cat.id);
+                      }}
+                      disabled={!isAllowed}
+                      className={`group relative flex-1 flex items-center justify-center gap-1 py-1.5 px-1 sm:px-2 rounded-lg text-center transition-all min-w-0 font-mono text-xs ${
+                        isSelected
+                          ? `${theme.buttonActive} shadow-sm font-bold`
+                          : !isAllowed
+                          ? 'text-red-900/50 cursor-not-allowed opacity-40'
+                          : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60 cursor-pointer font-medium'
+                      }`}
+                      title={
+                        !isAllowed
+                          ? "Nível de rank alto demais para este aquecimento!"
+                          : `${cat.name}: ${cat.description} (${cat.bonusMultiplier}x Bytes)`
+                      }
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                        isSelected ? 'bg-current animate-pulse' : !isAllowed ? 'bg-red-900/60' : 'bg-zinc-600 group-hover:bg-zinc-400'
+                      }`} />
+                      <span className="truncate">
+                        <span className="hidden xl:inline">{cat.name}</span>
+                        <span className="xl:hidden">{shortName}</span>
+                      </span>
+                      <span className="text-[10px] opacity-75 font-bold ml-0.5 hidden sm:inline">
+                        {!isAllowed ? <Lock className="w-2.5 h-2.5 inline" /> : `${cat.bonusMultiplier}x`}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
-            {/* Dificuldade Ativa Badge */}
-            <div className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-mono text-[11px] font-bold border transition-all ${currentTheme.pillColor}`}>
-              <Zap className="w-3 h-3 text-amber-400" />
-              <span>DIFICULDADE: {activeCatObj.name.toUpperCase()} ({activeCatObj.bonusMultiplier}x BÔNUS)</span>
-            </div>
+            {/* Linha Secundária: Fita de Ações Rápidas, Contexto e Status */}
+            <div className="w-full flex items-center justify-between gap-2 px-1 text-[11px] text-zinc-400 font-mono min-w-0 flex-wrap sm:flex-nowrap">
+              {/* Esquerda: Sprint Chip + Trilha Curricular + Contexto */}
+              <div className="flex items-center gap-2 min-w-0 truncate">
+                {onOpenTimeAttack && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onOpenTimeAttack();
+                    }}
+                    className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-mono font-bold transition shadow-sm hover:scale-105 active:scale-95 cursor-pointer flex-shrink-0"
+                    title="Desafio Arcade Sprint (30s / 60s)"
+                  >
+                    <Timer className="w-3 h-3 text-amber-400 animate-pulse" />
+                    <span>Sprint Arcade</span>
+                    <span className="text-[9px] px-1 py-0.2 rounded bg-amber-400/20 text-amber-200 font-extrabold hidden md:inline">30s/60s</span>
+                  </button>
+                )}
 
-            <span>{charIndex}/{currentWord.length} CONCLUÍDOS</span>
+                {activeTrack && activeTrack !== 'geral' && (
+                  <span className="text-[11px] font-mono text-purple-200 bg-purple-950/80 border border-purple-500/40 px-2 py-0.5 rounded-lg flex items-center gap-1 font-bold shadow-sm flex-shrink-0">
+                    <span>{activeTrackConfig.icon}</span>
+                    <span className="hidden sm:inline">{activeTrackConfig.name}</span>
+                  </span>
+                )}
+
+                <span className="text-zinc-600 hidden md:inline">|</span>
+
+                {/* Descrição contextual por modo */}
+                <div className="truncate text-zinc-400">
+                  {typingMode === 'code' ? (
+                    <span className="text-purple-300 font-bold flex items-center gap-1.5 truncate">
+                      <span className="w-1.5 h-1.5 rounded-full bg-purple-400 flex-shrink-0" />
+                      <span>syntax.ts</span>
+                      <span className="text-zinc-500 font-normal hidden sm:inline truncate">// símbolos e atalhos ({activeCatObj.name})</span>
+                    </span>
+                  ) : typingMode === 'sentences' ? (
+                    <span className="text-sky-300 font-bold flex items-center gap-1.5 truncate">
+                      <span className="w-1.5 h-1.5 rounded-full bg-sky-400 flex-shrink-0" />
+                      <span>Fluência ABNT2:</span>
+                      <span className="text-zinc-400 font-normal hidden sm:inline truncate">{activeCatObj.description}</span>
+                    </span>
+                  ) : (
+                    <span className="truncate">
+                      <strong className="text-zinc-300">{activeCatObj.name}:</strong> {activeCatObj.description}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Direita: Progresso + Bônus + Status do Teclado */}
+              <div className="flex items-center gap-2 sm:gap-2.5 flex-shrink-0 font-bold ml-auto">
+                <span className="text-amber-400/90 whitespace-nowrap hidden lg:inline">
+                  +{Math.round((activeCatObj.bonusMultiplier - 1) * 100)}% Bônus
+                </span>
+
+                <span className="text-zinc-400">
+                  {charIndex}/{currentWord.length} CONCLUÍDOS
+                </span>
+
+                <span className="text-zinc-600 hidden sm:inline">|</span>
+
+                {/* Status de Foco */}
+                <div className="hidden sm:flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-zinc-900/80 border border-zinc-800 text-[10px] text-zinc-400 font-normal">
+                  <span className={`w-1.5 h-1.5 rounded-full ${isFocused ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+                  <span>{isFocused ? 'ATIVO' : 'DESFOCADO'}</span>
+                  <kbd className="px-1 py-0.2 rounded bg-zinc-800 text-zinc-300 text-[9px] font-bold">Esc</kbd>
+                </div>
+
+                {isPaused && (
+                  <span className="text-[10px] text-amber-300 bg-amber-500/20 border border-amber-500/40 px-2 py-0.5 rounded-md flex items-center gap-1 font-bold animate-pulse">
+                    <span>⏸️</span>
+                    <span>Pausa</span>
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Indicador Pedagógico de Acento Pendente (ABNT2 Dead Key Feedback) */}
@@ -731,77 +761,76 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
             </div>
           )}
 
-          {/* High-Contrast Interactive Characters com suporte a escala de acessibilidade */}
-          <div ref={wordContainerRef} className={`font-mono ${textScaleClass} tracking-widest font-bold my-2 sm:my-3 flex items-center justify-center flex-wrap gap-1 select-none`}>
-            {currentWord.split('').map((char, index) => {
-              const isDone = index < charIndex;
-              const isCurrent = index === charIndex;
-              const isPending = index > charIndex;
-              const isJustTyped = index === charIndex - 1;
-              const animClasses = !isHighContrast ? getLetterVfxClasses(equippedAnimation, isDone, isCurrent, isJustTyped) : '';
-              const isTargetKey = Boolean(drillSession?.targetKeys?.includes(char.toLowerCase()));
+          {/* High-Contrast Interactive Characters com suporte a escala de acessibilidade e agrupamento de palavras intactas */}
+          <div
+            ref={wordContainerRef}
+            className={`font-mono ${textScaleClass} ${trackingClass} font-bold my-1 sm:my-2 h-[105px] sm:h-[125px] 2xl:h-[140px] max-h-[140px] overflow-hidden flex items-center justify-center flex-wrap gap-y-2 select-none w-full leading-relaxed arena-typing-box`}
+          >
+            {wordTokens.map((token, tokenIdx) => (
+              <span key={tokenIdx} className="inline-flex flex-nowrap items-center">
+                {token.chars.map(({ char, index }) => {
+                  const isDone = index < charIndex;
+                  const isCurrent = index === charIndex;
+                  const isPending = index > charIndex;
+                  const isJustTyped = index === charIndex - 1;
+                  const animClasses = !isHighContrast ? getLetterVfxClasses(equippedAnimation, isDone, isCurrent, isJustTyped) : '';
+                  const isTargetKey = Boolean(drillSession?.targetKeys?.includes(char.toLowerCase()));
 
-              return (
-                <span
-                  key={index}
-                  className={`inline-block relative transition-all duration-75 px-1 py-0.5 rounded ${
-                    isDone
-                      ? isHighContrast
-                        ? highContrastDoneCharClass
-                        : `char-done ${activeTerminalTheme.classes.charDone} ${animClasses} opacity-90`
-                      : isCurrent
-                      ? isHighContrast
-                        ? highContrastCurrentCharClass
-                        : `char-current ${activeTerminalTheme.classes.charCurrent} ${animClasses} bg-zinc-900/60 ring-2 ring-current/80 shadow-[0_0_15px_rgba(255,255,255,0.2)]`
-                      : isHighContrast
-                      ? highContrastPendingCharClass
-                      : 'char-pending text-zinc-600'
-                  } ${isJustTyped && !isHighContrast ? animClasses : ''} ${
-                    isTargetKey && !isDone
-                      ? 'border-b-2 border-amber-400 font-extrabold text-amber-200'
-                      : ''
-                  }`}
-                >
-                  {char === ' ' ? '␣' : char}
-                  {isCurrent && (
-                    <span className={`absolute -bottom-1.5 left-0 right-0 ${cursorClass}`} />
-                  )}
-                  {isTargetKey && !isDone && (
-                    <span className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.8)]" />
-                  )}
-                </span>
-              );
-            })}
+                  return (
+                    <span
+                      key={index}
+                      className={`inline-block relative transition-all duration-75 px-1 py-0.5 rounded ${
+                        isDone
+                          ? isHighContrast
+                            ? highContrastDoneCharClass
+                            : `char-done ${activeTerminalTheme.classes.charDone} ${animClasses} opacity-90`
+                          : isCurrent
+                          ? isHighContrast
+                            ? highContrastCurrentCharClass
+                            : `char-current ${activeTerminalTheme.classes.charCurrent} ${animClasses} bg-zinc-900/60 ring-2 ring-current/80 shadow-[0_0_15px_rgba(255,255,255,0.2)]`
+                          : isHighContrast
+                          ? highContrastPendingCharClass
+                          : 'char-pending text-zinc-600'
+                      } ${isJustTyped && !isHighContrast ? animClasses : ''} ${
+                        isTargetKey && !isDone
+                          ? 'border-b-2 border-amber-400 font-extrabold text-amber-200'
+                          : ''
+                      }`}
+                    >
+                      {char === ' ' ? (
+                        <span className="inline-block min-w-[0.55em] select-none">&nbsp;</span>
+                      ) : (
+                        char
+                      )}
+                      {isCurrent && (
+                        <span className={`absolute -bottom-1.5 left-0 right-0 ${cursorClass}`} />
+                      )}
+                      {isTargetKey && !isDone && (
+                        <span className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.8)]" />
+                      )}
+                    </span>
+                  );
+                })}
+              </span>
+            ))}
           </div>
 
           {!isFocused && (
-            <div className="flex items-center gap-1.5 text-xs text-amber-400/90 font-mono mt-1 bg-amber-500/10 px-3 py-1 rounded-md border border-amber-500/20">
+            <div className="flex items-center gap-1.5 text-xs text-amber-400/90 font-mono mt-0.5 bg-amber-500/10 px-3 py-0.5 rounded-md border border-amber-500/20">
               <AlertCircle className="w-3.5 h-3.5" />
               <span>Clique no painel para reativar o teclado</span>
             </div>
           )}
 
-          {/* Cronômetro de Cadência e Alertas de Sobrecarga/Vazamento */}
-          <div className="w-full max-w-lg mt-3 flex flex-col items-center gap-2">
-            {/* Alerta de Sobrecarga por Erros Consecutivos */}
-            {isOverloaded ? (
-              <div className="w-full bg-rose-950/60 border border-rose-500/80 rounded-xl p-2.5 flex items-center justify-between gap-2 text-rose-300 font-mono text-xs shadow-[0_0_20px_rgba(244,63,94,0.4)] animate-shake">
-                <span className="flex items-center gap-1.5 font-bold">
-                  <AlertTriangle className="w-4 h-4 text-rose-400 animate-ping" />
-                  <span>⚡ CIRCUITO EM SOBRECARGA! (0.5x)</span>
-                </span>
-                <span className="text-[11px] text-rose-300">Acerte 3 teclas consecutivas para estabilizar</span>
-              </div>
-            ) : consecutiveErrors === 2 ? (
-              <div className="w-full bg-amber-950/40 border border-amber-500/60 rounded-xl p-2 flex items-center justify-center gap-2 text-amber-300 font-mono text-xs shadow-sm animate-pulse">
-                <AlertCircle className="w-4 h-4 text-amber-400" />
-                <span>⚠️ 2 Erros Seguidos! O 3º erro consecutivo causa Sobrecarga e perda de Bytes!</span>
-              </div>
-            ) : null}
-
-            {/* Barra do Cronômetro de Cadência & Vazamento */}
-            <div className={`w-full p-2.5 rounded-xl border transition-all ${
-              maxFocusBuffer === 0
+          {/* Cronômetro de Cadência & Alertas de Sobrecarga/Vazamento Integrados (Zero Variação de Altura) */}
+          <div className="w-full max-w-lg mt-2 sm:mt-2.5 flex flex-col items-center arena-metrics-bar">
+            {/* Barra do Cronômetro com Alerta Integrado no Próprio Container */}
+            <div className={`w-full p-2 sm:p-2.5 rounded-xl border transition-all ${
+              isOverloaded
+                ? 'bg-rose-950/70 border-rose-500/90 shadow-[0_0_20px_rgba(244,63,94,0.4)] animate-shake'
+                : consecutiveErrors === 2
+                ? 'bg-amber-950/50 border-amber-500/70 shadow-[0_0_12px_rgba(245,158,11,0.25)] animate-pulse'
+                : maxFocusBuffer === 0
                 ? 'bg-emerald-950/20 border-emerald-500/40'
                 : isDraining
                 ? 'bg-rose-950/50 border-rose-500/80 shadow-[0_0_20px_rgba(244,63,94,0.35)] animate-pulse'
@@ -809,30 +838,42 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
                 ? 'bg-amber-950/30 border-amber-500/50 shadow-[0_0_12px_rgba(245,158,11,0.2)]'
                 : 'bg-[#10131a] border-[#222835]'
             }`}>
-              <div className="flex items-center justify-between text-[11px] font-mono mb-1.5">
-                <div className="flex items-center gap-1.5 font-bold">
-                  {maxFocusBuffer === 0 ? (
+              <div className="flex items-center justify-between text-[11px] font-mono mb-1">
+                <div className="flex items-center gap-1.5 font-bold truncate">
+                  {isOverloaded ? (
                     <>
-                      <Timer className="w-3.5 h-3.5 text-emerald-400" />
-                      <span className="text-emerald-300">Modo Inclusivo: Bateria de Foco Ilimitada</span>
+                      <AlertTriangle className="w-3.5 h-3.5 text-rose-400 animate-ping flex-shrink-0" />
+                      <span className="text-rose-300 truncate">⚡ SOBRECARGA! (0.5x) — Acerte 3 teclas p/ estabilizar</span>
+                    </>
+                  ) : consecutiveErrors === 2 ? (
+                    <>
+                      <AlertCircle className="w-3.5 h-3.5 text-amber-400 animate-bounce flex-shrink-0" />
+                      <span className="text-amber-300 truncate">⚠️ 2 Erros Seguidos! Cuidado com a Sobrecarga!</span>
+                    </>
+                  ) : maxFocusBuffer === 0 ? (
+                    <>
+                      <Timer className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                      <span className="text-emerald-300 truncate">Modo Inclusivo: Bateria de Foco Ilimitada</span>
                     </>
                   ) : isDraining ? (
                     <>
-                      <AlertTriangle className="w-3.5 h-3.5 text-rose-400 animate-spin" />
-                      <span className="text-rose-300">VAZAMENTO ATIVO: -{Math.round(drainRatePerSec)} Bytes/s</span>
+                      <AlertTriangle className="w-3.5 h-3.5 text-rose-400 animate-spin flex-shrink-0" />
+                      <span className="text-rose-300 truncate">VAZAMENTO ATIVO: -{Math.round(drainRatePerSec)} Bytes/s</span>
                     </>
                   ) : (
                     <>
-                      <Timer className={`w-3.5 h-3.5 ${focusBufferSeconds <= 1.8 ? 'text-amber-400 animate-bounce' : 'text-emerald-400'}`} />
-                      <span className={focusBufferSeconds <= 1.8 ? 'text-amber-300' : 'text-zinc-300'}>
+                      <Timer className={`w-3.5 h-3.5 flex-shrink-0 ${focusBufferSeconds <= 1.8 ? 'text-amber-400 animate-bounce' : 'text-emerald-400'}`} />
+                      <span className={`truncate ${focusBufferSeconds <= 1.8 ? 'text-amber-300' : 'text-zinc-300'}`}>
                         Buffer de Cadência: {focusBufferSeconds.toFixed(1)}s
                       </span>
                     </>
                   )}
                 </div>
 
-                <span className={`text-[10px] ${
-                  maxFocusBuffer === 0
+                <span className={`text-[10px] flex-shrink-0 ml-1.5 ${
+                  isOverloaded
+                    ? 'text-rose-300 font-bold underline'
+                    : maxFocusBuffer === 0
                     ? 'text-emerald-400 font-bold'
                     : isDraining
                     ? 'text-rose-400 font-bold underline animate-pulse'
@@ -840,15 +881,18 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
                     ? 'text-amber-400 font-bold'
                     : 'text-zinc-500'
                 }`}>
-                  {maxFocusBuffer === 0
-                    ? 'Sem dreno de inatividade'
+                  {isOverloaded
+                    ? 'Recupere o foco!'
+                    : maxFocusBuffer === 0
+                    ? 'Sem dreno'
                     : isDraining
-                    ? 'Digite para estancar o dreno!'
+                    ? 'Digite p/ estancar!'
                     : focusBufferSeconds <= 1.8
                     ? 'Atenção ao ritmo!'
                     : `Ritmo estável (${maxFocusBuffer}s)`}
                 </span>
               </div>
+
 
               {/* Barra de progresso do buffer */}
               <div className="w-full bg-zinc-900 h-1.5 rounded-full overflow-hidden border border-zinc-800">
@@ -870,8 +914,8 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
             </div>
           </div>
 
-          {/* Combo, Multipliers & Difficulty Bonus Feedback */}
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-2.5 sm:gap-3 font-mono">
+          {/* Combo, Multipliers & Record Feedback */}
+          <div className="mt-4 sm:mt-5 flex flex-wrap items-center justify-center gap-2.5 sm:gap-3 font-mono">
             {/* Multiplier Badge */}
             <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs sm:text-sm font-bold transition-all ${
               multiplier > 1.0
@@ -880,12 +924,6 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
             }`}>
               <Flame className={`w-4 h-4 ${multiplier > 1.0 ? 'text-amber-400 animate-bounce' : 'text-zinc-500'}`} />
               <span>Multiplicador: {multiplier.toFixed(1)}x</span>
-            </div>
-
-            {/* Difficulty Bonus Badge */}
-            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs sm:text-sm font-bold transition-all ${currentTheme.pillColor}`}>
-              <Zap className="w-3.5 h-3.5 text-amber-400" />
-              <span>Dificuldade: {activeCatObj.bonusMultiplier}x</span>
             </div>
 
             {/* Combo Streak Badge com Efeito de Fogo Gamer */}
@@ -987,16 +1025,130 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
             </div>
           )}
         </div>
+
+        {/* Banner Pedagógico de Treino Corretivo Adaptativo (Modo Estritamente Compacto ~28px) */}
+        {drillSession && (
+          <div className={`w-full ${cardMaxWidthClass} mt-1.5 px-3 py-1 bg-gradient-to-r from-indigo-950/90 via-purple-950/90 to-indigo-950/90 border border-indigo-500/50 rounded-xl flex items-center justify-between gap-2 shadow-sm font-mono text-xs animate-in fade-in transition-[max-width] duration-300`}>
+            <div className="flex items-center gap-2 min-w-0 truncate">
+              <Target className="w-3.5 h-3.5 text-indigo-400 animate-pulse flex-shrink-0" />
+              <span className="font-bold text-white tracking-wider text-[11px] truncate">
+                TREINO CORRETIVO ({drillSession.currentIndex + 1}/{drillSession.totalWords}):
+              </span>
+              <div className="flex gap-1 flex-shrink-0">
+                {drillSession.targetKeys.map(k => (
+                  <span key={k} className="px-1.5 py-0.2 bg-amber-500/20 text-amber-300 border border-amber-500/40 rounded uppercase font-bold text-[10px]">
+                    {k}
+                  </span>
+                ))}
+              </div>
+            </div>
+            {onCancelDrill && (
+              <button
+                type="button"
+                onClick={onCancelDrill}
+                className="text-[10px] font-bold text-zinc-400 hover:text-white px-2 py-0.5 rounded bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-700/60 transition cursor-pointer flex-shrink-0"
+                title="Encerrar treino e retornar ao vocabulário regular"
+              >
+                Encerrar ✕
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Notificação / Recomendação Espontânea de Treino (Modo Estritamente Compacto ~28px) */}
+        {suggestedDrillPrompt && !drillSession && (
+          <div className={`w-full ${cardMaxWidthClass} mt-1.5 px-3 py-1 bg-gradient-to-r from-amber-950/95 via-purple-950/90 to-indigo-950/95 border border-amber-500/60 rounded-xl flex items-center justify-between gap-2 shadow-sm font-mono text-xs animate-in fade-in transition-[max-width] duration-300`}>
+            <div className="flex items-center gap-2 min-w-0 truncate">
+              <Target className="w-3.5 h-3.5 text-amber-400 animate-bounce flex-shrink-0" />
+              <span className="text-[11px] text-zinc-300 truncate font-medium">
+                💡 Calibrar teclas:
+              </span>
+              <div className="flex gap-1 flex-shrink-0">
+                {suggestedDrillPrompt.keys.map((k) => (
+                  <span key={k} className="px-1.5 py-0.2 bg-amber-500/30 text-amber-200 rounded border border-amber-400/50 uppercase font-black text-[10px]">
+                    {k}
+                  </span>
+                ))}
+              </div>
+              <span className="text-[10px] text-amber-300 font-bold hidden sm:inline">(30s +Bônus)</span>
+            </div>
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  if (onStartDrill) onStartDrill(suggestedDrillPrompt.keys);
+                  setSuggestedDrillPrompt(null);
+                }}
+                className="px-2.5 py-0.5 rounded-md bg-gradient-to-r from-amber-500 to-indigo-600 hover:from-amber-400 hover:to-indigo-500 text-white font-mono font-bold text-[11px] shadow-sm transition cursor-pointer flex items-center gap-1"
+              >
+                <span>Treinar</span>
+                <span>→</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleDismissSuggestion}
+                className="px-1.5 py-0.5 rounded-md text-zinc-500 hover:text-zinc-300 font-mono text-[10px] transition cursor-pointer"
+                title="Dispensar sugestão temporariamente"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Botão de Acesso Rápido Permanente na Arena (Modo Estritamente Compacto ~28px) */}
+        {weakKeys.length > 0 && !drillSession && !suggestedDrillPrompt && (
+          <div className={`w-full ${cardMaxWidthClass} mt-1.5 px-3 py-1 rounded-xl bg-gradient-to-r from-amber-950/30 via-purple-950/30 to-indigo-950/30 border border-amber-500/30 flex items-center justify-between gap-2 text-xs font-mono text-amber-300 min-w-0 transition-[max-width] duration-300 animate-in fade-in`}>
+            <div className="flex items-center gap-2 min-w-0 truncate">
+              <Target className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 animate-pulse" />
+              <span className="font-bold text-[11px] truncate">Calibração motora:</span>
+              <div className="flex gap-1 flex-shrink-0">
+                {weakKeys.map(k => (
+                  <span key={k.char} className="px-1.5 py-0.2 bg-amber-500/20 text-amber-200 rounded border border-amber-500/40 uppercase font-black text-[10px]">
+                    {k.char}
+                  </span>
+                ))}
+              </div>
+            </div>
+            {onStartDrill && (
+              <button
+                type="button"
+                onClick={() => onStartDrill(weakKeys.map(k => k.char))}
+                className="px-2.5 py-0.5 rounded-md bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[11px] font-mono font-bold transition flex items-center gap-1 cursor-pointer flex-shrink-0"
+              >
+                <span>Treinar (+Bônus)</span>
+                <span>→</span>
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Barra de Ações Reformulada: MASMORRA, MISSÕES, LOJA, ARENA 1x1, FORJA */}
-      <div className="w-full bg-[#11141c]/95 border border-[#232835] rounded-2xl p-2.5 sm:p-3 text-zinc-400 flex items-center justify-center gap-2.5 sm:gap-3.5 flex-wrap shadow-[0_4px_25px_rgba(0,0,0,0.35)] flex-shrink-0 mt-1">
+      {/* 2. Mascote Interativo Bytezinho (Mentor & Torcedor reativo posicionado logo abaixo da Arena) */}
+      <BytezinhoMascot
+        comboStreak={comboStreak}
+        multiplier={multiplier}
+        isError={isErrorShaking}
+        recentWordComplete={recentWordComplete}
+        recentUpgradeBought={recentUpgradeBought}
+        consecutiveErrors={consecutiveErrors}
+        isDraining={isDraining}
+        isOverloaded={isOverloaded}
+        isOverheating={isOverheating ?? (isOverloaded || isDraining)}
+        skin={equippedSkin}
+        weakKeys={weakKeys.map(k => k.char)}
+        onMascotClick={onMascotClick}
+        className={cardMaxWidthClass}
+      />
+
+      {/* 3. Dock de Atividades: MASMORRA, MISSÕES, LOJA, ARENA 1x1, FORJA */}
+      <div className={`w-full ${cardMaxWidthClass} arena-dock-bar bg-[#11141c]/95 border border-[#232835] rounded-2xl p-2 sm:p-2.5 text-zinc-400 flex items-center justify-center gap-2 sm:gap-3 flex-wrap shadow-[0_4px_25px_rgba(0,0,0,0.35)] flex-shrink-0 mt-1 transition-[max-width] duration-300 ease-in-out`}>
         {/* MASMORRA RPG (Combate de Texto Inteiro & Chaves de Expedição) */}
         {onOpenDungeon && (
           <button
             type="button"
             onClick={onOpenDungeon}
-            className="flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl bg-gradient-to-r from-red-950/90 via-rose-950/80 to-amber-950/90 hover:from-red-900/90 hover:to-amber-900/90 text-amber-200 hover:text-white border border-rose-500/60 text-xs sm:text-sm font-bold transition shadow-[0_0_16px_rgba(244,63,94,0.3)] cursor-pointer group transform hover:scale-[1.03] active:scale-[0.98]"
+            className="arena-dock-btn flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-gradient-to-r from-red-950/90 via-rose-950/80 to-amber-950/90 hover:from-red-900/90 hover:to-amber-900/90 text-amber-200 hover:text-white border border-rose-500/60 text-xs sm:text-sm font-bold transition shadow-[0_0_16px_rgba(244,63,94,0.3)] cursor-pointer group transform hover:scale-[1.03] active:scale-[0.98]"
             title={`Masmorra de Digitação • Chaves: ${dungeonKeys}/${maxDungeonKeys}`}
           >
             <Swords className="w-4 h-4 text-rose-400 group-hover:rotate-12 transition-transform" />
@@ -1024,7 +1176,7 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
           <button
             type="button"
             onClick={onOpenQuests}
-            className="flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl bg-gradient-to-r from-cyan-950/80 via-indigo-950/70 to-cyan-950/80 hover:from-cyan-900/80 hover:to-indigo-900/80 text-cyan-200 hover:text-white border border-cyan-500/50 text-xs sm:text-sm font-bold transition shadow-[0_0_14px_rgba(6,182,212,0.2)] cursor-pointer group transform hover:scale-[1.03] active:scale-[0.98]"
+            className="arena-dock-btn flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-gradient-to-r from-cyan-950/80 via-indigo-950/70 to-cyan-950/80 hover:from-cyan-900/80 hover:to-indigo-900/80 text-cyan-200 hover:text-white border border-cyan-500/50 text-xs sm:text-sm font-bold transition shadow-[0_0_14px_rgba(6,182,212,0.2)] cursor-pointer group transform hover:scale-[1.03] active:scale-[0.98]"
             title="Terminal de Missões Semanais"
           >
             <Scroll className="w-4 h-4 text-cyan-400 group-hover:scale-110 transition-transform" />
@@ -1042,7 +1194,7 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
           <button
             type="button"
             onClick={onOpenCosmetics}
-            className="flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl bg-gradient-to-r from-purple-950/80 via-indigo-950/70 to-purple-950/80 hover:from-purple-900/80 hover:to-indigo-900/80 text-purple-200 hover:text-white border border-purple-500/60 text-xs sm:text-sm font-bold transition shadow-[0_0_14px_rgba(168,85,247,0.25)] cursor-pointer group transform hover:scale-[1.03] active:scale-[0.98]"
+            className="arena-dock-btn flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-gradient-to-r from-purple-950/80 via-indigo-950/70 to-purple-950/80 hover:from-purple-900/80 hover:to-indigo-900/80 text-purple-200 hover:text-white border border-purple-500/60 text-xs sm:text-sm font-bold transition shadow-[0_0_14px_rgba(168,85,247,0.25)] cursor-pointer group transform hover:scale-[1.03] active:scale-[0.98]"
             title="Loja do Laboratório: Temas de Terminal, Skins do Bytezinho, Layouts e Sons de Teclado"
           >
             <Palette className="w-4 h-4 text-purple-300 group-hover:scale-110 transition-transform" />
@@ -1065,7 +1217,7 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
             <button
               type="button"
               onClick={onOpenArena}
-              className={`flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl border text-xs sm:text-sm font-bold transition cursor-pointer group transform hover:scale-[1.03] active:scale-[0.98] ${
+              className={`arena-dock-btn flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl border text-xs sm:text-sm font-bold transition cursor-pointer group transform hover:scale-[1.03] active:scale-[0.98] ${
                 isArenaUnlocked
                   ? 'bg-gradient-to-r from-red-950/80 via-rose-950/70 to-amber-950/80 hover:from-red-900 hover:to-amber-900 text-white border-red-500/60 shadow-[0_0_15px_rgba(239,68,68,0.3)]'
                   : 'bg-zinc-900/80 hover:bg-zinc-800 text-zinc-400 border-zinc-700/60 hover:text-zinc-200'
@@ -1104,7 +1256,7 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
             <button
               type="button"
               onClick={onOpenConverter}
-              className={`flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl border text-xs sm:text-sm font-bold transition cursor-pointer group transform hover:scale-[1.03] active:scale-[0.98] ${
+              className={`arena-dock-btn flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl border text-xs sm:text-sm font-bold transition cursor-pointer group transform hover:scale-[1.03] active:scale-[0.98] ${
                 isConverterUnlocked
                   ? 'bg-gradient-to-r from-cyan-950/80 via-indigo-950/70 to-purple-950/80 hover:from-cyan-900 hover:to-indigo-900 text-cyan-200 hover:text-white border-cyan-500/60 shadow-[0_0_15px_rgba(6,182,212,0.3)]'
                   : 'bg-zinc-900/80 hover:bg-zinc-800 text-zinc-400 border-zinc-700/60 hover:text-zinc-200'

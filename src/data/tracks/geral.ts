@@ -34,7 +34,14 @@ export const GERAL_TRACK: CurricularTrackConfig = {
         'bicho', 'bife', 'bloco', 'bolso', 'bomba', 'bordo', 'brisa', 'broto', 'bruxa', 'busto',
         'chave', 'chefe', 'choro', 'chuva', 'cinza', 'cinto', 'circo', 'cisne', 'claro', 'clube',
         'cobre', 'cofre', 'coisa', 'combo', 'conde', 'conta', 'conto', 'corpo', 'corte', 'corvo',
-        'couro', 'cravo', 'crime', 'crise', 'cruel', 'culpa', 'curva', 'custo', 'prato', 'praia'
+        'couro', 'cravo', 'crime', 'crise', 'cruel', 'culpa', 'curva', 'custo', 'prato', 'praia',
+        'bota', 'bule', 'cera', 'cabo', 'duto', 'faixa', 'farol', 'filme', 'fita', 'gesso',
+        'harpa', 'hino', 'horta', 'hotel', 'idoso', 'isca', 'jarra', 'jato', 'juiz', 'juro',
+        'lacre', 'lente', 'lousa', 'malha', 'marca', 'metal', 'milho', 'molho', 'morno', 'navio',
+        'ninja', 'nobre', 'nuvem', 'olho', 'ondas', 'ontem', 'palha', 'pasta', 'pente', 'peixe',
+        'pilar', 'pista', 'pluma', 'porta', 'poste', 'quase', 'queda', 'quilo', 'ramo', 'reino',
+        'risco', 'rocha', 'rolha', 'salto', 'selo', 'sinal', 'sombra', 'tarde', 'terra', 'torta',
+        'trave', 'trenó', 'trigo', 'trono', 'unha', 'usina', 'vapor', 'vinho', 'zelo', 'zebra'
       ]
     },
     {
@@ -60,7 +67,13 @@ export const GERAL_TRACK: CurricularTrackConfig = {
         'tênis', 'vôlei', 'túnel', 'vírus', 'álbum', 'bônus', 'fórum', 'tórax', 'líder', 'ímã',
         'órfão', 'fóssil', 'réptil', 'móvel', 'nível', 'útil', 'dócil', 'frágil', 'ágil', 'médico',
         'lógico', 'mágico', 'básico', 'físico', 'crítico', 'público', 'líquido', 'sólido', 'pálido', 'tímido',
-        'vívido', 'cálido', 'rápido', 'lúcido', 'úmido', 'cálcio', 'sódio'
+        'vívido', 'cálido', 'rápido', 'lúcido', 'úmido', 'cálcio', 'sódio',
+        'açúcar', 'almoço', 'amável', 'âncora', 'antigo', 'apreço', 'áspero', 'bênção', 'boneca', 'cabeça',
+        'caminho', 'carinho', 'castelo', 'chácara', 'cidadão', 'colega', 'cômodo', 'coragem', 'cúpula', 'dúvida',
+        'espelho', 'estrada', 'fábrica', 'farol', 'flecha', 'fôlego', 'fumaça', 'garrafa', 'gaveta', 'goleiro',
+        'hábito', 'horário', 'ilhote', 'joelho', 'legume', 'mágico', 'máscara', 'medalha', 'mochila', 'módulo',
+        'notícia', 'palhaço', 'passado', 'pedregulho', 'pérola', 'planeta', 'prática', 'química', 'raposa', 'rebanho',
+        'sábado', 'sapato', 'semente', 'tesouro', 'tijolo', 'tomate', 'tópico', 'vacina', 'vizinho', 'xícara'
       ]
     },
     {
@@ -83,7 +96,14 @@ export const GERAL_TRACK: CurricularTrackConfig = {
         'objeto', 'método', 'sistema', 'lógica', 'kilobyte', 'megabyte', 'gigabyte', 'análise', 'pesquisa', 'ensaio',
         'teoria', 'técnica', 'solução', 'problema', 'questão', 'resposta', 'diálogo', 'síntese', 'redação', 'crônica',
         'estética', 'cultura', 'folclore', 'pintura', 'museu', 'artista', 'oxigênio', 'hidrogênio', 'nitrogênio',
-        'carbono', 'magnésio', 'potássio', 'alumínio', 'cálcio', 'fósforo', 'enxofre', 'cloro'
+        'carbono', 'magnésio', 'potássio', 'alumínio', 'cálcio', 'fósforo', 'enxofre', 'cloro',
+        'algoritmo', 'aparelho', 'atmosfera', 'autonomia', 'bactéria', 'biotério', 'capacete', 'circuito', 'comutador',
+        'conectar', 'contágio', 'corrente', 'densidade', 'descoberta', 'dinâmica', 'dispositivo', 'ecologia', 'embrião',
+        'evolução', 'filtro', 'frequência', 'genética', 'gradiente', 'hipótese', 'horizonte', 'impacto', 'impulso',
+        'indução', 'infecção', 'isótopo', 'linguagem', 'magnitude', 'microscópio', 'minério', 'mutação', 'óptica',
+        'oscilação', 'partícula', 'patologia', 'periscópio', 'polímero', 'potencial', 'processo', 'propulsão', 'quântico',
+        'radiação', 'reação', 'refrator', 'reostato', 'satélite', 'simulação', 'telefonia', 'telescópio', 'termômetro',
+        'trajetória', 'transistor', 'turbina', 'vibração', 'viscosidade', 'voltagem'
       ]
     },
     {
@@ -114,7 +134,17 @@ export const GERAL_TRACK: CurricularTrackConfig = {
         'sustentabilidade', 'durabilidade', 'confiabilidade', 'previsibilidade',
         'probabilidade', 'possibilidade', 'viabilidade', 'factibilidade',
         'racionalidade', 'objetividade', 'subjetividade', 'relatividade',
-        'proporcionalidade', 'intencionalidade', 'funcionalidade'
+        'proporcionalidade', 'intencionalidade', 'funcionalidade',
+        'aerodinâmica', 'amostragem', 'antropometria', 'aprendizagem', 'autenticação',
+        'automatização', 'bioluminescência', 'bioquímica', 'cartografia', 'climatologia',
+        'compartimentação', 'compreensibilidade', 'concomitância', 'condutibilidade', 'configuração',
+        'consubstanciação', 'contextualização', 'desenvolvimento', 'eletromagnetismo', 'equipotencial',
+        'espectrometria', 'estatística', 'estruturação', 'extrapolação', 'fotossíntese',
+        'funcionalismo', 'genealogia', 'georreferenciamento', 'globalização', 'hidrodinâmica',
+        'hiperconectividade', 'idiosincrasia', 'implementação', 'inadmissibilidade', 'individualidade',
+        'industrialização', 'intercomunicação', 'interpretação', 'intransponível', 'justaposição',
+        'macroeconomia', 'manipulação', 'metodologia', 'neurobiologia', 'padronização',
+        'parametrização', 'personalização', 'reprodutibilidade', 'sistematização', 'termodinâmica'
       ]
     },
     {
@@ -147,7 +177,13 @@ export const GERAL_TRACK: CurricularTrackConfig = {
         'psicopedagogia', 'psicomotricidade', 'neuropsicologia', 'linguística',
         'sociolinguística', 'psicolinguística', 'etnolinguística',
         'antropologia', 'arqueologia', 'epistemologia', 'hermenêutica',
-        'fenomenologia', 'existencialismo', 'estruturalismo', 'pós-estruturalismo'
+        'fenomenologia', 'existencialismo', 'estruturalismo', 'pós-estruturalismo',
+        'aerofotogrametria', 'biogeoclimático', 'cromatografia', 'desoxirribonucleico',
+        'eletroencefalograma', 'espectrofotometria', 'estereorradiografia', 'fitopatologia',
+        'georreferenciador', 'histocompatibilidade', 'imunodeficiência', 'ininteligibilidade',
+        'intercomunicabilidade', 'magnetohidrodinâmica', 'paleoantropologia', 'polimerização',
+        'radioastronomia', 'radiotelescópio', 'ressonância-magnética', 'semicondutividade',
+        'supercondutividade', 'telemetria-orbital', 'termoelasticidade', 'ultracentrifugador'
       ]
     }
   ]

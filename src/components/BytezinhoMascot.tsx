@@ -17,6 +17,7 @@ interface BytezinhoMascotProps {
   skin?: BytezinhoSkinId;
   weakKeys?: string[];
   onMascotClick?: () => void;
+  className?: string;
 }
 
 const IDLE_MESSAGES = [
@@ -48,7 +49,8 @@ export const BytezinhoMascot: React.FC<BytezinhoMascotProps> = ({
   isOverheating = false,
   skin = 'classic',
   weakKeys = [],
-  onMascotClick
+  onMascotClick,
+  className
 }) => {
   const [currentMessage, setCurrentMessage] = useState<string>(IDLE_MESSAGES[0]);
   const [mood, setMood] = useState<'normal' | 'happy' | 'fire' | 'oops' | 'upgrade' | 'glitch' | 'warning' | 'leak'>('normal');
@@ -142,7 +144,7 @@ export const BytezinhoMascot: React.FC<BytezinhoMascotProps> = ({
   };
 
   return (
-    <div className="flex items-center gap-2.5 sm:gap-3 max-w-2xl w-full mx-auto px-2 py-1 my-0.5 flex-shrink-0">
+    <div className={`mascot-container flex items-center gap-2.5 sm:gap-3 w-full mx-auto px-2 py-1 my-0.5 flex-shrink-0 transition-all duration-300 ease-in-out ${className || 'max-w-2xl'}`}>
       {/* Mascote Bytezinho animado com Skin equipada */}
       <motion.button
         type="button"
@@ -170,9 +172,9 @@ export const BytezinhoMascot: React.FC<BytezinhoMascotProps> = ({
       </motion.button>
 
       {/* Balão de Fala estilo HQ / Game */}
-      <div className="flex-1 bg-[#131620]/95 border border-emerald-500/40 rounded-3xl p-3 sm:p-4 relative shadow-lg flex items-center justify-between gap-3 min-w-0 min-h-[64px] sm:min-h-[72px]">
+      <div className="mascot-bubble flex-1 bg-[#131620]/95 border border-emerald-500/40 rounded-2xl sm:rounded-3xl p-2.5 sm:p-4 relative shadow-lg flex items-center justify-between gap-3 min-w-0 min-h-[52px] sm:min-h-[72px]">
         {/* Setinha do balão apontando para o robô */}
-        <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-4 h-4 bg-[#131620] border-l border-b border-emerald-500/40 rotate-45" />
+        <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 bg-[#131620] border-l border-b border-emerald-500/40 rotate-45" />
         
         <div className="flex items-center gap-2.5 sm:gap-3 text-zinc-200 min-w-0 flex-1">
           <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400 flex-shrink-0 animate-spin" style={{ animationDuration: '4s' }} />

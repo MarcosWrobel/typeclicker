@@ -24,7 +24,9 @@ export const SCRATCH_TRACK: CurricularTrackConfig = {
         'bloco', 'girar', 'mudar', 'eixo', 'anda', 'pula', 'fixa', 'olha', 'vira', 'abre',
         'soma', 'cria', 'leva', 'mostra', 'sinal', 'tempo', 'grau', 'graus', 'loop', 'sons',
         'borda', 'teste', 'caixa', 'mapa', 'fase', 'meta', 'item', 'alvo', 'pega', 'sobe',
-        'desce', 'dano', 'nivel', 'placar', 'trava', 'inicia', 'marca', 'risco', 'traço', 'vetor'
+        'desce', 'dano', 'nivel', 'placar', 'trava', 'inicia', 'marca', 'risco', 'traço', 'vetor',
+        'cor', 'azul', 'verde', 'tom', 'nota', 'ritmo', 'palco', 'traje', 'pista', 'clon',
+        'faixa', 'laser', 'robo', 'clone', 'salva', 'guarda', 'solta', 'arrasta', 'bico', 'bico'
       ]
     },
     {
@@ -42,7 +44,10 @@ export const SCRATCH_TRACK: CurricularTrackConfig = {
         'mensagem', 'clones', 'girando', 'tocando', 'esperar', 'definir', 'alterar', 'inserir', 'apagar',
         'caneta', 'carimbo', 'desenho', 'espelho', 'estilo', 'rotação', 'frontal', 'alcance', 'distância',
         'comando', 'bandeira', 'espaço', 'direita', 'esquerda', 'cenários', 'silêncio', 'reiniciar',
-        'contorno', 'preencher', 'vetorial', 'camada', 'frente', 'trás', 'atrás', 'cronômetro', 'número'
+        'contorno', 'preencher', 'vetorial', 'camada', 'frente', 'trás', 'atrás', 'cronômetro', 'número',
+        'aplique', 'arraste', 'brilho', 'camadas', 'captura', 'conexão', 'cordas', 'diálogo', 'escala',
+        'estampa', 'estágio', 'fadeout', 'jogador', 'matizes', 'módulos', 'painéis', 'pintura', 'pixelar',
+        'quadros', 'reverso', 'sombra', 'sons-fx', 'suporte', 'teclado', 'timbres', 'vínculo', 'vitória'
       ]
     },
     {
@@ -60,7 +65,11 @@ export const SCRATCH_TRACK: CurricularTrackConfig = {
         'disparar', 'interação', 'limites', 'obstáculo', 'parâmetro', 'percurso', 'sequência', 'trajetória',
         'visibilidade', 'bloqueio', 'reproduzir', 'adicionar', 'multiplicar', 'subtrair', 'divisão',
         'igualdade', 'maiorque', 'menorque', 'conectores', 'condição', 'gatilho', 'estrutura', 'estratégia',
-        'jogabilidade', 'personagem', 'protótipo', 'plataforma', 'partícula', 'projetil', 'vencedor', 'derrota'
+        'jogabilidade', 'personagem', 'protótipo', 'plataforma', 'partícula', 'projetil', 'vencedor', 'derrota',
+        'aceleração', 'armazenar', 'atribuição', 'bloqueador', 'caixa-texto', 'calculado', 'comparação',
+        'constante', 'decremento', 'deslocamento', 'detector', 'dimensões', 'frequência', 'geometria',
+        'horizontal', 'ilustração', 'indicador', 'intervalo', 'mecanismo', 'notificação', 'orientação',
+        'paralelo', 'projeção', 'propriedade', 'resistência', 'retroceder', 'segmento', 'simulação', 'vertical'
       ]
     },
     {
@@ -78,7 +87,12 @@ export const SCRATCH_TRACK: CurricularTrackConfig = {
         'algoritmo', 'modularidade', 'comutação', 'recursividade', 'otimização', 'reutilização',
         'customização', 'verificação', 'encapsulamento', 'especificação', 'interatividade',
         'pensamento', 'computacional', 'sincronismo', 'sensoriamento', 'responsividade',
-        'estruturação', 'decomposição', 'generalização', 'rastreamento', 'transformação'
+        'estruturação', 'decomposição', 'generalização', 'rastreamento', 'transformação',
+        'arredondamento', 'automação-jogos', 'característica', 'cinemática-2d', 'compartilhado',
+        'compatibilidade', 'comportamento', 'configurações', 'customizável', 'descentralizado',
+        'estruturado', 'gerenciamento', 'intercalação', 'interconectado', 'manipuladores',
+        'multiplataforma', 'normalização', 'perspectiva', 'pixelização', 'programabilidade',
+        'reconfiguração', 'retroalimentação', 'sincronização', 'temporizadores', 'vetorização'
       ]
     },
     {
@@ -94,7 +108,10 @@ export const SCRATCH_TRACK: CurricularTrackConfig = {
         'modularização', 'sincronização', 'interoperabilidade', 'pseudo-código', 'reatividade',
         'lógica-booleana', 'inteligência-artificial', 'computabilidade', 'estruturação-lógica',
         'refatoração-código', 'paralelismo-eventos', 'reconhecimento-padrões', 'abstração-algorítmica',
-        'depuração-sistemática', 'desenvolvimento-jogos', 'automação-processos', 'arquitetura-software'
+        'depuração-sistemática', 'desenvolvimento-jogos', 'automação-processos', 'arquitetura-software',
+        'inteligência-coletiva', 'processamento-eventos', 'otimização-algorítmica', 'interatividade-avançada',
+        'programação-orientada', 'retrocompatibilidade', 'sincronismo-multiprocesso', 'decomposição-sistemas',
+        'sistematização-lógica', 'modelagem-computacional', 'renderização-gráfica', 'autômato-finito'
       ]
     }
   ]

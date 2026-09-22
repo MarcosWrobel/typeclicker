@@ -23,7 +23,9 @@ export const WEB_TRACK: CurricularTrackConfig = {
         'src', 'href', 'alt', 'form', 'input', 'main', 'nav', 'font', 'color', 'bold',
         'width', 'auto', 'flex', 'grid', 'root', 'item', 'text', 'size', 'line', 'card',
         'menu', 'page', 'site', 'view', 'icon', 'logo', 'path', 'code', 'data', 'base',
-        'left', 'open', 'box', 'rows', 'cols', 'flow', 'self', 'wrap', 'none', 'sans'
+        'left', 'open', 'box', 'rows', 'cols', 'flow', 'self', 'wrap', 'none', 'sans',
+        'pico', 'area', 'fill', 'drop', 'edit', 'host', 'port', 'json', 'post', 'load',
+        'push', 'node', 'mode', 'type', 'true', 'even', 'calc', 'clip', 'dark', 'font'
       ]
     },
     {
@@ -41,7 +43,11 @@ export const WEB_TRACK: CurricularTrackConfig = {
         'center', 'height', 'weight', 'column', 'target', 'action', 'method', 'hidden',
         'canvas', 'figure', 'strong', 'active', 'focus', 'hover', 'bottom', 'fixed',
         'static', 'zindex', 'opacity', 'filter', 'linear', 'solid', 'dashed', 'dotted',
-        'family', 'letter', 'italic', 'normal', 'middle', 'hidden', 'smooth', 'scroll'
+        'family', 'letter', 'italic', 'normal', 'middle', 'hidden', 'smooth', 'scroll',
+        'align', 'anchor', 'branch', 'client', 'commit', 'device', 'dialog', 'events',
+        'filter', 'gap-px', 'iframe', 'import', 'insert', 'italic', 'layout', 'module',
+        'native', 'number', 'output', 'params', 'parser', 'pixels', 'plugin', 'render',
+        'resize', 'return', 'routes', 'server', 'source', 'status', 'string', 'switch'
       ]
     },
     {
@@ -60,7 +66,11 @@ export const WEB_TRACK: CurricularTrackConfig = {
         'variável', 'constante', 'parâmetro', 'argumento', 'booleano', 'condição',
         'executar', 'declaração', 'operador', 'iteração', 'contador', 'validação',
         'cadastro', 'dinâmico', 'estilizado', 'transform', 'transição', 'animação',
-        'intervalo', 'temporizador', 'recarregar', 'interface', 'semântica', 'acessível'
+        'intervalo', 'temporizador', 'recarregar', 'interface', 'semântica', 'acessível',
+        'callback', 'classes', 'database', 'debugger', 'document', 'download', 'endpoint',
+        'eventos', 'executor', 'feedback', 'frontend', 'gradient', 'listener', 'metadata',
+        'mutation', 'pesquisa', 'protocol', 'registro', 'repositório', 'resolução', 'roteador',
+        'seletores', 'sintaxe', 'terminal', 'viewport', 'visualizar', 'webdesign'
       ]
     },
     {
@@ -78,7 +88,12 @@ export const WEB_TRACK: CurricularTrackConfig = {
         'sincronização', 'arquitetura', 'navegabilidade', 'estruturação',
         'programação', 'especificidade', 'encapsulamento', 'modularização',
         'componentes', 'renderização', 'compatibilidade', 'otimização',
-        'produtividade', 'funcionalidade', 'visibilidade', 'alinhamento'
+        'produtividade', 'funcionalidade', 'visibilidade', 'alinhamento',
+        'autenticação', 'carregamento', 'configuração', 'desenvolvimento',
+        'dispositivos', 'documentação', 'especificação', 'flexibilidade',
+        'gerenciamento', 'interoperável', 'microserviços', 'multiplataforma',
+        'padronização', 'parametrização', 'persistência', 'processamento',
+        'reutilização', 'segurança-web', 'sincronismo', 'transformação'
       ]
     },
     {
@@ -95,7 +110,10 @@ export const WEB_TRACK: CurricularTrackConfig = {
         'desenvolvimento-web', 'arquitetura-software', 'responsividade-telas',
         'otimização-performance', 'acessibilidade-digital', 'manipulação-documento',
         'gerenciamento-estado', 'programação-reativa', 'padronização-código',
-        'segurança-aplicações', 'internacionalização'
+        'segurança-aplicações', 'internacionalização', 'modularização-sistemas',
+        'computação-distribuída', 'processamento-assíncrono', 'infraestrutura-nuvem',
+        'interatividade-dinâmica', 'renderização-servidor', 'balanceamento-carga',
+        'virtualização-componentes', 'refatoração-estrutural'
       ]
     }
   ]
