@@ -1,306 +1,377 @@
-# ⌨️ TypeClicker Educa — Colégio Leopoldina
+# 🖥️ TypeClicker Educa
 
-> **Plataforma educacional gamificada de digitação pedagógica, velocidade motora e RPG cibernético, desenvolvida sob medida para o laboratório de informática do Colégio Estadual Leopoldina Bittencourt Pedroso sob orientação do Professor Marcos Wrobel.**
+**Plataforma educacional gamificada de digitação para laboratórios de informática escolares.**
 
-[![React](https://img.shields.io/badge/React-19.x-61DAFB?logo=react&logoColor=black)](https://react.dev/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![TailwindCSS](https://img.shields.io/badge/TailwindCSS-v4-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
-[![Firebase](https://img.shields.io/badge/Firebase-Firestore%20%26%20Auth-FFCA28?logo=firebase&logoColor=black)](https://firebase.google.com/)
-[![Vite](https://img.shields.io/badge/Vite-6.x-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
+Desenvolvida para o **Colégio Estadual Leopoldina Bittencourt Pedroso** (Curitiba / PR), a plataforma transforma o aprendizado de digitação em uma experiência de RPG competitivo e cooperativo — com múltiplos modos de jogo, ranking em tempo real, painel administrativo completo para o professor e trilhas curriculares vinculadas às disciplinas lecionadas.
 
 ---
 
-## 📖 Visão Geral do Projeto
+## 🚀 Stack Tecnológico
 
-O **TypeClicker Educa** transforma o aprendizado e o aperfeiçoamento da digitação no padrão brasileiro **ABNT2** em uma experiência instigante e imersiva. Unindo as mecânicas aditivas de jogos *incrementais* (*idle / clicker games*) à profundidade narrativa de um **RPG cibernético em masmorras procedurais**, o projeto integra treino motor sério, vocabulário curricular e progressão constante.
-
-Diferente de softwares de digitação tradicionais, no **TypeClicker** cada palavra digitada rende **Bytes virtuais**, **Fichas de Duelo** e **Fragmentos Quânticos**. Com esses recursos, os estudantes adquirem melhorias de hardware e software, desarmam vírus de rede, enfrentam chefes com mecânicas de controle de grupo em arenas literárias, desbloqueiam cosméticos exclusivos e competem em rankings escolares em tempo real.
-
----
-
-## 🎮 Mecânicas Centrais de Jogabilidade
-
-### 1. Moeda do Jogo: Bytes
-- **Geração Ativa (Digitação Direta):** Cada palavra digitada sem erros converte caracteres em Bytes imediatos, impulsionados por multiplicadores de precisão e combos.
-- **Geração Passiva (Hardware & Software):** Bytes podem ser reinvestidos na Loja para adquirir melhorias como *Memória RAM ECC*, *Script Bash no Laboratório*, *SSD NVMe* ou *Supercomputador Quântico*, gerando Bytes por segundo (B/s).
-
-### 2. Bateria de Foco (Anti-Ociosidade Pedagógica)
-- Para evitar que o aluno deixe o jogo rodando sozinho enquanto navega em outras abas, o sistema inclui a **Bateria de Foco**.
-- A bateria é recarregada a cada tecla digitada. Se o aluno parar de digitar por mais de 5 segundos, o circuito "desconecta" e cessa a geração passiva de Bytes.
-- **Modo Inclusivo / Cadência Adaptativa:** Professores podem ajustar a tolerância da bateria (5s, 10s, 15s ou sem limite de tempo) para atender alunos com necessidades especiais ou em fase inicial de alfabetização.
-
-### 3. Combos e Sobrecarga de Circuito
-- **Multiplicador de Combo:** Acertos consecutivos elevam o multiplicador até **5.0x**.
-- **Mecânica de Sobrecarga (Overload):** Erros sucessivos causam superaquecimento do circuito, reduzindo o rendimento pela metade até que o estudante recupere a compostura e acerte 3 palavras seguidas.
+| Camada | Tecnologia | Versão |
+|---|---|---|
+| **Framework UI** | [React](https://react.dev/) | 19.0.1 |
+| **Linguagem** | [TypeScript](https://www.typescriptlang.org/) | 5.8.2 |
+| **Build Tool** | [Vite](https://vitejs.dev/) | 6.2.3 |
+| **Estilização** | [Tailwind CSS](https://tailwindcss.com/) | 4.1.14 |
+| **Animações** | [Motion (Framer Motion)](https://motion.dev/) | 12.23.x |
+| **Ícones** | [Lucide React](https://lucide.dev/) | 0.546.x |
+| **Banco de Dados** | [Cloud Firestore](https://firebase.google.com/docs/firestore) | SDK 12.x |
+| **Autenticação** | [Firebase Auth](https://firebase.google.com/docs/auth) (Google Identity) | SDK 12.x |
+| **Servidor** | [Express](https://expressjs.com/) + [Firebase Admin SDK](https://firebase.google.com/docs/admin/setup) | 4.x / 14.x |
+| **Monitoramento** | [@google-cloud/monitoring](https://cloud.google.com/monitoring) | 6.x |
+| **VFX de Confetti** | [canvas-confetti](https://github.com/catdad/canvas-confetti) | 1.9.x |
+| **Áudio** | Web Audio API (nativa) — sintetizador procedural | — |
+| **Hospedagem** | Google Cloud Run (containerizado) | — |
 
 ---
 
-## 🏰 Crônicas da Masmorra RPG (Batalhas de Chefes & Expedições)
+## 🎮 Modos de Jogo
 
-Uma das maiores expansões da plataforma é o módulo **Crônicas da Masmorra**, um ambiente de batalha épico contra guardiões cibernéticos utilizando textos literários e científicos completos em língua portuguesa.
+### 1. TypeClicker — Terminal de Digitação (Jogo Principal)
+O modo central da plataforma. O aluno digita palavras ou frases em um terminal gamificado e acumula **Bytes** como moeda de progresso.
 
-### 1. Sistema de Andares & Chefes Procedurais
-- **Andares Crescentes com Escala Matemática:** Vida, armadura e frequência de feitiços dos guardiões escalam com curvas balanceadas (`floorData.boss`).
-- **Textos Literários Contínuos:** Em vez de palavras isoladas, os estudantes digitam parágrafos densos e contextualizados (250 a 450 caracteres), exigindo pontuação, maiúsculas e fluência com o teclado ABNT2.
-- **Armadura e Fraquezas Biomecânicas (`weaknessKeys`):** Os guardiões possuem resistência a dano comum, mas teclas específicas causam dano crítico massivo e ignoram 100% da armadura do chefe.
-- **Minigame QTE — Sobrecarga do Núcleo:** Eventos dinâmicos em que uma sequência rápida de teclas deve ser golpeada para atordoar o guardião e abrir brechas de dano crítico.
+- **Modos de texto:** `words` (palavras isoladas), `sentences` (frases completas), `code` (trechos de código)
+- **Dificuldade adaptativa:** Categorias de palavras desbloqueadas progressivamente conforme o nível do jogador
+- **Multiplicador de Combo:** A cada sequência de acertos consecutivos o multiplicador de Bytes cresce (até 8x)
+- **Focus Buffer System:** Barra de calor que drena com erros e entra em sobreaquecimento — aciona debuffs visuais
+- **Teclas ABNT2 e Dead Keys:** Suporte completo a acentos do português (`´`, `` ` ``, `^`, `~`, `¨`) via resolução de dead keys
+- **Input invisível nativo:** Compatível com IME de entrada de texto, sem conflito com atalhos do sistema operacional
+- **Keystroke VFX:** Animações de partículas temáticas a cada acerto, configuráveis por skin comprada na loja
+- **Screen Shake:** Tremor de tela configurável por nível de acessibilidade
+- **Pausa automática:** Jogo pausa e perde o foco ao abrir qualquer modal sobreposto
 
-### 2. Efeitos de Controle de Grupo (Debuffs de RPG)
-Para simular a intensidade de combate dos RPGs e exigir domínio de teclado sob pressão, os chefes conjuram feitiços de interferência:
-- **👁️ Cegueira Glifada (Blind):** Os caracteres à frente do cursor são ocultados e embaçados por névoa digital. Para dissipar o debuff, o aluno precisa confiar estritamente na **memória muscular e motora**, acertando 4 caracteres consecutivos às cegas.
-- **❄️ Paralisia de Buffer (Hold / Freeze):** O cursor de digitação é completamente congelado e o escudo é atacado. O estudante precisa golpear rapidamente a **barra de [ESPAÇO] 3 vezes** para estilhaçar o gelo e retomar o controle.
-- **🌀 Terror Psíquico (Fear):** O terminal entra em sobrecarga com pulsações visuais roxas e áudio dissonante. A digitação exige atenção redobrada para estabilizar o sistema.
+### 2. Type: Radar — Defesa de Núcleo (Jogo de Ação)
+Modo de ação estratégica com mecânica de mira por digitação. O jogador controla uma torre de defesa e abate naves invasoras digitando palavras vinculadas a cada alvo.
 
-### 3. Avisos em Duas Etapas (Spotlight Central $\rightarrow$ HUD Acoplada)
-- **Fase 1 (Spotlight Central):** Assim que o feitiço é conjurado, um card neon com backdrop blur surge no **centro exato da tela**, exibindo um ícone gigante animado, o nome do debuff e a instrução clara em destaque: `👉 COMO QUEBRAR: [Ação necessária com contador dinâmico em tempo real]`. O foco do input é 100% preservado via `pointer-events-none`.
-- **Fase 2 (Transição & Ancoragem):** Após 2 segundos, o card central sobe suavemente com física de mola e se acopla à barra de status fixada logo acima do texto de digitação.
+- **Naves e ondas:** Alvos aparecem em trajetórias variadas; cada nave é identificada pela primeira letra de sua palavra
+- **Console de Comandos (`/`):** Ativa poderes especiais — `/freeze`, `/nuke`, `/shockwave` — por digitação de comandos
+- **Upgrades por rodada:** Ao completar uma onda, o jogador escolhe entre 3 upgrades aleatórios (dano, recarga, escudo, etc.)
+- **Passivos de classe RPG:** Habilidades passivas da classe afetam os bônus de cada upgrade
+- **Ranking dedicado:** Pontuação final convertida em Bytes e registrada no leaderboard global
+- **Áudio procedural:** Trilha e efeitos de som sintetizados em tempo real pelo `radarAudio.ts` via Web Audio API
 
-### 4. Temporizadores Decrescentes & Penalidades Severas
-- Cada debuff possui um **timer decrescente de 8 segundos** com barra de progresso colorida (verde $\rightarrow$ amarela $\rightarrow$ vermelha pulsante).
-- **Tempo Esgotado:** Se o debuff não for quebrado a tempo, o aluno sofre **-25 de dano direto** ao escudo.
-- **Dano Amplificado por Erro (2x):** Erros cometidos enquanto o jogador estiver sob debuff causam o dobro de penalidade ao escudo.
+### 3. Corrida Escolar — Multiplayer em Tempo Real
+Corrida de digitação simultânea para toda a sala de aula, lançada pelo professor no painel administrativo.
 
-### 5. Sistema de Chaves de Expedição (`🔑`)
-- A entrada na masmorra e a reinicialização de andares após derrota consomem **Chaves de Expedição** (limite de 5 chaves).
-- Se as chaves zerarem, o botão de tentar novamente é bloqueado, orientando o aluno a retornar ao terminal principal para digitar palavras ou concluir Treinos Adaptativos e forjar novas chaves.
+- **Disparo por sessão:** O professor seleciona os parâmetros (texto, modo, duração) e lança a corrida com 1 clique
+- **Barra de progresso ao vivo:** Cada aluno vê em tempo real o avanço de todos os competidores via Firestore `onSnapshot`
+- **Pódio automático:** 🥇🥈🥉 exibido ao finalizar com PPM, acurácia e bytes ganhos
+- **Recompensas escaladas:** Configuráveis por colocação
+- **Cancelamento de emergência:** O professor pode encerrar a corrida a qualquer momento
 
-### 6. Árvore de Perks de 10 Níveis & Economia de EXP Calibrada
-- **Expansão para 10 Níveis por Perk:** Cada um dos 4 perks possui 10 níveis de maestria (40 upgrades no total), eliminando a progressão curta anterior e garantindo longevidade ao RPG.
-- **Bônus Suaves e Granulares:**
-  - *Foco Crítico:* $+5\%$ dano em combo/nível (máx $+50\%$).
-  - *Regeneração em Fraquezas:* $\lfloor 1 + \text{nv} \times 0.6 \rfloor$ de escudo/tecla de fraqueza (máx $+6$).
-  - *Síntese de Bytes:* $+4\%$ bytes/nível (máx $+40\%$).
-  - *Endurecimento de Escudo:* $-3.5\%$ desgaste por erro/nível (máx $-35\%$).
-- **Travas por Andar (*Floor Gates* até o Andar 25+):** Requisitos rígidos de profundidade (`Nv. 1: Andar 1+`, `Nv. 2: Andar 2+`, `Nv. 3: Andar 4+`, `Nv. 4: Andar 6+`, `Nv. 5: Andar 8+`, `Nv. 6: Andar 10+`, `Nv. 7: Andar 13+`, `Nv. 8: Andar 16+`, `Nv. 9: Andar 20+`, `Nv. 10: Andar 25+`).
-- **Custos Escalonados:** Progridem de 60 a 1.850 XP por nível (total de 6.560 XP por perk e 26.240 XP para a árvore completa), exigindo avanço consistente na Masmorra Procedural Infinita para maximização.
+### 4. Raid Coletiva — Boss Cooperativo
+Batalha cooperativa em que **toda a sala digita junta** para derrotar um boss com HP compartilhado.
 
-### 7. Algoritmo de Desafio do Boss & Tensão em Combate
-- **Barra de Carga de Ataque Iminente (Boss Cast Bar):** O chefe canaliza ataques devastadores continuamente em um cronômetro regressivo. Se o aluno hesitar ou parar de digitar, o golpe atinge o escudo diretamente!
-- **Interrupção e Atordoamento por Digitação:** Cada tecla correta atrasa o golpe (-2.5%), teclas de fraqueza causam **Atordoamento Crítico (-25% de carga)** e palavras limpas atrasam em -30%.
-- **Modo de Fúria (< 30% HP):** O chefe entra em sobrecarga crítica com aura avermelhada, velocidade de ataque acelerada em +40% e dano de erro ampliado.
-- **Dano de Erro Escalonado:** Misses tornam-se progressivamente mais perigosos em andares avançados ($7 + \text{andar} \times 1.4$), dobrando sob debuffs e triplicando na fúria.
+- **Bosses calibrados:** HP escalonado pelo número de alunos ativos (ex: *Sentinela de Dados*, *Leviatã de Fogo*, *Titã Quântico*)
+- **Dano coletivo:** Cada aluno contribui com dano proporcional à sua velocidade e precisão
+- **Barra de HP ao vivo:** Estado do boss sincronizado em tempo real para todos via Firestore
+- **Modo Fúria:** Boss entra em berserk abaixo de 30% de HP
+- **Professor como GM:** Escolhe o boss, lança a raid e monitora o dano de cada aluno
 
-### 8. Classes RPG de Digitador (Guerreiro, Arqueiro e Mago)
-Para aprofundar a identidade e a estratégia de cada estudante, a plataforma introduz três classes selecionáveis no painel de perfil (`StudentModal.tsx`), cada uma com passivas mecânicas de gameplay:
-- **⚔️ Guerreiro Veloz (Ímpeto & Fúria):**
-  - *Perfil:* Ideal para estudantes com alta cadência motora.
-  - *Passivas:* Ao manter velocidade acima de **55 PPM**, recebe $+25\%$ de Bytes por palavra e desfere golpes de impacto crítico nos Guardiões da Masmorra e Raids coletivas.
-- **🏹 Arqueiro do Combo (Precisão Cirúrgica):**
-  - *Perfil:* Foco em ritmo ininterrupto e eliminação de erros de digitação.
-  - *Passivas:* Multiplicadores de combo escalam até $+15\%$ mais rápido; a cada 20 acertos perfeitos consecutivos, desfecha disparos penetrantes que ignoram armadura de chefes.
-- **🧙 Mago Arcano (Síntese Quântica & Sobrecarga):**
-  - *Perfil:* Estrategistas focados em otimização de recursos e hardware.
-  - *Passivas:* Eleva a geração passiva de Bytes em $+20\%$ e estende a tolerância da Bateria de Foco, recarregando circuitos em dobro a cada palavra longa acertada.
+### 5. Arena 1x1 — Duelo PvP
+Duelos diretos entre alunos em tempo real com sistema de ranking competitivo (ELO/Pontos de Glória).
 
----
+- **Salas por código:** Um aluno cria a sala e compartilha o código (ex: `LEO88`) com o adversário
+- **Bot adversário:** Treino contra IAs com 3 dificuldades calibradas (Mestre, Grão-Mestre, Lendário)
+- **Ranking de duelos:** 7 patentes — de *Recruta do Coliseu* a *Lenda Imortal Leopoldina*
+- **Moeda de duelo (🪙):** Vitórias geram `duel_coins` para cosméticos exclusivos da Arena
+- **Temas e skins exclusivos da Arena:** Layouts e skins de cultura pop desbloqueáveis apenas via vitórias PvP
 
-## 🎯 Missões, Quests & Treinos Adaptativos
+### 6. Masmorra RPG — Andares Procedurais
+Dungeon crawler de texto onde o aluno enfrenta inimigos e bosses digitando palavras em tempo limitado.
 
-- **Quests Diárias & Semanais:** Metas dinâmicas como atingir determinada precisão média, manter sequências de combo ou derrotar chefes de andares específicos.
-- **Motor de Identificação de Erros & Treino Adaptativo:** Monitoramento contínuo das teclas em que o aluno apresenta hesitação ou erro frequente. O sistema gera automaticamente sessões de calibração biomecânica personalizadas com as teclas fracas detectadas.
-- **Sistema de Conquistas de Alta Dificuldade:** Desafios avançados voltados a alunos que buscam maestria motora, premiando com **Fragmentos Quânticos** raros e títulos honoríficos.
+- **100 andares gerados:** Andares com inimigos, armadilhas, baús e expedições
+- **Boss a cada 10 níveis:** 10 guardiões únicos com mecânicas exclusivas — escudo de tokens, loop de palavras, cast bar de invasão, branching de rota estratégica (Nv 10–100)
+- **Chave de Masmorra:** Recurso consumível obrigatório para entrar em andares
+- **Sistema de equipamentos:** Perks equipáveis que modificam as passivas dentro da dungeon
+- **Baú Minigame:** Mini-jogo de decifração criptográfica para abrir baús encontrados nos andares
+- **Crónicas RPG Infinitas:** Narrativa procedural adaptada às teclas fracas do aluno
+- **Debuffs visuais:** Flash, tremor e HUD de debuff animado com countdown de dano
 
----
+### 7. Time Attack — Desafio Cronometrado
+Modo de pressão máxima com duração de 30 ou 60 segundos.
 
-## 🚀 Desempenho de Alto Nível (Chromebooks & Cotas de Banco de Dados)
+- **Modos:** `words` ou `sentences` com texto da trilha curricular ativa
+- **Telemetria:** PPM, acurácia, combo máximo, total de palavras concluídas
+- **Recompensa:** Bytes e tokens de duelo escalados pela performance final
 
-O TypeClicker foi rigorosamente auditado para garantir fluidez máxima em computadores escolares modestos (Chromebooks e desktops antigos) e operação com **custo zero** no Firebase Spark:
+### 8. Foco Drill — Treino Adaptativo de Teclas Fracas
+Treino direcionado gerado automaticamente pela análise da telemetria do aluno.
 
-### 1. Otimizações de Cliente (Low-End Hardware)
-- **Eliminação de Layout Thrashing de Scroll:** O alinhamento do cursor de digitação utiliza `behavior: 'auto', block: 'nearest'`, prevenindo acúmulo de animações de scroll da engine na GPU integrada durante digitação em alta velocidade (>100 PPM).
-- **Eliminação de Re-renderizações Cíclicas na Raiz:** Salvamento periódico em `localStorage` otimizado para operação estritamente silenciosa (a cada 5s) e indexada pelo UID do aluno, sem estados intermediários forçando reconciliações na árvore React.
-- **Isolamento da Batalha RPG:** Toda a execução de batalha, cálculo de dano, escudos e debuffs opera **100% no cliente sem chamadas de rede por caractere**.
-
-### 2. Otimizações no Banco de Dados (Firebase Firestore Spark)
-- **Throttling Inteligente (`useGameSync`):** Ciclo periódico de 60 segundos com disparos imediatos apenas em marcos decisivos (subida de nível, prestige, logout). Consumo de ~13.500 escritas diárias para 300 alunos, com folga de ~32% do teto gratuito (20.000 writes/dia).
-- **Cache de Leitura do Ranking Escolar:** Implementado cache em memória de **40 segundos** em `getGlobalLeaderboard()`, evitando leituras repetidas na nuvem quando alunos abrem e fecham a tabela de classificação na mesma aula.
+- **IDT (Índice de Dificuldade da Tecla):** Taxa de erro (70%) + latência de resposta (30%)
+- **Geração de batch:** Sequências de palavras que maximizam a exposição às teclas problemáticas
+- **Relatório de fraquezas:** Exibe as 3 teclas mais problemáticas com taxa de erro e tempo médio de resposta
 
 ---
 
-## 🏆 Exclusão Estrita de Professores e Admins dos Rankings
+## 🎭 Sistema de Progressão e Gamificação
 
-Para assegurar a integridade pedagógica e motivar os estudantes na disputa pelo pódio:
-1. **Camada de Gravação (`saveProgressToCloud`):** Contas de professores (cadastradas em `system/settings.allowedTeachers`) e administradores (`ADMIN_EMAILS`) **nunca gravam dados na coleção `/leaderboard`**. Se houver registro legado, o sistema executa a exclusão automática via `deleteDoc`. O progresso pessoal é mantido em segurança no `/saves/{userId}`.
-2. **Camada de Consulta e Visualização:** Tanto o `LeaderboardModal` quanto o painel administrativo filtram registros com `isStaff: true`, e-mails do corpo docente e turmas com identificação de professor/coordenação.
-3. **Ferramenta de Higienização de Rankings:** Botão **`[ 🧹 Higienizar Rankings ]`** integrado ao Painel do Professor (`AdminPanel.tsx`), permitindo purgar do Firestore registros legados de qualquer conta da equipe escolar com um clique.
+### Níveis e Bytes
+- **100 níveis de progressão:** Curva exponencial com requisitos calculados por `calculateMinBytesForLevel()`
+- **3 moedas:** `level_tokens` (progressão), `duel_coins` (PvP), `quantum_fragments` (endgame mítico)
+- **Upgrades de Servidor:** Melhorias passivas que aumentam produção automática de Bytes
+- **Celebração de Nível 100:** Modal especial + registro permanente no Hall da Fama
 
----
+### Classes RPG
+Escolhida uma vez, a classe define passivas permanentes em toda a plataforma:
 
-## 🌟 Funcionalidades e Recursos Detalhados
+| Classe | Foco | Passivas |
+|---|---|---|
+| ⚔️ **Guerreiro Veloz** | Alta velocidade (PPM) | +25% Bytes acima de 55 PPM; golpes críticos em bosses |
+| 🏹 **Arqueiro do Combo** | Precisão e combos longos | +0.2x multiplicador a cada 20 acertos; 50% perdão de erro |
+| 🧙 **Mago dos Bytes** | Geração passiva | +25% produção automática; escudo arcano com acentos |
 
-### 🏆 1. Trilha de Progressão: 100 Níveis Balanceados
-Uma esteira de aprendizado equilibrada com progressão matemática para acompanhar o ano letivo completo:
-- **10 Tiers Educacionais:**
-  1. **Níveis 1 a 10 — Fundamentos:** Postura, linha central (`ASDF JKLÇ`) e ritmo básico.
-  2. **Níveis 11 a 20 — Laboratório:** Primeiros comandos, navegação de diretórios e atalhos.
-  3. **Níveis 21 a 30 — Ritmo & Foco:** Palavras médias com acentuação e pontuação.
-  4. **Níveis 31 a 40 — Algoritmos & Lógica:** Termos de ciências da computação e raciocínio lógico.
-  5. **Níveis 41 a 50 — Desenvolvedor Mirim:** Estruturas de dados, sintaxes e palavras longas.
-  6. **Níveis 51 a 60 — Especialista:** Velocidade contínua (>60 PPM) e alta cadência.
-  7. **Níveis 61 a 70 — Engenharia de Software:** Precisão cirúrgica em termos técnicos complexos.
-  8. **Níveis 71 a 80 — Arquiteto de Sistemas:** Fluência absoluta de teclado.
-  9. **Níveis 81 a 90 — Mestre Hacker:** Desafios de reflexo rápido e vocabulário avançado.
-  10. **Níveis 91 a 100 — Lenda do Leopoldina:** Conquista máxima reservada aos digitadores de elite do colégio.
-- **Painel de Conquistas:** Modal visual detalhando os 100 níveis, requisitos, títulos honoríficos e recompensas.
+### Sistema de Conquistas (60+)
+Categorizadas em: Velocidade & Precisão, Volume, Progressão, PvP & Social, Hardcore (com recompensas em 🌌 Fragmentos Quânticos)
 
-### 📚 2. Dificuldade Dinâmica e Anti-Regressão
-- Mais de **400 termos pedagógicos** distribuídos em 5 graus de desafio (*Iniciante*, *Fácil*, *Médio*, *Avançado* e *Expert*).
-- **Anti-Regressão Pedagógica:** Ao atingir determinados marcos de nível, as categorias excessivamente fáceis são trancadas automaticamente, garantindo que o estudante continue evoluindo seu repertório e coordenação motora.
-- **Suporte Nativo a Teclado ABNT2:** Tratamento de teclas mortas (*dead keys* como `~`, `´`, `^`, `` ` ``) e cedilha (`ç`), prevenindo travamentos ou falhas de digitação em navegadores de laboratório.
+### Quests Semanais
+Reset toda segunda-feira (00:00 UTC). 3 missões ativas por ciclo, categorizadas em: volume, velocidade, precisão, PvP, RPG. Recompensas em Bytes e `level_tokens`.
 
-### 🔄 3. Overclock (Sistema de Prestige)
-- Desbloqueado a partir do Nível 25.
-- Permite ao estudante "reiniciar" seu hardware e saldo de Bytes em troca de **Núcleos Quânticos de Processamento**.
-- Cada núcleo confere um bônus permanente de **+20% na eficiência de geração**, introduzindo noções de planejamento estratégico e reinvestimento.
-
-### 🛡️ 4. Desafios de Firewall (Mini-game de Segurança)
-- Em marcos decimais (Níveis 10, 20, 30...), um alarme sonoro e visual anuncia uma invasão no terminal.
-- O aluno precisa transcrever uma chave criptográfica sob pressão do cronômetro para restabelecer o firewall e receber bônus expressivos de Bytes.
-- **Acessibilidade:** Opção para reduzir alertas visuais estroboscópicos para alunos fotossensíveis.
-
-### ⚔️ 5. Arena Multijogador (Typing Battle em Tempo Real)
-- Modo competitivo local onde alunos do laboratório criam salas ou entram via código de 4 letras.
-- Capacidade de até 16 competidores por sala com visualização em tempo real do avanço dos colegas na pista.
-- Contagem regressiva de largada, palavras idênticas para todos os competidores e tela de pódio final com estatísticas de PPM e acurácia.
-
-### 🏁 6. Sistema de Corridas em Sala de Aula (Classroom Race Sincronizada)
-- **Disparo Coletivo pelo Professor:** O professor lança um desafio de digitação em tempo real através da nova aba **Corrida** no Painel Administrativo.
-- **Interrupção e Foco Imediato no Terminal:** A corrida interrompe o terminal dos estudantes com uma tela focada e contagem regressiva sincronizada em segundos (`startsAtMs`), colocando todos os alunos da turma para digitar o exato mesmo texto simultaneamente.
-- **Textos Curriculares e Literários:** Biblioteca integrada com trechos sobre *Lovelace e Turing*, *Dom Casmurro*, *Inteligência Artificial*, *O Guarani*, *A Revolução dos Chips* e editor para textos customizados da aula.
-- **Resolução Atômica e Premiação do Vencedor:** O primeiro aluno a completar 100% do texto é consagrado vencedor via transação atômica no Firestore (`runTransaction`), recebendo um prêmio massivo de Bytes, confetes animados e **+1 vitória de corrida** (`raceWins`).
-- **Ranking Geral de Corridas:** Tabela de classificação própria e exclusiva no `LeaderboardModal` (aba `[ 🏁 Corridas ]`), ranqueando os alunos por número de vitórias, melhor PPM e participações, com filtros de série/turma e pódio com medalhas.
-
-### 7. Raids Coletivas contra Chefes em Tempo Real (Classroom Raid Arena)
-- **Modo Cooperativo para Toda a Turma:** O professor pode invocar um Chefe de Raid colossal através do Painel Administrativo (`ClassroomRaidArena.tsx`), criando uma batalha em que **todos os estudantes da sala colaboram juntos** contra o mesmo adversário em tempo real.
-- **Barra de Vida Compartilhada:** Cada palavra acertada e cada golpe desferido por qualquer aluno reduz atômica e gradualmente o HP total do Guardião.
-- **Feed de Batalha & Telemetria ao Vivo:** Painel com animações dinâmicas mostrando em tempo real as contribuições de dano de cada colega de classe.
-- **MVP da Batalha & Recompensas Épicas:** Ao derrotar o chefe, o sistema elege o **MVP da Turma** (maior dano/PPM) e distribui recompensas volumosas de Bytes, Fragmentos Quânticos e Chaves de Masmorra para todos os participantes.
-- **Otimização Spark-Safe (`raidService.ts`):** Atualizações de progresso consolidadas em lotes periódicos, garantindo cooperação fluida sem exceder as cotas gratuitas do Firebase.
-
-### 8. Temas, Layouts & Efeitos Especiais de Terminal (30 Skins & Apps Populares)
-- **Mais de 30 Layouts e Skins Customizadas:**
-  - *Temas Clássicos e Sci-Fi:* Matrix Code Rain, Cyberpunk Neon, Terminal Amber CRT, Laboratório Stealth CLI, Midnight Blue, Synthwave 80s, Solarized Dark, Paper Clean, BIOS DOS, Arcade Cabinet, Steampunk Lab, Retrô Mac Classic, Speedrun Arena, Estação Espacial, Cockpit Imperial.
-  - *Skins de Cultura Pop e Jogos:* Minecraft Block, Shonen Combat, Mushroom Kingdom, Infinite Void, Slayer Dojo, Pocket Console, Manga Action, Green Hills Zone, Bat-Caverna Tática.
-  - *Novos Layouts Inspirados em Redes e Apps Populares (`SocialAppLayout.tsx`):*
-    - 💬 **WhatsApp Web:** Estilo de mensagens instantâneas com balões de conversa e status online.
-    - 📸 **Instagram Feed:** Estética dark minimalista com carrossel e contadores de curtidas interativos.
-    - ▶️ **YouTube Theater:** Modo cinema com player simulado, barra de progresso vermelha e selo 1080p60 HD.
-    - 🎵 **TikTok Stream:** Glitch neon vertical com visualizador de ritmo musical, badges dinâmicos e corações pulsantes.
-    - 🧱 **Roblox Studio:** Interface de modelador 3D com grid de studs, toolbox e viewport tático.
-- **Motor de Efeitos Visuais & Partículas Vetoriais (`fxEngine.ts`):** Sistema avançado em Canvas 2D nativo e confetes dinâmicos, renderizando partículas temáticas de alta performance sem quedas de FPS em computadores escolares.
-- **Miniaturas de Prévia na Loja (`CosmeticsShopModal.tsx`):** Cards visuais fieis demonstrando as cores, bordas e disposições da interface antes do resgate.
-
-### 9. Mascote Pedagógico "Bytezinho"
-- Personagem interativo que reage às ações do aluno.
-- Fornece dicas de postura física, posicionamento dos 10 dedos no teclado, lembretes de salvar o jogo e incentivos de superação.
-
-### 10. Rankings Escolares Multimétricas (Custo Zero no Firebase Spark)
-O `LeaderboardModal` foi expandido para ranquear os alunos em **6 categorias competitivas e pedagógicas independentes**:
-1. 🏆 **Nível & XP:** Progressão geral da conta e marcos alcançados.
-2. ⚡ **Velocidade (PPM):** Agilidade bruta em Palavras Por Minuto e precisão de digitação.
-3. 🔥 **Maior Combo:** Maior sequência ininterrupta de teclas corretas sem nenhum erro.
-4. 💾 **Total de Bytes:** Volume histórico vitalício de bytes acumulados ao longo da carreira.
-5. ⚔️ **Duelos PvP:** Vitórias competitivas 1x1 e Pontos de Glória conquistados no Coliseu.
-6. 🏁 **Corridas da Turma:** Pódio das corridas coletivas ao vivo disparadas pelo professor.
-
-- **Arquitetura 100% Spark-Safe (Custo Zero):** Todas as 6 métricas são consolidadas no mesmo documento de `/leaderboard/{userId}` sem escritas adicionais. Ao alternar entre abas, a ordenação ocorre **100% em memória no cliente (`useMemo`)**, resultando em **0 leituras extras de banco** e transição instantânea de 0ms.
-- **Filtros Pedagógicos Integrados:** Filtros por Série (6º ao 9º ano, Ensino Médio), Turma específica, atalho "Minha Série" e cálculo dinâmico da colocação do próprio aluno em cada métrica.
-- **Exclusão Estrita de Professores:** Docentes e administradores nunca aparecem em nenhuma das 6 abas de classificação.
-
-### 11. Guerra de Turmas (Ranking Coletivo Inter-Turmas)
-- **Disputa Escolar Cooperativa:** Alternância instantânea no `LeaderboardModal` entre o modo individual e a **Guerra de Turmas**.
-- **Cálculo de Desempenho Coletivo:** Consolida a pontuação média, velocidade média (PPM) e soma de conquistas de cada sala (ex: 6º A, 7º B, 8º C, etc.).
-- **Pódio com Medalhas de Turma:** Exibição destacada das turmas campeãs (🥇 Ouro, 🥈 Prata, 🥉 Bronze), revelando inclusive o aluno destaque de cada equipe.
-- **Agregação em Memória (`turmasAggregator.ts`):** Todo o cálculo analítico ocorre localmente em tempo real no dispositivo do aluno, consumindo **zero requisições adicionais ao Firestore**.
-
-### 12. Radar de Pódio Top 3 na Barra Lateral (Live Dual-Timer)
-Para manter a motivação competitiva em alta sem exigir que os estudantes abram menus repetidamente:
-- **Pódio Contínuo no Canto Esquerdo:** Widget estilizado integrado diretamente na barra lateral de status (`StatsSidebar.tsx`), exibindo os 3 melhores alunos (🥇, 🥈, 🥉) com seus avatares, apelidos, turmas e pontuações em tempo real.
-- **Cronômetro 1 — Rotação Visual Local (12s):** A cada 12 segundos, o widget rotaciona automaticamente e suavemente entre as 6 métricas de ranking na memória do cliente com barra de progresso visual e controles manuais de avançar, voltar e pausar. Custo de banco: **0 leituras**.
-- **Cronômetro 2 — Sincronização Cloud em Background (3 min):** Atualiza os dados da nuvem em segundo plano a cada 180 segundos. Com 100 alunos ativos, gera apenas 1.500 leituras/aula (3% do limite diário do Spark).
-- **Congelamento Inteligente:** O timer é automaticamente pausado quando a aba do navegador perde o foco (`document.hidden`), eliminando qualquer leitura ociosa fora da aula.
-- **Acesso Rápido com 1 Clique:** Clicar em qualquer competidor do pódio abre o `LeaderboardModal` diretamente na aba daquela métrica.
-
-### 13. Central de Acessibilidade Pedagógica & Inclusão Motora
-Projetado para atender estudantes com deficiências visuais, motoras ou neurodiversidades através do `AccessibilityModal.tsx`:
-- **Modo Alto Contraste:** Otimização de paletas para máxima legibilidade de glifos e caracteres em telas de baixo brilho.
-- **Proteção contra Fotossensibilidade:** Desativação de flashes estroboscópicos, tremores de tela (*screen shake*) e avisos pulsantes de sobrecarga.
-- **Cadência Adaptativa da Bateria de Foco:** Seleção de tolerância sem limite de tempo, 10s ou 15s para alunos em processo inicial de letramento ou com limitações motoras.
-- **Ajustes de Tipografia:** Suporte a fontes com espaçamento ampliado e cursor de digitação de alta visibilidade.
+### Prestígio
+Reinício voluntário com recompensas cosméticas exclusivas que persistem entre prestígios.
 
 ---
 
-## 🏫 Gestão Escolar & Painel do Professor
+## 🏆 Ranking e Competição
 
-O sistema possui uma suíte administrativa restrita acessível apenas por docentes autorizados (Super Admin: `wrobel.marcos@gmail.com`):
+### Leaderboard Global
+- **6 métricas:** Nível, PPM, Combo, Bytes, Vitórias PvP, Vitórias em Corridas
+- **Filtro de staff:** Professores e admins excluídos automaticamente do ranking
+- **Guerra de Turmas:** Ranking consolidado por sala — média de PPM, conquistas somadas, aluno destaque por turma
 
-### 🔒 1. Trava do Laboratório (Sessão Controlada)
-- O professor pode fechar o acesso ao jogo fora do horário de aula.
-- **Código de Sessão na Lousa:** O docente gera um código de 4 dígitos (ex: `A5F9`) com validade configurável (1h, 2h ou 4h).
-- **Tela de Espera Inteligente:** Alunos veem um aviso de aguardo com botão interativo *"Clique para Inserir o Código"*, permitindo liberação rápida em sala de aula.
+### Pódio ao Vivo na Barra Lateral
+- **Dual-Timer:** Rotação local a cada 12s (zero leituras de banco) + sincronização cloud a cada 3 minutos
+- **Congelamento por inatividade:** Timer pausado quando a aba perde foco (`document.hidden`)
+- **Acesso rápido:** Clicar em um competidor abre o leaderboard na métrica correspondente
 
-### 📊 2. Relatórios e Métricas em Tempo Real
-- Visualização de desempenho da turma: Palavras por Minuto (PPM), Acurácia (%), Nível alcançado e Bytes acumulados.
-- Filtro imediato por turma (ex: 6º A, 7º B, 8º C, etc.).
-- Identificação discreta de padrões atípicos de digitação para acompanhamento individual do professor.
-
-### 💾 3. Backups e Proteção de Dados
-- **Backup Local em JSON:** Download e upload instantâneo de arquivos de progresso.
-- **Snapshots na Nuvem:** Criação de pontos de restauração diretamente no Firestore com rollback em 1 clique.
-- **Gestão de Professores:** Inclusão e revogação de acessos de outros docentes do colégio.
-
-### 🏁 4. Controle de Corridas Escolares em Tempo Real
-- **Painel de Telemetria ao Vivo:** Monitoramento da corrida ativa com identificação do vencedor em tempo real, pódio de colocação dos concluintes, PPM de cada aluno e botão de encerramento/cancelamento de emergência.
-
-### ⚔️ 5. Lançador de Raids Coletivas da Sala
-- **Disparo de Batalha Cooperativa:** O professor seleciona chefes calibrados (ex: *Sentinela de Dados*, *Leviatã de Fogo*, *Titã Quântico*) com HP escalonado para o tamanho da turma.
-- **Acompanhamento de Dano Coletivo:** Gráficos e barras de progresso ao vivo exibindo o impacto de cada carteira do laboratório na integridade do boss.
-
-### 📚 6. Biblioteca Curricular de Textos Pedagógicos por Disciplina
-- **Acervo Integrado por Área do Conhecimento:** Textos selecionados para Língua Portuguesa, História, Ciências, Informática e Literatura clássica.
-- **Envio Direto com 1 Clique:** Possibilidade de selecionar qualquer texto temático do acervo curricular e despachá-lo imediatamente como desafio oficial da Corrida da Turma.
-
-### 📑 7. Exportação de Boletim Escolar em CSV (UTF-8 BOM)
-- **Relatório Pedagógico Instantâneo:** Geração de planilha completa de avaliação contendo: Nome do Aluno, E-mail, Turma, Nível, PPM Médio, Acurácia (%), Maior Combo, Total de Bytes e Vitórias em Corridas.
-- **Compatibilidade Nativa com Excel e Planilhas:** Codificação com *BOM UTF-8* (`\uFEFF`), assegurando abertura imediata com acentuação correta e sem caracteres corrompidos.
-- **Zero Custo de Banco de Dados:** Processamento compilado a partir dos dados já carregados no cliente, resultando em **0 leituras e 0 gravações no Firestore**.
+### Hall of Fame — Pioneiros do Nível 100
+Os **3 primeiros alunos** a alcançarem o nível 100 ficam registrados permanentemente com data/hora em destaque na interface.
 
 ---
 
-## ☁️ Arquitetura de Sincronização e Custos Zero (Plano Spark)
+## 🎨 Sistema de Cosméticos
 
-O TypeClicker Educa foi desenhado para operar com **zero custo de infraestrutura**, respeitando com margem os limites do plano gratuito do Google Firebase:
+### Temas de Terminal (30+)
+Matrix, Dracula, Cyberpunk, Synthwave, Monokai, Solarized Dark, Nordic Ice, Lava Terminal, Golden Luxury, Stealth Mono + temas de **cultura pop** (Sith Darkside, Super Saiyan, Nether Magma, Spider-Verse) + temas **míticos de endgame** (Sandevistan, Sun Breathing, Electric Thunder, Abyssal Vessel) + temas de **apps populares** (WhatsApp, Instagram, YouTube, TikTok, Roblox)
 
-| Métrica | Limite Gratuito Firebase (Spark) | Consumo Típico do TypeClicker (300 alunos/dia) |
-| :--- | :--- | :--- |
-| **Gravações Diárias (Writes)** | 20.000 / dia | ~1.500 a 3.000 / dia |
-| **Leituras Diárias (Reads)** | 50.000 / dia | ~2.000 a 5.000 / dia |
-| **Armazenamento de Dados** | 1.00 GB | < 25 MB para mais de 5.000 alunos |
+### Layouts de Interface (25+)
+Arcade Cabinet, Zen Focus, BIOS/DOS, Cyber Deck, IDE Developer, Space Station, Steampunk Lab, Mac Classic, Speedrun Arena, School Chalkboard + layouts de **cultura pop** (Star Wars Cockpit, Minecraft Block, Shonen Combat, Mushroom Kingdom) + layouts **míticos** (Infinite Void, Pirate Deck, Judgment Hall, Edgerunner Rig, Bat Cave Tactical) + layouts de **apps** (WhatsApp Chat, Instagram Feed, YouTube Theater, TikTok Stream, Roblox Studio)
 
-### Estratégias de Engenharia Aplicadas:
-1. **Debounce e Throttling:** O progresso em digitação é acumulado localmente e gravado no Firestore a cada 60 segundos (ou em eventos cruciais como subida de nível e logout).
-2. **Buffer Offline Isolado por UID:** Evita conflito de dados em computadores compartilhados por múltiplos turnos de alunos no laboratório.
-3. **Persistência Síncrona no Desligamento:** Captura de eventos `beforeunload` e `pagehide` para assegurar que nenhum Byte seja perdido ao fechar a tampa do notebook ou encerrar a sessão.
-4. **Regras de Segurança Granulares (`firestore.rules`):** Cada aluno possui permissão estrita de leitura e escrita apenas sobre o seu próprio documento (`isOwner(userId)`), bloqueando acessos não autorizados.
+### Skins do Bytezinho (20+)
+Classic, Cyber, Retro 8-bit, Hoodie Hacker, Wizard, Astronaut, Ninja, Steampunk, Golden King, Diver, Robot Mecha + skins de **cultura pop** (Jedi Master, Diamond Miner, Saiyan Warrior, Arachnid Hero) + skins **míticas** (Blindfolded Sorcerer, Rubber Pirate, Urban Cyborg, Demon Slayer, Supersonic Hedgehog, Shadow Crusader)
 
----
+### Efeitos VFX de Animação (25+)
+Confetti, Golden Coins, Matrix Stream, Supernova Burst, Tesla Lightning, Volcano Flame + efeitos de **cultura pop** (Hyperspace Warp, Kamehameha, Diamond Rain) + efeitos **míticos** (Gear Second Steam, Gaster Bone Barrage, Sandevistan Afterimage, Thunder Storm) + efeitos de **apps** (WhatsApp Bubbles, Instagram Hearts, YouTube Play Spark, TikTok Music Glitch, Roblox Blocks Fall)
 
-## 💻 Tecnologias Empregadas
+### Molduras de Card de Perfil (8)
+Basic, Foil Holográfico, Neon, Gold, Magma, Cosmic, Matrix, Steampunk — com efeitos visuais de brilho, pulso e estrelas procedurais via CSS
 
-- **Front-end:** [React 19](https://react.dev/) com [TypeScript 5](https://www.typescriptlang.org/)
-- **Build & Dev:** [Vite 6](https://vitejs.dev/)
-- **Estilização:** [Tailwind CSS v4](https://tailwindcss.com/)
-- **Animações:** [Motion (Framer Motion)](https://motion.dev/)
-- **Ícones:** [Lucide React](https://lucide.dev/)
-- **Backend & Auth:** [Google Firebase](https://firebase.google.com/) (Cloud Firestore e Firebase Authentication com Google Identity / `@escola`)
-- **Áudio:** Web Audio API com sintetizadores nativos
-- **Hospedagem:** Google Cloud Run (Containerizado via Docker / Node.js)
+### Badges Dinâmicos de Perfil
+Badges automáticos por categoria (velocidade, precisão, combo, volume, PvP, corridas, progressão, conquistas, classe RPG) com raridades: Common → Rare → Epic → Legendary → Mythic
+
+### Conversor Quântico
+Converte `level_tokens` em `quantum_fragments` — moeda de endgame para itens Míticos e Quânticos
 
 ---
 
-## 👥 Créditos e Realização
+## 📚 Trilhas Curriculares Dinâmicas
+
+O professor seleciona a trilha ao criar uma sessão. O banco de palavras e textos se adapta automaticamente:
+
+| Trilha | Disciplina | Turmas |
+|---|---|---|
+| `geral` | Português geral | Todas |
+| `scratch` | Educação Digital — Blocos Scratch | 8º e 9º Anos |
+| `web` | Educação Digital — HTML, CSS, JavaScript | 1º e 2º Médio |
+| `empresarial` | Informática Empresarial | 1º e 2º Médio |
+| `ingles` | Inglês | Todas |
+
+---
+
+## 🔐 Sistema de Turmas com Verificação Criptográfica
+
+1. O professor gera um **código de sessão** (ex: `A5F9`) com validade configurável (1h, 2h ou 4h)
+2. O aluno insere o código; o sistema verifica criptograficamente se pertence à sessão atual
+3. A turma é gravada no Firestore do aluno, protegida pelas regras de segurança
+4. Após a atribuição, o campo de turma é **somente-leitura para o aluno**
+
+---
+
+## 🏫 Painel do Professor (AdminPanel)
+
+Suite administrativa completa (`AdminPanel.tsx`) com múltiplas abas funcionais:
+
+- **Trava de Laboratório:** Bloqueia/libera acesso à plataforma fora do horário de aula
+- **Código de Sessão:** Geração com validade, trilha curricular selecionada e tela de espera do aluno
+- **Dashboard de Métricas:** PPM médio, acurácia, nível e Bytes por turma em tempo real
+- **Exportação CSV (UTF-8 BOM):** Boletim escolar com compatibilidade nativa com Excel — Nome, E-mail, Turma, Nível, PPM, Acurácia, Maior Combo, Bytes, Vitórias em Corridas — **0 leituras ao Firestore**
+- **Lançador de Corridas:** Seleção de texto/modo/duração + monitoramento de pódio ao vivo
+- **Lançador de Raids:** Seleção de boss com HP calibrado + acompanhamento de dano coletivo
+- **Biblioteca Curricular:** Acervo de textos temáticos por disciplina com envio direto à corrida
+- **Backup Local / Cloud:** Download/upload de JSON + snapshots Firestore com rollback em 1 clique
+- **Gestão de Professores:** Inclusão e revogação de outros docentes autorizados
+- **Monitor de Cotas Spark:** Integração com Google Cloud Monitoring API para monitorar uso do Firestore
+
+---
+
+## ♿ Acessibilidade Pedagógica
+
+- **Alto Contraste:** Paletas para telas de baixo brilho
+- **Proteção contra Fotossensibilidade:** Desativa flashes estroboscópicos e tremores
+- **Cadência Adaptativa:** Tolerância sem limite / 10s / 15s para o Focus Buffer
+- **Escala Tipográfica:** Ajuste de tamanho de fonte do terminal
+- **Cursor de Alta Visibilidade:** Cursor de digitação ampliado
+
+---
+
+## ⚙️ Arquitetura de Sincronização (Zero Custo — Plano Spark)
+
+| Métrica | Limite Spark | Consumo Típico (300 alunos/dia) |
+|---|---|---|
+| **Gravações** | 20.000/dia | ~1.500–3.000 |
+| **Leituras** | 50.000/dia | ~2.000–5.000 |
+| **Armazenamento** | 1 GB | < 25 MB para 5.000+ alunos |
+
+### Estratégias de Engenharia:
+
+- **Throttle de 60s:** Progresso acumulado localmente e gravado em lote (`useGameSync.ts`)
+- **Buffer Offline por UID:** Evita conflito em computadores compartilhados por múltiplos turnos
+- **Persistência no Desligamento:** `beforeunload` + `pagehide` — nenhum Byte perdido ao fechar o navegador
+- **Pódio com Dual-Timer:** Rotação local (12s) sem custo + sincronização cloud a cada 3 minutos
+- **Agregação em Memória:** Guerra de Turmas calculada localmente em `turmasAggregator.ts` — **0 leituras adicionais**
+- **Congelamento por inatividade:** Timers pausados quando a aba perde foco (`document.hidden`)
+
+---
+
+## 🔒 Segurança
+
+- **Firebase Auth + Google Identity:** Suporte a contas `@escola.pr.gov.br`
+- **Firestore Rules Granulares:** Alunos só acessam seu próprio documento (`isOwner(userId)`); rotas de admin verificam `systemSettings/config`
+- **Anti-cheat:** Validação de sanidade do `GameState` no cliente antes de qualquer gravação (`validateStateSanity`)
+- **Turma imutável pelo aluno:** Atribuição somente via código de sessão verificado
+- **Código de sessão com expiração:** Validade configurável pelo professor
+
+---
+
+## 🧩 Arquitetura de Componentes
+
+```
+src/
+├── App.tsx                          # Componente raiz — estado global, modais, listeners
+├── components/
+│   ├── TypingArena.tsx              # Arena de digitação ABNT2 + dead keys + VFX + IME
+│   ├── AdminPanel.tsx               # Painel administrativo completo do professor
+│   ├── GameSelectionScreen.tsx      # Hub central de seleção de modos de jogo
+│   ├── LeaderboardModal.tsx         # Ranking global multimétrica + Guerra de Turmas
+│   ├── CosmeticsShopModal.tsx       # Loja de cosméticos com 5 categorias
+│   ├── ArenaModal.tsx               # Duelos 1x1 PvP (com bot IA)
+│   ├── ClassroomRaceArena.tsx       # Arena de Corrida Escolar (multiplayer)
+│   ├── ClassroomRaidArena.tsx       # Arena de Raid Coletiva (cooperativo)
+│   ├── RpgDungeonModal.tsx          # Entrada e gestão da Masmorra RPG
+│   ├── RpgChronicleArena.tsx        # Combate de texto nos andares da Masmorra
+│   ├── RpgChestMinigame.tsx         # Minigame de baú criptográfico
+│   ├── TimeAttackModal.tsx          # Desafio cronometrado 30s/60s
+│   ├── FocusDrillModal.tsx          # Treino adaptativo de teclas fracas
+│   ├── QuestsModal.tsx              # Quests semanais e progresso
+│   ├── AchievementsModal.tsx        # Catálogo de 60+ conquistas
+│   ├── StudentModal.tsx             # Perfil, nickname, turma e classe RPG do aluno
+│   ├── StudentProfileCard.tsx       # Card de perfil colecionável com moldura e badges
+│   ├── MetricsModal.tsx             # Métricas pedagógicas detalhadas do aluno
+│   ├── AccessibilityModal.tsx       # Central de acessibilidade
+│   ├── PauseOverlay.tsx             # Overlay de pausa do jogo
+│   ├── SessionLockOverlay.tsx       # Tela de espera antes da sessão
+│   ├── StatsSidebar.tsx             # Barra lateral de status e pódio ao vivo
+│   ├── TopPodiumWidget.tsx          # Widget do pódio Top 3 com dual-timer
+│   ├── Level100PioneersWidget.tsx   # Hall of Fame dos pioneiros nível 100
+│   ├── BytezinhoAvatar.tsx          # Avatar animado do mascote (20+ skins)
+│   ├── TerminalThemeEffects.tsx     # Efeitos visuais temáticos do terminal
+│   ├── games/radar/
+│   │   └── TypeRadarGame.tsx        # Jogo Type: Radar completo
+│   └── layouts/                     # 18 layouts de interface cosméticos
+├── services/
+│   ├── firebaseService.ts           # CRUD Firestore, auth, admin ops, backup
+│   ├── raceService.ts               # Launchpad e stream de Corridas Escolares
+│   ├── raidService.ts               # Launchpad e stream de Raids Coletivas
+│   ├── arenaService.ts              # Duelos 1x1 PvP no Firestore
+│   ├── audioSynthesizer.ts          # Sons sintetizados via Web Audio API
+│   ├── fxEngine.ts                  # VFX de partículas + canvas-confetti customizado
+│   ├── arcadeVfxEngine.ts           # VFX do modo Arcade
+│   ├── adaptiveDrillEngine.ts       # IDT, análise de telemetria, geração de drills
+│   ├── questsEngine.ts              # Quests semanais + geração de andares RPG
+│   ├── achievementEngine.ts         # Avaliação e desbloqueio de conquistas
+│   ├── profileBadges.ts             # Badges dinâmicos do card de perfil
+│   ├── radarEngine.ts               # Motor de física e estado do Type: Radar
+│   ├── radarAudio.ts                # Áudio procedural do Type: Radar
+│   └── adminMetricsService.ts       # Integração com Google Cloud Monitoring
+├── data/
+│   ├── tracks/                      # 5 trilhas curriculares (geral, scratch, web, empresarial, ingles)
+│   ├── levelBosses.ts               # 10 guardiões únicos de nível (Nv 10–100)
+│   ├── rpgChronicles.ts             # Narrativas RPG e lore dos bosses
+│   ├── levels.ts                    # Curva de progressão dos 100 níveis
+│   ├── sentences.ts                 # Banco de frases por categoria
+│   ├── words.ts                     # Banco de palavras por categoria
+│   ├── radarWords.ts                # Banco de palavras do Type: Radar
+│   └── codeSnippets.ts              # Trechos de código para o modo `code`
+├── hooks/
+│   ├── useGameSync.ts               # Hook de sincronização Firestore (throttle 60s)
+│   └── useLeaderboardPodium.ts      # Hook de pódio com dual-timer (12s/3min)
+├── constants/
+│   ├── achievementsCatalog.ts       # 60+ conquistas com evaluate functions
+│   ├── cosmeticsCatalog.ts          # Catálogo completo de cosméticos com preços
+│   ├── themes.ts                    # 30+ temas de terminal (CSS vars)
+│   └── school.ts                    # Config de turmas e séries da escola
+├── types/                           # Types TypeScript (GameState, cosmetics, RPG, arena, raid...)
+└── utils/
+    ├── keyboardAccents.ts           # Resolução de dead keys ABNT2
+    ├── antiCheat.ts                 # Validação de sanidade do GameState
+    ├── turmasAggregator.ts          # Agregação de ranking por turma (in-memory)
+    ├── audio.ts                     # Engine de som com toggle e volume
+    ├── formatting.ts                # PPM, acurácia, rank, formatBytes
+    ├── storage.ts                   # Estado inicial, exportação de save, defaults
+    └── difficulty.ts                # Filtro de categorias por dificuldade e nível
+```
+
+---
+
+## ▶️ Como Executar Localmente
+
+### Pré-requisitos
+- Node.js 20+
+- Projeto Firebase configurado (Firestore + Authentication)
+- Arquivo `firebase-applet-config.json` na raiz do projeto
+
+### Instalação e Dev
+
+```bash
+# Instalar dependências
+npm install
+
+# Iniciar servidor de desenvolvimento (Express + Vite)
+npm run dev
+```
+
+### Build de Produção
+
+```bash
+# Build completo (frontend Vite + bundle do servidor Express)
+npm run build
+
+# Iniciar servidor de produção
+npm start
+```
+
+### Verificação de Tipos
+
+```bash
+npm run lint   # TypeScript strict check sem emissão de arquivos
+```
+
+---
+
+## 👥 Créditos
 
 - **Instituição:** Colégio Estadual Leopoldina Bittencourt Pedroso (Curitiba / PR)
 - **Orientação Pedagógica & Coordenação:** Professor Marcos Wrobel
 - **Público-Alvo:** Estudantes do Ensino Fundamental e Médio
-- **Finalidade:** Projeto pedagógico sem fins lucrativos voltado à inclusão digital e excelência tecnológica na rede pública de ensino.
+- **Finalidade:** Projeto pedagógico sem fins lucrativos voltado à inclusão digital e excelência tecnológica na rede pública de ensino
