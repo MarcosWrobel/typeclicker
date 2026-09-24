@@ -359,6 +359,15 @@ export function sanitizeCosmetics(rawCosmetics?: Partial<PlayerCosmetics> | null
     ? Math.floor(rawCosmetics.quantumFragments as number)
     : 0;
 
+  const dailyConversions = rawCosmetics.dailyConversions && typeof rawCosmetics.dailyConversions === 'object'
+    ? {
+        date: String(rawCosmetics.dailyConversions.date || ''),
+        convertedTierIds: Array.isArray(rawCosmetics.dailyConversions.convertedTierIds)
+          ? rawCosmetics.dailyConversions.convertedTierIds.filter(id => typeof id === 'string')
+          : []
+      }
+    : undefined;
+
   return {
     levelTokens,
     duelTokens,
@@ -374,7 +383,8 @@ export function sanitizeCosmetics(rawCosmetics?: Partial<PlayerCosmetics> | null
     equippedSound,
     equippedAnimation,
     unlockedCardFrames,
-    equippedCardFrame
+    equippedCardFrame,
+    dailyConversions
   };
 }
 

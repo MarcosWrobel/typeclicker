@@ -183,6 +183,11 @@ export type KeySoundThemeId =
 import { CardFrameId } from './cardFrames';
 export type { CardFrameId };
 
+export interface DailyConversionRecord {
+  date: string; // 'YYYY-MM-DD'
+  convertedTierIds: string[];
+}
+
 export interface PlayerCosmetics {
   levelTokens: number;
   duelTokens: number; // Moedas de Duelo (Arena Coins ⚔️)
@@ -201,6 +206,7 @@ export interface PlayerCosmetics {
   equippedEffect?: LevelUpEffectId;
   unlockedCardFrames?: CardFrameId[];
   equippedCardFrame?: CardFrameId;
+  dailyConversions?: DailyConversionRecord;
 }
 
 export const DEFAULT_COSMETICS: PlayerCosmetics = {

@@ -356,8 +356,8 @@ export const ArenaModal: React.FC<ArenaModalProps> = ({
       const earnedPoints = isWinner ? (isAi ? 15 : 30) : (isAi ? 5 : 10);
       // Moedas de Duelo: Vitória PvP 5, Vitória IA 3, Derrota PvP 2, Derrota IA 1
       const earnedDuelTokens = isWinner ? (isAi ? 3 : 5) : (isAi ? 1 : 2);
-      // Level Tokens: Vitória 2, Derrota 1
-      const earnedLevelTokens = isWinner ? 2 : 1;
+      // Level Tokens: Vitória 5, Derrota 2
+      const earnedLevelTokens = isWinner ? 5 : 2;
 
       setLastMatchRewards({
         points: earnedPoints,

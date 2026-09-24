@@ -16,7 +16,8 @@ import {
   Shield,
   Award,
   Star,
-  Medal
+  Medal,
+  Radio
 } from 'lucide-react';
 import { getGlobalLeaderboard, LeaderboardEntry, isStaffMember, extractLevel100Pioneers } from '../services/firebaseService';
 import { Level100PioneersWidget } from './Level100PioneersWidget';
@@ -37,7 +38,7 @@ import {
   ClassRankingSortMetric
 } from '../utils/turmasAggregator';
 
-export type LeaderboardMetric = 'level' | 'wpm' | 'combo' | 'bytes' | 'pvp' | 'races';
+export type LeaderboardMetric = 'level' | 'wpm' | 'combo' | 'bytes' | 'radar' | 'pvp' | 'races';
 
 interface MetricTabDef {
   id: LeaderboardMetric;
@@ -145,12 +146,27 @@ export const METRIC_TABS: MetricTabDef[] = [
     title: 'RANKING DE CORRIDAS',
     badgeTag: '🏁 Corridas em Sala',
     description: 'Classificação por vitórias nas corridas ao vivo disparadas pelo professor'
+  },
+  {
+    id: 'radar',
+    label: 'Type: Radar',
+    shortLabel: 'Radar',
+    icon: Radio,
+    color: 'text-cyan-400',
+    badgeBg: 'bg-cyan-500/20',
+    badgeBorder: 'border-cyan-500/40',
+    badgeText: 'text-cyan-300',
+    activeBorder: 'border-cyan-500/50',
+    activeGlow: 'shadow-[0_0_50px_rgba(6,182,212,0.2)]',
+    title: 'RANKING TYPE: RADAR',
+    badgeTag: '🛰️ Maior Onda & Score',
+    description: 'Classificação por maior onda alcançada e pontuação no Type: Radar'
   }
 ];
 
 const normalizeTab = (tab?: string): LeaderboardMetric => {
   if (!tab || tab === 'points') return 'level';
-  if (tab === 'level' || tab === 'wpm' || tab === 'combo' || tab === 'bytes' || tab === 'pvp' || tab === 'races') {
+  if (tab === 'level' || tab === 'wpm' || tab === 'combo' || tab === 'bytes' || tab === 'radar' || tab === 'pvp' || tab === 'races') {
     return tab;
   }
   return 'level';
@@ -357,6 +373,17 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
           return (b.racesParticipated || 0) - (a.racesParticipated || 0);
         });
 
+      case 'radar':
+        return list.sort((a, b) => {
+          const waveA = a.radarBestWave || 1;
+          const waveB = b.radarBestWave || 1;
+          if (waveB !== waveA) return waveB - waveA;
+          const scoreA = a.radarHighScore || 0;
+          const scoreB = b.radarHighScore || 0;
+          if (scoreB !== scoreA) return scoreB - scoreA;
+          return (b.radarMaxWpm || 0) - (a.radarMaxWpm || 0);
+        });
+
       default:
         return list.sort((a, b) => (b.points || 0) - (a.points || 0));
     }
@@ -457,7 +484,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
             animate={{ scale: 1, y: 0, opacity: 1 }}
             exit={{ scale: 0.95, y: 20, opacity: 0 }}
             onClick={(e) => e.stopPropagation()}
-            className={`w-full max-w-4xl bg-[#10131a] border-2 rounded-2xl flex flex-col max-h-[92vh] sm:max-h-[90vh] overflow-hidden transition-all duration-300 ${currentMetric.activeBorder} ${currentMetric.activeGlow}`}
+            className={`w-full max-w-6xl xl:max-w-7xl bg-[#10131a] border-2 rounded-2xl flex flex-col max-h-[92vh] sm:max-h-[90vh] overflow-hidden transition-all duration-300 ${currentMetric.activeBorder} ${currentMetric.activeGlow}`}
           >
             {/* Top Bar / Header */}
             <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 border-b border-white/10 bg-[#141822]">
@@ -1087,6 +1114,11 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                                   💾 {formatBytes(player.points)}
                                 </span>
                               )}
+                              {activeRankTab === 'radar' && (
+                                <span className="text-[11px] text-cyan-300/90 font-mono">
+                                  🛰️ Onda {player.radarBestWave || 1} • {(player.radarHighScore || 0).toLocaleString()} pts
+                                </span>
+                              )}
                               {activeRankTab === 'level' && (
                                 <span className="text-[11px] text-emerald-300/90 font-mono">
                                   Nv. {player.level}
@@ -1202,6 +1234,27 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                               </span>
                             </div>
                           </div>
+                        ) : activeRankTab === 'radar' ? (
+                          <div className="hidden sm:flex items-center gap-4 sm:gap-6 shrink-0">
+                            <div className="flex flex-col items-end">
+                              <span className="text-[10px] text-cyan-400 uppercase font-bold tracking-wider">Maior Onda</span>
+                              <span className="font-mono font-black text-cyan-300 text-sm flex items-center gap-1">
+                                🛰️ Onda {player.radarBestWave || 1}
+                              </span>
+                            </div>
+                            <div className="flex flex-col items-end">
+                              <span className="text-[10px] text-amber-400 uppercase font-bold tracking-wider">Pontuação</span>
+                              <span className="font-mono font-bold text-amber-300 text-sm">
+                                {(player.radarHighScore || 0).toLocaleString()} pts
+                              </span>
+                            </div>
+                            <div className="flex flex-col items-end w-20">
+                              <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Pico PPM</span>
+                              <span className="font-mono font-bold text-emerald-400 text-sm">
+                                {player.radarMaxWpm ? `${Math.round(player.radarMaxWpm)}` : '-'}
+                              </span>
+                            </div>
+                          </div>
                         ) : (
                           // Nível / Geral
                           <div className="hidden sm:flex items-center gap-4 sm:gap-6 shrink-0">
@@ -1270,6 +1323,15 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                             </span>
                             <span className="font-mono font-bold text-amber-300 text-[11px]">
                               Nv. {player.level}
+                            </span>
+                          </div>
+                        ) : activeRankTab === 'radar' ? (
+                          <div className="sm:hidden flex flex-col items-end shrink-0 text-right">
+                            <span className="font-mono font-black text-cyan-400 text-xs">
+                              🛰️ Onda {player.radarBestWave || 1}
+                            </span>
+                            <span className="font-mono font-bold text-amber-300 text-[11px]">
+                              {(player.radarHighScore || 0).toLocaleString()} pts
                             </span>
                           </div>
                         ) : (

@@ -160,6 +160,9 @@ export interface LeaderboardEntry {
   reachedLevel100At?: string;
   cardFrame?: string;
   achievementsCount?: number;
+  radarBestWave?: number;
+  radarHighScore?: number;
+  radarMaxWpm?: number;
 }
 
 export interface Level100PioneerSlot {
@@ -385,6 +388,9 @@ export async function saveProgressToCloud(
   if (state.cosmetics?.equippedCardFrame) leaderboardPayload.cardFrame = state.cosmetics.equippedCardFrame;
   const unlockedAchCount = state.achievements ? Object.keys(state.achievements).length : 0;
   if (unlockedAchCount > 0) leaderboardPayload.achievementsCount = unlockedAchCount;
+  if (state.radarStats?.bestWave) leaderboardPayload.radarBestWave = state.radarStats.bestWave;
+  if (state.radarStats?.highScore) leaderboardPayload.radarHighScore = state.radarStats.highScore;
+  if (state.radarStats?.maxWpm) leaderboardPayload.radarMaxWpm = state.radarStats.maxWpm;
 
   try {
     const cleanSavePayload = removeUndefinedFields(savePayload);

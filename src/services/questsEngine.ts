@@ -53,7 +53,7 @@ export const WEEKLY_QUEST_CATALOG: WeeklyQuestDef[] = [
     category: 'volume',
     target: 350,
     unit: 'palavras',
-    reward: { bytes: 12000, levelTokens: 2 }
+    reward: { bytes: 12000, levelTokens: 15 }
   },
   {
     id: 'weekly_keystrokes_2000',
@@ -63,7 +63,7 @@ export const WEEKLY_QUEST_CATALOG: WeeklyQuestDef[] = [
     category: 'volume',
     target: 2000,
     unit: 'teclas',
-    reward: { bytes: 15000, levelTokens: 2 }
+    reward: { bytes: 15000, levelTokens: 15 }
   },
   // --- PRECISÃO ---
   {
@@ -74,7 +74,7 @@ export const WEEKLY_QUEST_CATALOG: WeeklyQuestDef[] = [
     category: 'accuracy',
     target: 40,
     unit: 'palavras perfeitas',
-    reward: { bytes: 18000, levelTokens: 3 }
+    reward: { bytes: 18000, levelTokens: 20 }
   },
   {
     id: 'weekly_high_combo',
@@ -84,7 +84,7 @@ export const WEEKLY_QUEST_CATALOG: WeeklyQuestDef[] = [
     category: 'accuracy',
     target: 15,
     unit: 'combos 50x',
-    reward: { bytes: 16000, levelTokens: 2, quantumFragments: 1 }
+    reward: { bytes: 16000, levelTokens: 15, quantumFragments: 1 }
   },
   // --- PEDAGOGIA & REABILITAÇÃO ---
   {
@@ -95,7 +95,7 @@ export const WEEKLY_QUEST_CATALOG: WeeklyQuestDef[] = [
     category: 'pedagogy',
     target: 3,
     unit: 'treinos',
-    reward: { bytes: 20000, levelTokens: 3, quantumFragments: 2 }
+    reward: { bytes: 20000, levelTokens: 20, quantumFragments: 2 }
   },
   {
     id: 'weekly_explore_cats',
@@ -105,7 +105,7 @@ export const WEEKLY_QUEST_CATALOG: WeeklyQuestDef[] = [
     category: 'pedagogy',
     target: 50,
     unit: 'palavras avançadas',
-    reward: { bytes: 14000, levelTokens: 2 }
+    reward: { bytes: 14000, levelTokens: 15 }
   },
   // --- RPG & DESAFIO ÉPICO ---
   {
@@ -116,7 +116,7 @@ export const WEEKLY_QUEST_CATALOG: WeeklyQuestDef[] = [
     category: 'rpg',
     target: 3,
     unit: 'andares RPG',
-    reward: { bytes: 25000, levelTokens: 4, quantumFragments: 3 }
+    reward: { bytes: 25000, levelTokens: 25, quantumFragments: 3 }
   },
   {
     id: 'weekly_boss_slayer',
@@ -126,7 +126,7 @@ export const WEEKLY_QUEST_CATALOG: WeeklyQuestDef[] = [
     category: 'rpg',
     target: 2,
     unit: 'chefes',
-    reward: { bytes: 30000, levelTokens: 5, quantumFragments: 4 }
+    reward: { bytes: 30000, levelTokens: 30, quantumFragments: 4 }
   }
 ];
 
@@ -667,7 +667,7 @@ export function generateRpgFloor(floor: number, telemetry?: Record<string, KeyTe
         weaknessKeys: bossWeaknesses
       },
       rewardBytes: floor * 2000 + 5000,
-      rewardTokens: isMilestone ? 3 : 1,
+      rewardTokens: isMilestone ? 15 : 5,
       rewardFragments: isMilestone ? (floor >= 10 ? 3 : 1) : undefined,
       isProcedural: false
     };
@@ -714,7 +714,7 @@ export function generateRpgFloor(floor: number, telemetry?: Record<string, KeyTe
       weaknessKeys: bossWeaknesses
     },
     rewardBytes: Math.round(floor * 2500 + 8000),
-    rewardTokens: isMilestone ? 4 : 2,
+    rewardTokens: isMilestone ? 20 : 10,
     rewardFragments: isMilestone ? Math.min(6, 2 + Math.floor(floor / 10)) : undefined,
     isProcedural: true
   };

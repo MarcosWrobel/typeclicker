@@ -726,34 +726,19 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
               </div>
             </div>
 
-            {/* Linha Secundária: Fita de Ações Rápidas, Contexto e Status */}
+            {/* Linha Secundária: Fita de Contexto e Status */}
             <div className="w-full flex items-center justify-between gap-2 px-1 text-[11px] text-zinc-400 font-mono min-w-0 flex-wrap sm:flex-nowrap">
-              {/* Esquerda: Sprint Chip + Trilha Curricular + Contexto */}
+              {/* Esquerda: Trilha Curricular + Contexto */}
               <div className="flex items-center gap-2 min-w-0 truncate">
-                {onOpenTimeAttack && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onOpenTimeAttack();
-                    }}
-                    className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-mono font-bold transition shadow-sm hover:scale-105 active:scale-95 cursor-pointer flex-shrink-0"
-                    title="Desafio Arcade Sprint (30s / 60s)"
-                  >
-                    <Timer className="w-3 h-3 text-amber-400 animate-pulse" />
-                    <span>Sprint Arcade</span>
-                    <span className="text-[9px] px-1 py-0.2 rounded bg-amber-400/20 text-amber-200 font-extrabold hidden md:inline">30s/60s</span>
-                  </button>
-                )}
-
                 {activeTrack && activeTrack !== 'geral' && (
-                  <span className="text-[11px] font-mono text-purple-200 bg-purple-950/80 border border-purple-500/40 px-2 py-0.5 rounded-lg flex items-center gap-1 font-bold shadow-sm flex-shrink-0">
-                    <span>{activeTrackConfig.icon}</span>
-                    <span className="hidden sm:inline">{activeTrackConfig.name}</span>
-                  </span>
+                  <>
+                    <span className="text-[11px] font-mono text-purple-200 bg-purple-950/80 border border-purple-500/40 px-2 py-0.5 rounded-lg flex items-center gap-1 font-bold shadow-sm flex-shrink-0">
+                      <span>{activeTrackConfig.icon}</span>
+                      <span className="hidden sm:inline">{activeTrackConfig.name}</span>
+                    </span>
+                    <span className="text-zinc-600 hidden md:inline">|</span>
+                  </>
                 )}
-
-                <span className="text-zinc-600 hidden md:inline">|</span>
 
                 {/* Descrição contextual por modo */}
                 <div className="truncate text-zinc-400">

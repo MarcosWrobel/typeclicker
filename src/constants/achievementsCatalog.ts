@@ -61,7 +61,7 @@ export const ACHIEVEMENTS_CATALOG: AchievementDef[] = [
     description: 'Atinja um combo lendário de 250 caracteres sem falhas.',
     category: 'speed',
     icon: '👑',
-    reward: { bytes: 2000, levelTokens: 1 },
+    reward: { bytes: 2000, levelTokens: 10 },
     maxProgress: 250,
     evaluate: (s) => ({
       unlocked: s.maxCombo >= 250 || s.comboStreak >= 250,
@@ -90,7 +90,7 @@ export const ACHIEVEMENTS_CATALOG: AchievementDef[] = [
     description: 'Ultrapasse a barreira de 100 Palavras Por Minuto (PPM).',
     category: 'speed',
     icon: '⚡',
-    reward: { bytes: 1000, levelTokens: 1 },
+    reward: { bytes: 1000, levelTokens: 10 },
     maxProgress: 100,
     evaluate: (s, ctx) => {
       const wpm = ctx?.wpm ?? (s.totalActiveSeconds > 5 ? Math.round((s.correctKeys / 5) / (s.totalActiveSeconds / 60)) : 0);
@@ -124,7 +124,7 @@ export const ACHIEVEMENTS_CATALOG: AchievementDef[] = [
     category: 'speed',
     icon: '⚡',
     isHardcore: true,
-    reward: { bytes: 10000, levelTokens: 2, quantumFragments: 5 },
+    reward: { bytes: 10000, levelTokens: 15, quantumFragments: 5 },
     maxProgress: 500,
     evaluate: (s) => ({
       unlocked: s.maxCombo >= 500 || s.comboStreak >= 500,
@@ -138,7 +138,7 @@ export const ACHIEVEMENTS_CATALOG: AchievementDef[] = [
     category: 'speed',
     icon: '🚀',
     isHardcore: true,
-    reward: { bytes: 15000, levelTokens: 3, quantumFragments: 8 },
+    reward: { bytes: 15000, levelTokens: 20, quantumFragments: 8 },
     maxProgress: 130,
     evaluate: (s, ctx) => {
       const wpm = ctx?.wpm ?? (s.totalActiveSeconds > 5 ? Math.round((s.correctKeys / 5) / (s.totalActiveSeconds / 60)) : 0);
@@ -213,7 +213,7 @@ export const ACHIEVEMENTS_CATALOG: AchievementDef[] = [
     description: 'Complete 2.000 palavras no total.',
     category: 'volume',
     icon: '🏛️',
-    reward: { bytes: 5000, levelTokens: 2 },
+    reward: { bytes: 5000, levelTokens: 15 },
     maxProgress: 2000,
     evaluate: (s) => ({
       unlocked: s.wordsCompleted >= 2000,
@@ -284,7 +284,7 @@ export const ACHIEVEMENTS_CATALOG: AchievementDef[] = [
     description: 'Alcance o Nível 50.',
     category: 'volume',
     icon: '🥇',
-    reward: { bytes: 5000, levelTokens: 2 },
+    reward: { bytes: 5000, levelTokens: 20 },
     maxProgress: 50,
     evaluate: (s) => {
       const lvl = calculatePlayerRank(s.totalBytesEarned).level;
@@ -392,7 +392,7 @@ export const ACHIEVEMENTS_CATALOG: AchievementDef[] = [
     description: 'Acumule um total de 1.000.000.000 Bytes ganhos no histórico.',
     category: 'economy',
     icon: '💎',
-    reward: { bytes: 50000, levelTokens: 5, quantumFragments: 3 },
+    reward: { bytes: 50000, levelTokens: 25, quantumFragments: 3 },
     maxProgress: 1000000000,
     evaluate: (s) => ({
       unlocked: s.totalBytesEarned >= 1000000000,
@@ -406,7 +406,7 @@ export const ACHIEVEMENTS_CATALOG: AchievementDef[] = [
     category: 'economy',
     icon: '🌌',
     isHardcore: true,
-    reward: { bytes: 100000, levelTokens: 5, quantumFragments: 15 },
+    reward: { bytes: 100000, levelTokens: 30, quantumFragments: 15 },
     maxProgress: 1000000000000,
     evaluate: (s) => ({
       unlocked: s.totalBytesEarned >= 1000000000000,
@@ -527,7 +527,7 @@ export const ACHIEVEMENTS_CATALOG: AchievementDef[] = [
     description: 'Vença 3 desafios de Boss de Nível contra o relógio.',
     category: 'collection',
     icon: '⚔️',
-    reward: { bytes: 2500, levelTokens: 2 },
+    reward: { bytes: 2500, levelTokens: 15 },
     maxProgress: 3,
     evaluate: (s) => {
       const completed = s.completedChallenges?.length || 0;

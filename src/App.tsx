@@ -31,6 +31,8 @@ import { TimeAttackModal } from './components/TimeAttackModal';
 import { ArenaStats, getArenaRank } from './types/arena';
 import { AdminPanel } from './components/AdminPanel';
 import { SessionLockOverlay } from './components/SessionLockOverlay';
+import { GameSelectionScreen } from './components/GameSelectionScreen';
+import { TypeRadarGame } from './components/games/radar/TypeRadarGame';
 import { LevelUpOverlay } from './components/LevelUpOverlay';
 import { PauseOverlay } from './components/PauseOverlay';
 import { ChallengeArena } from './components/ChallengeArena';
@@ -73,6 +75,7 @@ import { Loader2 } from 'lucide-react';
 
 export default function App() {
   const suppressLevelUpRef = useRef<boolean>(true);
+  const [selectedGame, setSelectedGame] = useState<'typeclicker' | 'type_radar' | null>(null);
   const [state, setState] = useState<GameState>(() => loadSavedState());
   const [typingMode, setTypingMode] = useState<TypingMode>(state.typingMode || 'words');
   const [currentWord, setCurrentWord] = useState<string>(() => getTextForMode(state.typingMode || 'words', state.selectedCategory));
@@ -147,6 +150,7 @@ export default function App() {
   // NOTA: O Modo Foco de Calibração (activeFocusDrill) é intencionalmente EXCEÇÃO a esta regra,
   // permitindo que o jogador retome a digitação no terminal de forma fluida após calibrar erros, sem pausar o jogo.
   const isAnyModalOpen = Boolean(
+    !selectedGame ||
     isAdminOpen ||
     isStudentModalOpen ||
     isMetricsOpen ||
@@ -1828,8 +1832,9 @@ export default function App() {
         return; // Silent level up on initial load
       }
 
-      // Recompensa escolar: +1 Level Token e +2 Chaves de Masmorra por nível conquistado
+      // Recompensa escolar: +5 Fichas de Nível e +2 Chaves de Masmorra por nível conquistado
       const levelsGained = Math.max(1, newLevel - prevLevel);
+      const earnedTokens = levelsGained * 5;
       setState(prev => {
         const currCosmetics = prev.cosmetics || { ...DEFAULT_COSMETICS };
         const updatedQuests = grantDungeonKeys(prev.quests ? syncQuestsState(prev.quests) : syncQuestsState(), 2 * levelsGained);
@@ -1838,11 +1843,11 @@ export default function App() {
           quests: updatedQuests,
           cosmetics: {
             ...currCosmetics,
-            levelTokens: (currCosmetics.levelTokens ?? 0) + levelsGained
+            levelTokens: (currCosmetics.levelTokens ?? 0) + earnedTokens
           }
         };
       });
-      spawnFloatingText(`+${levelsGained} Level Token${levelsGained > 1 ? 's' : ''}! 🪙`, 'bonus');
+      spawnFloatingText(`+${earnedTokens} Ficha${earnedTokens > 1 ? 's' : ''} de Nível! 🪙`, 'bonus');
       spawnFloatingText(`+${2 * levelsGained} Chaves de Masmorra! 🔑`, 'bonus');
       
       setLevelUpData({
@@ -1983,7 +1988,7 @@ export default function App() {
     highestWpm: number,
     earnedPoints: number = 10,
     earnedDuelTokens: number = 2,
-    earnedLevelTokens: number = 1
+    earnedLevelTokens: number = 5
   ) => {
     setState((prev) => {
       const currentStats = prev.arenaStats || { ...DEFAULT_ARENA_STATS };
@@ -2047,6 +2052,37 @@ export default function App() {
       return finalState;
     });
   }, [checkAndAwardAchievements]);
+
+  const handleConvertBytesToTokens = useCallback((tierId: string, bytesSpent: number, tokensGained: number) => {
+    setState((prev) => {
+      if (prev.bytes < bytesSpent) return prev;
+      const today = new Date().toISOString().split('T')[0];
+      const currentCosm = sanitizeCosmetics(prev.cosmetics);
+      const existingConverted = currentCosm.dailyConversions?.date === today
+        ? currentCosm.dailyConversions.convertedTierIds
+        : [];
+
+      const updatedCosm: PlayerCosmetics = {
+        ...currentCosm,
+        levelTokens: (currentCosm.levelTokens || 0) + tokensGained,
+        dailyConversions: {
+          date: today,
+          convertedTierIds: Array.from(new Set([...existingConverted, tierId]))
+        }
+      };
+      const nextState: GameState = {
+        ...prev,
+        bytes: prev.bytes - bytesSpent,
+        cosmetics: updatedCosm
+      };
+      saveState(nextState, auth.currentUser?.uid);
+      if (auth.currentUser) {
+        saveProgressToCloud(nextState).catch(console.error);
+      }
+      return nextState;
+    });
+    audioSynthesizer.playUnlockJingle();
+  }, []);
 
   const handleUpdateAccessibility = useCallback((newSettings: AccessibilitySettings) => {
     let nextState: GameState | null = null;
@@ -2233,7 +2269,189 @@ export default function App() {
     );
   }
 
+  // Trava de Sessão Escolar (Inserção do código da aula ou espera pelo professor)
+  const isLocked = isAppLocked && !isAdmin;
+  if (isLocked) {
+    return (
+      <SessionLockOverlay
+        isLocked={true}
+        isLoading={isVerifyingLock}
+        onUnlock={handleUnlockCode}
+      />
+    );
+  }
+
   const currentCosmetics = sanitizeCosmetics(state.cosmetics);
+
+  // Hub da Plataforma / Seleção de Jogos Educacionais
+  if (!selectedGame) {
+    return (
+      <>
+        <GameSelectionScreen
+          user={user}
+          state={state}
+          isAdmin={isAdmin}
+          isSuperAdmin={checkIsSuperAdmin(user)}
+          activeTurma={systemSettingsState?.activeTurma || null}
+          activeTrack={activeCurricularTrack}
+          activeRace={activeRace}
+          activeRaid={activeRaid}
+          onSelectGame={(gameId) => {
+            if (gameId === 'typeclicker') {
+              setSelectedGame('typeclicker');
+            } else if (gameId === 'type_radar') {
+              setSelectedGame('type_radar');
+            } else if (gameId === 'time_attack') {
+              setSelectedGame('typeclicker');
+              setIsTimeAttackOpen(true);
+            } else if (gameId === 'dungeon') {
+              setSelectedGame('typeclicker');
+              setIsDungeonOpen(true);
+            }
+          }}
+          onOpenStudentModal={() => setIsStudentModalOpen(true)}
+          onOpenAdmin={() => setIsAdminOpen(true)}
+          onOpenLeaderboard={handleOpenGeneralLeaderboard}
+          onOpenLeaderboardTab={handleOpenLeaderboardTab}
+          onOpenCosmetics={() => setIsCosmeticsOpen(true)}
+          onOpenRaceArena={() => {
+            setSelectedGame('typeclicker');
+            setIsRaceArenaOpen(true);
+          }}
+          onOpenRaidArena={() => {
+            setSelectedGame('typeclicker');
+            setIsRaidArenaOpen(true);
+          }}
+          onLogout={async () => {
+            if (user) {
+              try {
+                await syncNow('session_end');
+              } catch (e) {}
+            }
+            await logoutUser();
+            setSelectedGame(null);
+          }}
+        />
+
+        {/* Modais Globais Acessíveis a partir do Hub */}
+        <StudentModal
+          isOpen={isStudentModalOpen}
+          user={user}
+          isAdmin={isAdmin}
+          state={state}
+          currentAvatar={state.studentAvatar || '🐧'}
+          currentNickname={state.studentNickname}
+          currentClass={state.studentClass}
+          currentRpgClass={state.rpgClass}
+          onClose={() => setIsStudentModalOpen(false)}
+          onSave={handleSaveStudentCredentials}
+          onSwitchRpgClass={handleSwitchRpgClass}
+          onImportState={handleImportState}
+          onLogout={async () => {
+            if (user) {
+              try {
+                await syncNow('session_end');
+              } catch (e) {}
+            }
+            await logoutUser();
+            setSelectedGame(null);
+          }}
+        />
+
+        <LeaderboardModal
+          isOpen={isLeaderboardOpen}
+          onClose={() => setIsLeaderboardOpen(false)}
+          currentUserId={user?.uid}
+          currentUserClass={state.studentClass}
+          initialTab={leaderboardInitialTab}
+        />
+
+        {/* Central de Customização Aberta a partir do Hub */}
+        <CosmeticsShopModal
+          isOpen={isCosmeticsOpen}
+          onClose={() => setIsCosmeticsOpen(false)}
+          cosmetics={sanitizeCosmetics(state.cosmetics)}
+          onUpdateCosmetics={handleUpdateCosmetics}
+          isAdmin={isAdmin}
+          state={state}
+          onConvertBytesToTokens={handleConvertBytesToTokens}
+        />
+
+        {isAdmin && (
+          <AdminPanel
+            isOpen={isAdminOpen}
+            onClose={() => setIsAdminOpen(false)}
+            isSuperAdmin={checkIsSuperAdmin(user)}
+            gameState={state}
+            onUpdateGameState={handleAdminUpdateGameState}
+            userEmail={user?.email}
+            onOpenArena={() => setIsArenaOpen(true)}
+            onOpenCosmetics={() => setIsCosmeticsOpen(true)}
+            onTriggerChallenge={(lvl) => setActiveChallengeLevel(lvl || 10)}
+            onOpenRaceArena={() => setIsRaceArenaOpen(true)}
+            onOpenRaidArena={() => setIsRaidArenaOpen(true)}
+          />
+        )}
+      </>
+    );
+  }
+
+  // Jogo Standalone: Type: Radar (Defesa Cibernética Roguelike)
+  if (selectedGame === 'type_radar') {
+    return (
+      <>
+        <TypeRadarGame
+          studentName={state.studentNickname || state.studentName || user?.displayName || 'Operador'}
+          activeTrack={activeCurricularTrack}
+          equippedSkin={currentCosmetics.equippedSkin || 'classic'}
+          onOpenLeaderboardTab={() => handleOpenLeaderboardTab('radar')}
+          onExitToHub={async (bytesEarned, endStats) => {
+            setState((prev) => {
+              const currentRadarStats = prev.radarStats || {
+                bestWave: 1,
+                highScore: 0,
+                maxWpm: 0,
+                totalGames: 0,
+                totalEnemiesDefeated: 0
+              };
+              const updatedRadarStats = endStats ? {
+                bestWave: Math.max(currentRadarStats.bestWave, endStats.bestWave),
+                highScore: Math.max(currentRadarStats.highScore, endStats.score),
+                maxWpm: Math.max(currentRadarStats.maxWpm, endStats.maxWpm),
+                totalGames: currentRadarStats.totalGames + 1,
+                totalEnemiesDefeated: currentRadarStats.totalEnemiesDefeated + endStats.enemiesDefeated
+              } : currentRadarStats;
+
+              const updated: GameState = {
+                ...prev,
+                bytes: prev.bytes + bytesEarned,
+                totalBytesEarned: prev.totalBytesEarned + bytesEarned,
+                radarStats: updatedRadarStats
+              };
+              saveState(updated, auth.currentUser?.uid);
+              if (auth.currentUser) {
+                saveProgressToCloud(updated).catch(console.error);
+              }
+              return updated;
+            });
+            if (bytesEarned > 0) {
+              spawnFloatingText(`✨ +${formatBytes(bytesEarned)} Bytes do Radar Conquistados!`, 'bonus');
+            }
+            setSelectedGame(null);
+          }}
+        />
+
+        <LeaderboardModal
+          isOpen={isLeaderboardOpen}
+          onClose={() => setIsLeaderboardOpen(false)}
+          currentUserId={user?.uid}
+          currentUserClass={state.studentClass}
+          initialTab={leaderboardInitialTab}
+        />
+      </>
+    );
+  }
+
   const activeTheme = TERMINAL_THEMES[currentCosmetics.equippedTheme || 'matrix'] || TERMINAL_THEMES.matrix;
   const effectiveAppBg = state.accessibility?.highContrast ? 'bg-black' : activeTheme.classes.appBg;
   const uiScaleStyle: React.CSSProperties = state.accessibility?.uiScale === 'extra'
@@ -2256,6 +2474,10 @@ export default function App() {
             <PauseOverlay
               isOpen={isPaused && !isAnyModalOpen && activeFocusDrill === null}
               onResume={handleResumeGame}
+              onBackToHub={() => {
+                syncNow('game_exit').catch(console.error);
+                setSelectedGame(null);
+              }}
               studentName={state.studentNickname || state.studentName}
               selectedCategory={state.selectedCategory}
               onSelectCategory={handleSelectCategory}
@@ -2269,6 +2491,10 @@ export default function App() {
             isPaused={isPaused || isAnyModalOpen}
             isAdmin={isAdmin}
             isSuperAdmin={checkIsSuperAdmin(user)}
+            onBackToHub={() => {
+              syncNow('game_exit').catch(console.error);
+              setSelectedGame(null);
+            }}
             onTogglePause={handleTogglePause}
             onToggleSound={() => setState((p) => ({ ...p, soundEnabled: !p.soundEnabled }))}
             onOpenMetrics={() => setIsMetricsOpen(true)}
@@ -2537,6 +2763,7 @@ export default function App() {
         onUpdateCosmetics={handleUpdateCosmetics}
         isAdmin={isAdmin}
         state={state}
+        onConvertBytesToTokens={handleConvertBytesToTokens}
       />
 
       {/* Modal do Card Colecionável de Perfil do Aluno */}

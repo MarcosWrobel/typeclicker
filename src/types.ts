@@ -69,6 +69,14 @@ export interface GameState {
   cosmetics?: PlayerCosmetics;
   // Estatísticas de Arena 1x1 (Nível 100)
   arenaStats?: ArenaStats;
+  // Estatísticas de Defesa Cibernética (Type: Radar)
+  radarStats?: {
+    bestWave: number;
+    highScore: number;
+    maxWpm: number;
+    totalGames: number;
+    totalEnemiesDefeated: number;
+  };
   // Telemetria por tecla para treino corretivo adaptativo
   keyTelemetry?: Record<string, KeyTelemetry>;
   // Conquistas desbloqueadas (achievementId -> timestamp de desbloqueio)

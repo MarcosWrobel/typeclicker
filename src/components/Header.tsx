@@ -1,5 +1,5 @@
 import React from 'react';
-import { Volume2, VolumeX, BarChart3, RefreshCw, Trophy, Cloud, Pause, Play, Shield, Eye, Timer } from 'lucide-react';
+import { Volume2, VolumeX, BarChart3, RefreshCw, Trophy, Cloud, Pause, Play, Shield, Eye, Timer, LayoutGrid } from 'lucide-react';
 import { GameState } from '../types';
 import { calculatePlayerRank } from '../utils/formatting';
 
@@ -8,6 +8,7 @@ interface HeaderProps {
   isPaused?: boolean;
   isAdmin?: boolean;
   isSuperAdmin?: boolean;
+  onBackToHub?: () => void;
   onTogglePause?: () => void;
   onToggleSound: () => void;
   onOpenMetrics: () => void;
@@ -33,6 +34,7 @@ export const Header: React.FC<HeaderProps> = ({
   isPaused = false,
   isAdmin = false,
   isSuperAdmin = false,
+  onBackToHub,
   onTogglePause,
   onToggleSound,
   onOpenMetrics,
@@ -89,16 +91,16 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Navegação e Controles Rápidos */}
         <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap justify-end flex-shrink-0">
-          {/* Time Attack Arcade Sprint */}
-          {onOpenTimeAttack && (
+          {/* Voltar ao Hub de Jogos da Plataforma */}
+          {onBackToHub && (
             <button
               type="button"
-              onClick={onOpenTimeAttack}
-              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-950/60 to-orange-950/60 hover:from-amber-900/80 hover:to-orange-900/80 text-amber-300 border border-amber-500/40 text-xs font-bold transition shadow-sm cursor-pointer"
-              title="Time Attack (Sprint 30s/60s): Teste seu WPM puro!"
+              onClick={onBackToHub}
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-emerald-950/60 hover:bg-emerald-900/80 text-emerald-300 border border-emerald-500/50 text-xs font-bold transition shadow-sm cursor-pointer"
+              title="Voltar ao Hub de Seleção de Jogos"
             >
-              <Timer className="w-3.5 h-3.5 text-amber-400" />
-              <span className="hidden sm:inline">Sprint</span>
+              <LayoutGrid className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Jogos</span>
             </button>
           )}
 

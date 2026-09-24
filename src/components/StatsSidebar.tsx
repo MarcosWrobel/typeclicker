@@ -181,17 +181,25 @@ export const StatsSidebar: React.FC<StatsSidebarProps> = ({
           </div>
         </div>
         
-        <div className="flex flex-col gap-1 mt-1 w-full">
+        <div className="flex flex-col gap-1.5 mt-1 w-full">
           <div className="flex justify-between items-center text-[10px] text-zinc-400 font-mono">
-            <span>Progresso</span>
-            <span>{playerRank.progressPercent}%</span>
+            <span className="flex items-center gap-1 font-semibold text-zinc-300">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              XP de Carreira
+            </span>
+            <span className="font-bold text-emerald-400">
+              {playerRank.progressPercent}% <span className="text-zinc-500 font-normal">→ Nv. {playerRank.level < 100 ? playerRank.level + 1 : 100}</span>
+            </span>
           </div>
-          <div className="w-full h-2.5 bg-zinc-800/90 rounded-full overflow-hidden border border-zinc-700/40">
+          <div className="w-full h-3 bg-zinc-950/90 rounded-full overflow-hidden border border-zinc-700/60 p-0.5 shadow-inner relative">
             <div
-              className="h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-sky-400 rounded-full transition-all duration-300 relative"
-              style={{ width: `${playerRank.progressPercent}%` }}
+              className="h-full bg-gradient-to-r from-emerald-600 via-teal-400 to-sky-400 rounded-full transition-all duration-500 relative shadow-[0_0_12px_rgba(52,211,153,0.5)]"
+              style={{ width: `${Math.max(3, playerRank.progressPercent)}%` }}
             >
-               <div className="absolute top-0 right-0 bottom-0 w-4 bg-white/20 blur-[2px]" />
+              {/* Shimmer de luz em movimento */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/35 to-transparent animate-shimmer" />
+              {/* Ponto luminoso na ponta do progresso */}
+              <div className="absolute top-1/2 -translate-y-1/2 right-0 w-2 h-2 rounded-full bg-white shadow-[0_0_8px_#38bdf8]" />
             </div>
           </div>
         </div>

@@ -438,6 +438,17 @@ export const ClassroomRaceArena: React.FC<ClassroomRaceArenaProps> = ({
               <span>+{formatBytes(race.prizeBytes)} B</span>
             </div>
 
+            {/* Botão Ranking de Corridas */}
+            <button
+              type="button"
+              onClick={onOpenRaceLeaderboard}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-950/70 hover:bg-amber-900/80 border border-amber-500/50 text-amber-300 font-mono text-xs font-bold transition cursor-pointer shadow-sm"
+              title="Ver Ranking de Corridas da Sala"
+            >
+              <Trophy className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden sm:inline">Ranking</span>
+            </button>
+
             {/* Botão de Fechar */}
             <button
               onClick={onClose}

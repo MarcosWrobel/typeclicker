@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Pause, Play, Shield, Timer, Keyboard, ShoppingBag, Gauge, Lock } from 'lucide-react';
+import { Pause, Play, Shield, Timer, Keyboard, ShoppingBag, Gauge, Lock, LayoutGrid } from 'lucide-react';
 import { CategoryId } from '../types';
 import { WORD_CATEGORIES } from '../data/words';
 import { isCategoryAllowed } from '../utils/difficulty';
@@ -8,6 +8,7 @@ import { isCategoryAllowed } from '../utils/difficulty';
 interface PauseOverlayProps {
   isOpen: boolean;
   onResume: () => void;
+  onBackToHub?: () => void;
   studentName?: string;
   selectedCategory?: CategoryId;
   onSelectCategory?: (cat: CategoryId) => void;
@@ -17,6 +18,7 @@ interface PauseOverlayProps {
 export const PauseOverlay: React.FC<PauseOverlayProps> = ({
   isOpen,
   onResume,
+  onBackToHub,
   studentName,
   selectedCategory,
   onSelectCategory,
@@ -93,8 +95,20 @@ export const PauseOverlay: React.FC<PauseOverlayProps> = ({
                   </div>
                 </div>
 
-                {/* Direita: Botão de Ação Imediata para Retomar */}
+                {/* Direita: Botão de Ação Imediata para Retomar e Voltar ao Hub */}
                 <div className="flex items-center gap-2 flex-shrink-0 w-full sm:w-auto justify-end">
+                  {onBackToHub && (
+                    <button
+                      type="button"
+                      onClick={onBackToHub}
+                      className="px-3.5 py-2 rounded-xl bg-zinc-900/90 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-700/80 font-mono font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-95 shadow-sm"
+                      title="Voltar para a tela de seleção de jogos da plataforma"
+                    >
+                      <LayoutGrid className="w-4 h-4 text-emerald-400" />
+                      <span>Hub de Jogos</span>
+                    </button>
+                  )}
+
                   <button
                     type="button"
                     onClick={onResume}

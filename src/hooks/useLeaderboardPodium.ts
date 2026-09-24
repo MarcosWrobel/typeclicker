@@ -122,6 +122,7 @@ export function useLeaderboardPodium(): UseLeaderboardPodiumReturn {
       wpm: [],
       combo: [],
       bytes: [],
+      radar: [],
       pvp: [],
       races: []
     };
@@ -177,6 +178,19 @@ export function useLeaderboardPodium(): UseLeaderboardPodiumReturn {
         const winsB = b.raceWins || 0;
         if (winsB !== winsA) return winsB - winsA;
         return (b.bestRaceWpm || 0) - (a.bestRaceWpm || 0);
+      })
+      .slice(0, 3);
+
+    // 7. Type: Radar (Defesa Cibernética)
+    map.radar = [...allPlayers]
+      .sort((a, b) => {
+        const waveA = a.radarBestWave || 1;
+        const waveB = b.radarBestWave || 1;
+        if (waveB !== waveA) return waveB - waveA;
+        const scoreA = a.radarHighScore || 0;
+        const scoreB = b.radarHighScore || 0;
+        if (scoreB !== scoreA) return scoreB - scoreA;
+        return (b.radarMaxWpm || 0) - (a.radarMaxWpm || 0);
       })
       .slice(0, 3);
 

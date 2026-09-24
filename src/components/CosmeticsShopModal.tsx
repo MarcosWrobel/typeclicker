@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Sparkles, Check, Lock, Volume2, Palette, Bot, Coins, LayoutGrid, Flame, Swords, Play, Award } from 'lucide-react';
+import { X, Sparkles, Check, Lock, Volume2, Palette, Bot, Coins, LayoutGrid, Flame, Swords, Play, Award, Database } from 'lucide-react';
 import { PlayerCosmetics, TerminalThemeId, BytezinhoSkinId, KeySoundThemeId, LayoutSkinId, AnimationEffectId, CosmeticCurrency } from '../types/cosmetics';
 import { TERMINAL_THEMES, BYTEZINHO_SKINS, KEY_SOUNDS } from '../constants/themes';
 import { LAYOUT_CONFIGS, ANIMATION_CONFIGS, getAllUnlockedCosmetics } from '../constants/cosmeticsCatalog';
@@ -10,6 +10,7 @@ import { GameState } from '../types';
 import { audioSynthesizer } from '../services/audioSynthesizer';
 import { triggerUpgradePurchaseVfx, getLetterVfxClasses } from '../services/fxEngine';
 import { BytezinhoAvatar } from './BytezinhoAvatar';
+import { formatBytes } from '../utils/formatting';
 
 interface CosmeticsShopModalProps {
   isOpen: boolean;
@@ -18,7 +19,66 @@ interface CosmeticsShopModalProps {
   onUpdateCosmetics: (updated: PlayerCosmetics) => void;
   isAdmin?: boolean;
   state?: GameState;
+  onConvertBytesToTokens?: (tierId: string, bytesSpent: number, tokensGained: number) => void;
 }
+
+interface CambioTier {
+  id: string;
+  bytes: number;
+  labelBytes: string;
+  tokens: number;
+  minLevelTip: string;
+  badge: string;
+  colorClass: string;
+}
+
+const CAMBIO_TIERS: CambioTier[] = [
+  {
+    id: 'cambio_5mb',
+    bytes: 5_000_000,
+    labelBytes: '5 MB',
+    tokens: 5,
+    minLevelTip: 'Nv. 20+',
+    badge: '1/dia',
+    colorClass: 'border-emerald-500/50 text-emerald-300 hover:bg-emerald-950/80',
+  },
+  {
+    id: 'cambio_20mb',
+    bytes: 20_000_000,
+    labelBytes: '20 MB',
+    tokens: 15,
+    minLevelTip: 'Nv. 30+',
+    badge: '1/dia',
+    colorClass: 'border-cyan-500/50 text-cyan-300 hover:bg-cyan-950/80',
+  },
+  {
+    id: 'cambio_100mb',
+    bytes: 100_000_000,
+    labelBytes: '100 MB',
+    tokens: 35,
+    minLevelTip: 'Nv. 45+',
+    badge: '1/dia',
+    colorClass: 'border-amber-500/50 text-amber-300 hover:bg-amber-950/80',
+  },
+  {
+    id: 'cambio_500mb',
+    bytes: 500_000_000,
+    labelBytes: '500 MB',
+    tokens: 75,
+    minLevelTip: 'Nv. 55+',
+    badge: '1/dia',
+    colorClass: 'border-purple-500/50 text-purple-300 hover:bg-purple-950/80',
+  },
+  {
+    id: 'cambio_2gb',
+    bytes: 2_000_000_000,
+    labelBytes: '2 GB',
+    tokens: 150,
+    minLevelTip: 'Nv. 70+',
+    badge: 'Cota Máxima',
+    colorClass: 'border-yellow-400/50 text-yellow-300 bg-gradient-to-r from-amber-950/90 via-yellow-950/80 to-purple-950/90 hover:from-amber-900 hover:to-purple-900',
+  },
+];
 
 type ShopTab = 'layouts' | 'themes' | 'skins' | 'sounds' | 'animations' | 'cards';
 
@@ -28,7 +88,8 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
   cosmetics,
   onUpdateCosmetics,
   isAdmin = false,
-  state
+  state,
+  onConvertBytesToTokens
 }) => {
   const [activeTab, setActiveTab] = useState<ShopTab>('themes');
   const [playingPreview, setPlayingPreview] = useState<KeySoundThemeId | null>(null);
@@ -52,6 +113,14 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
   const currentTokens = cosmetics.levelTokens ?? 0;
   const currentDuelTokens = cosmetics.duelTokens ?? 0;
   const currentQuantumFragments = cosmetics.quantumFragments ?? 0;
+
+  const today = new Date().toISOString().split('T')[0];
+  const isTierRedeemed = (tierId: string): boolean => {
+    if (isAdmin) return false;
+    const dailyRecord = cosmetics.dailyConversions;
+    if (!dailyRecord) return false;
+    return dailyRecord.date === today && (dailyRecord.convertedTierIds || []).includes(tierId);
+  };
 
   // Ações Exclusivas de Administrador (Marcos Wrobel)
   const handleAdminUnlockAll = () => {
@@ -348,7 +417,7 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 15 }}
           transition={{ duration: 0.2 }}
-          className="bg-[#10131a] border border-[#262c3d] rounded-2xl w-full max-w-4xl overflow-hidden shadow-2xl flex flex-col h-[92vh] sm:h-[86vh]"
+          className="bg-[#10131a] border border-[#262c3d] rounded-2xl w-full max-w-6xl xl:max-w-7xl overflow-hidden shadow-2xl flex flex-col h-[92vh] sm:h-[86vh]"
         >
           {/* Top Bar / Header do Modal */}
           <div className="flex-shrink-0 flex items-center justify-between px-4 sm:px-6 py-3.5 border-b border-[#232838] bg-[#141822]">
@@ -369,27 +438,36 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
               </div>
             </div>
 
-            {/* Saldos Triplos (Tokens de Nível, Moedas de Duelo e Fragmentos Quânticos) e Botão Fechar */}
+            {/* Saldos Múltiplos (Bytes, Tokens de Nível, Moedas de Duelo e Fragmentos Quânticos) e Botão Fechar */}
             <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-end">
+              {/* Saldo de Bytes Conquistados nos Jogos */}
+              {state && (
+                <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 font-mono font-bold text-xs sm:text-sm shadow-[0_0_12px_rgba(16,185,129,0.2)]">
+                  <Database className="w-4 h-4 text-emerald-400" />
+                  <span>{formatBytes(state.bytes)}</span>
+                  <span className="text-[10px] text-emerald-400/80 hidden sm:inline">Bytes</span>
+                </div>
+              )}
+
               {/* Saldo de Level Tokens */}
               <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 font-mono font-bold text-xs sm:text-sm shadow-[0_0_12px_rgba(245,158,11,0.2)]">
                 <Coins className="w-4 h-4 text-amber-400 animate-pulse" />
                 <span>{currentTokens}</span>
-                <span className="text-[10px] text-amber-400/80 hidden sm:inline">Level Tokens</span>
+                <span className="text-[10px] text-amber-400/80 hidden sm:inline">Fichas 🪙</span>
               </div>
 
               {/* Saldo de Moedas de Duelo */}
               <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-rose-500/15 border border-rose-500/40 text-rose-300 font-mono font-bold text-xs sm:text-sm shadow-[0_0_12px_rgba(244,63,94,0.2)]">
                 <Swords className="w-4 h-4 text-rose-400 animate-pulse" />
                 <span>{currentDuelTokens}</span>
-                <span className="text-[10px] text-rose-400/80 hidden sm:inline">Moedas de Duelo</span>
+                <span className="text-[10px] text-rose-400/80 hidden sm:inline">Duelo ⚔️</span>
               </div>
 
               {/* Saldo de Fragmentos Quânticos */}
               <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-cyan-500/15 border border-cyan-500/40 text-cyan-300 font-mono font-bold text-xs sm:text-sm shadow-[0_0_12px_rgba(6,182,212,0.25)]">
                 <Sparkles className="w-4 h-4 text-cyan-400 animate-spin" style={{ animationDuration: '8s' }} />
                 <span>{currentQuantumFragments}</span>
-                <span className="text-[10px] text-cyan-300/80 hidden sm:inline">Quânticos</span>
+                <span className="text-[10px] text-cyan-300/80 hidden sm:inline">Quânticos 🌌</span>
               </div>
 
               <button
@@ -402,6 +480,55 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
               </button>
             </div>
           </div>
+
+          {/* Barra de Câmbio de Moedas: Converter Bytes em Fichas de Customização */}
+          {onConvertBytesToTokens && state && (
+            <div className="flex-shrink-0 px-4 sm:px-6 py-2.5 bg-gradient-to-r from-emerald-950/50 via-zinc-900/80 to-amber-950/50 border-b border-zinc-800 flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-2 text-xs font-mono">
+                <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/40 flex items-center gap-1">
+                  🪙 CÂMBIO ESCOLAR
+                </span>
+                <span className="text-zinc-300 hidden xl:inline">
+                  Troca de excedente de Bytes por Fichas (Cota diária: 1 resgate/dia por pacote):
+                </span>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                {CAMBIO_TIERS.map((tier) => {
+                  const redeemed = isTierRedeemed(tier.id);
+                  const canAfford = state.bytes >= tier.bytes;
+                  const isDisabled = redeemed || !canAfford;
+
+                  return (
+                    <button
+                      key={tier.id}
+                      type="button"
+                      disabled={isDisabled}
+                      onClick={() => onConvertBytesToTokens(tier.id, tier.bytes, tier.tokens)}
+                      className={`px-2.5 py-1.5 rounded-xl bg-zinc-900 border text-xs font-mono font-bold transition shadow-sm cursor-pointer flex items-center gap-1.5 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed ${tier.colorClass} ${redeemed ? '!border-zinc-700 !text-zinc-500 !bg-zinc-900/50' : ''}`}
+                      title={
+                        redeemed
+                          ? `Pacote ${tier.labelBytes} já resgatado hoje! Volta amanhã.`
+                          : !canAfford
+                          ? `Requer ${tier.labelBytes} (Você tem ${formatBytes(state.bytes)})`
+                          : `Converter ${tier.labelBytes} em ${tier.tokens} Fichas (${tier.minLevelTip})`
+                      }
+                    >
+                      <span>{tier.labelBytes} ➔ {tier.tokens} 🪙</span>
+                      {redeemed ? (
+                        <span className="text-[9px] px-1 py-0.5 rounded bg-zinc-800 text-zinc-400 font-bold">
+                          ✓ Resgatado
+                        </span>
+                      ) : (
+                        <span className="text-[9px] px-1 py-0.2 rounded bg-zinc-800/80 text-zinc-300 font-black">
+                          {tier.badge}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Barra Especial de Administrador (Marcos Wrobel) */}
           {isAdmin && (
@@ -604,7 +731,7 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
           <div className="p-3 sm:p-6 overflow-y-auto flex-1 min-h-0 space-y-4">
             {/* ABA 0: LAYOUTS GLOBAIS */}
             {activeTab === 'layouts' && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
                 {Object.values(LAYOUT_CONFIGS)
                   .filter(layout => {
                     const itemCurrency = layout.currency || 'tokens';
@@ -1315,7 +1442,7 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
 
             {/* ABA 1: TEMAS DE TERMINAL */}
             {activeTab === 'themes' && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
                 {Object.values(TERMINAL_THEMES)
                   .filter(theme => {
                     const itemCurrency = theme.currency || 'tokens';
@@ -1473,7 +1600,7 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
 
             {/* ABA 2: SKINS DO BYTEZINHO */}
             {activeTab === 'skins' && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3.5">
                 {Object.values(BYTEZINHO_SKINS)
                   .filter(skin => {
                     const itemCurrency = skin.currency || 'tokens';
@@ -1619,7 +1746,7 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
 
             {/* ABA 3: SONS DE TECLADO */}
             {activeTab === 'sounds' && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
                 {Object.values(KEY_SOUNDS)
                   .filter(sound => {
                     const itemCurrency = sound.currency || 'tokens';
@@ -1780,7 +1907,7 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
 
             {/* ABA 4: EFEITOS E ANIMAÇÕES (COMPRA, LETRAS E LEVEL UP) */}
             {activeTab === 'animations' && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
                 {Object.values(ANIMATION_CONFIGS)
                   .filter(anim => {
                     const itemCurrency = anim.currency || 'tokens';
@@ -2005,7 +2132,7 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                 </div>
 
                 {/* Lado Direito: Grid de Molduras Disponíveis */}
-                <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {Object.values(CARD_FRAME_CONFIGS)
                     .filter((frame) => {
                       const itemCurrency = frame.currency || 'tokens';
