@@ -1,5 +1,5 @@
-import React from 'react';
-import { motion } from 'motion/react';
+import React, { useState, useMemo } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   Play, 
   Gamepad2, 
@@ -19,7 +19,15 @@ import {
   Sparkle,
   Cpu,
   Compass,
-  Boxes
+  Boxes,
+  Search,
+  Filter,
+  BookOpen,
+  Layers,
+  Lock,
+  RotateCcw,
+  Code,
+  Calculator
 } from 'lucide-react';
 import { GameState, CurricularTrackId } from '../types';
 import { RPG_CLASSES } from '../types/rpgClass';
@@ -31,6 +39,7 @@ import { getCurricularTrack } from '../data/tracks';
 import { getOverallAchievementsStats } from '../services/achievementEngine';
 import { sound } from '../utils/audio';
 import { LeaderboardMetric } from './LeaderboardModal';
+import { useGameCatalog, GameMetadata, GameSubject, GameGenre } from '../data/gameCatalog';
 
 export interface GameSelectionScreenProps {
   user: any;
@@ -43,7 +52,7 @@ export interface GameSelectionScreenProps {
   activeRaid: ClassroomRaid | null;
   /** Configuração docente do hub: jogos desativados, jogo em destaque */
   hubConfig?: HubConfig | null;
-  onSelectGame: (gameId: 'typeclicker' | 'type_radar' | 'time_attack' | 'dungeon') => void;
+  onSelectGame: (gameId: 'typeclicker' | 'type_radar' | 'time_attack' | 'dungeon' | string) => void;
   onOpenStudentModal: () => void;
   onOpenAdmin: () => void;
   onOpenLeaderboard: () => void;
@@ -121,6 +130,67 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
     if (isGameDisabled('dungeon')) return;
     sound.playWordComplete();
     onSelectGame('dungeon');
+  };
+
+  const { catalog, categories, subjects, genres } = useGameCatalog();
+  const [activeCategory, setActiveCategory] = useState<string>('Todos');
+  const [selectedSubject, setSelectedSubject] = useState<string>('Todas');
+  const [selectedGenre, setSelectedGenre] = useState<string>('Todos');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+
+  const filteredGames = useMemo(() => {
+    return catalog.filter(game => {
+      // 1. Filtro por Categoria
+      if (activeCategory === 'Oficiais' && game.category !== 'Oficiais') return false;
+      if (activeCategory === 'Alunos' && game.category !== 'Alunos') return false;
+      if (activeCategory === 'Novidades' && !game.isNew) return false;
+
+      // 2. Filtro por Disciplina
+      if (selectedSubject !== 'Todas' && game.subject !== selectedSubject) return false;
+
+      // 3. Filtro por Gênero
+      if (selectedGenre !== 'Todos' && game.genre !== selectedGenre) return false;
+
+      // 4. Busca por texto
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        const matchTitle = game.title.toLowerCase().includes(query);
+        const matchDesc = game.description.toLowerCase().includes(query);
+        const matchAuthor = game.author.toLowerCase().includes(query);
+        const matchTags = game.tags?.some(t => t.toLowerCase().includes(query));
+        if (!matchTitle && !matchDesc && !matchAuthor && !matchTags) return false;
+      }
+
+      // 5. Visibilidade do docente
+      if (isGameDisabled(game.id)) return false;
+
+      return true;
+    });
+  }, [catalog, activeCategory, selectedSubject, selectedGenre, searchQuery, hubConfig, isAdmin]);
+
+  const categoryCounts = useMemo(() => {
+    const visibleCatalog = catalog.filter(g => !isGameDisabled(g.id));
+    return {
+      Todos: visibleCatalog.length,
+      Oficiais: visibleCatalog.filter(g => g.category === 'Oficiais').length,
+      Alunos: visibleCatalog.filter(g => g.category === 'Alunos').length,
+      Novidades: visibleCatalog.filter(g => g.isNew).length,
+    };
+  }, [catalog, hubConfig, isAdmin]);
+
+  const hasActiveFilters = activeCategory !== 'Todos' || selectedSubject !== 'Todas' || selectedGenre !== 'Todos' || searchQuery.trim().length > 0;
+
+  const handleClearFilters = () => {
+    setActiveCategory('Todos');
+    setSelectedSubject('Todas');
+    setSelectedGenre('Todos');
+    setSearchQuery('');
+  };
+
+  const handlePlayGenericGame = (gameId: string) => {
+    if (isGameDisabled(gameId)) return;
+    sound.playWordComplete();
+    onSelectGame(gameId);
   };
 
   return (
@@ -432,417 +502,639 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
           </motion.div>
         )}
 
+        {/* Hub Multi-Jogos: Barra de Abas e Filtros Avançados */}
+        <section className="mb-8 space-y-4">
+          
+          {/* 1. Categorias Principais (Tabs) */}
+          <div className="flex items-center justify-between gap-3 flex-wrap border-b border-zinc-800/80 pb-3">
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 scrollbar-none w-full sm:w-auto">
+              {(['Todos', 'Oficiais', 'Alunos', 'Novidades'] as const).map((cat) => {
+                const count = categoryCounts[cat];
+                const isActive = activeCategory === cat;
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setActiveCategory(cat)}
+                    className={`px-4 py-2.5 rounded-2xl font-mono text-xs font-bold transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
+                      isActive
+                        ? 'bg-emerald-500 text-black shadow-[0_0_20px_rgba(16,185,129,0.3)]'
+                        : 'bg-[#12151c] text-zinc-400 hover:text-white hover:bg-zinc-800/80 border border-zinc-800'
+                    }`}
+                  >
+                    <span>{cat === 'Todos' ? '🎮 Todos os Jogos' : cat === 'Oficiais' ? '👨‍🏫 Oficiais' : cat === 'Alunos' ? '🎓 Feitos por Alunos' : '✨ Novidades'}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] ${
+                      isActive ? 'bg-black/20 text-black font-black' : 'bg-zinc-800 text-zinc-400'
+                    }`}>
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Contador e Botão Limpar Filtros */}
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={handleClearFilters}
+                className="text-xs font-mono text-zinc-400 hover:text-emerald-400 flex items-center gap-1.5 transition cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Limpar filtros</span>
+              </button>
+            )}
+          </div>
+
+          {/* 2. Sub-filtros: Busca, Disciplina e Gênero */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            
+            {/* Input de Busca */}
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Buscar minijogo por título, matéria ou tag..."
+                className="w-full pl-10 pr-10 py-2.5 rounded-2xl bg-[#12151c] border border-zinc-800 focus:border-emerald-500/60 focus:outline-none text-xs font-mono text-white placeholder-zinc-500 transition"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white text-xs cursor-pointer"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            {/* Seletor de Disciplinas */}
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <select
+                  value={selectedSubject}
+                  onChange={(e) => setSelectedSubject(e.target.value)}
+                  className="appearance-none pl-8 pr-8 py-2.5 rounded-2xl bg-[#12151c] border border-zinc-800 text-xs font-mono text-zinc-300 hover:border-zinc-700 focus:border-emerald-500/60 focus:outline-none cursor-pointer"
+                >
+                  {subjects.map((sub) => (
+                    <option key={sub} value={sub} className="bg-[#12151c] text-white">
+                      {sub === 'Todas' ? '📚 Todas as Matérias' : `📖 ${sub}`}
+                    </option>
+                  ))}
+                </select>
+                <BookOpen className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
+
+              {/* Seletor de Gêneros */}
+              <div className="relative">
+                <select
+                  value={selectedGenre}
+                  onChange={(e) => setSelectedGenre(e.target.value)}
+                  className="appearance-none pl-8 pr-8 py-2.5 rounded-2xl bg-[#12151c] border border-zinc-800 text-xs font-mono text-zinc-300 hover:border-zinc-700 focus:border-emerald-500/60 focus:outline-none cursor-pointer"
+                >
+                  {genres.map((gen) => (
+                    <option key={gen} value={gen} className="bg-[#12151c] text-white">
+                      {gen === 'Todos' ? '🎲 Todos os Gêneros' : `🎯 ${gen}`}
+                    </option>
+                  ))}
+                </select>
+                <Layers className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
+            </div>
+
+          </div>
+
+        </section>
+
         {/* Grid de Cards de Jogos da Plataforma */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 
-          {/* CARD 1: TYPECLICKER CLÁSSICO (Principal) */}
-          <motion.div
-            whileHover={{ y: -4 }}
-            className="group relative rounded-3xl bg-[#12151c] border-2 border-emerald-500/60 hover:border-emerald-400 p-6 flex flex-col justify-between shadow-[0_0_35px_rgba(16,185,129,0.15)] transition-all overflow-hidden"
-          >
-            {/* Glow decorativo de fundo */}
-            <div className="absolute top-0 right-0 w-44 h-44 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-emerald-500/20 transition-colors" />
-
-            <div>
-              {/* Badge Superior */}
-              <div className="flex items-center justify-between gap-2 mb-4">
-                <span className="px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 font-mono text-[11px] font-black tracking-wider flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  DISPONÍVEL AGORA
-                </span>
-                <span className="text-2xl">⌨️</span>
+          {/* Estado Vazio caso nenhum jogo bata com os filtros */}
+          {filteredGames.length === 0 && (
+            <div className="col-span-full py-16 px-6 text-center rounded-3xl bg-[#12151c]/60 border border-zinc-800 flex flex-col items-center justify-center">
+              <div className="w-16 h-16 rounded-2xl bg-zinc-800/80 flex items-center justify-center text-3xl mb-4">
+                🔍
               </div>
-
-              {/* Título & Descrição */}
-              <h2 className="text-2xl font-black text-white group-hover:text-emerald-300 transition-colors tracking-tight">
-                TypeClicker Classic
-              </h2>
-              <p className="text-xs font-mono text-emerald-400/90 font-semibold mb-3">
-                Terminal de Digitação & Evolução Incremental
+              <h3 className="text-xl font-bold text-white mb-2">Nenhum jogo encontrado</h3>
+              <p className="text-sm text-zinc-400 max-w-md mb-6">
+                Não encontramos jogos correspondentes aos filtros selecionados. Tente buscar por outro termo ou limpar os filtros.
               </p>
-              <p className="text-sm text-zinc-300 leading-relaxed mb-4">
-                O simulador clássico completo. Pratique digitação veloz de palavras reais, compre upgrades de hardware (CPU, RAM, Quântico), suba de nível e lidere o placar da turma!
-              </p>
-
-              {/* Tags / Recursos */}
-              <div className="flex flex-wrap gap-1.5 mb-6">
-                <span className="px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] font-mono text-zinc-300">
-                  ⚡ Idle & Digitação
-                </span>
-                <span className="px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] font-mono text-zinc-300">
-                  💻 Hardware Shop
-                </span>
-                <span className="px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] font-mono text-zinc-300">
-                  🏆 Conquistas
-                </span>
-              </div>
-            </div>
-
-            {/* Ação / Botão Jogar */}
-            <div className="pt-4 border-t border-zinc-800/80">
               <button
                 type="button"
-                onClick={handlePlayTypeClicker}
-                className="w-full py-4 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-teal-400 text-black font-black text-sm font-mono uppercase tracking-wider flex items-center justify-center gap-2.5 shadow-[0_0_25px_rgba(16,185,129,0.4)] transition-all cursor-pointer transform group-hover:scale-[1.02] active:scale-95"
+                onClick={handleClearFilters}
+                className="px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-mono font-bold uppercase tracking-wider transition cursor-pointer"
               >
-                <Play className="w-5 h-5 fill-current" />
-                <span>JOGAR TYPECLICKER</span>
+                Limpar Todos os Filtros
               </button>
             </div>
-          </motion.div>
+          )}
 
-          {/* CARD 2: TYPE: RADAR (Roguelike Bullet Hell de Digitação) */}
-          <motion.div
-            whileHover={{ y: -4 }}
-            className="group relative rounded-3xl bg-[#12151c] border-2 border-cyan-500/50 hover:border-cyan-400 p-6 flex flex-col justify-between shadow-[0_0_35px_rgba(6,182,212,0.15)] transition-all overflow-hidden"
-          >
-            <div className="absolute top-0 right-0 w-44 h-44 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-cyan-500/20 transition-colors" />
+          {/* Renderização Dinâmica dos Jogos do Catálogo */}
+          {filteredGames.map((game) => {
 
-            <div>
-              <div className="flex items-center justify-between gap-2 mb-4">
-                <span className="px-3 py-1 rounded-full bg-cyan-500/20 border border-cyan-500/50 text-cyan-300 font-mono text-[11px] font-black tracking-wider flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
-                  NOVO JOGO STANDALONE
-                </span>
-                <span className="text-2xl">📡</span>
-              </div>
-
-              <h2 className="text-2xl font-black text-white group-hover:text-cyan-300 transition-colors tracking-tight">
-                Type: Radar
-              </h2>
-              <p className="text-xs font-mono text-cyan-400/90 font-semibold mb-3">
-                Defesa Cibernética & Roguelike de Digitação
-              </p>
-              <p className="text-sm text-zinc-300 leading-relaxed mb-4">
-                Proteja a base central contra hordas de mísseis e drones que avançam no radar! Trave a mira digitando os códigos de terminal, execute comandos como /nuke e /freeze e escolha cartas de upgrades entre ondas!
-              </p>
-
-              <div className="flex flex-wrap gap-1.5 mb-6">
-                <span className="px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] font-mono text-zinc-300">
-                  🎯 Trava de Mira
-                </span>
-                <span className="px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] font-mono text-zinc-300">
-                  💥 Comandos /NUKE
-                </span>
-                <span className="px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] font-mono text-zinc-300">
-                  🃏 Cartas Roguelike
-                </span>
-              </div>
-            </div>
-
-            <div className="pt-4 border-t border-zinc-800/80 flex flex-col sm:flex-row items-center gap-2">
-              <button
-                type="button"
-                onClick={handlePlayTypeRadar}
-                className="flex-1 w-full py-4 rounded-2xl bg-gradient-to-r from-cyan-500 via-teal-500 to-emerald-500 hover:from-cyan-400 hover:to-teal-400 text-black font-black text-sm font-mono uppercase tracking-wider flex items-center justify-center gap-2.5 shadow-[0_0_25px_rgba(6,182,212,0.4)] transition-all cursor-pointer transform group-hover:scale-[1.02] active:scale-95"
-              >
-                <Play className="w-5 h-5 fill-current" />
-                <span>JOGAR TYPE: RADAR</span>
-              </button>
-              {onOpenLeaderboardTab && (
-                <button
-                  type="button"
-                  onClick={() => onOpenLeaderboardTab('radar')}
-                  className="w-full sm:w-auto px-4 py-4 rounded-2xl bg-cyan-950/70 hover:bg-cyan-900/80 border border-cyan-500/50 text-cyan-300 font-mono font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer hover:scale-105 active:scale-95"
-                  title="Ver Ranking do Type: Radar"
+            // CARD 1: TYPECLICKER CLÁSSICO
+            if (game.id === 'typeclicker') {
+              return (
+                <motion.div
+                  key="typeclicker"
+                  whileHover={{ y: -4 }}
+                  className="group relative rounded-3xl bg-[#12151c] border-2 border-emerald-500/60 hover:border-emerald-400 p-6 flex flex-col justify-between shadow-[0_0_35px_rgba(16,185,129,0.15)] transition-all overflow-hidden"
                 >
-                  <Trophy className="w-4 h-4 text-cyan-400" />
-                  <span>Ranking</span>
-                </button>
-              )}
-            </div>
-          </motion.div>
+                  <div className="absolute top-0 right-0 w-44 h-44 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-emerald-500/20 transition-colors" />
 
-          {/* CARD 3: SPRINT TIME ATTACK (Velocidade Pura) */}
-          <motion.div
-            whileHover={{ y: -4 }}
-            className="group relative rounded-3xl bg-[#12151c] border border-amber-500/40 hover:border-amber-400 p-6 flex flex-col justify-between shadow-lg transition-all overflow-hidden"
-          >
-            <div className="absolute top-0 right-0 w-36 h-36 bg-amber-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-amber-500/20 transition-colors" />
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                      <span className="px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 font-mono text-[11px] font-black tracking-wider flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                        {game.badgeTag}
+                      </span>
+                      <span className="text-2xl">⌨️</span>
+                    </div>
 
-            <div>
-              <div className="flex items-center justify-between gap-2 mb-4">
-                <span className="px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-300 font-mono text-[11px] font-black tracking-wider flex items-center gap-1.5">
-                  <Timer className="w-3.5 h-3.5 text-amber-400" />
-                  MODALIDADE SPRINT
-                </span>
-                <span className="text-2xl">⚡</span>
-              </div>
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-emerald-400">
+                        📚 {game.subject}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-zinc-400">
+                        🎯 {game.genre}
+                      </span>
+                    </div>
 
-              <h2 className="text-2xl font-black text-white group-hover:text-amber-300 transition-colors tracking-tight">
-                Sprint Time Attack
-              </h2>
-              <p className="text-xs font-mono text-amber-400/90 font-semibold mb-3">
-                Desafio de 30s & 60s contra o Relógio
-              </p>
-              <p className="text-sm text-zinc-300 leading-relaxed mb-4">
-                Foco total em velocidade pura e precisão. Teste seu WPM (Palavras Por Minuto) sem pausas ou distrações e supere o tempo limite com zero erros!
-              </p>
+                    <h2 className="text-2xl font-black text-white group-hover:text-emerald-300 transition-colors tracking-tight">
+                      {game.title}
+                    </h2>
+                    <p className="text-xs font-mono text-emerald-400/90 font-semibold mb-3">
+                      Por {game.author}
+                    </p>
+                    <p className="text-sm text-zinc-300 leading-relaxed mb-4">
+                      {game.description}
+                    </p>
 
-              <div className="flex flex-wrap gap-1.5 mb-6">
-                <span className="px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] font-mono text-zinc-300">
-                  ⏱️ 30s e 60s
-                </span>
-                <span className="px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] font-mono text-zinc-300">
-                  🔥 WPM Recorde
-                </span>
-                <span className="px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] font-mono text-zinc-300">
-                  🎯 Foco Motor
-                </span>
-              </div>
-            </div>
-
-            <div className="pt-4 border-t border-zinc-800/80">
-              <button
-                type="button"
-                onClick={handlePlayTimeAttack}
-                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-black text-xs font-mono uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer transform group-hover:scale-[1.02] active:scale-95"
-              >
-                <Timer className="w-4 h-4" />
-                <span>INICIAR SPRINT</span>
-              </button>
-            </div>
-          </motion.div>
-
-          {/* CARD 3: MASMORRA DOS CÓDIGOS (RPG ROGUELIKE) */}
-          <motion.div
-            whileHover={{ y: -4 }}
-            className="group relative rounded-3xl bg-[#12151c] border border-purple-500/40 hover:border-purple-400 p-6 flex flex-col justify-between shadow-lg transition-all overflow-hidden"
-          >
-            <div className="absolute top-0 right-0 w-36 h-36 bg-purple-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-purple-500/20 transition-colors" />
-
-            <div>
-              <div className="flex items-center justify-between gap-2 mb-4">
-                <span className="px-3 py-1 rounded-full bg-purple-500/15 border border-purple-500/40 text-purple-300 font-mono text-[11px] font-black tracking-wider flex items-center gap-1.5">
-                  <Swords className="w-3.5 h-3.5 text-purple-400" />
-                  RPG ROGUELIKE
-                </span>
-                <span className="text-2xl">🗝️</span>
-              </div>
-
-              <h2 className="text-2xl font-black text-white group-hover:text-purple-300 transition-colors tracking-tight">
-                Masmorra dos Códigos
-              </h2>
-              <p className="text-xs font-mono text-purple-400/90 font-semibold mb-3">
-                Aventura RPG & Batalhas por Digitação
-              </p>
-              <p className="text-sm text-zinc-300 leading-relaxed mb-4">
-                Desça pelos andares da masmorra digital! Derrote sentinelas, gaste chaves em baús misteriosos e equipe relíquias lendárias para bônus permanentes.
-              </p>
-
-              <div className="flex flex-wrap gap-1.5 mb-6">
-                <span className="px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] font-mono text-zinc-300">
-                  ⚔️ Andar {state.quests?.rpgDungeonFloor ?? 1}
-                </span>
-                <span className="px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] font-mono text-zinc-300">
-                  🗝️ {state.quests?.dungeon?.keys ?? 3} Chaves
-                </span>
-                <span className="px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] font-mono text-zinc-300">
-                  🛡️ Equipamentos
-                </span>
-              </div>
-            </div>
-
-            <div className="pt-4 border-t border-zinc-800/80">
-              <button
-                type="button"
-                onClick={handlePlayDungeon}
-                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black text-xs font-mono uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer transform group-hover:scale-[1.02] active:scale-95"
-              >
-                <Swords className="w-4 h-4" />
-                <span>EXPLORAR MASMORRA</span>
-              </button>
-            </div>
-          </motion.div>
-
-          {/* CARD 4: CORRIDA DA TURMA (Multijogador Sincronizado) */}
-          <motion.div
-            whileHover={{ y: -4 }}
-            className={`group relative rounded-3xl bg-[#12151c] p-6 flex flex-col justify-between shadow-lg transition-all overflow-hidden ${
-              isRaceActive
-                ? 'border-2 border-amber-400 shadow-[0_0_30px_rgba(245,158,11,0.25)]'
-                : 'border border-zinc-800 hover:border-zinc-700'
-            }`}
-          >
-            <div>
-              <div className="flex items-center justify-between gap-2 mb-4">
-                <span className={`px-3 py-1 rounded-full font-mono text-[11px] font-black tracking-wider flex items-center gap-1.5 ${
-                  isRaceActive 
-                    ? 'bg-amber-500 text-black' 
-                    : 'bg-zinc-800/80 text-zinc-400 border border-zinc-700'
-                }`}>
-                  <Flag className="w-3.5 h-3.5" />
-                  {isRaceActive ? 'AO VIVO NA TURMA' : 'MODO SALA DE AULA'}
-                </span>
-                <span className="text-2xl">🏎️</span>
-              </div>
-
-              <h2 className="text-2xl font-black text-white tracking-tight">
-                Corrida Sincronizada
-              </h2>
-              <p className="text-xs font-mono text-zinc-400 font-semibold mb-3">
-                Disputa de Digitação em Tempo Real
-              </p>
-              <p className="text-sm text-zinc-400 leading-relaxed mb-4">
-                Todos os alunos do laboratório largam no mesmo instante ao comando do professor. Quem digitar o texto com mais rapidez e menos erros sobe ao pódio da turma!
-              </p>
-
-              <div className="flex flex-wrap gap-1.5 mb-6">
-                <span className="px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] font-mono text-zinc-400">
-                  👥 Turma Toda
-                </span>
-                <span className="px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] font-mono text-zinc-400">
-                  🏁 Pódio da Aula
-                </span>
-              </div>
-            </div>
-
-            <div className="pt-4 border-t border-zinc-800/80 flex flex-col gap-2">
-              {isRaceActive ? (
-                <div className="flex flex-col sm:flex-row items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={onOpenRaceArena}
-                    className="flex-1 w-full py-3.5 rounded-2xl bg-amber-400 hover:bg-amber-300 text-black font-black text-xs font-mono uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer animate-pulse"
-                  >
-                    <Flag className="w-4 h-4 fill-current" />
-                    <span>ENTRAR NA CORRIDA ATIVA</span>
-                  </button>
-                  {onOpenLeaderboardTab && (
-                    <button
-                      type="button"
-                      onClick={() => onOpenLeaderboardTab('races')}
-                      className="w-full sm:w-auto px-4 py-3.5 rounded-2xl bg-amber-950/70 hover:bg-amber-900/80 border border-amber-500/50 text-amber-300 font-mono font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition cursor-pointer hover:scale-105 active:scale-95"
-                      title="Ver Ranking de Corridas da Turma"
-                    >
-                      <Trophy className="w-4 h-4 text-amber-400" />
-                      <span>Ranking</span>
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <div className="flex flex-col sm:flex-row items-center gap-2">
-                  <div className="flex-1 py-3 px-4 rounded-2xl bg-zinc-900/60 border border-zinc-800 text-center text-xs font-mono text-zinc-500">
-                    Aguardando início pelo professor
+                    <div className="flex flex-wrap gap-1.5 mb-6">
+                      {game.tags?.map(t => (
+                        <span key={t} className="px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] font-mono text-zinc-300">
+                          {t}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                  {onOpenLeaderboardTab && (
+
+                  <div className="pt-4 border-t border-zinc-800/80">
                     <button
                       type="button"
-                      onClick={() => onOpenLeaderboardTab('races')}
-                      className="w-full sm:w-auto px-4 py-3 rounded-2xl bg-amber-950/70 hover:bg-amber-900/80 border border-amber-500/50 text-amber-300 font-mono font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition cursor-pointer hover:scale-105 active:scale-95"
-                      title="Ver Ranking de Corridas em Sala"
+                      onClick={handlePlayTypeClicker}
+                      className="w-full py-4 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-teal-400 text-black font-black text-sm font-mono uppercase tracking-wider flex items-center justify-center gap-2.5 shadow-[0_0_25px_rgba(16,185,129,0.4)] transition-all cursor-pointer transform group-hover:scale-[1.02] active:scale-95"
                     >
-                      <Trophy className="w-4 h-4 text-amber-400" />
-                      <span>Ranking Corridas</span>
+                      <Play className="w-5 h-5 fill-current" />
+                      <span>JOGAR TYPECLICKER</span>
+                    </button>
+                  </div>
+                </motion.div>
+              );
+            }
+
+            // CARD 2: TYPE: RADAR
+            if (game.id === 'type_radar') {
+              return (
+                <motion.div
+                  key="type_radar"
+                  whileHover={{ y: -4 }}
+                  className="group relative rounded-3xl bg-[#12151c] border-2 border-cyan-500/50 hover:border-cyan-400 p-6 flex flex-col justify-between shadow-[0_0_35px_rgba(6,182,212,0.15)] transition-all overflow-hidden"
+                >
+                  <div className="absolute top-0 right-0 w-44 h-44 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-cyan-500/20 transition-colors" />
+
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                      <span className="px-3 py-1 rounded-full bg-cyan-500/20 border border-cyan-500/50 text-cyan-300 font-mono text-[11px] font-black tracking-wider flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+                        {game.badgeTag}
+                      </span>
+                      <span className="text-2xl">📡</span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-cyan-400">
+                        📚 {game.subject}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-zinc-400">
+                        🎯 {game.genre}
+                      </span>
+                    </div>
+
+                    <h2 className="text-2xl font-black text-white group-hover:text-cyan-300 transition-colors tracking-tight">
+                      {game.title}
+                    </h2>
+                    <p className="text-xs font-mono text-cyan-400/90 font-semibold mb-3">
+                      Por {game.author}
+                    </p>
+                    <p className="text-sm text-zinc-300 leading-relaxed mb-4">
+                      {game.description}
+                    </p>
+
+                    <div className="flex flex-wrap gap-1.5 mb-6">
+                      {game.tags?.map(t => (
+                        <span key={t} className="px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] font-mono text-zinc-300">
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-zinc-800/80 flex flex-col sm:flex-row items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handlePlayTypeRadar}
+                      className="flex-1 w-full py-4 rounded-2xl bg-gradient-to-r from-cyan-500 via-teal-500 to-emerald-500 hover:from-cyan-400 hover:to-teal-400 text-black font-black text-sm font-mono uppercase tracking-wider flex items-center justify-center gap-2.5 shadow-[0_0_25px_rgba(6,182,212,0.4)] transition-all cursor-pointer transform group-hover:scale-[1.02] active:scale-95"
+                    >
+                      <Play className="w-5 h-5 fill-current" />
+                      <span>JOGAR TYPE: RADAR</span>
+                    </button>
+                    {onOpenLeaderboardTab && (
+                      <button
+                        type="button"
+                        onClick={() => onOpenLeaderboardTab('radar')}
+                        className="w-full sm:w-auto px-4 py-4 rounded-2xl bg-cyan-950/70 hover:bg-cyan-900/80 border border-cyan-500/50 text-cyan-300 font-mono font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer hover:scale-105 active:scale-95"
+                        title="Ver Ranking do Type: Radar"
+                      >
+                        <Trophy className="w-4 h-4 text-cyan-400" />
+                        <span>Ranking</span>
+                      </button>
+                    )}
+                  </div>
+                </motion.div>
+              );
+            }
+
+            // CARD 3: SPRINT TIME ATTACK
+            if (game.id === 'time_attack') {
+              return (
+                <motion.div
+                  key="time_attack"
+                  whileHover={{ y: -4 }}
+                  className="group relative rounded-3xl bg-[#12151c] border border-amber-500/40 hover:border-amber-400 p-6 flex flex-col justify-between shadow-lg transition-all overflow-hidden"
+                >
+                  <div className="absolute top-0 right-0 w-36 h-36 bg-amber-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-amber-500/20 transition-colors" />
+
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                      <span className="px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-300 font-mono text-[11px] font-black tracking-wider flex items-center gap-1.5">
+                        <Timer className="w-3.5 h-3.5 text-amber-400" />
+                        {game.badgeTag}
+                      </span>
+                      <span className="text-2xl">⚡</span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-amber-400">
+                        📚 {game.subject}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-zinc-400">
+                        🎯 {game.genre}
+                      </span>
+                    </div>
+
+                    <h2 className="text-2xl font-black text-white group-hover:text-amber-300 transition-colors tracking-tight">
+                      {game.title}
+                    </h2>
+                    <p className="text-xs font-mono text-amber-400/90 font-semibold mb-3">
+                      Por {game.author}
+                    </p>
+                    <p className="text-sm text-zinc-300 leading-relaxed mb-4">
+                      {game.description}
+                    </p>
+
+                    <div className="flex flex-wrap gap-1.5 mb-6">
+                      {game.tags?.map(t => (
+                        <span key={t} className="px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] font-mono text-zinc-300">
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-zinc-800/80">
+                    <button
+                      type="button"
+                      onClick={handlePlayTimeAttack}
+                      className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-black text-xs font-mono uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer transform group-hover:scale-[1.02] active:scale-95"
+                    >
+                      <Timer className="w-4 h-4" />
+                      <span>INICIAR SPRINT</span>
+                    </button>
+                  </div>
+                </motion.div>
+              );
+            }
+
+            // CARD 4: CYBER DUNGEON RPG
+            if (game.id === 'dungeon') {
+              return (
+                <motion.div
+                  key="dungeon"
+                  whileHover={{ y: -4 }}
+                  className="group relative rounded-3xl bg-[#12151c] border border-purple-500/40 hover:border-purple-400 p-6 flex flex-col justify-between shadow-lg transition-all overflow-hidden"
+                >
+                  <div className="absolute top-0 right-0 w-36 h-36 bg-purple-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-purple-500/20 transition-colors" />
+
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                      <span className="px-3 py-1 rounded-full bg-purple-500/15 border border-purple-500/40 text-purple-300 font-mono text-[11px] font-black tracking-wider flex items-center gap-1.5">
+                        <Swords className="w-3.5 h-3.5 text-purple-400" />
+                        {game.badgeTag}
+                      </span>
+                      <span className="text-2xl">🗝️</span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-purple-400">
+                        📚 {game.subject}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-zinc-400">
+                        🎯 {game.genre}
+                      </span>
+                    </div>
+
+                    <h2 className="text-2xl font-black text-white group-hover:text-purple-300 transition-colors tracking-tight">
+                      {game.title}
+                    </h2>
+                    <p className="text-xs font-mono text-purple-400/90 font-semibold mb-3">
+                      Por {game.author}
+                    </p>
+                    <p className="text-sm text-zinc-300 leading-relaxed mb-4">
+                      {game.description}
+                    </p>
+
+                    <div className="flex flex-wrap gap-1.5 mb-6">
+                      <span className="px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] font-mono text-zinc-300">
+                        ⚔️ Andar {state.quests?.rpgDungeonFloor ?? 1}
+                      </span>
+                      <span className="px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] font-mono text-zinc-300">
+                        🗝️ {state.quests?.dungeon?.keys ?? 3} Chaves
+                      </span>
+                      <span className="px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] font-mono text-zinc-300">
+                        🛡️ Equipamentos
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-zinc-800/80">
+                    <button
+                      type="button"
+                      onClick={handlePlayDungeon}
+                      className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black text-xs font-mono uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer transform group-hover:scale-[1.02] active:scale-95"
+                    >
+                      <Swords className="w-4 h-4" />
+                      <span>EXPLORAR MASMORRA</span>
+                    </button>
+                  </div>
+                </motion.div>
+              );
+            }
+
+            // CARD 5: CORRIDA SINCRONIZADA
+            if (game.id === 'race') {
+              return (
+                <motion.div
+                  key="race"
+                  whileHover={{ y: -4 }}
+                  className={`group relative rounded-3xl bg-[#12151c] p-6 flex flex-col justify-between shadow-lg transition-all overflow-hidden ${
+                    isRaceActive
+                      ? 'border-2 border-amber-400 shadow-[0_0_30px_rgba(245,158,11,0.25)]'
+                      : 'border border-zinc-800 hover:border-zinc-700'
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                      <span className={`px-3 py-1 rounded-full font-mono text-[11px] font-black tracking-wider flex items-center gap-1.5 ${
+                        isRaceActive 
+                          ? 'bg-amber-500 text-black' 
+                          : 'bg-zinc-800/80 text-zinc-400 border border-zinc-700'
+                      }`}>
+                        <Flag className="w-3.5 h-3.5" />
+                        {isRaceActive ? 'AO VIVO NA TURMA' : game.badgeTag}
+                      </span>
+                      <span className="text-2xl">🏎️</span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-amber-400">
+                        📚 {game.subject}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-zinc-400">
+                        🎯 {game.genre}
+                      </span>
+                    </div>
+
+                    <h2 className="text-2xl font-black text-white tracking-tight">
+                      {game.title}
+                    </h2>
+                    <p className="text-xs font-mono text-zinc-400 font-semibold mb-3">
+                      Por {game.author}
+                    </p>
+                    <p className="text-sm text-zinc-400 leading-relaxed mb-4">
+                      {game.description}
+                    </p>
+
+                    <div className="flex flex-wrap gap-1.5 mb-6">
+                      {game.tags?.map(t => (
+                        <span key={t} className="px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] font-mono text-zinc-400">
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-zinc-800/80 flex flex-col gap-2">
+                    {isRaceActive ? (
+                      <div className="flex flex-col sm:flex-row items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={onOpenRaceArena}
+                          className="flex-1 w-full py-3.5 rounded-2xl bg-amber-400 hover:bg-amber-300 text-black font-black text-xs font-mono uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer animate-pulse"
+                        >
+                          <Flag className="w-4 h-4 fill-current" />
+                          <span>ENTRAR NA CORRIDA ATIVA</span>
+                        </button>
+                        {onOpenLeaderboardTab && (
+                          <button
+                            type="button"
+                            onClick={() => onOpenLeaderboardTab('races')}
+                            className="w-full sm:w-auto px-4 py-3.5 rounded-2xl bg-amber-950/70 hover:bg-amber-900/80 border border-amber-500/50 text-amber-300 font-mono font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition cursor-pointer hover:scale-105 active:scale-95"
+                            title="Ver Ranking de Corridas da Turma"
+                          >
+                            <Trophy className="w-4 h-4 text-amber-400" />
+                            <span>Ranking</span>
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex flex-col sm:flex-row items-center gap-2">
+                        <div className="flex-1 py-3 px-4 rounded-2xl bg-zinc-900/60 border border-zinc-800 text-center text-xs font-mono text-zinc-500">
+                          Aguardando início pelo professor
+                        </div>
+                        {onOpenLeaderboardTab && (
+                          <button
+                            type="button"
+                            onClick={() => onOpenLeaderboardTab('races')}
+                            className="w-full sm:w-auto px-4 py-3 rounded-2xl bg-amber-950/70 hover:bg-amber-900/80 border border-amber-500/50 text-amber-300 font-mono font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition cursor-pointer hover:scale-105 active:scale-95"
+                            title="Ver Ranking de Corridas em Sala"
+                          >
+                            <Trophy className="w-4 h-4 text-amber-400" />
+                            <span>Ranking Corridas</span>
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              );
+            }
+
+            // CARD 6: RAID COLETIVA
+            if (game.id === 'raid') {
+              return (
+                <motion.div
+                  key="raid"
+                  whileHover={{ y: -4 }}
+                  className={`group relative rounded-3xl bg-[#12151c] p-6 flex flex-col justify-between shadow-lg transition-all overflow-hidden ${
+                    isRaidActive
+                      ? 'border-2 border-rose-500 shadow-[0_0_30px_rgba(244,63,94,0.25)]'
+                      : 'border border-zinc-800 hover:border-zinc-700'
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                      <span className={`px-3 py-1 rounded-full font-mono text-[11px] font-black tracking-wider flex items-center gap-1.5 ${
+                        isRaidActive 
+                          ? 'bg-rose-500 text-white' 
+                          : 'bg-zinc-800/80 text-zinc-400 border border-zinc-700'
+                      }`}>
+                        <Swords className="w-3.5 h-3.5" />
+                        {isRaidActive ? 'CHEFE INVASOR ATIVO' : game.badgeTag}
+                      </span>
+                      <span className="text-2xl">👹</span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-rose-400">
+                        📚 {game.subject}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-zinc-400">
+                        🎯 {game.genre}
+                      </span>
+                    </div>
+
+                    <h2 className="text-2xl font-black text-white tracking-tight">
+                      {game.title}
+                    </h2>
+                    <p className="text-xs font-mono text-zinc-400 font-semibold mb-3">
+                      Por {game.author}
+                    </p>
+                    <p className="text-sm text-zinc-400 leading-relaxed mb-4">
+                      {game.description}
+                    </p>
+
+                    <div className="flex flex-wrap gap-1.5 mb-6">
+                      {game.tags?.map(t => (
+                        <span key={t} className="px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] font-mono text-zinc-400">
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-zinc-800/80">
+                    {isRaidActive ? (
+                      <button
+                        type="button"
+                        onClick={onOpenRaidArena}
+                        className="w-full py-3.5 rounded-2xl bg-rose-500 hover:bg-rose-400 text-white font-black text-xs font-mono uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer animate-pulse"
+                      >
+                        <Swords className="w-4 h-4" />
+                        <span>ENTRAR NA BATALHA</span>
+                      </button>
+                    ) : (
+                      <div className="py-3 px-4 rounded-2xl bg-zinc-900/60 border border-zinc-800 text-center text-xs font-mono text-zinc-500">
+                        Aguardando convocação pelo professor
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              );
+            }
+
+            // CARD GENÉRICO (byte_logic, math_storm, syntax_maze, ou jogos de alunos)
+            return (
+              <motion.div
+                key={game.id}
+                whileHover={{ y: -4 }}
+                className={`group relative rounded-3xl bg-[#12151c] border p-6 flex flex-col justify-between shadow-lg transition-all overflow-hidden ${game.borderColor}`}
+              >
+                <div className={`absolute top-0 right-0 w-36 h-36 rounded-full blur-3xl pointer-events-none transition-colors ${game.glowColor}`} />
+
+                <div>
+                  <div className="flex items-center justify-between gap-2 mb-3">
+                    <span className="px-3 py-1 rounded-full bg-zinc-800/80 border border-zinc-700/80 text-zinc-300 font-mono text-[11px] font-bold tracking-wider flex items-center gap-1.5">
+                      {game.isNew && <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />}
+                      {game.badgeTag}
+                    </span>
+                    <span className="text-2xl">
+                      {game.icon === 'Calculator' ? '🔢' : game.icon === 'Cpu' ? '💻' : game.icon === 'Code' ? '🧩' : '🎮'}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-indigo-400">
+                      📚 {game.subject}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-zinc-400">
+                      🎯 {game.genre}
+                    </span>
+                  </div>
+
+                  <h2 className="text-2xl font-black text-white tracking-tight group-hover:text-emerald-300 transition-colors">
+                    {game.title}
+                  </h2>
+                  <p className="text-xs font-mono text-zinc-400 font-semibold mb-3">
+                    Por {game.author}
+                  </p>
+                  <p className="text-sm text-zinc-400 leading-relaxed mb-4">
+                    {game.description}
+                  </p>
+
+                  {game.tags && (
+                    <div className="flex flex-wrap gap-1.5 mb-6">
+                      {game.tags.map(tag => (
+                        <span key={tag} className="px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] font-mono text-zinc-400">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="pt-4 border-t border-zinc-800/80">
+                  {game.status === 'coming_soon' ? (
+                    <div className="w-full py-3.5 rounded-2xl bg-zinc-900/60 border border-zinc-800 text-center text-xs font-mono text-zinc-500 font-bold flex items-center justify-center gap-2">
+                      <Lock className="w-3.5 h-3.5" />
+                      <span>EM DESENVOLVIMENTO</span>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handlePlayGenericGame(game.id)}
+                      className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black font-black text-xs font-mono uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer transform group-hover:scale-[1.02] active:scale-95"
+                    >
+                      <Play className="w-4 h-4 fill-current" />
+                      <span>JOGAR {game.title.toUpperCase()}</span>
                     </button>
                   )}
                 </div>
-              )}
-            </div>
-          </motion.div>
-
-          {/* CARD 5: RAID COLETIVA CONTRA CHEFÃO */}
-          <motion.div
-            whileHover={{ y: -4 }}
-            className={`group relative rounded-3xl bg-[#12151c] p-6 flex flex-col justify-between shadow-lg transition-all overflow-hidden ${
-              isRaidActive
-                ? 'border-2 border-rose-500 shadow-[0_0_30px_rgba(244,63,94,0.25)]'
-                : 'border border-zinc-800 hover:border-zinc-700'
-            }`}
-          >
-            <div>
-              <div className="flex items-center justify-between gap-2 mb-4">
-                <span className={`px-3 py-1 rounded-full font-mono text-[11px] font-black tracking-wider flex items-center gap-1.5 ${
-                  isRaidActive 
-                    ? 'bg-rose-500 text-white' 
-                    : 'bg-zinc-800/80 text-zinc-400 border border-zinc-700'
-                }`}>
-                  <Swords className="w-3.5 h-3.5" />
-                  {isRaidActive ? 'CHEFE INVASOR ATIVO' : 'COOPERATIVO'}
-                </span>
-                <span className="text-2xl">👹</span>
-              </div>
-
-              <h2 className="text-2xl font-black text-white tracking-tight">
-                Raid Coletiva da Sala
-              </h2>
-              <p className="text-xs font-mono text-zinc-400 font-semibold mb-3">
-                Batalha Cooperativa contra Chefão
-              </p>
-              <p className="text-sm text-zinc-400 leading-relaxed mb-4">
-                Uma criatura de sistema com milhares de pontos de vida ataca a rede. Todos os alunos combinam seu dano de digitação simultaneamente para salvar o laboratório!
-              </p>
-
-              <div className="flex flex-wrap gap-1.5 mb-6">
-                <span className="px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] font-mono text-zinc-400">
-                  🤝 Dano Coletivo
-                </span>
-                <span className="px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] font-mono text-zinc-400">
-                  🎁 Recompensa Geral
-                </span>
-              </div>
-            </div>
-
-            <div className="pt-4 border-t border-zinc-800/80">
-              {isRaidActive ? (
-                <button
-                  type="button"
-                  onClick={onOpenRaidArena}
-                  className="w-full py-3.5 rounded-2xl bg-rose-500 hover:bg-rose-400 text-white font-black text-xs font-mono uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer animate-pulse"
-                >
-                  <Swords className="w-4 h-4" />
-                  <span>ENTRAR NA BATALHA</span>
-                </button>
-              ) : (
-                <div className="py-3 px-4 rounded-2xl bg-zinc-900/60 border border-zinc-800 text-center text-xs font-mono text-zinc-500">
-                  Aguardando convocação pelo professor
-                </div>
-              )}
-            </div>
-          </motion.div>
-
-          {/* CARD 6: PRÓXIMOS JOGOS (Standalone & Variedades) */}
-          <motion.div
-            className="group relative rounded-3xl bg-[#12151c]/50 border-2 border-dashed border-zinc-800 p-6 flex flex-col justify-between shadow-sm overflow-hidden"
-          >
-            <div>
-              <div className="flex items-center justify-between gap-2 mb-4">
-                <span className="px-3 py-1 rounded-full bg-zinc-800/60 text-zinc-500 font-mono text-[11px] font-bold tracking-wider flex items-center gap-1.5">
-                  <Boxes className="w-3.5 h-3.5" />
-                  EM DESENVOLVIMENTO
-                </span>
-                <span className="text-2xl">✨</span>
-              </div>
-
-              <h2 className="text-2xl font-black text-zinc-400 tracking-tight">
-                Novos Jogos Educacionais
-              </h2>
-              <p className="text-xs font-mono text-zinc-500 font-semibold mb-3">
-                Expansão da Plataforma Leopoldina
-              </p>
-              <p className="text-sm text-zinc-500 leading-relaxed mb-4">
-                Novas mecânicas de raciocínio lógico, quebra-cabeças de algoritmos e jogos educativos standalone serão adicionados aqui em breve para sua turma.
-              </p>
-
-              <div className="flex flex-wrap gap-1.5 mb-6">
-                <span className="px-2.5 py-1 rounded-lg bg-zinc-900/40 border border-zinc-800 text-[11px] font-mono text-zinc-500">
-                  🧩 Lógica
-                </span>
-                <span className="px-2.5 py-1 rounded-lg bg-zinc-900/40 border border-zinc-800 text-[11px] font-mono text-zinc-500">
-                  💡 Algoritmos
-                </span>
-                <span className="px-2.5 py-1 rounded-lg bg-zinc-900/40 border border-zinc-800 text-[11px] font-mono text-zinc-500">
-                  🚀 Novidades
-                </span>
-              </div>
-            </div>
-
-            <div className="pt-4 border-t border-zinc-800/40">
-              <div className="py-3 px-4 rounded-2xl bg-zinc-900/30 border border-zinc-800/60 text-center text-xs font-mono text-zinc-600 font-bold">
-                Em breve na plataforma
-              </div>
-            </div>
-          </motion.div>
+              </motion.div>
+            );
+          })}
 
         </div>
 
