@@ -1,6 +1,6 @@
 # Guia de Criação de Jogos — Educa GameHub
 ### Colégio Estadual Leopoldina Bittencourt Pedroso
-**Versão 2.0 — Setembro 2026 | Para uso no AI Studio**
+**Versão 2.1 — Setembro 2026 | Para uso no AI Studio**
 
 ---
 
@@ -22,7 +22,7 @@ A plataforma TypeClicker roda em `typeclicker-leopoldina.ai.studio`. Ela tem um 
 - `byte_logic`, `math_storm`, `syntax_maze` — jogos criados pelo professor (não modificar)
 
 **Você, como aluno, cria um jogo novo com tema e nome à sua escolha.**  
-O professor define o `GameId` e faz a integração no Hub após avaliar o seu componente.
+O professor define o `GameId` e faz a integração no Hub após avaliar o seu componente. Todos os jogos de alunos são carregados via **Lazy Loading** (`React.lazy`). Isso significa que bibliotecas pesadas usadas no seu jogo não deixam a plataforma lenta para os outros alunos.
 
 ---
 
@@ -31,19 +31,27 @@ O professor define o `GameId` e faz a integração no Hub após avaliar o seu co
 ```
 Stack tecnológica disponível — use APENAS o que está listado abaixo:
 
+BASE DO SISTEMA:
 - React 19 com hooks (useState, useEffect, useRef, useCallback)
 - TypeScript ~5.8 com tipagem estrita
 - Tailwind CSS 4 (classes utilitárias inline, sem CSS externo)
-- motion/react (import de "motion/react", não de "framer-motion")
-- canvas-confetti (import: import confetti from 'canvas-confetti')
-- lucide-react (ícones: import { Trophy, ArrowLeft, ... } from 'lucide-react')
 - Web Audio API nativa do browser (sem arquivos .mp3 ou .ogg)
 
+BIBLIOTECAS VISUAIS (Já instaladas):
+- motion/react (animações — import de "motion/react")
+- canvas-confetti (vitória — import confetti from 'canvas-confetti')
+- lucide-react (ícones — import { Trophy, ArrowLeft } from 'lucide-react')
+
+FERRAMENTAS AVANÇADAS PERMITIDAS (Podem ser usadas livremente):
+- @monaco-editor/react: Para criar desafios de programação e editores de código in-game.
+- recharts: Para criar gráficos dinâmicos (jogos de lógica de dados, estatística).
+- react-markdown: Para renderizar textos ricos, dicas ou histórias de RPG.
+
 NÃO use:
-- Nenhum pacote npm além dos listados acima
-- Imagens externas, fontes de CDN, fetch para APIs
-- import de firebaseService, db, setDoc, getDoc ou qualquer Firebase
-- localStorage ou sessionStorage dentro do jogo
+- Nenhum pacote npm além dos listados acima.
+- Imagens externas, fontes de CDN, fetch para APIs.
+- import de firebaseService, db, setDoc, getDoc ou qualquer Firebase.
+- localStorage ou sessionStorage dentro do jogo (o Hub cuida do save).
 ```
 
 ---
@@ -260,7 +268,7 @@ export const MeuJogo: React.FC<BaseGameProps> = ({
 
 ## 6. O que o professor faz depois que você entrega o jogo
 
-Você entrega o arquivo `index.tsx` finalizado. O professor faz as seguintes alterações no repositório para conectar o jogo ao hub:
+Você entrega o arquivo `index.tsx` finalizado. O professor faz as seguintes alterações no repositório para conectar o jogo ao hub **usando Lazy Loading**:
 
 **Passo 1 — `src/types/gamePlugin.ts`:** adiciona o ID do seu jogo (definido pelo professor) ao tipo `GameId`.
 ```typescript
@@ -273,28 +281,35 @@ export type GameId =
   | 'nome_do_seu_jogo'; // ← professor adiciona aqui
 ```
 
-**Passo 2 — `src/App.tsx`:** adiciona o novo ID ao tipo de `selectedGame` e cria o bloco de renderização:
+**Passo 2 — `src/App.tsx`:** importa o jogo preguiçosamente e cria o bloco de renderização com `Suspense`:
 ```typescript
+import { Suspense, lazy } from 'react';
+
+// Import preguiçoso para não pesar a plataforma
+const NomeDoSeuJogo = lazy(() => import('./components/games/nome_do_seu_jogo'));
+
+// No corpo principal:
 if (selectedGame === 'nome_do_seu_jogo') {
   return (
-    <NomeDoSeuJogo
-      studentClass={state.rpgClass}
-      difficultyMultiplier={1.0}
-      onExitToHub={(payload) => {
-        // Hub normaliza bytes e salva
-        const finalBytes = payload.bytesEarned;
-        setState(prev => ({
-          ...prev,
-          bytes: prev.bytes + finalBytes,
-          totalBytesEarned: prev.totalBytesEarned + finalBytes,
-          cosmetics: payload.levelTokensEarned ? {
-            ...prev.cosmetics,
-            levelTokens: (prev.cosmetics?.levelTokens ?? 0) + payload.levelTokensEarned,
-          } : prev.cosmetics,
-        }));
-        setSelectedGame(null);
-      }}
-    />
+    <Suspense fallback={<div className="text-emerald-400 p-10 text-center font-mono animate-pulse">Carregando Jogo...</div>}>
+      <NomeDoSeuJogo
+        studentClass={state.rpgClass}
+        difficultyMultiplier={1.0}
+        onExitToHub={(payload) => {
+          const finalBytes = payload.bytesEarned;
+          setState(prev => ({
+            ...prev,
+            bytes: prev.bytes + finalBytes,
+            totalBytesEarned: prev.totalBytesEarned + finalBytes,
+            cosmetics: payload.levelTokensEarned ? {
+              ...prev.cosmetics,
+              levelTokens: (prev.cosmetics?.levelTokens ?? 0) + payload.levelTokensEarned,
+            } : prev.cosmetics,
+          }));
+          setSelectedGame(null);
+        }}
+      />
+    </Suspense>
   );
 }
 ```
@@ -335,19 +350,17 @@ Você é um desenvolvedor React 19 + TypeScript criando um minijogo educacional
 para a plataforma TypeClicker do Colégio Leopoldina.
 
 IDEIA DO JOGO:
-Quiz de lógica de programação com 8 perguntas de múltipla escolha.
-Cada pergunta tem 3 alternativas e tempo limite de 20 segundos.
-Perguntas sobre: variáveis, loops, condicionais, funções simples.
-A classe Mago recebe uma dica antes de cada pergunta.
-A classe Arqueiro ganha bônus de pontos por responder rápido.
-A classe Guerreiro ganha +20% nos bytes se acertar mais da metade.
+Desafio de Refatoração de Código usando @monaco-editor/react. O jogo exibe 
+um código cheio de más práticas. O aluno deve editar o código para limpá-lo. 
+Quando o aluno clica em "Verificar", o jogo avalia o conteúdo usando Regex 
+e dá uma pontuação.
 
 [Cole aqui as seções 2, 3 e 4 deste guia]
 
 [Cole aqui a estrutura esperada da seção 5]
 
-Gere o arquivo completo src/components/games/quiz_logica/index.tsx.
-O nome do componente exportado deve ser QuizLogicaGame.
+Gere o arquivo completo src/components/games/refactor_hero/index.tsx.
+O nome do componente exportado deve ser RefactorHeroGame.
 O professor vai definir o GameId final na hora de integrar ao hub.
 ```
 

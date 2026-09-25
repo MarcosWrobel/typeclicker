@@ -5,8 +5,8 @@
 - **Linguagem**: TypeScript ~5.8.2
 - **Build**: Vite 6.2.3 + esbuild (bundle do server)
 - **CSS**: Tailwind CSS 4.1.14 (via `@tailwindcss/vite`)
-- **Animações**: `motion` 12.23.24, `canvas-confetti` 1.9.4
-- **Ícones**: `lucide-react` 0.546.0
+- **Bibliotecas Visuais**: `motion` 12.23.24, `canvas-confetti` 1.9.4, `lucide-react` 0.546.0
+- **Bibliotecas de Jogos Permitidas**: `@monaco-editor/react` (editor de código), `recharts` (gráficos), `react-markdown` (texto rico)
 - **Package manager**: bun (bun.lock presente) + npm (package-lock.json presente)
 
 ## Infraestrutura
@@ -23,9 +23,19 @@
 - **Cotas de referência (hardcoded em `server.ts`)**: 50 000 leituras/dia · 20 000 escritas/dia
 - **Sync throttle**: 60 segundos mínimo entre escritas (`useGameSync`)
 
+## Escopo Universal e Organização de Pastas
+
+A plataforma evoluiu de "apenas digitação" para um **Hub Educacional Universal**. A economia do jogo (Bytes, Níveis, Fichas) é compartilhada, mas os jogos podem abordar Matemática, História, Lógica, etc.
+
+Para suportar essa escala, o código é estritamente separado:
+- `src/components/games/`: Jogos Oficiais do Professor (Core da plataforma).
+- `src/plugins/`: Jogos criados por Alunos e pela Comunidade.
+
+O catálogo de jogos e seus metadados (para alimentar filtros do Hub) fica armazenado localmente em `src/data/gameCatalog.ts`, envelopado por um hook `useGameCatalog()`. Isso prepara o terreno para uma futura migração para Firestore ou Firebase Remote Config sem quebrar a interface visual.
+
 ## Arquitetura de jogos — Hub + Plug-ins
 
-O hub (`GameSelectionScreen`) exibe cards de jogos e controla visibilidade via `HubConfig.disabledGames`. Cada jogo é um componente React standalone renderizado condicionalmente em `App.tsx` conforme `selectedGame`.
+O hub (`GameSelectionScreen`) exibe cards de jogos consumindo os metadados do `gameCatalog.ts` e controla visibilidade via `HubConfig.disabledGames`. Cada jogo é um componente React standalone renderizado condicionalmente em `App.tsx` conforme `selectedGame`. Para não prejudicar o tempo de carregamento da plataforma (especialmente com bibliotecas pesadas como o Monaco Editor), **todos os jogos da pasta `src/plugins/` são importados dinamicamente via `React.lazy` e envoltos em `Suspense`**.
 
 ### Jogos existentes (gerenciados pelo professor)
 | `selectedGame` | Componente | Tipo de saída |
@@ -35,7 +45,7 @@ O hub (`GameSelectionScreen`) exibe cards de jogos e controla visibilidade via `
 | `'byte_logic'` | a implementar pelo professor | `BaseGameProps.onExitToHub(payload)` |
 | `'math_storm'` | a implementar pelo professor | `BaseGameProps.onExitToHub(payload)` |
 | `'syntax_maze'` | a implementar pelo professor | `BaseGameProps.onExitToHub(payload)` |
-| `'<id_aluno>'` | componente entregue pelo aluno, ID definido pelo professor | `BaseGameProps.onExitToHub(payload)` |
+| `'<id_aluno>'` | `src/plugins/<nome>` (entregue pelo aluno) | `BaseGameProps.onExitToHub(payload)` |
 
 ### Contrato de plug-in (`src/types/gamePlugin.ts`)
 Todos os novos jogos — tanto os criados pelo professor quanto os criados por alunos — devem seguir `BaseGameProps`:
@@ -44,68 +54,5 @@ Todos os novos jogos — tanto os criados pelo professor quanto os criados por a
 - **Normalização de bytes**: o Hub aplica `min(bytesEarned, timeSpentSeconds × CAP × accuracyFactor)` — o jogo entrega métricas brutas, o Hub decide o crédito final
 - **Histórico**: cada saída gera um `ArcadeMatchRecord` salvo em `GameState.arcadeHistory` (array circular, máx 10)
 
-## Jogos existentes (detalhes)
-
-### Jogo 1 — TypeClicker (jogo principal)
-- **Arquivos**: `src/App.tsx` (2988 linhas), `src/components/TypingArena.tsx` (1336 linhas)
-- **Mecânica**: clicker incremental — digita palavras no terminal, cada tecla gera Bytes
-- **Modos**: `words` | `sentences` | `code`; categorias `iniciante` → `expert` (`bonusMultiplier` 1.0× a 2.5×)
-- **Progressão**: 100 níveis por `totalBytesEarned`; tiers temáticos de 10 em 10 (`levels.ts`)
-- **Pontuação**: `max(1, round(bytesPerChar × multiplier × prestigeMult × diffBonus))`; combo +0.2× a cada 5 acertos (cap 5.0×, 6.0× Arqueiro)
-- **Classes RPG**: `warrior` (+25% acima 55 PPM) · `archer` (+0.2× a cada 20 acertos) · `mage` (+25% passivo)
-- **Upgrades**: 5 ativos + 5 passivos; custo = `baseCost × multiplier^count`
-
-### Jogo 2 — Type: Radar
-- **Arquivos**: `src/components/games/radar/TypeRadarGame.tsx` (1785 linhas), `src/services/radarEngine.ts`
-- **Mecânica**: tower-defense; naves orbitam radar circular; jogador digita palavras para destruí-las
-- **Inimigos**: `scout` · `drone` · `tank` · `glitch` · `boss` (multi-fases)
-- **Ondas**: `normal` · `swarm` · `boss` (múltiplos de 5)
-- **DDA**: acurácia <60% → ×0.82; >95% → ×1.15
-- **Bytes**: `score × 0.12 × max(0.3, accuracy/100) + wave × 60`
-
-## Modelo de dados
-
-### Coleções Firestore
-| Coleção | Chave | Campos obrigatórios |
-|---|---|---|
-| `saves/{userId}` | UID Firebase | `userId`, `saveState` (map) |
-| `leaderboard/{userId}` | UID Firebase | `userId`, `nome`, `level`, `points` |
-| `system/settings` | doc único | `activeCode`, `expiresAt`, `activeTurma`, `activeTrack`, `hubConfig` |
-| `arena_rooms/{roomId}` | `active_classroom_raid` / `active_classroom_race` / sala 1×1 | varia |
-| `backups/{backupId}` | ID manual | `saves`, `leaderboard` |
-
-### Campos-chave de `GameState`
-- `bytes`, `totalBytesEarned`, `bytesPerChar`, `autoBytesPerSec`
-- `comboStreak`, `maxCombo`, `multiplier`, `prestigeCount`, `prestigeCores`
-- `correctKeys`, `wrongKeys`, `wordsCompleted`, `totalActiveSeconds`
-- `cosmetics: PlayerCosmetics` → `{levelTokens, duelTokens, quantumFragments, ...}`
-- `arenaStats`, `radarStats`, `keyTelemetry`, `achievements`, `quests`, `rpgClass`
-- `arcadeHistory: ArcadeMatchRecord[]` (histórico dos minijogos, máx 10)
-- `isClassLocked`, `flaggedForReview`, `schemaVersion`
-
-## Fluxo de autenticação
-- **Login**: `signInWithPopup(GoogleAuthProvider)` → `onAuthStateChanged`
-- **Logado**: carrega `saves/{uid}` → conquistas retroativas → se sem apelido/RPG → `StudentModal`
-- **Fallback offline**: `loadSavedState(uid)` do `localStorage`
-- **Admin**: e-mail em `ADMIN_EMAILS` hardcoded; professores extras via `system/settings.allowedTeachers`
-- **Trava escolar**: `onSnapshot` em `system/settings` → `SessionLockOverlay` se `activeCode` ativo
-- **Deslogado**: `setState(INITIAL_STATE)` + `clearSavedState()`
-
-## Regras de negócio implementadas
-- **Nível** = lookup em tabela de 100 thresholds (`levels.ts`) por `totalBytesEarned`
-- **Multiplicador de combo**: +0.2× a cada 5 acertos, cap 5.0× (6.0× Arqueiro)
-- **Moedas**: `levelTokens` · `duelTokens` · `quantumFragments` (endgame Nível 100)
-- **Normalização de bytes dos plug-ins**: `min(sugestão, tempo × CAP × acurácia)` — aplicado pelo Hub
-- **Anti-cheat**: `validateStateSanity()` antes de salvar; `flaggedForReview` pelo admin
-- **Trilhas curriculares**: em construção; professor define `activeTrack` → palavras filtradas em tempo real
-- **Sync**: throttle 60 s; buffer offline; `removeUndefinedFields()` antes de `setDoc`
-- **Pioneiros Nível 100**: primeiros 3 alunos registrados com `reachedLevel100At`
-- **HubConfig**: `disabledGames[]` e `featuredGame` gerenciados pelo admin — opt-in por jogo
-
-## Restrições hard
-- **Jogos de alunos**: `BaseGameProps` obrigatório; zero chamadas Firestore; zero assets externos
-- **Sem Cloud Functions**: não utilizado; toda lógica de jogo é client-side
-- **Stack fixa**: React + Vite + TypeScript + Firestore + Firebase Auth
-- **Sem RTDB**: apenas Firestore Nativo
-- **Cota diária Blaze**: máx 50k leituras + 20k escritas/dia — features novas devem declarar impacto
-- **server.ts**: serve SPA + métricas admin apenas; nenhum cálculo de jogo no servidor
+## Fluxo de autenticação e Modelo de Dados
+(Mantidos conforme padrão do TypeClicker original — ver detalhes no código).
