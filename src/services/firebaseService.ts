@@ -103,6 +103,19 @@ export interface SystemSettings {
   testGrantsHistory?: TestGrantConfig[];
   pendingTestGrants?: Record<string, TestGrantConfig>;
   customTexts?: CustomCurricularText[];
+  /** Controlo docente do Hub de jogos — quais jogos estão disponíveis */
+  hubConfig?: HubConfig;
+}
+
+/**
+ * Configuração do Hub de Jogos gerida pelo professor via AdminPanel.
+ * Persistida em system/settings.hubConfig (0 leituras extras — usa o onSnapshot existente).
+ */
+export interface HubConfig {
+  /** Lista de GameIds cujos cards serão ocultados no hub para os alunos */
+  disabledGames?: string[];
+  /** Se definido, abre este jogo automaticamente ao entrar no hub */
+  featuredGame?: string;
 }
 
 export interface FirebaseSavePayload {
@@ -803,6 +816,20 @@ export async function deleteCustomCurricularText(textId: string): Promise<void> 
 
   const docRef = doc(db, 'system', 'settings');
   await setDoc(docRef, { ...settings, customTexts: updatedTexts }, { merge: true });
+}
+
+/**
+ * Salva a configuração do Hub de Jogos no Firestore.
+ * Opera via merge para não sobrescrever outros campos de system/settings.
+ * Custo: 1 escrita (Blaze). Restrita a professores/admins.
+ */
+export async function updateHubConfig(hubConfig: HubConfig): Promise<void> {
+  const user = auth.currentUser;
+  const isStaff = await checkIsAdminAsync(user);
+  if (!isStaff) throw new Error('Apenas professores ou administradores podem configurar o hub.');
+
+  const docRef = doc(db, 'system', 'settings');
+  await setDoc(docRef, { hubConfig }, { merge: true });
 }
 
 export async function generateSessionCode(

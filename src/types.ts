@@ -4,6 +4,7 @@ import { AchievementDef, AchievementReward, AchievementCategory, AchievementCont
 import { QuestsState } from './types/quests';
 import { ClassroomRace, ClassroomRaceFinisher } from './types/race';
 import { RpgClassType } from './types/rpgClass';
+import { ArcadeMatchRecord, LogicStats, MathStats, SyntaxStats } from './types/gamePlugin';
 
 export * from './types/cosmetics';
 export * from './types/arena';
@@ -14,6 +15,7 @@ export * from './types/curricular';
 export * from './types/curricularTracks';
 export * from './types/rpgClass';
 export * from './types/raid';
+export * from './types/gamePlugin';
 
 export type CategoryId = 'iniciante' | 'facil' | 'medio' | 'avancado' | 'expert';
 export type TypingMode = 'words' | 'sentences' | 'code';
@@ -77,6 +79,12 @@ export interface GameState {
     totalGames: number;
     totalEnemiesDefeated: number;
   };
+  // Estatísticas dos minijogos adicionais (retrocompatíveis)
+  logicStats?: LogicStats;   // ByteLogic — Portas Lógicas
+  mathStats?: MathStats;     // MathStorm — Aritmética Rogue-lite
+  syntaxStats?: SyntaxStats; // SyntaxMaze — Labirinto de Sintaxe
+  // Histórico local de partidas arcade (array circular, máx 10 registros)
+  arcadeHistory?: ArcadeMatchRecord[];
   // Telemetria por tecla para treino corretivo adaptativo
   keyTelemetry?: Record<string, KeyTelemetry>;
   // Conquistas desbloqueadas (achievementId -> timestamp de desbloqueio)

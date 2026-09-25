@@ -271,6 +271,45 @@ export const StatsSidebar: React.FC<StatsSidebarProps> = ({
           )}
         </div>
       )}
+
+      {/* Histórico de Partidas Arcade (últimas 5) */}
+      {Array.isArray(state.arcadeHistory) && state.arcadeHistory.length > 0 && (
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-1.5 text-zinc-400 text-[10px] font-bold uppercase tracking-wider px-0.5">
+            <Shield className="w-3 h-3" />
+            Últimas Partidas Arcade
+          </div>
+          <div className="space-y-1">
+            {[...state.arcadeHistory].reverse().slice(0, 5).map((match, i) => {
+              const gameLabel: Record<string, string> = {
+                type_radar:  '📡 Radar',
+                typeclicker: '⌨️ Clicker',
+                byte_logic:  '🔌 ByteLogic',
+                math_storm:  '⚡ MathStorm',
+                syntax_maze: '🌀 SyntaxMaze'
+              };
+              return (
+                <div key={i} className="flex items-center justify-between bg-zinc-900/70 border border-zinc-800/60 rounded-lg px-2.5 py-1.5 gap-2">
+                  <span className="text-[10px] font-bold text-zinc-300 whitespace-nowrap">
+                    {gameLabel[match.gameId] ?? match.gameId}
+                  </span>
+                  <span className="text-[10px] font-mono text-emerald-400 whitespace-nowrap">
+                    {match.wpm} PPM
+                  </span>
+                  {match.wave !== undefined && (
+                    <span className="text-[10px] font-mono text-amber-400 whitespace-nowrap">
+                      Onda {match.wave}
+                    </span>
+                  )}
+                  <span className="text-[10px] font-mono text-zinc-500 whitespace-nowrap ml-auto">
+                    +{match.bytesEarned.toLocaleString('pt-BR')} B
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </aside>
   );
 };

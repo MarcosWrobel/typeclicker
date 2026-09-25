@@ -35,8 +35,11 @@ import {
   deleteCustomCurricularText,
   saveProgressToCloud,
   updateActiveSessionTrack,
+  updateHubConfig,
+  HubConfig,
   ADMIN_EMAILS
 } from '../services/firebaseService';
+import { exportToCsv, downloadCsv, aggregateByTurma } from '../services/turmasAggregator';
 import { CurricularTrackId } from '../types';
 import { CURRICULAR_TRACKS, getCurricularTrack, suggestTrackForTurma } from '../data/tracks';
 import { RpgClassType } from '../types/rpgClass';
@@ -192,6 +195,48 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   } | null>(null);
   const [isLoadingAccountInfo, setIsLoadingAccountInfo] = useState<boolean>(false);
   const [showStudentPicker, setShowStudentPicker] = useState<boolean>(false);
+
+  // ── Hub de Jogos: controlo docente dos jogos disponíveis ──
+  const [hubConfig, setHubConfig] = useState<HubConfig>(
+    () => (settings as any)?.hubConfig ?? {}
+  );
+  const [isUpdatingHub, setIsUpdatingHub] = useState<boolean>(false);
+  const [hubFeedback, setHubFeedback] = useState<string | null>(null);
+
+  const handleToggleGame = async (gameId: string) => {
+    const current = Array.isArray(hubConfig.disabledGames) ? hubConfig.disabledGames : [];
+    const next = current.includes(gameId)
+      ? current.filter(g => g !== gameId)
+      : [...current, gameId];
+    const newConfig: HubConfig = { ...hubConfig, disabledGames: next };
+    setHubConfig(newConfig);
+    setIsUpdatingHub(true);
+    setHubFeedback(null);
+    try {
+      await updateHubConfig(newConfig);
+      setHubFeedback(`Hub atualizado! Jogo "${gameId}" ${next.includes(gameId) ? 'desativado' : 'reativado'} para os alunos.`);
+    } catch (e: any) {
+      setHubFeedback(`Erro ao atualizar hub: ${e.message}`);
+    } finally {
+      setIsUpdatingHub(false);
+      setTimeout(() => setHubFeedback(null), 4000);
+    }
+  };
+
+  // ── Exportação pedagógica multi-gênero (0 reads Firestore) ──
+  const handleExportPedagogicalCSV = (mode: 'pedagogical' | 'turmas' = 'pedagogical') => {
+    const list = filteredStudents.length > 0 ? filteredStudents : students;
+    if (!list || list.length === 0) {
+      alert('Nenhum dado de aluno disponível para exportação.');
+      return;
+    }
+    const csv = exportToCsv(list, mode, selectedClassFilter);
+    const turmaSuffix = selectedClassFilter === 'todas' ? 'todas_turmas' : selectedClassFilter.replace(/[^a-zA-Z0-9]/g, '_');
+    const dateSuffix = new Date().toISOString().slice(0, 10);
+    const label = mode === 'turmas' ? 'resumo_turmas' : 'pedagogico_multigame';
+    downloadCsv(csv, `typeclicker_${label}_${turmaSuffix}_${dateSuffix}.csv`);
+    sound.playWordComplete();
+  };
 
   const loadSettings = async () => {
     setIsLoading(true);
@@ -1298,7 +1343,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
             <div className="p-6 overflow-y-auto">
               {activeTab === 'locks' && (
-                <section className="space-y-4 max-w-xl mx-auto">
+                <>
+                  <section className="space-y-4 max-w-xl mx-auto">
                   <div className="flex items-center gap-2 text-zinc-300 font-bold border-b border-zinc-800 pb-2">
                     <Key className="w-5 h-5" />
                     <h3>Trava de Ambiente Escolar (Laboratório)</h3>
@@ -1571,6 +1617,52 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                   </div>
                 </section>
+
+                {/* ── Controlo do Hub de Jogos ── */}
+                <section className="bg-zinc-900/60 border border-zinc-700/60 rounded-xl p-4 space-y-3">
+                  <div className="flex items-center gap-2 text-zinc-200 font-bold text-sm mb-1">
+                    <span>🎮</span>
+                    <span>Controlo do Hub de Jogos</span>
+                    <span className="text-[10px] font-mono text-zinc-500 ml-auto">0 leituras Firestore</span>
+                  </div>
+                  <p className="text-xs text-zinc-400">
+                    Ative ou desative jogos para os alunos da turma. Professores sempre vêem todos os jogos.
+                  </p>
+                  {hubFeedback && (
+                    <div className="text-xs text-emerald-300 bg-emerald-950/40 border border-emerald-800/40 rounded-lg px-3 py-1.5">
+                      {hubFeedback}
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 gap-2">
+                    {([
+                      { id: 'typeclicker', label: 'TypeClicker', icon: '⌨️' },
+                      { id: 'type_radar',  label: 'Type: Radar', icon: '📡' },
+                      { id: 'time_attack', label: 'Time Attack',  icon: '⏱️' },
+                      { id: 'dungeon',     label: 'Masmorra RPG', icon: '🗡️' }
+                    ] as const).map(({ id, label, icon }) => {
+                      const disabled = Array.isArray(hubConfig.disabledGames) && hubConfig.disabledGames.includes(id);
+                      return (
+                        <button
+                          key={id}
+                          type="button"
+                          disabled={isUpdatingHub}
+                          onClick={() => handleToggleGame(id)}
+                          className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-bold transition ${
+                            disabled
+                              ? 'bg-red-950/40 border-red-700/50 text-red-300 line-through opacity-70'
+                              : 'bg-emerald-950/40 border-emerald-700/50 text-emerald-200 hover:bg-emerald-900/50'
+                          }`}
+                          title={disabled ? `Reativar ${label} para alunos` : `Desativar ${label} para alunos`}
+                        >
+                          <span>{icon}</span>
+                          <span>{label}</span>
+                          <span className="ml-auto text-[10px]">{disabled ? '🔴' : '🟢'}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+                </>
               )}
 
               {activeTab === 'dashboard' && (
@@ -1648,6 +1740,27 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       >
                         <Download className="w-3.5 h-3.5 text-emerald-300" />
                         <span>Exportar Boletim (CSV)</span>
+                      </button>
+
+                      {/* Exportação Pedagógica Multi-Jogo (0 reads Firestore — turmasAggregator.ts) */}
+                      <button
+                        onClick={() => handleExportPedagogicalCSV('pedagogical')}
+                        disabled={isStudentsLoading || students.length === 0}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-950/60 hover:bg-sky-900/80 border border-sky-600/40 rounded-lg text-sky-200 text-xs font-bold transition disabled:opacity-50 shadow-sm cursor-pointer"
+                        title="Exportar dados pedagógicos de TypeClicker, Radar, Arena PvP e Corridas (por aluno) — 0 leituras Firestore"
+                      >
+                        <Download className="w-3.5 h-3.5 text-sky-300" />
+                        <span>CSV Pedagógico Multi-Jogo</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleExportPedagogicalCSV('turmas')}
+                        disabled={isStudentsLoading || students.length === 0}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-950/60 hover:bg-indigo-900/80 border border-indigo-600/40 rounded-lg text-indigo-200 text-xs font-bold transition disabled:opacity-50 shadow-sm cursor-pointer"
+                        title="Exportar resumo agregado por turma com médias de todos os gêneros de jogo — 0 leituras Firestore"
+                      >
+                        <BarChart className="w-3.5 h-3.5 text-indigo-300" />
+                        <span>Resumo por Turma (CSV)</span>
                       </button>
 
                       {/* Equilíbrio de Classes RPG para a Turma Selecionada */}

@@ -75,7 +75,7 @@ import { Loader2 } from 'lucide-react';
 
 export default function App() {
   const suppressLevelUpRef = useRef<boolean>(true);
-  const [selectedGame, setSelectedGame] = useState<'typeclicker' | 'type_radar' | null>(null);
+  const [selectedGame, setSelectedGame] = useState<'typeclicker' | 'type_radar' | 'byte_logic' | 'math_storm' | 'syntax_maze' | null>(null);
   const [state, setState] = useState<GameState>(() => loadSavedState());
   const [typingMode, setTypingMode] = useState<TypingMode>(state.typingMode || 'words');
   const [currentWord, setCurrentWord] = useState<string>(() => getTextForMode(state.typingMode || 'words', state.selectedCategory));
@@ -898,13 +898,23 @@ export default function App() {
         }
         synced.rpgDungeonXp = (synced.rpgDungeonXp || 0) + reward.xp;
 
+        const currentCosmetics = prev.cosmetics || { ...DEFAULT_COSMETICS };
+        const recoveredHackTokens = (prev as any).hackTokens ? Number((prev as any).hackTokens) : 0;
+
         const nextState: GameState = {
           ...prev,
           bytes: prev.bytes + reward.bytes,
           totalBytesEarned: prev.totalBytesEarned + reward.bytes,
-          hackTokens: (prev.hackTokens || 0) + reward.tokens,
+          cosmetics: {
+            ...currentCosmetics,
+            levelTokens: (currentCosmetics.levelTokens || 0) + reward.tokens + recoveredHackTokens
+          },
           quests: synced
         };
+
+        if ('hackTokens' in nextState) {
+          delete (nextState as any).hackTokens;
+        }
 
         spawnFloatingText(`+${formatBytes(reward.bytes)} B`, 'bonus');
         spawnFloatingText(`+${reward.tokens} Ficha${reward.tokens > 1 ? 's' : ''}`, 'bonus');
@@ -2296,6 +2306,7 @@ export default function App() {
           activeTrack={activeCurricularTrack}
           activeRace={activeRace}
           activeRaid={activeRaid}
+          hubConfig={systemSettingsState?.hubConfig ?? null}
           onSelectGame={(gameId) => {
             if (gameId === 'typeclicker') {
               setSelectedGame('typeclicker');
@@ -2422,11 +2433,27 @@ export default function App() {
                 totalEnemiesDefeated: currentRadarStats.totalEnemiesDefeated + endStats.enemiesDefeated
               } : currentRadarStats;
 
+              // Registra partida no histórico arcade (array circular, máx 10)
+              const newRecord = endStats ? {
+                gameId: 'type_radar' as const,
+                score: endStats.score,
+                wave: endStats.bestWave,
+                wpm: endStats.maxWpm,
+                accuracy: bytesEarned > 0 ? Math.round((endStats.score / Math.max(endStats.score + 1, 1)) * 100) : 0,
+                bytesEarned,
+                playedAt: Date.now()
+              } : null;
+              const prevHistory = Array.isArray(prev.arcadeHistory) ? prev.arcadeHistory : [];
+              const updatedHistory = newRecord
+                ? [...prevHistory, newRecord].slice(-10)
+                : prevHistory;
+
               const updated: GameState = {
                 ...prev,
                 bytes: prev.bytes + bytesEarned,
                 totalBytesEarned: prev.totalBytesEarned + bytesEarned,
-                radarStats: updatedRadarStats
+                radarStats: updatedRadarStats,
+                arcadeHistory: updatedHistory.length > 0 ? updatedHistory : undefined
               };
               saveState(updated, auth.currentUser?.uid);
               if (auth.currentUser) {
@@ -2439,6 +2466,7 @@ export default function App() {
             }
             setSelectedGame(null);
           }}
+
         />
 
         <LeaderboardModal

@@ -36,15 +36,14 @@
 
 - **Telemetria por tecla para treino adaptativo** — `keyTelemetry: Record<char, {hits, misses, totalTimeMs}>` armazenada no save; `adaptiveDrillEngine.ts` calcula IDT (Índice de Dificuldade da Tecla) para gerar treinos corretivos.
 
-## Bug confirmado — campo `hackTokens`
+## Bug corrigido — campo `hackTokens` (Resolvido em 2026-09-24)
 
 **Contexto**: `App.tsx:905` em `handleChestReward` (recompensa do Baú Criptográfico da Masmorra):
-```ts
-hackTokens: (prev.hackTokens || 0) + reward.tokens,
-```
-**Diagnóstico**: campo `hackTokens` não existe em `GameState` (`types.ts`). TypeScript não acusa erro porque o spread `...prev` passa a verificação. O campo existe no objeto em runtime mas é invisível ao sistema de tipos — os tokens do Baú **não estão sendo creditados em `cosmetics.levelTokens`**. É um campo fantasma que cresce no save mas nunca é lido por nenhuma UI.
+Anteriormente gravava em `hackTokens: (prev.hackTokens || 0) + reward.tokens`, um campo fantasma que não existia em `GameState` nem era creditado na loja.
 
-**Ação recomendada**: substituir por `cosmetics: { ...prev.cosmetics, levelTokens: (prev.cosmetics?.levelTokens || 0) + reward.tokens }`.
+**Correção implementada**:
+- Substituído pelo crédito direto em `cosmetics.levelTokens`.
+- Adicionada rotina de retrocompatibilidade em `loadSavedState` ([storage.ts](file:///home/marcoswrobel/Code/TypeClicker/src/utils/storage.ts)) e em `handleChestReward` ([App.tsx](file:///home/marcoswrobel/Code/TypeClicker/src/App.tsx)) que resgata fichas acumuladas em saves anteriores e remove a propriedade órfã `hackTokens`.
 
 ## Pendências restantes
 

@@ -25,6 +25,7 @@ import { GameState, CurricularTrackId } from '../types';
 import { RPG_CLASSES } from '../types/rpgClass';
 import { ClassroomRace } from '../types/race';
 import { ClassroomRaid } from '../types/raid';
+import { HubConfig } from '../services/firebaseService';
 import { calculatePlayerRank, formatBytes } from '../utils/formatting';
 import { getCurricularTrack } from '../data/tracks';
 import { getOverallAchievementsStats } from '../services/achievementEngine';
@@ -40,6 +41,8 @@ export interface GameSelectionScreenProps {
   activeTrack: CurricularTrackId | null;
   activeRace: ClassroomRace | null;
   activeRaid: ClassroomRaid | null;
+  /** Configuração docente do hub: jogos desativados, jogo em destaque */
+  hubConfig?: HubConfig | null;
   onSelectGame: (gameId: 'typeclicker' | 'type_radar' | 'time_attack' | 'dungeon') => void;
   onOpenStudentModal: () => void;
   onOpenAdmin: () => void;
@@ -60,6 +63,7 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
   activeTrack,
   activeRace,
   activeRaid,
+  hubConfig,
   onSelectGame,
   onOpenStudentModal,
   onOpenAdmin,
@@ -76,6 +80,15 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
   const studentClass = state.studentClass || activeTurma || 'Sem turma';
   const currentRpgClass = state.rpgClass ? RPG_CLASSES[state.rpgClass] : null;
 
+  /**
+   * Determina se um jogo deve ser ocultado para alunos não-admin.
+   * Admins/professores sempre vêem todos os jogos.
+   */
+  const isGameDisabled = (gameId: string): boolean => {
+    if (isAdmin) return false; // professor vê tudo
+    return Array.isArray(hubConfig?.disabledGames) && hubConfig!.disabledGames.includes(gameId);
+  };
+
   const isRaceActive = Boolean(
     activeRace && 
     (activeRace.status === 'countdown' || activeRace.status === 'in_progress')
@@ -87,21 +100,25 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
   );
 
   const handlePlayTypeClicker = () => {
+    if (isGameDisabled('typeclicker')) return;
     sound.playWordComplete();
     onSelectGame('typeclicker');
   };
 
   const handlePlayTypeRadar = () => {
+    if (isGameDisabled('type_radar')) return;
     sound.playWordComplete();
     onSelectGame('type_radar');
   };
 
   const handlePlayTimeAttack = () => {
+    if (isGameDisabled('time_attack')) return;
     sound.playWordComplete();
     onSelectGame('time_attack');
   };
 
   const handlePlayDungeon = () => {
+    if (isGameDisabled('dungeon')) return;
     sound.playWordComplete();
     onSelectGame('dungeon');
   };

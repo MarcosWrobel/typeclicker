@@ -1,4 +1,4 @@
-import { GameState, KeyTelemetry, AccessibilitySettings, TextScale, UiScale, ContrastTheme } from '../types';
+import { GameState, KeyTelemetry, AccessibilitySettings, TextScale, UiScale, ContrastTheme, ArcadeMatchRecord } from '../types';
 import { DEFAULT_COSMETICS, PlayerCosmetics } from '../types/cosmetics';
 import { ArenaStats } from '../types/arena';
 import { syncQuestsState } from '../services/questsEngine';
@@ -409,6 +409,33 @@ export function sanitizeAccessibility(raw?: Partial<AccessibilitySettings> | nul
   };
 }
 
+const ARCADE_HISTORY_MAX = 10;
+const VALID_GAME_IDS = ['typeclicker', 'type_radar', 'byte_logic', 'math_storm', 'syntax_maze'];
+
+/**
+ * Sanitiza o histórico local de partidas arcade.
+ * Garante retrocompatibilidade: saves antigos (sem o campo) retornam undefined.
+ * Remove registros corrompidos e limita o array aos últimos ARCADE_HISTORY_MAX entradas.
+ */
+export function sanitizeArcadeHistory(raw?: unknown): ArcadeMatchRecord[] | undefined {
+  if (!Array.isArray(raw) || raw.length === 0) return undefined;
+
+  const valid = raw
+    .filter((r): r is ArcadeMatchRecord =>
+      r &&
+      typeof r === 'object' &&
+      VALID_GAME_IDS.includes((r as any).gameId) &&
+      Number.isFinite((r as any).score) &&
+      Number.isFinite((r as any).wpm) &&
+      Number.isFinite((r as any).accuracy) &&
+      Number.isFinite((r as any).bytesEarned) &&
+      Number.isFinite((r as any).playedAt)
+    )
+    .slice(-ARCADE_HISTORY_MAX); // mantém apenas os mais recentes
+
+  return valid.length > 0 ? valid : undefined;
+}
+
 export function loadSavedState(userId?: string | null): GameState {
   try {
     const key = getUserSaveKey(userId);
@@ -433,6 +460,14 @@ export function loadSavedState(userId?: string | null): GameState {
       category = 'iniciante';
     }
 
+    const sanitizedCosmetics = sanitizeCosmetics(parsed.cosmetics);
+    if (Number.isFinite(parsed.hackTokens) && parsed.hackTokens > 0) {
+      sanitizedCosmetics.levelTokens = (sanitizedCosmetics.levelTokens || 0) + Math.floor(parsed.hackTokens);
+    }
+    if ('hackTokens' in parsed) {
+      delete parsed.hackTokens;
+    }
+
     return {
       ...INITIAL_STATE,
       ...parsed,
@@ -446,7 +481,7 @@ export function loadSavedState(userId?: string | null): GameState {
       multiplier: 1.0,
       upgrades: parsed.upgrades || {},
       completedChallenges: Array.isArray(parsed.completedChallenges) ? parsed.completedChallenges : [],
-      cosmetics: sanitizeCosmetics(parsed.cosmetics),
+      cosmetics: sanitizedCosmetics,
       arenaStats: parsed.arenaStats && typeof parsed.arenaStats === 'object' ? {
         matchesPlayed: Number.isFinite(parsed.arenaStats.matchesPlayed) ? parsed.arenaStats.matchesPlayed : 0,
         wins: Number.isFinite(parsed.arenaStats.wins) ? parsed.arenaStats.wins : 0,
@@ -469,7 +504,8 @@ export function loadSavedState(userId?: string | null): GameState {
       bossMastery: parsed.bossMastery && typeof parsed.bossMastery === 'object' ? parsed.bossMastery : {},
       bossBuffExpiresAt: Number.isFinite(parsed.bossBuffExpiresAt) ? parsed.bossBuffExpiresAt : 0,
       bossBuffMultiplier: Number.isFinite(parsed.bossBuffMultiplier) ? parsed.bossBuffMultiplier : 0,
-      reachedLevel100At: typeof parsed.reachedLevel100At === 'string' ? parsed.reachedLevel100At : undefined
+      reachedLevel100At: typeof parsed.reachedLevel100At === 'string' ? parsed.reachedLevel100At : undefined,
+      arcadeHistory: sanitizeArcadeHistory(parsed.arcadeHistory)
     };
   } catch (e) {
     console.warn('Falha ao carregar estado salvo:', e);
