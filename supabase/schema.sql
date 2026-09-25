@@ -1,10 +1,11 @@
 -- SCHEMA SQL DO EDUCA GAMEHUB (SUPABASE)
--- Habilita extensão para UUID
+-- Habilita extensão para UUID (usada para chaves geradas internamente)
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Tabela: public.profiles (Unificação de perfil e economia)
-CREATE TABLE public.profiles (
-  id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
+-- id usa TEXT para aceitar tanto o UID do Google/Firebase (28 chars) quanto o UUID nativo do Supabase Auth
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id TEXT PRIMARY KEY,
   display_name TEXT NOT NULL,
   nickname TEXT,
   avatar TEXT,
@@ -21,15 +22,16 @@ CREATE TABLE public.profiles (
   equipped_skin TEXT DEFAULT 'classic',
   equipped_frame TEXT,
   equipped_theme TEXT,
+  email TEXT,
   schema_version TEXT DEFAULT '2.0.0',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
 -- Tabela: public.game_progress (Suporte a múltiplos jogos)
-CREATE TABLE public.game_progress (
+CREATE TABLE IF NOT EXISTS public.game_progress (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+  user_id TEXT REFERENCES public.profiles(id) ON DELETE CASCADE,
   game_id TEXT NOT NULL,
   high_score BIGINT DEFAULT 0,
   current_floor INTEGER DEFAULT 1,
@@ -41,9 +43,9 @@ CREATE TABLE public.game_progress (
 );
 
 -- Tabela: public.user_cosmetics
-CREATE TABLE public.user_cosmetics (
+CREATE TABLE IF NOT EXISTS public.user_cosmetics (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+  user_id TEXT REFERENCES public.profiles(id) ON DELETE CASCADE,
   item_id TEXT NOT NULL,
   item_category TEXT NOT NULL,
   unlocked_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
@@ -51,18 +53,19 @@ CREATE TABLE public.user_cosmetics (
 );
 
 -- Tabela: public.user_achievements
-CREATE TABLE public.user_achievements (
+CREATE TABLE IF NOT EXISTS public.user_achievements (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+  user_id TEXT REFERENCES public.profiles(id) ON DELETE CASCADE,
   achievement_id TEXT NOT NULL,
   unlocked_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
   UNIQUE(user_id, achievement_id)
 );
 
 -- Índices para otimização de consultas e leaderboards
-CREATE INDEX idx_profiles_turma ON public.profiles(turma);
-CREATE INDEX idx_profiles_level ON public.profiles(level DESC);
-CREATE INDEX idx_game_progress_high_score ON public.game_progress(game_id, high_score DESC);
+CREATE INDEX IF NOT EXISTS idx_profiles_turma ON public.profiles(turma);
+CREATE INDEX IF NOT EXISTS idx_profiles_level ON public.profiles(level DESC);
+CREATE INDEX IF NOT EXISTS idx_profiles_points ON public.profiles(total_bytes_earned DESC);
+CREATE INDEX IF NOT EXISTS idx_game_progress_high_score ON public.game_progress(game_id, high_score DESC);
 
 -- POLÍTICAS RLS (Row Level Security)
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
@@ -70,32 +73,46 @@ ALTER TABLE public.game_progress ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_cosmetics ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_achievements ENABLE ROW LEVEL SECURITY;
 
--- Profiles: Leitura pública, escrita apenas pelo dono
-CREATE POLICY "Profiles viewable by everyone" ON public.profiles FOR SELECT USING (true);
-CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
-CREATE POLICY "Users can insert own profile" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
+-- Limpa policies existentes para permitir idempotência
+DROP POLICY IF EXISTS "Profiles viewable by everyone" ON public.profiles;
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Users can insert own profile" ON public.profiles;
 
--- Game Progress: Leitura pública (leaderboard), escrita apenas pelo dono
+DROP POLICY IF EXISTS "Game progress viewable by everyone" ON public.game_progress;
+DROP POLICY IF EXISTS "Users can manage own game progress" ON public.game_progress;
+
+DROP POLICY IF EXISTS "Cosmetics viewable by everyone" ON public.user_cosmetics;
+DROP POLICY IF EXISTS "Users can manage own cosmetics" ON public.user_cosmetics;
+
+DROP POLICY IF EXISTS "Achievements viewable by everyone" ON public.user_achievements;
+DROP POLICY IF EXISTS "Users can manage own achievements" ON public.user_achievements;
+
+-- Profiles: Leitura pública, escrita apenas pelo dono da conta
+CREATE POLICY "Profiles viewable by everyone" ON public.profiles FOR SELECT USING (true);
+CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid()::text = id);
+CREATE POLICY "Users can insert own profile" ON public.profiles FOR INSERT WITH CHECK (auth.uid()::text = id);
+
+-- Game Progress: Leitura pública (placar), escrita apenas pelo dono
 CREATE POLICY "Game progress viewable by everyone" ON public.game_progress FOR SELECT USING (true);
-CREATE POLICY "Users can manage own game progress" ON public.game_progress FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can manage own game progress" ON public.game_progress FOR ALL USING (auth.uid()::text = user_id);
 
 -- Cosmetics & Achievements: Leitura pública, escrita apenas pelo dono
 CREATE POLICY "Cosmetics viewable by everyone" ON public.user_cosmetics FOR SELECT USING (true);
-CREATE POLICY "Users can manage own cosmetics" ON public.user_cosmetics FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can manage own cosmetics" ON public.user_cosmetics FOR ALL USING (auth.uid()::text = user_id);
 
 CREATE POLICY "Achievements viewable by everyone" ON public.user_achievements FOR SELECT USING (true);
-CREATE POLICY "Users can manage own achievements" ON public.user_achievements FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can manage own achievements" ON public.user_achievements FOR ALL USING (auth.uid()::text = user_id);
 
--- RPC (Stored Procedure) atômica para registro seguro de sessão de jogo e recompensa
+-- RPC (Stored Procedure) atômica para registro seguro de sessão de jogo
 CREATE OR REPLACE FUNCTION public.record_game_session(
-  p_user_id UUID,
+  p_user_id TEXT,
   p_game_id TEXT,
   p_bytes_earned BIGINT,
   p_high_score BIGINT,
   p_metrics JSONB
 ) RETURNS void AS $$
 BEGIN
-  -- 1. Atualiza ou insere o progresso no jogo específico
+  -- 1. Atualiza ou insere o progresso (ex: recorde) no jogo específico
   INSERT INTO public.game_progress (user_id, game_id, high_score, metrics)
   VALUES (p_user_id, p_game_id, p_high_score, p_metrics)
   ON CONFLICT (user_id, game_id) DO UPDATE SET
