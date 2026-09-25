@@ -10,36 +10,74 @@ export type GameId =
   | 'math_storm'
   | 'syntax_maze';
 
+export type StudentRpgClass = RpgClassType; // alias pedagógico para o guia dos alunos
+
 // ─────────────────────────────────────────────────────────────
-// Contrato obrigatório para todos os minijogos do hub.
+// Métricas brutas de uma sessão de jogo.
+// O jogo preenche estes campos; o Hub normaliza os bytes finais.
+// ─────────────────────────────────────────────────────────────
+export interface GameSessionStats {
+  /** Pontuação interna do jogo (escala livre por plug-in) */
+  score: number;
+  /** Acurácia percentual [0–100] */
+  accuracyPercentage: number;
+  /** Duração total da sessão em segundos */
+  timeSpentSeconds: number;
+  /** Acertos contabilizados */
+  correctAnswers: number;
+  /** Erros contabilizados */
+  wrongAnswers: number;
+  /** Fase/nível atingido (opcional) */
+  levelReached?: number;
+  /** Métricas extras livres por plug-in (ex.: wave, enemiesDefeated, combo…) */
+  extraMetrics?: Record<string, number | string>;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Payload de saída — único ponto de retorno de todo plug-in.
 //
-// Regras de uso:
-//   1. onExitToHub  — único ponto de saída; sempre chamado ao encerrar,
-//      independente de vitória ou derrota. Retorna bytes ganhos na sessão
-//      e métricas específicas do jogo (tipadas livremente por cada plugin).
-//   2. onLevelTokenEarned — opcional; chamado apenas se o jogo concede
-//      Fichas diretamente (ex.: bônus de conclusão de fase).
-//   3. Ciclo de vida de recursos — TODO plug-in DEVE limpar:
-//        - OscillatorNode / AudioContext (audioContext.close())
-//        - requestAnimationFrame (cancelAnimationFrame no cleanup do useEffect)
-//   4. Persistência — PROIBIDO chamar setDoc/updateDoc por fase individual.
-//      Acumule progresso em memória; o useGameSync global (throttle 60 s)
-//      cuidará da sincronização com o Firestore.
+// IMPORTANTE: bytesEarned é uma SUGESTÃO do plug-in.
+// O Hub aplica a fórmula de normalização antes de creditar:
+//   finalBytes = min(bytesEarned, timeSpentSeconds × BYTES_PER_SEC_CAP × accuracyFactor)
+// Isso garante que nenhum jogo infle a economia, independente
+// da fórmula interna usada pelo aluno.
 // ─────────────────────────────────────────────────────────────
-export interface GamePluginProps {
-  /** UID e nome de exibição do aluno autenticado */
-  user: { uid: string; displayName: string };
-  /** Classe RPG escolhida pelo aluno; pode influenciar bônus em-jogo */
-  playerClass: RpgClassType;
+export interface GameExitPayload {
+  /** Bytes sugeridos pelo jogo (o Hub pode recortar) */
+  bytesEarned: number;
+  /** Fichas cosméticas (levelTokens) ganhas na sessão — ex.: 1 ficha por vitória acima de 80% */
+  levelTokensEarned?: number;
+  /** Moedas de duelo (duelTokens) — apenas para modos versus/arena */
+  duelTokensEarned?: number;
+  /** Métricas brutas da sessão para histórico e normalização */
+  sessionStats: GameSessionStats;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Contrato de entrada obrigatório para todos os plug-ins.
+//
+// Regras invioláveis:
+//   1. onExitToHub — único ponto de saída; sempre chamado ao encerrar,
+//      independente de vitória ou derrota.
+//   2. Sem Firebase — PROIBIDO importar firebaseService, db, setDoc ou getDoc.
+//      O Hub cuida de toda persistência via useGameSync (throttle 60 s).
+//   3. Ciclo de vida limpo — TODO plug-in DEVE limpar no retorno do useEffect:
+//        - cancelAnimationFrame / clearInterval / clearTimeout
+//        - OscillatorNode.stop() e AudioContext.close()
+//        - window.removeEventListener para qualquer listener global
+//   4. Sem assets externos — sem .mp3, .ogg, fontes remotas ou CDN.
+//      Áudio via Web Audio API procedural; ícones via lucide-react.
+// ─────────────────────────────────────────────────────────────
+export interface BaseGameProps {
+  /** Classe RPG do aluno — pode influenciar bônus in-game */
+  studentClass?: StudentRpgClass;
   /**
-   * Callback chamado ao encerrar o minijogo.
-   * @param bytesEarned  Bytes ganhos nesta sessão (creditados em GameState.bytes)
-   * @param sessionStats Objeto livre com métricas específicas do plug-in
-   *                     (ex.: wave, score, accuracy, enemiesDefeated…)
+   * Multiplicador de dificuldade injetado pelo Hub.
+   * 0.8 = fácil · 1.0 = normal · 1.25 = desafiador
    */
-  onExitToHub: (bytesEarned: number, sessionStats: Record<string, unknown>) => void;
-  /** Callback opcional para crédito direto de Fichas (levelTokens) */
-  onLevelTokenEarned?: (tokens: number) => void;
+  difficultyMultiplier?: number;
+  /** Callback de encerramento — único ponto de saída do plug-in */
+  onExitToHub: (payload: GameExitPayload) => void;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -51,13 +89,13 @@ export interface ArcadeMatchRecord {
   gameId: GameId;
   /** Score final da partida (escala varia por jogo) */
   score: number;
-  /** Melhor onda/fase atingida na partida (se aplicável) */
+  /** Melhor onda/fase atingida (se aplicável) */
   wave?: number;
   /** PPM médio registrado na sessão */
   wpm: number;
   /** Acurácia percentual [0–100] */
   accuracy: number;
-  /** Bytes creditados em GameState após a partida */
+  /** Bytes efetivamente creditados em GameState após normalização do Hub */
   bytesEarned: number;
   /** Timestamp epoch (ms) do encerramento da partida */
   playedAt: number;

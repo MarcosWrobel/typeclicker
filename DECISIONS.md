@@ -2,49 +2,57 @@
 
 ## Decisões confirmadas do código
 
-- **Firestore em vez de Realtime Database** — `firebase.json` define `dataAccessMode: FIRESTORE_NATIVE`; nenhum import de `firebase/database` existe. Escolha ligada às regras de segurança declarativas e queries mais ricas. (commit: `69a8019`)
+- **Firestore em vez de Realtime Database** — `firebase.json` define `dataAccessMode: FIRESTORE_NATIVE`; nenhum import de `firebase/database` existe. Regras de segurança declarativas e queries mais ricas. (commit: `69a8019`)
 
-- **Cloud Run como runtime de produção** — `server.ts` detecta `process.env.K_SERVICE` para distinguir produção de dev local; serve o bundle `dist/` via `express.static` em produção e Vite middleware em dev. Hospedado no AI Studio em `typeclicker-leopoldina.ai.studio`.
+- **Cloud Run como runtime de produção** — `server.ts` detecta `process.env.K_SERVICE`; serve `dist/` via `express.static` em produção e Vite middleware em dev. Domínio: `typeclicker-leopoldina.ai.studio`.
 
-- **Toda a lógica de jogo é client-side** — `server.ts` serve apenas rotas de métricas admin (`/api/metrics`) e o SPA; nenhum cálculo de pontuação ou save ocorre no servidor. (commit: `a4ece21`)
+- **Toda a lógica de jogo é client-side** — `server.ts` serve apenas rotas de métricas admin e o SPA; nenhum cálculo de pontuação no servidor. (commit: `a4ece21`)
 
-- **Plano Blaze com orçamento controlado** — limites do tier gratuito Blaze tratados como cotas hard no código (50k leituras / 20k escritas por dia). Throttle de 60 s entre escritas implementado em `useGameSync`.
+- **Plano Blaze com orçamento controlado** — limites do tier gratuito Blaze tratados como cotas hard (50k leituras / 20k escritas/dia). Throttle de 60 s em `useGameSync`.
 
-- **Sem Cloud Functions por decisão deliberada** — plano Blaze permite; mas nenhuma função foi criada. Toda a lógica que precisaria ser server-side (anti-cheat, saves) fica no client com validação por regras Firestore.
+- **Sem Cloud Functions por decisão deliberada** — plano Blaze permite, mas não há intenção imediata. Toda lógica que precisaria de server-side fica no client com validação por regras Firestore.
 
-- **`totalBytesEarned` como métrica imutável de progressão** — nível nunca decresce; `bytes` (moeda corrente) pode ser gasto, mas `totalBytesEarned` só cresce. Separação intencional em `GameState`.
+- **Hub normaliza bytes dos plug-ins** — jogos de alunos entregam métricas brutas; o Hub aplica `min(bytesEarned, timeSpentSeconds × CAP × accuracyFactor)` antes de creditar. Evita que um jogo mal balanceado infle a economia.
 
-- **localStorage como cache offline com fallback para Firestore** — `loadSavedState(uid)` lê do localStorage com chave isolada por UID; ao logar, Firestore tem prioridade; se falhar (offline), usa cache local.
+- **Contrato adotado: `BaseGameProps` + `GameExitPayload`** (substituiu `GamePluginProps` legado) — contrato pedagógico do guia dos alunos foi adotado como contrato real do código (`src/types/gamePlugin.ts`). Mais rico: inclui `GameSessionStats`, `levelTokensEarned`, `duelTokensEarned` e `difficultyMultiplier`.
 
-- **Google Auth obrigatório para salvar na nuvem** — `saves/{uid}` e `leaderboard/{uid}` exigem `isOwner(userId)` nas regras Firestore; sem login o estado persiste apenas no localStorage.
+- **Fluxo de contribuição de jogos de alunos**: alunos escolhem tema e gênero livremente → desenvolvem no AI Studio usando `GUIA_CRIACAO_DE_JOGOS.md` como prompt-base → entregam apenas o arquivo `index.tsx` → professor avalia (checklist técnico + pertinência pedagógica) → professor integra manualmente em `src/components/games/<nome>/`, define o `GameId`, e registra o bloco de roteamento em `App.tsx` → habilitado via `HubConfig` no painel admin. **Os IDs `byte_logic`, `math_storm` e `syntax_maze` são reservados para jogos do professor.**
 
-- **E-mails de admin hardcoded + extensível por Firestore** — `ADMIN_EMAILS` hardcoded em `firebaseService.ts` para os super-admins; professores adicionais via `system/settings.allowedTeachers`.
+- **Opt-in por jogo via `HubConfig.disabledGames`** — professor habilita/desabilita jogos individualmente sem deploy; persiste em `system/settings.hubConfig` (lido via `onSnapshot` existente, zero leituras extras).
 
-- **DDA no Type: Radar** — `spawnRadarEnemy()` ajusta velocidade com base na acurácia em tempo real (<60% → ×0.82; >95% → ×1.15). Objetivo pedagógico: manter o desafio calibrado ao nível real do aluno.
+- **`totalBytesEarned` como métrica imutável de progressão** — nível nunca decresce; `bytes` pode ser gasto, `totalBytesEarned` só cresce.
 
-- **3 moedas distintas para cosméticos** — `levelTokens` (farming passivo), `duelTokens` (Arena PvP), `quantumFragments` (endgame Nível 100). Segmentação previne que alunos de níveis baixos acessem itens de endgame.
+- **localStorage como cache offline com fallback para Firestore** — `loadSavedState(uid)` com chave isolada por UID; Firestore tem prioridade ao logar.
 
-- **Trava escolar por código de sessão** — professor publica `activeCode` + `expiresAt` no Firestore; alunos leem via `onSnapshot`; validação é client-side contra valor do Firestore; turma vinculada automaticamente.
+- **E-mails de admin hardcoded + extensível por Firestore** — `ADMIN_EMAILS` hardcoded para super-admins; professores extras via `system/settings.allowedTeachers`.
 
-- **`removeUndefinedFields()` antes de todo `setDoc`** — Firestore rejeita campos `undefined`; função recursiva aplicada antes de cada escrita (`firebaseService.ts:244`).
+- **DDA no Type: Radar** — `spawnRadarEnemy()` ajusta velocidade com base na acurácia em tempo real (<60% → ×0.82; >95% → ×1.15).
 
-- **`schemaVersion` em `GameState` para retrocompatibilidade** — campo opcional para futuras migrações sem quebrar saves antigos.
+- **3 moedas distintas para cosméticos** — `levelTokens` (farming), `duelTokens` (PvP), `quantumFragments` (endgame Lvl 100). Segmentação por nível.
 
-- **Hub de seleção de jogos** — `selectedGame: 'typeclicker' | 'type_radar' | null` em `App.tsx`; null → `GameSelectionScreen`. Arquitetura preparada para adicionar 3º jogo sem refatoração profunda.
+- **Trava escolar por código de sessão** — `onSnapshot` em `system/settings`; validação client-side; turma vinculada automaticamente.
 
-- **Backups manuais** — `backups/{backupId}` disparado pelo admin via painel; sem scheduler automático por enquanto.
+- **`removeUndefinedFields()` antes de todo `setDoc`** — Firestore rejeita `undefined` (`firebaseService.ts:244`).
 
-- **Telemetria por tecla para treino adaptativo** — `keyTelemetry: Record<char, {hits, misses, totalTimeMs}>` armazenada no save; `adaptiveDrillEngine.ts` calcula IDT (Índice de Dificuldade da Tecla) para gerar treinos corretivos.
+- **Backups manuais** — `backups/{backupId}` disparado pelo admin; sem scheduler por enquanto.
 
-## Bug corrigido — campo `hackTokens` (Resolvido em 2026-09-24)
+- **Telemetria por tecla para treino adaptativo** — `keyTelemetry: Record<char, {hits, misses, totalTimeMs}>`; `adaptiveDrillEngine.ts` calcula IDT para treinos corretivos.
 
-**Contexto**: `App.tsx:905` em `handleChestReward` (recompensa do Baú Criptográfico da Masmorra):
-Anteriormente gravava em `hackTokens: (prev.hackTokens || 0) + reward.tokens`, um campo fantasma que não existia em `GameState` nem era creditado na loja.
+- **`arcadeHistory: ArcadeMatchRecord[]`** — array circular (máx 10) no `GameState` para histórico de partidas de todos os minijogos plug-in.
 
-**Correção implementada**:
-- Substituído pelo crédito direto em `cosmetics.levelTokens`.
-- Adicionada rotina de retrocompatibilidade em `loadSavedState` ([storage.ts](file:///home/marcoswrobel/Code/TypeClicker/src/utils/storage.ts)) e em `handleChestReward` ([App.tsx](file:///home/marcoswrobel/Code/TypeClicker/src/App.tsx)) que resgata fichas acumuladas em saves anteriores e remove a propriedade órfã `hackTokens`.
+## Bug confirmado — campo `hackTokens`
+
+`App.tsx:905` em `handleChestReward` escreve `hackTokens: (prev.hackTokens || 0) + reward.tokens`. Campo não existe em `GameState`. TypeScript não acusa erro por causa do spread. Tokens do Baú **não estão sendo creditados em `cosmetics.levelTokens`**.
+
+**Correção**: substituir por `cosmetics: { ...prev.cosmetics, levelTokens: (prev.cosmetics?.levelTokens || 0) + reward.tokens }`.
+
+## Bug confirmado — `TypeRadarGame` usa contrato legado
+
+`TypeRadarGame` ainda usa a assinatura antiga `onExitToHub(bytesEarned, endStats)` em vez do novo `GameExitPayload`. Migração pendente para alinhar com o contrato `BaseGameProps`.
 
 ## Pendências restantes
 
-- **Trilhas curriculares em construção** — Scratch, Web, Empresarial, Inglês e Geral têm tipo definido em `types/curricularTracks.ts`, mas o conteúdo das palavras/frases ainda está sendo elaborado
+- Trilhas curriculares em construção (Scratch, Web, Empresarial, Inglês, Geral)
+- Migrar `TypeRadarGame.onExitToHub` para `GameExitPayload`
+- Implementar normalização de bytes no Hub para jogos plug-in
+- Corrigir `hackTokens` → `cosmetics.levelTokens`
