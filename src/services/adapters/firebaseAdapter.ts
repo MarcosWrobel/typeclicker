@@ -1,9 +1,17 @@
 import { IDatabaseService, UserProfile, GameSessionPayload } from '../dbInterface';
-import { db } from '../firebaseService';
+import { db, loadProgressFromCloud, getGlobalLeaderboard } from '../firebaseService';
 import { doc, getDoc, setDoc, updateDoc, collection, query, orderBy, limit, getDocs, where } from 'firebase/firestore';
 import { GameState } from '../../types';
+import { CloudLoadResponse, LeaderboardEntry } from '../../types/leaderboard';
 
 export class FirebaseAdapter implements IDatabaseService {
+  async loadGameState(userId: string): Promise<CloudLoadResponse> {
+    return loadProgressFromCloud();
+  }
+
+  async getGlobalLeaderboard(forceRefresh: boolean = false): Promise<LeaderboardEntry[]> {
+    return getGlobalLeaderboard(forceRefresh);
+  }
   async getUserProfile(userId: string): Promise<UserProfile | null> {
     const docRef = doc(db, 'leaderboard', userId);
     const snap = await getDoc(docRef);

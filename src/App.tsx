@@ -69,6 +69,7 @@ import { AchievementDef, AchievementContext } from './types/achievements';
 import { RpgFloorData, QuestEvent } from './types/quests';
 import { calculatePlayerRank, formatBytes } from './utils/formatting';
 import { auth, loginWithGoogle, logoutUser, subscribeToAuthChanges, loadProgressFromCloud, saveProgressToCloud, checkIsAdminAsync, checkIsSuperAdmin, getSystemSettings, subscribeToSystemSettings, claimPendingTestGrants, ADMIN_EMAILS, LeaderboardEntry } from './services/firebaseService';
+import { dbService } from './services/dbFactory';
 import { isCategoryAllowed, getMinAllowedCategoryLevel } from './utils/difficulty';
 import { useGameSync } from './hooks/useGameSync';
 import { Loader2 } from 'lucide-react';
@@ -230,7 +231,7 @@ export default function App() {
 
       if (currentUser) {
         // Try to load state from cloud automatically upon login
-        const res = await loadProgressFromCloud();
+        const res = await dbService.loadGameState(currentUser.uid);
         if (res.success && res.saveState) {
           const loadedNickname = res.saveState.studentNickname || '';
           const loadedClass = isStaffUser ? 'Professor' : (res.saveState.studentClass || '');

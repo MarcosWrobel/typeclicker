@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { getGlobalLeaderboard, LeaderboardEntry, isStaffMember, extractLevel100Pioneers, Level100PioneerSlot } from '../services/firebaseService';
+import { LeaderboardEntry, isStaffMember, extractLevel100Pioneers, Level100PioneerSlot } from '../services/firebaseService';
+import { dbService } from '../services/dbFactory';
 import { LeaderboardMetric } from '../components/LeaderboardModal';
 
 const METRIC_ORDER: LeaderboardMetric[] = ['level', 'wpm', 'combo', 'bytes', 'pvp', 'races'];
@@ -39,7 +40,7 @@ export function useLeaderboardPodium(): UseLeaderboardPodiumReturn {
   const loadData = useCallback(async (force: boolean = false) => {
     try {
       setIsLoading(true);
-      const data = await getGlobalLeaderboard(force);
+      const data = await dbService.getGlobalLeaderboard(force);
       const cleanStudents = data.filter((p) => !isStaffMember(p));
       setAllPlayers(cleanStudents);
       setSyncRemaining(CLOUD_SYNC_INTERVAL_SEC);

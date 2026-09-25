@@ -19,7 +19,8 @@ import {
   Medal,
   Radio
 } from 'lucide-react';
-import { getGlobalLeaderboard, LeaderboardEntry, isStaffMember, extractLevel100Pioneers } from '../services/firebaseService';
+import { LeaderboardEntry, isStaffMember, extractLevel100Pioneers } from '../services/firebaseService';
+import { dbService } from '../services/dbFactory';
 import { Level100PioneersWidget } from './Level100PioneersWidget';
 import { StudentProfileCardModal } from './StudentProfileCardModal';
 import { formatBytes } from '../utils/formatting';
@@ -232,7 +233,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
     setIsLoading(true);
     setError(null);
     try {
-      const data = await getGlobalLeaderboard(force);
+      const data = await dbService.getGlobalLeaderboard(force);
       // Garantia estrita: nenhum professor ou admin aparece nos rankings
       const cleanStudentsOnly = data.filter((player) => !isStaffMember(player));
       setRankings(cleanStudentsOnly);

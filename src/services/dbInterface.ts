@@ -1,4 +1,5 @@
 import { GameState } from '../types';
+import { LeaderboardEntry, CloudLoadResponse } from '../types/leaderboard';
 
 export interface UserProfile {
   id: string;
@@ -39,6 +40,10 @@ export interface IDatabaseService {
   getClassroomRanking(turma: string): Promise<UserProfile[]>;
   unlockCosmetic(userId: string, itemId: string, category: string): Promise<void>;
   
-  // Retrocompatibilidade para o uso antigo
+  // Persistência completa do GameState (hidratar e salvar)
+  loadGameState(userId: string): Promise<CloudLoadResponse>;
   saveLegacyGameState(userId: string, state: GameState): Promise<void>;
+
+  // Leaderboard global tipado para rankings e pódios
+  getGlobalLeaderboard(forceRefresh?: boolean): Promise<LeaderboardEntry[]>;
 }

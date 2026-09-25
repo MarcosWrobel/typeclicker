@@ -1,6 +1,8 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { IDatabaseService, UserProfile, GameSessionPayload } from '../dbInterface';
 import { GameState } from '../../types';
+import { DEFAULT_COSMETICS } from '../../types/cosmetics';
+import { CloudLoadResponse, LeaderboardEntry } from '../../types/leaderboard';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
@@ -107,6 +109,30 @@ export class SupabaseAdapter implements IDatabaseService {
     return data.map(this.mapProfile);
   }
 
+  async getGlobalLeaderboard(forceRefresh: boolean = false): Promise<LeaderboardEntry[]> {
+    const { data, error } = await this.client
+      .from('profiles')
+      .select('*')
+      .order('total_bytes_earned', { ascending: false })
+      .limit(250);
+
+    if (error || !data) return [];
+    return data.map((row: any): LeaderboardEntry => ({
+      userId: row.id,
+      nome: row.display_name || 'Aluno',
+      apelido: row.nickname,
+      turma: row.turma || '',
+      level: row.level || 1,
+      points: Number(row.total_bytes_earned) || 0,
+      wpm: 0,
+      avatar: row.avatar,
+      updatedAt: row.updated_at || new Date().toISOString(),
+      rpgClass: row.rpg_class,
+      cardFrame: row.equipped_frame,
+      isStaff: row.role === 'teacher' || row.role === 'admin'
+    }));
+  }
+
   async getClassroomRanking(turma: string): Promise<UserProfile[]> {
     const { data, error } = await this.client
       .from('profiles')
@@ -132,10 +158,69 @@ export class SupabaseAdapter implements IDatabaseService {
     if (error) throw error;
   }
 
+  async loadGameState(userId: string): Promise<CloudLoadResponse> {
+    try {
+      // 1. Tenta carregar o estado persistido completo da tabela game_progress
+      const { data: progressData, error: progressErr } = await this.client
+        .from('game_progress')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('game_id', 'typeclicker')
+        .single();
+
+      if (!progressErr && progressData?.state_payload && Object.keys(progressData.state_payload).length > 0) {
+        return {
+          success: true,
+          message: 'Save carregado do Supabase com sucesso!',
+          saveState: progressData.state_payload,
+          savedAt: new Date(progressData.updated_at).toLocaleString('pt-BR'),
+          points: progressData.high_score
+        };
+      }
+
+      // 2. Fallback: carrega os dados principais da tabela profiles
+      const profile = await this.getUserProfile(userId);
+      if (profile) {
+        const fallbackSaveState: Partial<GameState> = {
+          studentName: profile.displayName,
+          studentNickname: profile.nickname,
+          studentClass: profile.turma,
+          bytes: profile.bytes,
+          totalBytesEarned: profile.totalBytesEarned,
+          rpgClass: profile.rpgClass as any,
+          cosmetics: {
+            ...DEFAULT_COSMETICS,
+            levelTokens: profile.levelTokens,
+            duelTokens: profile.duelTokens,
+            quantumFragments: profile.quantumFragments,
+            equippedSkin: (profile.equippedSkin as any) || DEFAULT_COSMETICS.equippedSkin,
+            equippedCardFrame: (profile.equippedFrame as any) || DEFAULT_COSMETICS.equippedCardFrame,
+            equippedTheme: (profile.equippedTheme as any) || DEFAULT_COSMETICS.equippedTheme
+          }
+        };
+
+        return {
+          success: true,
+          message: 'Perfil Supabase carregado!',
+          saveState: fallbackSaveState,
+          points: profile.totalBytesEarned
+        };
+      }
+
+      return {
+        success: false,
+        message: 'Nenhum save encontrado no Supabase.'
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: `Erro ao carregar do Supabase: ${err.message}`
+      };
+    }
+  }
+
   async saveLegacyGameState(userId: string, state: GameState): Promise<void> {
-    // Para manter compatibilidade do loop de sync com Supabase:
-    // Mapeamos o GameState (JSON massivo) para os campos relacionais essenciais no Supabase
-    
+    // 1. Atualiza dados relacionais do perfil
     await this.saveUserProfile({
       id: userId,
       displayName: state.studentName || '',
@@ -155,7 +240,19 @@ export class SupabaseAdapter implements IDatabaseService {
       equippedTheme: state.cosmetics?.equippedTheme
     });
 
-    // Idealmente, a transição total para Supabase removerá `saveLegacyGameState`,
-    // mas isso satisfaz o `useGameSync` sem quebrar a compilação do hub agora.
+    // 2. Persiste snapshot integral do jogo no schema game_progress
+    try {
+      await this.client
+        .from('game_progress')
+        .upsert({
+          user_id: userId,
+          game_id: 'typeclicker',
+          high_score: state.totalBytesEarned || 0,
+          state_payload: state,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'user_id, game_id' });
+    } catch (err) {
+      console.warn('Erro ao salvar snapshot em game_progress:', err);
+    }
   }
 }
