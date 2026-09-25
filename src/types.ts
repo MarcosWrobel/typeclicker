@@ -45,6 +45,7 @@ export interface UpgradeDef {
 }
 
 export interface GameState {
+  level?: number;
   bytes: number;
   totalBytesEarned: number;
   bytesPerChar: number;

@@ -883,7 +883,7 @@ export default function App() {
       saveState(nextState, auth.currentUser?.uid);
       return nextState;
     });
-    spawnFloatingText('🔑 -1 Chave de Expedição utilizada', 'info');
+    spawnFloatingText('🔑 -1 Chave de Expedição utilizada', 'bonus');
     return true;
   }, [isAdmin, spawnFloatingText]);
 

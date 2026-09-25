@@ -552,7 +552,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     onUpdateGameState({
       ...gameState,
       level: 100,
-      points: 35000,
       totalBytesEarned: Math.max(gameState.totalBytesEarned, 5000000)
     });
     sound.playPrestige();
@@ -599,8 +598,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     onUpdateGameState({
       ...gameState,
       level: 1,
-      points: 0,
-      totalBytesEarned: 0,
       cosmetics: { ...DEFAULT_COSMETICS },
       arenaStats: {
         matchesPlayed: 0,
