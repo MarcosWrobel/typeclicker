@@ -131,9 +131,9 @@ async function runMigration() {
       const nickname = (state.studentNickname || board.apelido || '').trim() || null;
       const turma = (isStaff ? 'Professor' : (save.turma || board.turma || state.studentClass || '')).trim() || null;
       const avatar = state.studentAvatar || board.avatar || (isStaff ? '👨‍🏫' : '👩‍💻');
-      const totalBytes = Number(save.points || board.points || state.totalBytesEarned || 0);
-      const bytes = Number(state.bytes || 0);
-      const level = Number(save.level || board.level || state.level || 1);
+      const totalBytes = Math.round(Number(save.points || board.points || state.totalBytesEarned || 0));
+      const bytes = Math.round(Number(state.bytes || 0));
+      const level = Math.round(Number(save.level || board.level || state.level || 1));
 
       // 1. Perfil Unificado
       profilesToUpsert.push({
@@ -146,10 +146,10 @@ async function runMigration() {
         bytes: bytes,
         total_bytes_earned: totalBytes,
         level: level,
-        level_tokens: Number(cosmetics.levelTokens || 0),
-        duel_tokens: Number(cosmetics.duelTokens || 0),
-        quantum_fragments: Number(cosmetics.quantumFragments || 0),
-        prestige_count: Number(state.prestigeCount || 0),
+        level_tokens: Math.round(Number(cosmetics.levelTokens || 0)),
+        duel_tokens: Math.round(Number(cosmetics.duelTokens || 0)),
+        quantum_fragments: Math.round(Number(cosmetics.quantumFragments || 0)),
+        prestige_count: Math.round(Number(state.prestigeCount || 0)),
         rpg_class: state.rpgClass || board.rpgClass || null,
         equipped_skin: cosmetics.equippedSkin || 'classic',
         equipped_frame: cosmetics.equippedCardFrame || board.cardFrame || null,
@@ -164,15 +164,15 @@ async function runMigration() {
         user_id: userId,
         game_id: 'typeclicker',
         high_score: totalBytes,
-        current_floor: Number(state.dungeonFloor || 1),
-        highest_floor: Number(state.maxDungeonFloor || 1),
+        current_floor: Math.round(Number(state.dungeonFloor || 1)),
+        highest_floor: Math.round(Number(state.maxDungeonFloor || 1)),
         metrics: {
-          wpm: Number(board.wpm || 0),
-          maxCombo: Number(board.maxCombo || 0),
-          accuracy: Number(board.accuracy || 0),
-          pvpWins: Number(board.pvpWins || 0),
-          raceWins: Number(board.raceWins || 0),
-          radarHighScore: Number(board.radarHighScore || 0)
+          wpm: Math.round(Number(board.wpm || 0)),
+          maxCombo: Math.round(Number(board.maxCombo || 0)),
+          accuracy: Number((Number(board.accuracy || 0)).toFixed(1)),
+          pvpWins: Math.round(Number(board.pvpWins || 0)),
+          raceWins: Math.round(Number(board.raceWins || 0)),
+          radarHighScore: Math.round(Number(board.radarHighScore || 0))
         },
         state_payload: state,
         updated_at: new Date().toISOString()
