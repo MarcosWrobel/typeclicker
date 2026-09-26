@@ -258,7 +258,7 @@ A plataforma opera com **custo zero** no tier gratuito do Supabase, calibrada pa
   - `public.profiles`: Leitura pública para pódios/placar; inserção e atualização permitidas apenas para o próprio usuário (`auth.uid() = id`).
   - `public.game_progress`: Leitura pública de pontuações; gravação restrita ao proprietário.
   - `public.user_cosmetics` e `public.user_achievements`: Apenas o dono pode gerenciar seu inventário.
-  - `public.season_history`: Histórico de Hall da Fama aberto para consulta pública.
+  - `public.seasons_history`: Histórico de Hall da Fama aberto para consulta pública.
 - **Anti-Cheat em Camadas:**
   - *Client-side:* Validação de sanidade do estado (`validateStateSanity`) checa deltas máximos por segundo.
   - *Database-side:* Stored Procedure `record_game_session` com validação de caps no PostgreSQL, impedindo adulteração de saldo via DevTools.
@@ -380,6 +380,7 @@ src/
 │   └── utils/
 │       ├── keyboardAccents.ts       # Resolução de dead keys ABNT2
 │       ├── antiCheat.ts             # Validação de sanidade do GameState
+│       ├── leaderboardUtils.ts      # Utilitários puros de ranking, filtro de staff e pioneiros
 │       ├── turmasAggregator.ts      # Agregação de ranking por turma (in-memory)
 │       ├── audio.ts                 # Engine de som com toggle e volume
 │       ├── formatting.ts            # PPM, acurácia, rank, formatBytes

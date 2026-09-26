@@ -1,24 +1,39 @@
 # Backlog de Features — TypeClicker
 
-## Sugeridas
+## Concluídas Recentemente
 
-> Adicione novas features nesta tabela antes de levar para brainstorm com IA.
+| Feature | Dados DB (Supabase / Legado Firestore) | Telas / Arquivos | Complexidade | Status |
+|---|---|---|---|---|
+| **[ARQUITETURA]** Auditoria e Sanitização da Arquitetura Híbrida & Zero Bypasses | `IDatabaseService`, `SupabaseAdapter`, `FirebaseAdapter` | `App.tsx`, `AdminPanel.tsx`, `dbInterface.ts`, `leaderboardUtils.ts` | G | **Concluído (`5f1213c`)** |
+| **[TEMPORADAS]** Suporte a Temporadas Trimestrais no Supabase | `public.profiles(season_bytes)`, `public.seasons_history` | `schema.sql`, `supabaseAdapter.ts`, `dbInterface.ts` | M | **Concluído (`2924470`)** |
+| **[ADMIN]** Painel Docente: Fechamento Seguro de Trimestre com Confirmação | RPC `close_current_season` | `AdminPanel.tsx` | M | **Concluído (`2924470`)** |
+| **[LEADERBOARD]** Seletor de "3º Trimestre (Atual) \| Todos os Tempos \| Hall da Fama" | `public.profiles.season_bytes`, `public.seasons_history` | `LeaderboardModal.tsx` | M | **Concluído (`2924470`)** |
 
-| Feature | Dados DB (Supabase / Legado Firestore) | Telas afetadas | Complexidade P/M/G | Status |
+---
+
+## Prioridades do Backlog
+
+### P1 — Integridade & Segurança
+| Feature | Dados DB (Supabase / Legado Firestore) | Telas afetadas | Complexidade | Status |
+|---|---|---|---|---|
+| **[ANTI-CHEAT]** Chamada atômica de ganho de bytes via RPC `record_game_session` | RPC `record_game_session` (PostgreSQL) | `supabaseAdapter.ts`, `App.tsx` | P | Próxima etapa |
+
+### P2 — Débitos Técnicos e Trilhas Curriculares
+| Feature | Dados DB (Supabase / Legado Firestore) | Telas afetadas | Complexidade | Status |
 |---|---|---|---|---|
 | **[BUG]** Corrigir `hackTokens` → `cosmetics.levelTokens` no Baú Criptográfico | `game_progress.state_payload` / `saves/{uid}` | `App.tsx:905` | P | Bug confirmado |
 | **[DÉBITO]** Migrar `TypeRadarGame.onExitToHub` para novo `GameExitPayload` | `game_progress.state_payload.arcadeHistory` | `App.tsx`, `TypeRadarGame.tsx` | P | Débito técnico |
 | **[DÉBITO]** Implementar normalização de bytes no Hub para jogos plug-in | nenhum (lógica pura) | `App.tsx` (handler de saída de plug-ins) | P | Débito técnico |
 | Finalizar trilhas curriculares (Scratch, Web, Empresarial, Inglês) | `system/settings.activeTrack` | `words.ts`, `App.tsx` | M | Em andamento |
+
+### P3 — Novos Jogos e Expansão do Hub
+| Feature | Dados DB (Supabase / Legado Firestore) | Telas afetadas | Complexidade | Status |
+|---|---|---|---|---|
 | **[PROFESSOR]** Implementar `byte_logic` | `public.game_progress` (Supabase) | `GameSelectionScreen`, `App.tsx` | M | Pendente |
 | **[PROFESSOR]** Implementar `math_storm` | `public.game_progress` (Supabase) | `GameSelectionScreen`, `App.tsx` | M | Pendente |
 | **[PROFESSOR]** Implementar `syntax_maze` | `public.game_progress` (Supabase) | `GameSelectionScreen`, `App.tsx` | M | Pendente |
 | **[ALUNOS]** Integrar 1º jogo de aluno (ID definido pelo professor) | `public.game_progress` (Supabase) | `GameSelectionScreen`, `App.tsx` | M | Aguardando entrega |
 | Scheduler automático de backups | `backups/{backupId}` | Admin panel | G | Ideia |
-| **[TEMPORADAS]** Suporte a Temporadas Trimestrais no Supabase | `public.profiles(season_bytes)`, `public.season_history` | `schema.sql`, `supabaseAdapter.ts` | M | Pronto no Schema / Em planejamento UI |
-| **[ADMIN]** Painel Docente: Fechamento de Trimestre / Novo Trimestre | RPC `close_current_season` | `AdminPanel.tsx` | M | Em planejamento UI |
-| **[LEADERBOARD]** Seletor de "Trimestre Atual vs Todos os Tempos" & Hall da Fama | `public.profiles.season_bytes`, `public.season_history` | `LeaderboardModal.tsx` | M | Em planejamento UI |
-| **[ANTI-CHEAT]** Chamada atômica de ganho de bytes via RPC `record_game_session` | RPC `record_game_session` | `supabaseAdapter.ts`, `App.tsx` | P | Pendente |
 
 ---
 

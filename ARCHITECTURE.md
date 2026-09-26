@@ -30,9 +30,10 @@
 - **Anti-Cheat em Camadas**:
   - Client: Verificação de deltas máximos por segundo antes do envio.
   - Database: Stored Procedure `record_game_session` com validação de caps no PostgreSQL.
-- **Temporadas Bimestrais**:
-  - `season_bytes`: Acumulado do bimestre letivo.
-  - `public.season_history`: Tabela de arquivo do Hall da Fama ao encerramento do bimestre pelo professor. Saldo vitalício de moedas e prestígio geral nunca são zerados.
+- **Temporadas Trimestrais (Ciclo Oficial SEED-PR)**:
+  - `season_bytes`: Acumulado do trimestre letivo no perfil do aluno (`public.profiles`).
+  - `public.seasons_history`: Tabela de arquivo do Hall da Fama ao encerramento do trimestre pelo professor via RPC `close_current_season`. Saldo vitalício de moedas e prestígio geral nunca são zerados.
+  - Pódio memorial Top 3 e histórico integral com busca e filtros por turma.
 
 ## Escopo Universal e Organização de Pastas
 
@@ -65,5 +66,26 @@ Todos os novos jogos — tanto os criados pelo professor quanto os criados por a
 - **Normalização de bytes**: o Hub aplica `min(bytesEarned, timeSpentSeconds × CAP × accuracyFactor)` — o jogo entrega métricas brutas, o Hub decide o crédito final
 - **Histórico**: cada saída gera um `ArcadeMatchRecord` salvo em `GameState.arcadeHistory` (array circular, máx 10)
 
-## Fluxo de autenticação e Modelo de Dados
-(Mantidos conforme padrão do TypeClicker original — ver detalhes no código).
+## Contrato Unificado de Persistência & Diretriz de Zero Bypasses
+
+Para garantir que a plataforma opere sem acoplamento a um provedor específico de banco de dados e permita alternância transparente via `VITE_DB_PROVIDER`, toda a camada visual segue a diretriz estrita de **Zero Bypasses**:
+
+1. **Acesso Mediado por `dbService`**:
+   - Nenhum componente React, hook ou utilitário da interface de usuário pode chamar métodos diretos de SDKs de banco de dados (`firebase/firestore`, `setDoc`, `getDoc`, `@supabase/supabase-js`, ou métodos do `firebaseService.ts` que manipulem dados).
+   - Qualquer operação de leitura, escrita ou administrativa deve constar na interface [`IDatabaseService`](src/services/dbInterface.ts) e ser executada através da instância injetada [`dbService`](src/services/dbFactory.ts).
+
+2. **Isolamento de Utilitários Puros**:
+   - Regras de filtragem de contas de equipe pedagógica (`isStaffMember`), identificação de pioneiros do Nível 100 (`extractLevel100Pioneers`) e listas de superadministradores (`ADMIN_EMAILS`) residem no módulo desacoplado [`src/utils/leaderboardUtils.ts`](src/utils/leaderboardUtils.ts), sem dependências de infraestrutura de banco.
+
+3. **Operações Administrativas no Contrato**:
+   - Consultas de dashboard docente (`getAdminDashboardData`), atualizações de turma e classe RPG (`adminUpdateStudentProfile`), auto-balanceamento de classes (`adminAutoBalanceRpgClasses`), higienização de placares (`sanitizeStaffLeaderboard`) e reset de banco (`wipeDatabase`) possuem implementações completas e equivalentes tanto no `SupabaseAdapter` quanto no `FirebaseAdapter`.
+
+---
+
+## Histórico de Sanitização da Arquitetura Híbrida
+
+| Ciclo | Commit | Escopo | Descrição das Intervenções |
+|---|---|---|---|
+| **Auditoria & Sanitização de Bypasses** | `5f1213c` | `App.tsx`, `AdminPanel.tsx`, `adapters/*`, `dbInterface.ts`, `leaderboardUtils.ts` | • Eliminados 14 pontos de bypass onde `saveProgressToCloud` burlava o provedor ativo;<br>• Todas as gravações de estado redirecionadas para `dbService.saveLegacyGameState`;<br>• Extensão de `IDatabaseService` com 5 operações administrativas implementadas no `SupabaseAdapter` e `FirebaseAdapter`;<br>• Extração de utilitários puros para `leaderboardUtils.ts` e desacoplamento de 8 componentes visuais/hooks de `firebaseService`. |
+| **Temporadas Trimestrais & Hall da Fama** | `2924470` | `LeaderboardModal.tsx`, `AdminPanel.tsx`, `schema.sql`, `supabaseAdapter.ts` | • Ciclo trimestral alinhado ao calendário SEED-PR;<br>• Seletor "3º Trimestre (Atual) \| Todos os Tempos \| Hall da Fama";<br>• Pódio comemorativo e memorial histórico Top 3;<br>• Fechamento seguro de temporada no painel docente com confirmação digitada (`"CONFIRMAR"`). |
+| **Migração Baseline v1.0.0** | `5b4aaa5` | Core Platform | • Baseline de referência estável da plataforma com arquitetura original Cloud Firestore. |
