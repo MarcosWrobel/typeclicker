@@ -2,7 +2,7 @@ import { IDatabaseService, UserProfile, GameSessionPayload } from '../dbInterfac
 import { db, loadProgressFromCloud, getGlobalLeaderboard } from '../firebaseService';
 import { doc, getDoc, setDoc, updateDoc, collection, query, orderBy, limit, getDocs, where } from 'firebase/firestore';
 import { GameState } from '../../types';
-import { CloudLoadResponse, LeaderboardEntry } from '../../types/leaderboard';
+import { CloudLoadResponse, LeaderboardEntry, SeasonHistoryEntry } from '../../types/leaderboard';
 
 export class FirebaseAdapter implements IDatabaseService {
   async loadGameState(userId: string): Promise<CloudLoadResponse> {
@@ -143,4 +143,22 @@ export class FirebaseAdapter implements IDatabaseService {
       lastUpdated: Date.now()
     }, { merge: true });
   }
+
+  async getSeasonLeaderboard(forceRefresh: boolean = false): Promise<LeaderboardEntry[]> {
+    return this.getGlobalLeaderboard(forceRefresh);
+  }
+
+  async getSeasonHistory(seasonId: string): Promise<SeasonHistoryEntry[]> {
+    return [];
+  }
+
+  async getArchivedSeasonsList(): Promise<{ seasonId: string; seasonName: string; closedAt: string }[]> {
+    return [];
+  }
+
+  async closeCurrentSeason(seasonId: string, seasonName: string): Promise<number> {
+    console.warn('closeCurrentSeason não é suportado no Firestore legado.');
+    return 0;
+  }
 }
+

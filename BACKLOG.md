@@ -15,9 +15,9 @@
 | **[PROFESSOR]** Implementar `syntax_maze` | `public.game_progress` (Supabase) | `GameSelectionScreen`, `App.tsx` | M | Pendente |
 | **[ALUNOS]** Integrar 1º jogo de aluno (ID definido pelo professor) | `public.game_progress` (Supabase) | `GameSelectionScreen`, `App.tsx` | M | Aguardando entrega |
 | Scheduler automático de backups | `backups/{backupId}` | Admin panel | G | Ideia |
-| **[TEMPORADAS]** Suporte a Temporadas Bimestrais no Supabase | `public.profiles(season_bytes)`, `public.season_history` | `schema.sql`, `supabaseAdapter.ts` | M | Pronto no Schema / Pendente UI |
-| **[ADMIN]** Painel Docente: Fechamento de Bimestre / Nova Temporada | RPC `close_current_season` | `AdminPanel.tsx` | M | Pendente |
-| **[LEADERBOARD]** Seletor de "Bimestre Atual vs Todos os Tempos" | `public.profiles.season_bytes`, `public.season_history` | `LeaderboardModal.tsx` | M | Pendente |
+| **[TEMPORADAS]** Suporte a Temporadas Trimestrais no Supabase | `public.profiles(season_bytes)`, `public.season_history` | `schema.sql`, `supabaseAdapter.ts` | M | Pronto no Schema / Em planejamento UI |
+| **[ADMIN]** Painel Docente: Fechamento de Trimestre / Novo Trimestre | RPC `close_current_season` | `AdminPanel.tsx` | M | Em planejamento UI |
+| **[LEADERBOARD]** Seletor de "Trimestre Atual vs Todos os Tempos" & Hall da Fama | `public.profiles.season_bytes`, `public.season_history` | `LeaderboardModal.tsx` | M | Em planejamento UI |
 | **[ANTI-CHEAT]** Chamada atômica de ganho de bytes via RPC `record_game_session` | RPC `record_game_session` | `supabaseAdapter.ts`, `App.tsx` | P | Pendente |
 
 ---

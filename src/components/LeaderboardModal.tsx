@@ -17,9 +17,13 @@ import {
   Award,
   Star,
   Medal,
-  Radio
+  Radio,
+  Globe,
+  Landmark,
+  Sparkles
 } from 'lucide-react';
 import { LeaderboardEntry, isStaffMember, extractLevel100Pioneers } from '../services/firebaseService';
+import { SeasonHistoryEntry } from '../types/leaderboard';
 import { dbService } from '../services/dbFactory';
 import { Level100PioneersWidget } from './Level100PioneersWidget';
 import { StudentProfileCardModal } from './StudentProfileCardModal';
@@ -205,6 +209,13 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
   // Aluno selecionado para exibição do Card Colecionável de Perfil
   const [selectedCardPlayer, setSelectedCardPlayer] = useState<LeaderboardEntry | null>(null);
 
+  // Escopo de Temporada: Trimestre Atual (padrão) vs Todos os Tempos vs Hall da Fama
+  const [seasonScope, setSeasonScope] = useState<'trimester' | 'all_time' | 'hall_of_fame'>('trimester');
+  const [archivedSeasons, setArchivedSeasons] = useState<{ seasonId: string; seasonName: string; closedAt: string }[]>([]);
+  const [selectedArchivedSeasonId, setSelectedArchivedSeasonId] = useState<string>('');
+  const [archivedSeasonHistory, setArchivedSeasonHistory] = useState<SeasonHistoryEntry[]>([]);
+  const [isLoadingArchived, setIsLoadingArchived] = useState<boolean>(false);
+
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -225,15 +236,21 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
       if (initialTab) {
         setActiveRankTab(normalizeTab(initialTab));
       }
-      loadLeaderboard(false);
+      if (seasonScope === 'hall_of_fame') {
+        loadArchivedSeasons();
+      } else {
+        loadLeaderboard(false);
+      }
     }
-  }, [isOpen, initialTab]);
+  }, [isOpen, initialTab, seasonScope]);
 
   const loadLeaderboard = async (force: boolean = false) => {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await dbService.getGlobalLeaderboard(force);
+      const data = seasonScope === 'trimester'
+        ? await dbService.getSeasonLeaderboard(force)
+        : await dbService.getGlobalLeaderboard(force);
       // Garantia estrita: nenhum professor ou admin aparece nos rankings
       const cleanStudentsOnly = data.filter((player) => !isStaffMember(player));
       setRankings(cleanStudentsOnly);
@@ -241,6 +258,39 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
       setError(err.message || 'Erro ao carregar ranking escolar.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadArchivedSeasons = async () => {
+    setIsLoadingArchived(true);
+    try {
+      const list = await dbService.getArchivedSeasonsList();
+      setArchivedSeasons(list);
+      if (list.length > 0 && !selectedArchivedSeasonId) {
+        setSelectedArchivedSeasonId(list[0].seasonId);
+      }
+    } catch (err) {
+      console.error('Erro ao carregar temporadas arquivadas:', err);
+    } finally {
+      setIsLoadingArchived(false);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedArchivedSeasonId && seasonScope === 'hall_of_fame') {
+      loadArchivedHistory(selectedArchivedSeasonId);
+    }
+  }, [selectedArchivedSeasonId, seasonScope]);
+
+  const loadArchivedHistory = async (sId: string) => {
+    setIsLoadingArchived(true);
+    try {
+      const history = await dbService.getSeasonHistory(sId);
+      setArchivedSeasonHistory(history);
+    } catch (err) {
+      console.error('Erro ao carregar histórico do trimestre:', err);
+    } finally {
+      setIsLoadingArchived(false);
     }
   };
 
@@ -346,8 +396,10 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
 
       case 'bytes':
         return list.sort((a, b) => {
-          if ((b.points || 0) !== (a.points || 0)) {
-            return (b.points || 0) - (a.points || 0);
+          const bytesA = seasonScope === 'trimester' ? (a.seasonBytes ?? a.points ?? 0) : (a.points || 0);
+          const bytesB = seasonScope === 'trimester' ? (b.seasonBytes ?? b.points ?? 0) : (b.points || 0);
+          if (bytesB !== bytesA) {
+            return bytesB - bytesA;
           }
           return (b.level || 0) - (a.level || 0);
         });
@@ -386,9 +438,13 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
         });
 
       default:
-        return list.sort((a, b) => (b.points || 0) - (a.points || 0));
+        return list.sort((a, b) => {
+          const ptsA = seasonScope === 'trimester' ? (a.seasonBytes ?? a.points ?? 0) : (a.points || 0);
+          const ptsB = seasonScope === 'trimester' ? (b.seasonBytes ?? b.points ?? 0) : (b.points || 0);
+          return ptsB - ptsA;
+        });
     }
-  }, [rankings, activeRankTab]);
+  }, [rankings, activeRankTab, seasonScope]);
 
   // Pioneiros da História no Nível 100 (Top 3 Alunos)
   const level100Pioneers = useMemo(() => {
@@ -467,6 +523,17 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
     return idx >= 0 ? idx + 1 : null;
   }, [classStatsList, currentUserClass]);
 
+  const filteredArchivedHistory = useMemo(() => {
+    return archivedSeasonHistory.filter((item) => {
+      const term = searchQuery.trim().toLowerCase();
+      const matchesSearch = !term ||
+        item.displayName.toLowerCase().includes(term) ||
+        (item.turma && item.turma.toLowerCase().includes(term));
+      const matchesTurma = selectedTurma === 'todas' || (item.turma && item.turma.toLowerCase() === selectedTurma.toLowerCase());
+      return matchesSearch && matchesTurma;
+    });
+  }, [archivedSeasonHistory, searchQuery, selectedTurma]);
+
   const activeSerieConfig = SERIES_CONFIG.find((s) => s.id === selectedSerie) || SERIES_CONFIG[0];
   const ActiveIcon = currentMetric.icon;
 
@@ -492,12 +559,16 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
               <div className="flex items-center gap-3 min-w-0">
                 <div
                   className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all flex-shrink-0 ${
-                    viewMode === 'guerra_turmas'
+                    seasonScope === 'hall_of_fame'
+                      ? 'bg-yellow-500/20 border-yellow-500/50 text-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.25)]'
+                      : viewMode === 'guerra_turmas'
                       ? 'bg-amber-500/20 border-amber-500/50 text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.25)]'
                       : `${currentMetric.badgeBg} ${currentMetric.badgeBorder} ${currentMetric.color}`
                   }`}
                 >
-                  {viewMode === 'guerra_turmas' ? (
+                  {seasonScope === 'hall_of_fame' ? (
+                    <Landmark className="w-5 h-5 text-yellow-400" />
+                  ) : viewMode === 'guerra_turmas' ? (
                     <Shield className="w-5 h-5 text-amber-400" />
                   ) : (
                     <ActiveIcon className={`w-5 h-5 ${currentMetric.color}`} />
@@ -506,22 +577,32 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                 <div className="min-w-0">
                   <h2 className="text-base sm:text-lg font-black text-white tracking-wide flex items-center gap-2 truncate">
                     <span>
-                      {viewMode === 'guerra_turmas'
+                      {seasonScope === 'hall_of_fame'
+                        ? 'HALL DA FAMA: MEMORIAL DE CAMPEÕES'
+                        : viewMode === 'guerra_turmas'
                         ? 'GUERRA DE TURMAS: CAMPEONATO'
                         : currentMetric.title}
                     </span>
                     <span
                       className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border hidden sm:inline-block ${
-                        viewMode === 'guerra_turmas'
+                        seasonScope === 'hall_of_fame'
+                          ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40'
+                          : viewMode === 'guerra_turmas'
                           ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
                           : `${currentMetric.badgeBg} ${currentMetric.badgeText} ${currentMetric.badgeBorder}`
                       }`}
                     >
-                      {viewMode === 'guerra_turmas' ? '🛡️ Disputa Coletiva' : currentMetric.badgeTag}
+                      {seasonScope === 'hall_of_fame'
+                        ? '🏛️ Temporadas Concluídas'
+                        : viewMode === 'guerra_turmas'
+                        ? '🛡️ Disputa Coletiva'
+                        : currentMetric.badgeTag}
                     </span>
                   </h2>
                   <p className="text-xs text-zinc-400 truncate">
-                    {viewMode === 'guerra_turmas'
+                    {seasonScope === 'hall_of_fame'
+                      ? 'Pódio eterno e classificação consolidada dos trimestres escolares encerrados'
+                      : viewMode === 'guerra_turmas'
                       ? 'Classificação inter-classes por rendimento geral, média de nível, velocidade e bytes'
                       : currentMetric.description}
                   </p>
@@ -529,33 +610,35 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
               </div>
 
               <div className="flex items-center gap-2 flex-shrink-0">
-                {/* Alternador de Modo: Individual vs Guerra de Turmas */}
-                <div className="flex items-center p-1 bg-zinc-900/90 rounded-xl border border-white/10">
-                  <button
-                    type="button"
-                    onClick={() => setViewMode('individual')}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                      viewMode === 'individual'
-                        ? 'bg-zinc-800 text-white shadow-sm'
-                        : 'text-zinc-400 hover:text-zinc-200'
-                    }`}
-                  >
-                    <Users className="w-3.5 h-3.5" />
-                    <span>Individual</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setViewMode('guerra_turmas')}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black transition cursor-pointer ${
-                      viewMode === 'guerra_turmas'
-                        ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-black shadow-md shadow-amber-500/20'
-                        : 'text-amber-400 hover:text-amber-300'
-                    }`}
-                  >
-                    <Shield className="w-3.5 h-3.5" />
-                    <span>Guerra de Turmas 🛡️</span>
-                  </button>
-                </div>
+                {/* Alternador de Modo: Individual vs Guerra de Turmas (somente se não for Hall da Fama) */}
+                {seasonScope !== 'hall_of_fame' && (
+                  <div className="flex items-center p-1 bg-zinc-900/90 rounded-xl border border-white/10">
+                    <button
+                      type="button"
+                      onClick={() => setViewMode('individual')}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                        viewMode === 'individual'
+                          ? 'bg-zinc-800 text-white shadow-sm'
+                          : 'text-zinc-400 hover:text-zinc-200'
+                      }`}
+                    >
+                      <Users className="w-3.5 h-3.5" />
+                      <span>Individual</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setViewMode('guerra_turmas')}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black transition cursor-pointer ${
+                        viewMode === 'guerra_turmas'
+                          ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-black shadow-md shadow-amber-500/20'
+                          : 'text-amber-400 hover:text-amber-300'
+                      }`}
+                    >
+                      <Shield className="w-3.5 h-3.5" />
+                      <span>Guerra de Turmas 🛡️</span>
+                    </button>
+                  </div>
+                )}
 
                 <button
                   type="button"
@@ -568,101 +651,225 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
               </div>
             </div>
 
-            {/* Barra de Seleção de Métricas (Individual vs Guerra de Turmas) */}
-            <div className="flex-shrink-0 bg-[#0c0e15] border-b border-white/10 px-3 sm:px-6 py-2 overflow-x-auto">
-              <div className="flex items-center gap-1.5 sm:gap-2 min-w-max">
-                {viewMode === 'individual' ? (
-                  METRIC_TABS.map((tab) => {
-                    const isSelected = activeRankTab === tab.id;
-                    const TabIcon = tab.icon;
-                    return (
-                      <button
-                        key={tab.id}
-                        type="button"
-                        onClick={() => setActiveRankTab(tab.id)}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border select-none ${
-                          isSelected
-                            ? `${tab.badgeBg} ${tab.badgeText} ${tab.badgeBorder} shadow-sm ring-1 ring-white/10`
-                            : 'bg-zinc-900/60 text-zinc-400 border-zinc-800 hover:text-zinc-200 hover:bg-zinc-800/60'
-                        }`}
-                        title={tab.description}
-                      >
-                        <TabIcon className={`w-3.5 h-3.5 ${isSelected ? tab.color : 'text-zinc-500'}`} />
-                        <span>{tab.label}</span>
-                      </button>
-                    );
-                  })
-                ) : (
-                  <>
-                    {[
-                      { id: 'score' as ClassRankingSortMetric, label: '🏆 Rendimento Geral', desc: 'Pontuação ponderada de engajamento, nível e velocidade' },
-                      { id: 'avgLevel' as ClassRankingSortMetric, label: '📈 Média de Nível', desc: 'Média aritmética do nível dos alunos da sala' },
-                      { id: 'avgWpm' as ClassRankingSortMetric, label: '⚡ Velocidade Coletiva (PPM)', desc: 'Média de palavras por minuto de toda a turma' },
-                      { id: 'totalBytes' as ClassRankingSortMetric, label: '💾 Volume de Bytes', desc: 'Total acumulado de bytes digitados pela turma' },
-                      { id: 'raceWins' as ClassRankingSortMetric, label: '🏁 Vitórias em Corridas', desc: 'Total de vitórias em corridas escolares ao vivo' }
-                    ].map((metric) => {
-                      const isSelected = classSortMetric === metric.id;
-                      return (
-                        <button
-                          key={metric.id}
-                          type="button"
-                          onClick={() => setClassSortMetric(metric.id)}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border select-none ${
-                            isSelected
-                              ? 'bg-amber-500/20 text-amber-300 border-amber-500/60 shadow-sm ring-1 ring-amber-500/20'
-                              : 'bg-zinc-900/60 text-zinc-400 border-zinc-800 hover:text-zinc-200 hover:bg-zinc-800/60'
-                          }`}
-                          title={metric.desc}
-                        >
-                          <span>{metric.label}</span>
-                        </button>
-                      );
-                    })}
-                  </>
+            {/* Barra de Escopo de Temporada */}
+            <div className="flex-shrink-0 bg-[#0e111a] border-b border-white/10 px-3 sm:px-6 py-2 flex items-center justify-between gap-3 overflow-x-auto">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSeasonScope('trimester')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border select-none ${
+                    seasonScope === 'trimester'
+                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/60 shadow-[0_0_15px_rgba(245,158,11,0.2)] ring-1 ring-amber-500/30'
+                      : 'bg-zinc-900/60 text-zinc-400 border-zinc-800 hover:text-zinc-200 hover:bg-zinc-800/60'
+                  }`}
+                >
+                  <Trophy className="w-3.5 h-3.5 text-amber-400" />
+                  <span>3º Trimestre (Atual)</span>
+                  <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.2 rounded-full font-mono uppercase font-black">
+                    Ao Vivo
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSeasonScope('all_time')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border select-none ${
+                    seasonScope === 'all_time'
+                      ? 'bg-purple-500/20 text-purple-300 border-purple-500/60 shadow-[0_0_15px_rgba(168,85,247,0.2)] ring-1 ring-purple-500/30'
+                      : 'bg-zinc-900/60 text-zinc-400 border-zinc-800 hover:text-zinc-200 hover:bg-zinc-800/60'
+                  }`}
+                >
+                  <Globe className="w-3.5 h-3.5 text-purple-400" />
+                  <span>Todos os Tempos</span>
+                  <span className="text-[10px] bg-zinc-800 text-zinc-400 border border-zinc-700/60 px-1.5 py-0.2 rounded-full font-mono">
+                    Vitalício
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSeasonScope('hall_of_fame')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border select-none ${
+                    seasonScope === 'hall_of_fame'
+                      ? 'bg-yellow-500/25 text-yellow-300 border-yellow-500/60 shadow-[0_0_20px_rgba(234,179,8,0.25)] ring-1 ring-yellow-500/30'
+                      : 'bg-zinc-900/60 text-zinc-400 border-zinc-800 hover:text-zinc-200 hover:bg-zinc-800/60'
+                  }`}
+                >
+                  <Landmark className="w-3.5 h-3.5 text-yellow-400" />
+                  <span>Hall da Fama 🏛️</span>
+                  {archivedSeasons.length > 0 && (
+                    <span className="text-[10px] bg-yellow-500/20 text-yellow-300 border border-yellow-500/40 px-1.5 py-0.2 rounded-full font-mono">
+                      {archivedSeasons.length}
+                    </span>
+                  )}
+                </button>
+              </div>
+
+              <div className="text-[11px] font-mono text-zinc-400 hidden md:flex items-center gap-1.5">
+                {seasonScope === 'trimester' && (
+                  <span className="text-amber-400/90 font-semibold">
+                    📅 Ciclo Letivo Atual • SEED-PR
+                  </span>
+                )}
+                {seasonScope === 'all_time' && (
+                  <span className="text-purple-400/90 font-semibold">
+                    💾 Histórico acumulado desde o início
+                  </span>
+                )}
+                {seasonScope === 'hall_of_fame' && (
+                  <span className="text-yellow-400/90 font-semibold">
+                    👑 Pódio memorial dos campeões de trimestres encerrados
+                  </span>
                 )}
               </div>
             </div>
 
-            {/* Seletor de Séries em Abas */}
-            <div className="flex-shrink-0 bg-[#0c0e14] border-b border-white/10 px-2 sm:px-6 pt-2 overflow-x-auto">
-              <div className="flex items-center gap-1.5 sm:gap-2 min-w-max pb-2">
-                {SERIES_CONFIG.map((serie) => {
-                  const isActive = selectedSerie === serie.id;
-                  const count = countsBySerie[serie.id] || 0;
-
-                  return (
-                    <button
-                      key={serie.id}
-                      type="button"
-                      onClick={() => handleSelectSerie(serie.id)}
-                      className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer select-none border ${
-                        isActive
-                          ? `${currentMetric.badgeBg} ${currentMetric.badgeText} ${currentMetric.badgeBorder} shadow-sm`
-                          : 'bg-zinc-900/60 text-zinc-400 border-zinc-800 hover:text-zinc-200 hover:bg-zinc-800/60'
-                      }`}
-                      title={serie.description}
-                    >
-                      <span className="text-sm select-none">{serie.icon}</span>
-                      <span>{serie.label}</span>
-                      <span
-                        className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full border ${
-                          isActive
-                            ? `${currentMetric.badgeBg} ${currentMetric.badgeText} ${currentMetric.badgeBorder}`
-                            : 'bg-zinc-800 text-zinc-400 border-zinc-700/50'
-                        }`}
-                      >
-                        {count}
-                      </span>
-                    </button>
-                  );
-                })}
+            {/* Barra de Seleção de Métricas (Individual vs Guerra de Turmas) - Apenas fora do Hall da Fama */}
+            {seasonScope !== 'hall_of_fame' && (
+              <div className="flex-shrink-0 bg-[#0c0e15] border-b border-white/10 px-3 sm:px-6 py-2 overflow-x-auto">
+                <div className="flex items-center gap-1.5 sm:gap-2 min-w-max">
+                  {viewMode === 'individual' ? (
+                    METRIC_TABS.map((tab) => {
+                      const isSelected = activeRankTab === tab.id;
+                      const TabIcon = tab.icon;
+                      return (
+                        <button
+                          key={tab.id}
+                          type="button"
+                          onClick={() => setActiveRankTab(tab.id)}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border select-none ${
+                            isSelected
+                              ? `${tab.badgeBg} ${tab.badgeText} ${tab.badgeBorder} shadow-sm ring-1 ring-white/10`
+                              : 'bg-zinc-900/60 text-zinc-400 border-zinc-800 hover:text-zinc-200 hover:bg-zinc-800/60'
+                          }`}
+                          title={tab.description}
+                        >
+                          <TabIcon className={`w-3.5 h-3.5 ${isSelected ? tab.color : 'text-zinc-500'}`} />
+                          <span>{tab.label}</span>
+                        </button>
+                      );
+                    })
+                  ) : (
+                    <>
+                      {[
+                        { id: 'score' as ClassRankingSortMetric, label: '🏆 Rendimento Geral', desc: 'Pontuação ponderada de engajamento, nível e velocidade' },
+                        { id: 'avgLevel' as ClassRankingSortMetric, label: '📈 Média de Nível', desc: 'Média aritmética do nível dos alunos da sala' },
+                        { id: 'avgWpm' as ClassRankingSortMetric, label: '⚡ Velocidade Coletiva (PPM)', desc: 'Média de palavras por minuto de toda a turma' },
+                        { id: 'totalBytes' as ClassRankingSortMetric, label: '💾 Volume de Bytes', desc: 'Total acumulado de bytes digitados pela turma' },
+                        { id: 'raceWins' as ClassRankingSortMetric, label: '🏁 Vitórias em Corridas', desc: 'Total de vitórias em corridas escolares ao vivo' }
+                      ].map((metric) => {
+                        const isSelected = classSortMetric === metric.id;
+                        return (
+                          <button
+                            key={metric.id}
+                            type="button"
+                            onClick={() => setClassSortMetric(metric.id)}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border select-none ${
+                              isSelected
+                                ? 'bg-amber-500/20 text-amber-300 border-amber-500/60 shadow-sm ring-1 ring-amber-500/20'
+                                : 'bg-zinc-900/60 text-zinc-400 border-zinc-800 hover:text-zinc-200 hover:bg-zinc-800/60'
+                            }`}
+                            title={metric.desc}
+                          >
+                            <span>{metric.label}</span>
+                          </button>
+                        );
+                      })}
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* Seletor de Séries em Abas - Apenas fora do Hall da Fama */}
+            {seasonScope !== 'hall_of_fame' && (
+              <div className="flex-shrink-0 bg-[#0c0e14] border-b border-white/10 px-2 sm:px-6 pt-2 overflow-x-auto">
+                <div className="flex items-center gap-1.5 sm:gap-2 min-w-max pb-2">
+                  {SERIES_CONFIG.map((serie) => {
+                    const isActive = selectedSerie === serie.id;
+                    const count = countsBySerie[serie.id] || 0;
+
+                    return (
+                      <button
+                        key={serie.id}
+                        type="button"
+                        onClick={() => handleSelectSerie(serie.id)}
+                        className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer select-none border ${
+                          isActive
+                            ? `${currentMetric.badgeBg} ${currentMetric.badgeText} ${currentMetric.badgeBorder} shadow-sm`
+                            : 'bg-zinc-900/60 text-zinc-400 border-zinc-800 hover:text-zinc-200 hover:bg-zinc-800/60'
+                        }`}
+                        title={serie.description}
+                      >
+                        <span className="text-sm select-none">{serie.icon}</span>
+                        <span>{serie.label}</span>
+                        <span
+                          className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full border ${
+                            isActive
+                              ? `${currentMetric.badgeBg} ${currentMetric.badgeText} ${currentMetric.badgeBorder}`
+                              : 'bg-zinc-800 text-zinc-400 border-zinc-700/50'
+                          }`}
+                        >
+                          {count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Barra de Filtro Secundário e Busca */}
             <div className="flex-shrink-0 px-3 sm:px-6 py-2.5 bg-[#12151f] border-b border-white/5 flex flex-wrap items-center justify-between gap-2.5">
               <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
-                {viewMode === 'individual' ? (
+                {seasonScope === 'hall_of_fame' ? (
+                  <>
+                    {/* Seletor de Temporada Arquivada */}
+                    {archivedSeasons.length > 0 ? (
+                      <div className="flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/30 rounded-lg px-2.5 py-1.5 text-xs">
+                        <Landmark className="w-3.5 h-3.5 text-yellow-400 flex-shrink-0" />
+                        <span className="text-yellow-300 font-bold hidden sm:inline">Edição:</span>
+                        <select
+                          value={selectedArchivedSeasonId}
+                          onChange={(e) => setSelectedArchivedSeasonId(e.target.value)}
+                          className="bg-transparent text-xs font-bold text-white focus:outline-none cursor-pointer"
+                        >
+                          {archivedSeasons.map((s) => (
+                            <option key={s.seasonId} value={s.seasonId} className="bg-[#12151f] text-white">
+                              {s.seasonName}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 text-xs text-yellow-400/90 font-mono font-bold">
+                        <Sparkles className="w-3.5 h-3.5 text-yellow-400" />
+                        <span>Aguardando encerramento do 3º Trimestre</span>
+                      </div>
+                    )}
+
+                    {/* Filtro de Turma para o Hall da Fama */}
+                    {archivedSeasons.length > 0 && (
+                      <div className="flex items-center gap-1.5 bg-zinc-900/90 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs">
+                        <Filter className="w-3.5 h-3.5 text-yellow-400 flex-shrink-0" />
+                        <select
+                          value={selectedTurma}
+                          onChange={(e) => setSelectedTurma(e.target.value)}
+                          className="bg-transparent text-xs font-semibold text-zinc-200 focus:outline-none cursor-pointer"
+                        >
+                          <option value="todas" className="bg-[#12151f] text-white">
+                            Todas as Turmas
+                          </option>
+                          {availableTurmasForActiveSerie.map((t) => (
+                            <option key={t} value={t} className="bg-[#12151f] text-white">
+                              Turma {t}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                  </>
+                ) : viewMode === 'individual' ? (
                   <>
                     {/* Seletor de Turma Específica */}
                     <div className="flex items-center gap-1.5 bg-zinc-900/90 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs">
@@ -754,6 +961,211 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                     Tentar Novamente
                   </button>
                 </div>
+              ) : seasonScope === 'hall_of_fame' ? (
+                isLoadingArchived ? (
+                  <div className="flex flex-col items-center justify-center h-64 text-yellow-400 gap-3">
+                    <Loader2 className="w-8 h-8 animate-spin" />
+                    <span className="text-sm font-semibold">Carregando memorial de campeões...</span>
+                  </div>
+                ) : archivedSeasons.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-16 text-center max-w-lg mx-auto gap-4 p-8 rounded-2xl bg-gradient-to-b from-yellow-500/10 via-zinc-900/60 to-[#10131a] border border-yellow-500/20 shadow-2xl">
+                    <div className="w-20 h-20 rounded-2xl bg-yellow-500/20 border border-yellow-500/40 flex items-center justify-center text-4xl shadow-[0_0_30px_rgba(234,179,8,0.25)]">
+                      🏛️
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-black text-white">O Hall da Fama Aguarda Seus Primeiros Campeões!</h3>
+                      <p className="text-xs text-zinc-300 leading-relaxed mt-2">
+                        O <strong className="text-amber-300">3º Trimestre de 2026</strong> está em andamento. Ao término do trimestre letivo, os 3 maiores digitadores e todas as colocações finais serão imortalizados aqui neste memorial para a história do colégio.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSeasonScope('trimester')}
+                      className="mt-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-yellow-500 via-amber-500 to-orange-500 text-black font-black text-xs hover:brightness-110 shadow-lg shadow-amber-500/25 transition cursor-pointer flex items-center gap-2"
+                    >
+                      <Trophy className="w-4 h-4 text-black" />
+                      <span>Ver Disputa do 3º Trimestre (Ao Vivo)</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {/* Pódio dos 3 Campeões da Temporada */}
+                    {archivedSeasonHistory.length >= 1 && (
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                        {/* 2º Lugar (Prata) */}
+                        {archivedSeasonHistory[1] ? (
+                          <div className="order-2 sm:order-1 p-4 rounded-2xl bg-gradient-to-b from-slate-400/15 via-zinc-900/60 to-zinc-950 border border-slate-400/30 flex flex-col items-center text-center justify-between shadow-lg">
+                            <div className="flex flex-col items-center gap-1.5">
+                              <span className="text-3xl">🥈</span>
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-slate-400/20 text-slate-200 border border-slate-400/30">
+                                2º Lugar • Vice-Campeão
+                              </span>
+                              <div className="w-12 h-12 rounded-xl bg-zinc-800 border border-slate-400/40 flex items-center justify-center text-2xl mt-1 shadow-inner">
+                                {archivedSeasonHistory[1].avatar || '👩‍💻'}
+                              </div>
+                              <h4 className="text-base font-black text-white mt-1">
+                                {archivedSeasonHistory[1].displayName}
+                              </h4>
+                              {archivedSeasonHistory[1].turma && (
+                                <span className="text-[11px] text-zinc-400 font-mono bg-zinc-800/80 px-2 py-0.5 rounded border border-zinc-700">
+                                  Turma {archivedSeasonHistory[1].turma}
+                                </span>
+                              )}
+                            </div>
+                            <div className="w-full mt-3 pt-3 border-t border-white/5 flex flex-col items-center text-center font-mono">
+                              <span className="text-[10px] text-zinc-500 uppercase">Bytes Conquistados</span>
+                              <span className="text-sm font-bold text-slate-200">
+                                {formatBytes(archivedSeasonHistory[1].seasonBytes)}
+                              </span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="hidden sm:block order-1" />
+                        )}
+
+                        {/* 1º Lugar (Ouro - Campeão Supremo da Temporada) */}
+                        {archivedSeasonHistory[0] && (
+                          <div className="order-1 sm:order-2 p-5 rounded-2xl bg-gradient-to-b from-yellow-500/25 via-amber-950/40 to-zinc-950 border-2 border-yellow-500/70 shadow-[0_0_30px_rgba(234,179,8,0.25)] flex flex-col items-center text-center justify-between scale-105 z-10">
+                            <div className="flex flex-col items-center gap-1.5">
+                              <span className="text-4xl animate-bounce">👑</span>
+                              <span className="px-3 py-0.5 rounded-full text-[10px] font-mono font-black uppercase tracking-wider bg-yellow-500/30 text-yellow-300 border border-yellow-500/50 shadow-sm flex items-center gap-1">
+                                <span>🥇</span>
+                                <span>CAMPEÃO DO TRIMESTRE</span>
+                              </span>
+                              <div className="w-14 h-14 rounded-2xl bg-zinc-900 border-2 border-yellow-500/60 flex items-center justify-center text-3xl mt-1 shadow-lg shadow-yellow-500/20">
+                                {archivedSeasonHistory[0].avatar || '👩‍💻'}
+                              </div>
+                              <h4 className="text-lg font-black text-white mt-1">
+                                {archivedSeasonHistory[0].displayName}
+                              </h4>
+                              {archivedSeasonHistory[0].turma && (
+                                <span className="text-xs text-amber-300 font-mono font-bold bg-amber-500/20 px-2.5 py-0.5 rounded-full border border-amber-500/30">
+                                  Turma {archivedSeasonHistory[0].turma}
+                                </span>
+                              )}
+                            </div>
+                            <div className="w-full mt-3 pt-3 border-t border-yellow-500/20 flex flex-col items-center text-center font-mono">
+                              <span className="text-[10px] text-zinc-400 uppercase">Bytes Conquistados</span>
+                              <span className="text-base font-black text-yellow-300">
+                                {formatBytes(archivedSeasonHistory[0].seasonBytes)}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 3º Lugar (Bronze) */}
+                        {archivedSeasonHistory[2] ? (
+                          <div className="order-3 p-4 rounded-2xl bg-gradient-to-b from-orange-600/15 via-zinc-900/60 to-zinc-950 border border-orange-600/30 flex flex-col items-center text-center justify-between shadow-lg">
+                            <div className="flex flex-col items-center gap-1.5">
+                              <span className="text-3xl">🥉</span>
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-orange-600/20 text-orange-300 border border-orange-600/30">
+                                3º Lugar • Bronze
+                              </span>
+                              <div className="w-12 h-12 rounded-xl bg-zinc-800 border border-orange-600/40 flex items-center justify-center text-2xl mt-1 shadow-inner">
+                                {archivedSeasonHistory[2].avatar || '👩‍💻'}
+                              </div>
+                              <h4 className="text-base font-black text-white mt-1">
+                                {archivedSeasonHistory[2].displayName}
+                              </h4>
+                              {archivedSeasonHistory[2].turma && (
+                                <span className="text-[11px] text-zinc-400 font-mono bg-zinc-800/80 px-2 py-0.5 rounded border border-zinc-700">
+                                  Turma {archivedSeasonHistory[2].turma}
+                                </span>
+                              )}
+                            </div>
+                            <div className="w-full mt-3 pt-3 border-t border-white/5 flex flex-col items-center text-center font-mono">
+                              <span className="text-[10px] text-zinc-500 uppercase">Bytes Conquistados</span>
+                              <span className="text-sm font-bold text-orange-300">
+                                {formatBytes(archivedSeasonHistory[2].seasonBytes)}
+                              </span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="hidden sm:block order-3" />
+                        )}
+                      </div>
+                    )}
+
+                    {/* Tabela de Colocações da Temporada Arquivada */}
+                    <div className="space-y-2.5">
+                      <h4 className="text-xs font-bold font-mono uppercase tracking-wider text-yellow-400 flex items-center gap-2">
+                        <Landmark className="w-4 h-4 text-yellow-400" />
+                        Classificação Oficial Consolidada ({filteredArchivedHistory.length} alunos)
+                      </h4>
+
+                      {filteredArchivedHistory.map((item) => {
+                        const rank = item.rankPosition;
+                        const isCurrentUser = item.userId === currentUserId;
+
+                        return (
+                          <div
+                            key={item.id || `${item.userId}_${item.seasonId}`}
+                            className={`flex items-center gap-3 sm:gap-4 p-3 sm:p-3.5 rounded-xl border transition-all ${
+                              isCurrentUser
+                                ? 'border-yellow-500/60 bg-yellow-500/10 shadow-[0_0_15px_rgba(234,179,8,0.15)] ring-1 ring-yellow-500/30'
+                                : rank === 1
+                                ? 'border-yellow-500/40 bg-yellow-950/20'
+                                : 'border-white/5 bg-[#12151e]'
+                            }`}
+                          >
+                            {/* Posição */}
+                            <div className={`w-10 h-10 shrink-0 rounded-xl flex items-center justify-center font-black text-sm border ${
+                              rank === 1
+                                ? 'bg-yellow-500/20 border-yellow-500/60 text-yellow-300'
+                                : rank === 2
+                                ? 'bg-slate-400/20 border-slate-400/60 text-slate-200'
+                                : rank === 3
+                                ? 'bg-orange-600/20 border-orange-600/60 text-orange-300'
+                                : 'bg-zinc-800/60 border-zinc-700/60 text-zinc-400'
+                            }`}>
+                              {rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `${rank}º`}
+                            </div>
+
+                            {/* Avatar & Identificação */}
+                            <div className="flex items-center gap-2.5 sm:gap-3 flex-1 min-w-0">
+                              <div className="w-10 h-10 sm:w-11 sm:h-11 shrink-0 bg-zinc-800 rounded-xl flex items-center justify-center text-xl sm:text-2xl shadow-inner border border-zinc-700/80">
+                                {item.avatar || '👩‍💻'}
+                              </div>
+
+                              <div className="flex flex-col min-w-0">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="font-bold text-white truncate text-sm sm:text-base">
+                                    {item.displayName}
+                                  </span>
+                                  {isCurrentUser && (
+                                    <span className="text-[10px] font-mono font-bold px-2 py-0.2 rounded-full border bg-yellow-500/20 text-yellow-300 border-yellow-500/40">
+                                      Você
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-1.5 text-xs text-zinc-400 truncate mt-0.5">
+                                  {item.turma && (
+                                    <span className="bg-zinc-800/90 px-2 py-0.2 rounded-md border border-zinc-700 text-zinc-300 font-mono text-[11px] font-bold">
+                                      {item.turma}
+                                    </span>
+                                  )}
+                                  <span className="text-zinc-500 text-[11px] hidden sm:inline">
+                                    • Consolidado em {new Date(item.closedAt).toLocaleDateString('pt-BR')}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Bytes do Trimestre */}
+                            <div className="flex flex-col items-end shrink-0 text-right">
+                              <span className="font-mono font-bold text-yellow-300 text-sm sm:text-base">
+                                {formatBytes(item.seasonBytes)}
+                              </span>
+                              <span className="text-[10px] font-mono text-zinc-500">
+                                Bytes na Edição
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )
               ) : viewMode === 'guerra_turmas' ? (
                 classStatsList.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-64 text-zinc-500 gap-3 text-center">
@@ -1112,7 +1524,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                               )}
                               {activeRankTab === 'bytes' && (
                                 <span className="text-[11px] text-purple-300/90 font-mono">
-                                  💾 {formatBytes(player.points)}
+                                  💾 {formatBytes(seasonScope === 'trimester' ? (player.seasonBytes ?? player.points) : player.points)}
                                 </span>
                               )}
                               {activeRankTab === 'radar' && (
@@ -1217,9 +1629,11 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                         ) : activeRankTab === 'bytes' ? (
                           <div className="hidden sm:flex items-center gap-4 sm:gap-6 shrink-0">
                             <div className="flex flex-col items-end">
-                              <span className="text-[10px] text-purple-400 uppercase font-bold tracking-wider">Total Bytes</span>
+                              <span className="text-[10px] text-purple-400 uppercase font-bold tracking-wider">
+                                {seasonScope === 'trimester' ? 'Bytes (3º Trimestre)' : 'Total Bytes'}
+                              </span>
                               <span className="font-mono font-black text-purple-300 text-sm flex items-center gap-1">
-                                💾 {formatBytes(player.points)}
+                                💾 {formatBytes(seasonScope === 'trimester' ? (player.seasonBytes ?? player.points) : player.points)}
                               </span>
                             </div>
                             <div className="flex flex-col items-end">
@@ -1360,7 +1774,24 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
 
             {/* Footer com Estatísticas e Posição do Aluno / Turma */}
             <div className="flex-shrink-0 px-4 sm:px-6 py-3 border-t border-white/10 bg-[#141822] flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-zinc-400">
-              {viewMode === 'guerra_turmas' ? (
+              {seasonScope === 'hall_of_fame' ? (
+                <>
+                  <div className="flex items-center gap-2 font-mono text-[11px]">
+                    <Landmark className="w-3.5 h-3.5 text-yellow-400" />
+                    <span>
+                      Exibindo <strong>{filteredArchivedHistory.length}</strong> de <strong>{archivedSeasonHistory.length}</strong> alunos imortalizados
+                    </span>
+                    <span className="text-zinc-600 hidden sm:inline">•</span>
+                    <span className="text-yellow-400 font-bold hidden sm:inline">
+                      {archivedSeasons.find((s) => s.seasonId === selectedArchivedSeasonId)?.seasonName || 'Hall da Fama'}
+                    </span>
+                  </div>
+
+                  <span className="text-zinc-500 text-[11px] font-mono">
+                    🏛️ Registro histórico oficial e imutável do colégio
+                  </span>
+                </>
+              ) : viewMode === 'guerra_turmas' ? (
                 <>
                   <div className="flex items-center gap-2 font-mono text-[11px]">
                     <Shield className="w-3.5 h-3.5 text-amber-400" />

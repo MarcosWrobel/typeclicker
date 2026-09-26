@@ -1,5 +1,5 @@
 import { GameState } from '../types';
-import { LeaderboardEntry, CloudLoadResponse } from '../types/leaderboard';
+import { LeaderboardEntry, CloudLoadResponse, SeasonHistoryEntry } from '../types/leaderboard';
 
 export interface UserProfile {
   id: string;
@@ -10,6 +10,7 @@ export interface UserProfile {
   role?: string;
   bytes: number;
   totalBytesEarned: number;
+  seasonBytes?: number;
   level: number;
   levelTokens: number;
   duelTokens: number;
@@ -46,4 +47,11 @@ export interface IDatabaseService {
 
   // Leaderboard global tipado para rankings e pódios
   getGlobalLeaderboard(forceRefresh?: boolean): Promise<LeaderboardEntry[]>;
+
+  // Temporadas Trimestrais e Hall da Fama
+  getSeasonLeaderboard(forceRefresh?: boolean): Promise<LeaderboardEntry[]>;
+  getSeasonHistory(seasonId: string): Promise<SeasonHistoryEntry[]>;
+  getArchivedSeasonsList(): Promise<{ seasonId: string; seasonName: string; closedAt: string }[]>;
+  closeCurrentSeason(seasonId: string, seasonName: string): Promise<number>;
 }
+

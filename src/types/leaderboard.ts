@@ -8,6 +8,7 @@ export interface LeaderboardEntry {
   turma: string;
   level: number;
   points: number;
+  seasonBytes?: number;
   wpm: number;
   accuracy?: number;
   avatar?: string;
@@ -56,3 +57,19 @@ export interface CloudLoadResponse {
   level?: number;
   points?: number;
 }
+
+export interface SeasonHistoryEntry {
+  id: string;
+  seasonId: string;
+  seasonName: string;
+  userId: string;
+  displayName: string;
+  turma?: string;
+  seasonBytes: number;
+  rankPosition: number;
+  closedAt: string;
+  avatar?: string;
+  finalLevel?: number;
+  finalWpm?: number;
+}
+

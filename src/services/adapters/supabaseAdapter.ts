@@ -2,7 +2,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { IDatabaseService, UserProfile, GameSessionPayload } from '../dbInterface';
 import { GameState } from '../../types';
 import { DEFAULT_COSMETICS } from '../../types/cosmetics';
-import { CloudLoadResponse, LeaderboardEntry } from '../../types/leaderboard';
+import { CloudLoadResponse, LeaderboardEntry, SeasonHistoryEntry } from '../../types/leaderboard';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
@@ -24,6 +24,7 @@ export class SupabaseAdapter implements IDatabaseService {
       role: row.role,
       bytes: Number(row.bytes) || 0,
       totalBytesEarned: Number(row.total_bytes_earned) || 0,
+      seasonBytes: Number(row.season_bytes) || 0,
       level: row.level || 1,
       levelTokens: row.level_tokens || 0,
       duelTokens: row.duel_tokens || 0,
@@ -60,6 +61,7 @@ export class SupabaseAdapter implements IDatabaseService {
     if (profile.role !== undefined) payload.role = profile.role;
     if (profile.bytes !== undefined) payload.bytes = profile.bytes;
     if (profile.totalBytesEarned !== undefined) payload.total_bytes_earned = profile.totalBytesEarned;
+    if (profile.seasonBytes !== undefined) payload.season_bytes = profile.seasonBytes;
     if (profile.level !== undefined) payload.level = profile.level;
     if (profile.levelTokens !== undefined) payload.level_tokens = profile.levelTokens;
     if (profile.duelTokens !== undefined) payload.duel_tokens = profile.duelTokens;
@@ -124,6 +126,7 @@ export class SupabaseAdapter implements IDatabaseService {
       turma: row.turma || '',
       level: row.level || 1,
       points: Number(row.total_bytes_earned) || 0,
+      seasonBytes: Number(row.season_bytes) || 0,
       wpm: 0,
       avatar: row.avatar,
       updatedAt: row.updated_at || new Date().toISOString(),
@@ -131,6 +134,88 @@ export class SupabaseAdapter implements IDatabaseService {
       cardFrame: row.equipped_frame,
       isStaff: row.role === 'teacher' || row.role === 'admin'
     }));
+  }
+
+  async getSeasonLeaderboard(forceRefresh: boolean = false): Promise<LeaderboardEntry[]> {
+    const { data, error } = await this.client
+      .from('profiles')
+      .select('*')
+      .order('season_bytes', { ascending: false })
+      .limit(250);
+
+    if (error || !data) return [];
+    return data.map((row: any): LeaderboardEntry => ({
+      userId: row.id,
+      nome: row.display_name || 'Aluno',
+      apelido: row.nickname,
+      turma: row.turma || '',
+      level: row.level || 1,
+      points: Number(row.total_bytes_earned) || 0,
+      seasonBytes: Number(row.season_bytes) || 0,
+      wpm: 0,
+      avatar: row.avatar,
+      updatedAt: row.updated_at || new Date().toISOString(),
+      rpgClass: row.rpg_class,
+      cardFrame: row.equipped_frame,
+      isStaff: row.role === 'teacher' || row.role === 'admin'
+    }));
+  }
+
+  async getSeasonHistory(seasonId: string): Promise<SeasonHistoryEntry[]> {
+    const { data, error } = await this.client
+      .from('season_history')
+      .select('*')
+      .eq('season_id', seasonId)
+      .order('rank_position', { ascending: true });
+
+    if (error || !data) return [];
+    return data.map((row: any): SeasonHistoryEntry => ({
+      id: row.id,
+      seasonId: row.season_id,
+      seasonName: row.season_name,
+      userId: row.user_id,
+      displayName: row.display_name,
+      turma: row.turma,
+      seasonBytes: Number(row.season_bytes) || 0,
+      rankPosition: row.rank_position || 1,
+      closedAt: row.closed_at
+    }));
+  }
+
+  async getArchivedSeasonsList(): Promise<{ seasonId: string; seasonName: string; closedAt: string }[]> {
+    const { data, error } = await this.client
+      .from('season_history')
+      .select('season_id, season_name, closed_at')
+      .order('closed_at', { ascending: false });
+
+    if (error || !data) return [];
+    const seen = new Set<string>();
+    const list: { seasonId: string; seasonName: string; closedAt: string }[] = [];
+    for (const item of data) {
+      if (!seen.has(item.season_id)) {
+        seen.add(item.season_id);
+        list.push({
+          seasonId: item.season_id,
+          seasonName: item.season_name,
+          closedAt: item.closed_at
+        });
+      }
+    }
+    return list;
+  }
+
+  async closeCurrentSeason(seasonId: string, seasonName: string): Promise<number> {
+    const { data, error } = await this.client.rpc('close_current_season', {
+      p_season_id: seasonId,
+      p_season_name: seasonName
+    });
+
+    if (error) {
+      console.error('Supabase closeCurrentSeason error:', error);
+      throw error;
+    }
+
+    return Number(data) || 0;
   }
 
   async getClassroomRanking(turma: string): Promise<UserProfile[]> {

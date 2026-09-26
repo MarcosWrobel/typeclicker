@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Shield, Key, Trash2, X, Clock, AlertTriangle, Users, Search, RefreshCw, BarChart, Database, Download, Upload, CheckCircle2, RotateCcw, FileText, Sliders, Battery, Eye, EyeOff, Filter, Swords, Sparkles, Coins, Zap, Trophy, Award, UserCheck, Plus, History, Gift, ArrowRight, Check, Terminal, Flag, Timer, BookOpen, Flame, GraduationCap, Sword, Activity } from 'lucide-react';
+import { Shield, Key, Trash2, X, Clock, AlertTriangle, Users, Search, RefreshCw, BarChart, Database, Download, Upload, CheckCircle2, RotateCcw, FileText, Sliders, Battery, Eye, EyeOff, Filter, Swords, Sparkles, Coins, Zap, Trophy, Award, UserCheck, Plus, History, Gift, ArrowRight, Check, Terminal, Flag, Timer, BookOpen, Flame, GraduationCap, Sword, Activity, Calendar, Landmark } from 'lucide-react';
 import { fetchFirestoreMetrics, FirestoreMetricsData } from '../services/adminMetricsService';
+import { dbService } from '../services/dbFactory';
 import {
   auth,
   generateSessionCode,
@@ -13,6 +14,7 @@ import {
   getSystemSettings,
   getAdminDashboardData,
   LeaderboardEntry,
+  isStaffMember,
   updateAllowedTeachers,
   updateAccessibilitySettings,
   createDatabaseBackup,
@@ -92,8 +94,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   onOpenRaceArena,
   onOpenRaidArena
 }) => {
-  const [activeTab, setActiveTab] = useState<'locks' | 'dashboard' | 'corrida' | 'raid' | 'textos' | 'backups' | 'monitoramento' | 'wipe' | 'professores' | 'testes'>('locks');
+  const [activeTab, setActiveTab] = useState<'locks' | 'dashboard' | 'temporadas' | 'corrida' | 'raid' | 'textos' | 'backups' | 'monitoramento' | 'wipe' | 'professores' | 'testes'>('locks');
   const [testActionMessage, setTestActionMessage] = useState<string | null>(null);
+
+  // Estados para Gestão de Trimestres e Temporadas (Supabase / Hall da Fama)
+  const [seasonStudents, setSeasonStudents] = useState<LeaderboardEntry[]>([]);
+  const [archivedSeasonsAdmin, setArchivedSeasonsAdmin] = useState<{ seasonId: string; seasonName: string; closedAt: string }[]>([]);
+  const [isSeasonLoading, setIsSeasonLoading] = useState<boolean>(false);
+  const [isCloseModalOpen, setIsCloseModalOpen] = useState<boolean>(false);
+  const [closeSeasonId, setCloseSeasonId] = useState<string>('2026_T3');
+  const [closeSeasonName, setCloseSeasonName] = useState<string>('3º Trimestre 2026');
+  const [closeConfirmInput, setCloseConfirmInput] = useState<string>('');
+  const [isClosingSeason, setIsClosingSeason] = useState<boolean>(false);
+  const [seasonActionMessage, setSeasonActionMessage] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Estados para Monitoramento de Banco & Cotas do Firestore (Cloud Monitoring)
   const [metricsData, setMetricsData] = useState<FirestoreMetricsData | null>(null);
@@ -764,6 +777,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       setBackupActionMessage(null);
       if (activeTab === 'dashboard') {
         loadStudents(selectedClassFilter);
+      } else if (activeTab === 'temporadas') {
+        loadSeasonAdminData();
       } else if (activeTab === 'backups') {
         loadBackups();
       } else if (activeTab === 'monitoramento') {
@@ -774,6 +789,49 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       }
     }
   }, [isOpen, activeTab, selectedClassFilter, targetEmail]);
+
+  const loadSeasonAdminData = async () => {
+    setIsSeasonLoading(true);
+    setSeasonActionMessage(null);
+    try {
+      const [seasonLeaderboard, archivedList] = await Promise.all([
+        dbService.getSeasonLeaderboard(true),
+        dbService.getArchivedSeasonsList()
+      ]);
+      const cleanStudents = seasonLeaderboard.filter((s) => !isStaffMember(s));
+      setSeasonStudents(cleanStudents);
+      setArchivedSeasonsAdmin(archivedList);
+    } catch (err: any) {
+      setSeasonActionMessage({ type: 'error', message: err.message || 'Erro ao carregar dados do trimestre.' });
+    } finally {
+      setIsSeasonLoading(false);
+    }
+  };
+
+  const handleExecuteCloseSeason = async () => {
+    if (closeConfirmInput.trim() !== 'CONFIRMAR') return;
+    setIsClosingSeason(true);
+    setSeasonActionMessage(null);
+    try {
+      const targetName = closeSeasonName.trim();
+      const archivedCount = await dbService.closeCurrentSeason(closeSeasonId.trim(), targetName);
+      sound.playPrestige();
+      setSeasonActionMessage({
+        type: 'success',
+        message: `Trimestre "${targetName}" encerrado com sucesso! ${archivedCount} alunos foram imortalizados no Hall da Fama e as pontuações foram renovadas.`
+      });
+      setIsCloseModalOpen(false);
+      setCloseConfirmInput('');
+      await loadSeasonAdminData();
+    } catch (err: any) {
+      setSeasonActionMessage({
+        type: 'error',
+        message: `Falha ao encerrar trimestre: ${err.message || err}`
+      });
+    } finally {
+      setIsClosingSeason(false);
+    }
+  };
 
   // Carregamento de Métricas do Firestore & Cotas Spark
   const loadMetrics = async (forceRefresh: boolean = false) => {
@@ -1233,6 +1291,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 >
                   <BarChart className="w-4 h-4" />
                   <span>Progresso</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('temporadas')}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+                    activeTab === 'temporadas'
+                      ? 'bg-amber-600 text-white shadow-md shadow-amber-600/30 font-black'
+                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
+                  }`}
+                  title="Gestão de Trimestres Letivos e Hall da Fama"
+                >
+                  <Trophy className="w-4 h-4 text-amber-400" />
+                  <span>Trimestres & Temporadas</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('corrida')}
@@ -1888,6 +1958,391 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       </tbody>
                     </table>
                   </div>
+                </section>
+              )}
+
+              {/* ABA: GESTÃO DE TRIMESTRES & TEMPORADAS (SUPABASE / HALL DA FAMA) */}
+              {activeTab === 'temporadas' && (
+                <section className="space-y-6">
+                  {/* Cabeçalho da Aba */}
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-zinc-800 pb-3">
+                    <div>
+                      <div className="flex items-center gap-2 text-amber-400 font-bold text-lg">
+                        <Trophy className="w-5 h-5 text-amber-400" />
+                        <h3>Gestão de Trimestres Letivos & Hall da Fama</h3>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                          Supabase
+                        </span>
+                      </div>
+                      <p className="text-xs text-zinc-400 mt-0.5">
+                        Acompanhe o rendimento do 3º Trimestre letivo, veja o pódio provisório e realize o encerramento seguro do ciclo para consagrar os campeões no Hall da Fama.
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={() => loadSeasonAdminData()}
+                      disabled={isSeasonLoading}
+                      className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold text-xs rounded-xl transition flex items-center gap-2 cursor-pointer border border-zinc-700 disabled:opacity-50"
+                      title="Atualizar dados do trimestre"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${isSeasonLoading ? 'animate-spin' : ''}`} />
+                      <span>{isSeasonLoading ? 'Atualizando...' : 'Atualizar Dados'}</span>
+                    </button>
+                  </div>
+
+                  {/* Feedback de Ação */}
+                  {seasonActionMessage && (
+                    <div
+                      className={`p-4 rounded-xl border text-xs font-semibold flex items-center gap-2 ${
+                        seasonActionMessage.type === 'success'
+                          ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300'
+                          : 'bg-red-950/40 border-red-500/40 text-red-300'
+                      }`}
+                    >
+                      {seasonActionMessage.type === 'success' ? (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                      ) : (
+                        <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0" />
+                      )}
+                      <span>{seasonActionMessage.message}</span>
+                    </div>
+                  )}
+
+                  {/* Grid de 4 Cards de Resumo do Trimestre Atual */}
+                  {(() => {
+                    const activeStudentsCount = seasonStudents.filter((s) => (s.seasonBytes || 0) > 0).length;
+                    const totalSeasonBytes = seasonStudents.reduce((acc, s) => acc + (s.seasonBytes || 0), 0);
+                    const leader = seasonStudents[0];
+
+                    return (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {/* Card 1: Trimestre Ativo */}
+                        <div className="p-4 rounded-2xl bg-zinc-900/90 border border-zinc-800 flex flex-col justify-between shadow-sm">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs font-semibold text-zinc-400">Trimestre Letivo</span>
+                            <Calendar className="w-4 h-4 text-amber-400" />
+                          </div>
+                          <div>
+                            <div className="text-xl font-black text-white">3º Trimestre 2026</div>
+                            <span className="inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                              ● Ciclo Atual em Disputa
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-zinc-500 mt-2">Calendário escolar SEED-PR</span>
+                        </div>
+
+                        {/* Card 2: Alunos Pontuando */}
+                        <div className="p-4 rounded-2xl bg-zinc-900/90 border border-zinc-800 flex flex-col justify-between shadow-sm">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs font-semibold text-zinc-400">Alunos Ativos no Trimestre</span>
+                            <Users className="w-4 h-4 text-purple-400" />
+                          </div>
+                          <div>
+                            <div className="text-2xl font-black text-white flex items-baseline gap-1.5">
+                              {activeStudentsCount}
+                              <span className="text-xs font-medium text-zinc-500">/ {seasonStudents.length} cadastrados</span>
+                            </div>
+                            <div className="text-xs font-bold text-purple-400 mt-0.5">
+                              {seasonStudents.length > 0 ? `${Math.round((activeStudentsCount / seasonStudents.length) * 100)}% de participação` : '---'}
+                            </div>
+                          </div>
+                          <span className="text-[10px] text-zinc-500 mt-2">Alunos com season_bytes &gt; 0</span>
+                        </div>
+
+                        {/* Card 3: Total de Bytes do Trimestre */}
+                        <div className="p-4 rounded-2xl bg-zinc-900/90 border border-zinc-800 flex flex-col justify-between shadow-sm">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs font-semibold text-zinc-400">Produção no Trimestre</span>
+                            <Database className="w-4 h-4 text-emerald-400" />
+                          </div>
+                          <div>
+                            <div className="text-xl font-black text-emerald-400">
+                              {formatBytes(totalSeasonBytes)}
+                            </div>
+                            <span className="text-xs text-zinc-400 mt-0.5 block">
+                              Volume consolidado nesta temporada
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-zinc-500 mt-2">Somatório de season_bytes</span>
+                        </div>
+
+                        {/* Card 4: Líder Provisório */}
+                        <div className="p-4 rounded-2xl bg-gradient-to-br from-yellow-500/10 via-zinc-900 to-zinc-950 border border-yellow-500/30 flex flex-col justify-between shadow-sm">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs font-semibold text-yellow-400 flex items-center gap-1">
+                              <span>👑</span> Líder Provisório
+                            </span>
+                            <Trophy className="w-4 h-4 text-yellow-400" />
+                          </div>
+                          {leader ? (
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-2xl">{leader.avatar || '👩‍💻'}</span>
+                                <div className="min-w-0">
+                                  <div className="text-sm font-black text-white truncate">{leader.apelido || leader.nome}</div>
+                                  <div className="text-[11px] text-zinc-400 font-mono">Turma {leader.turma}</div>
+                                </div>
+                              </div>
+                              <div className="text-xs font-mono font-bold text-yellow-300 mt-1.5">
+                                {formatBytes(leader.seasonBytes || 0)} conquistados
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-zinc-500">Nenhum aluno pontuando ainda.</span>
+                          )}
+                          <span className="text-[10px] text-zinc-500 mt-2">1º Colocado no ranking de temporada</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Pódio Provisório dos Top 3 do Trimestre */}
+                  {seasonStudents.length >= 2 && (
+                    <div className="p-5 rounded-2xl bg-[#12151e] border border-white/5 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Trophy className="w-4 h-4 text-amber-400" />
+                          <h4 className="text-sm font-bold text-white">Pódio Provisório do 3º Trimestre</h4>
+                        </div>
+                        <span className="text-[11px] font-mono text-zinc-400">
+                          Classificação pelos bytes da temporada atual
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        {/* 2º Lugar */}
+                        {seasonStudents[1] && (
+                          <div className="order-2 sm:order-1 p-3.5 rounded-xl bg-zinc-900/80 border border-slate-400/30 flex items-center gap-3">
+                            <span className="text-2xl">🥈</span>
+                            <div className="min-w-0 flex-1">
+                              <span className="text-[10px] font-mono font-bold text-slate-300 block">2º Lugar</span>
+                              <div className="text-sm font-bold text-white truncate">{seasonStudents[1].apelido || seasonStudents[1].nome}</div>
+                              <div className="text-[11px] font-mono text-purple-300">{formatBytes(seasonStudents[1].seasonBytes || 0)} • Turma {seasonStudents[1].turma}</div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 1º Lugar */}
+                        {seasonStudents[0] && (
+                          <div className="order-1 sm:order-2 p-3.5 rounded-xl bg-yellow-500/10 border-2 border-yellow-500/50 flex items-center gap-3 shadow-md shadow-yellow-500/10 scale-102">
+                            <span className="text-3xl">🥇</span>
+                            <div className="min-w-0 flex-1">
+                              <span className="text-[10px] font-mono font-black text-yellow-300 uppercase block">👑 Líder Atual</span>
+                              <div className="text-base font-black text-white truncate">{seasonStudents[0].apelido || seasonStudents[0].nome}</div>
+                              <div className="text-xs font-mono font-bold text-yellow-300">{formatBytes(seasonStudents[0].seasonBytes || 0)} • Turma {seasonStudents[0].turma}</div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 3º Lugar */}
+                        {seasonStudents[2] && (
+                          <div className="order-3 p-3.5 rounded-xl bg-zinc-900/80 border border-orange-600/30 flex items-center gap-3">
+                            <span className="text-2xl">🥉</span>
+                            <div className="min-w-0 flex-1">
+                              <span className="text-[10px] font-mono font-bold text-orange-300 block">3º Lugar</span>
+                              <div className="text-sm font-bold text-white truncate">{seasonStudents[2].apelido || seasonStudents[2].nome}</div>
+                              <div className="text-[11px] font-mono text-purple-300">{formatBytes(seasonStudents[2].seasonBytes || 0)} • Turma {seasonStudents[2].turma}</div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Card de Ação Segura: Encerramento do Trimestre */}
+                  <div className="p-5 rounded-2xl bg-gradient-to-r from-amber-950/30 via-zinc-900/90 to-zinc-950 border border-amber-500/30 space-y-4 shadow-lg">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <Landmark className="w-5 h-5 text-yellow-400" />
+                          <h4 className="text-base font-bold text-white">Encerramento do 3º Trimestre & Gravação no Hall da Fama</h4>
+                        </div>
+                        <p className="text-xs text-zinc-300 mt-1 max-w-2xl leading-relaxed">
+                          Quando o trimestre letivo chegar ao fim, utilize esta função para arquivar formalmente as colocações de todos os alunos na tabela histórica do colégio e reiniciar a disputa para o próximo trimestre.
+                        </p>
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          setCloseConfirmInput('');
+                          setIsCloseModalOpen(true);
+                        }}
+                        className="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-black text-xs rounded-xl transition flex items-center gap-2 shadow-lg shadow-amber-500/20 cursor-pointer flex-shrink-0"
+                      >
+                        <Trophy className="w-4 h-4 text-black" />
+                        <span>Encerrar 3º Trimestre</span>
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 border-t border-white/5 text-xs text-zinc-400">
+                      <div className="flex items-start gap-2">
+                        <span className="text-amber-400 font-bold">1.</span>
+                        <span><strong>Congela o Ranking:</strong> Todos os alunos com pontuação são registrados no histórico perpétuo com seu rank oficial.</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="text-yellow-400 font-bold">2.</span>
+                        <span><strong>Consagra o Hall da Fama:</strong> O pódio dos 3 maiores digitadores é eternizado no memorial para toda a escola ver.</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="text-emerald-400 font-bold">3.</span>
+                        <span><strong>Zera season_bytes:</strong> Todos começam o novo trimestre do zero. XP, conquistas e total de bytes permanecem intactos.</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Lista de Trimestres já Arquivados */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-zinc-300 font-bold text-sm">
+                      <History className="w-4 h-4 text-yellow-400" />
+                      <h4>Edições Arquivadas no Hall da Fama ({archivedSeasonsAdmin.length})</h4>
+                    </div>
+
+                    {archivedSeasonsAdmin.length === 0 ? (
+                      <div className="p-4 rounded-xl bg-zinc-900/60 border border-zinc-800 text-xs text-zinc-500 text-center">
+                        Nenhum trimestre foi encerrado ainda. O 3º Trimestre de 2026 será o pioneiro no memorial escolar.
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {archivedSeasonsAdmin.map((season) => (
+                          <div key={season.seasonId} className="p-3.5 rounded-xl bg-zinc-900/80 border border-zinc-800 flex items-center justify-between">
+                            <div className="flex items-center gap-2.5">
+                              <Landmark className="w-4 h-4 text-yellow-400 flex-shrink-0" />
+                              <div>
+                                <div className="text-xs font-bold text-white">{season.seasonName}</div>
+                                <div className="text-[10px] font-mono text-zinc-500">ID: {season.seasonId}</div>
+                              </div>
+                            </div>
+                            <span className="text-[10px] font-mono text-zinc-400 bg-zinc-800 px-2 py-0.5 rounded">
+                              {new Date(season.closedAt).toLocaleDateString('pt-BR')}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Modal de Confirmação Segura de Encerramento */}
+                  <AnimatePresence>
+                    {isCloseModalOpen && (
+                      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
+                        <motion.div
+                          initial={{ scale: 0.95, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          exit={{ scale: 0.95, opacity: 0 }}
+                          className="w-full max-w-lg bg-[#12151f] border-2 border-amber-500/60 rounded-2xl p-6 shadow-2xl space-y-5"
+                        >
+                          <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                            <div className="flex items-center gap-2.5 text-amber-400 font-black text-base">
+                              <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0" />
+                              <span>Confirmar Encerramento de Trimestre</span>
+                            </div>
+                            <button
+                              onClick={() => setIsCloseModalOpen(false)}
+                              disabled={isClosingSeason}
+                              className="text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-zinc-800 cursor-pointer"
+                            >
+                              <X className="w-5 h-5" />
+                            </button>
+                          </div>
+
+                          <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-200 leading-relaxed">
+                            ⚠️ <strong>Ação de Ciclo Letivo Oficial:</strong> O encerramento disparará a RPC <code className="text-yellow-300 font-mono">close_current_season</code> no Supabase PostgreSQL. Todos os alunos pontuando serão gravados no Hall da Fama e o contador <code className="text-yellow-300 font-mono">season_bytes</code> será zerado para todos os perfis.
+                          </div>
+
+                          {/* Prévia dos 3 Campeões a serem Imortalizados */}
+                          <div className="p-3.5 rounded-xl bg-zinc-900/90 border border-zinc-800 space-y-2">
+                            <span className="text-xs font-mono font-bold uppercase text-zinc-400 block">
+                              🏆 Prévia dos Campeões que entrarão no Hall da Fama:
+                            </span>
+                            <div className="space-y-1.5 text-xs font-mono">
+                              {seasonStudents[0] && (
+                                <div className="text-yellow-300 flex items-center justify-between">
+                                  <span>🥇 1º {seasonStudents[0].apelido || seasonStudents[0].nome} (Turma {seasonStudents[0].turma})</span>
+                                  <span className="font-bold">{formatBytes(seasonStudents[0].seasonBytes || 0)}</span>
+                                </div>
+                              )}
+                              {seasonStudents[1] && (
+                                <div className="text-slate-300 flex items-center justify-between">
+                                  <span>🥈 2º {seasonStudents[1].apelido || seasonStudents[1].nome} (Turma {seasonStudents[1].turma})</span>
+                                  <span className="font-bold">{formatBytes(seasonStudents[1].seasonBytes || 0)}</span>
+                                </div>
+                              )}
+                              {seasonStudents[2] && (
+                                <div className="text-orange-300 flex items-center justify-between">
+                                  <span>🥉 3º {seasonStudents[2].apelido || seasonStudents[2].nome} (Turma {seasonStudents[2].turma})</span>
+                                  <span className="font-bold">{formatBytes(seasonStudents[2].seasonBytes || 0)}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Inputs de Configuração da Temporada */}
+                          <div className="grid grid-cols-2 gap-3 text-xs">
+                            <div>
+                              <label className="text-zinc-400 font-semibold block mb-1">ID da Temporada:</label>
+                              <input
+                                type="text"
+                                value={closeSeasonId}
+                                onChange={(e) => setCloseSeasonId(e.target.value)}
+                                className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-1.5 text-white font-mono focus:outline-none focus:border-amber-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-zinc-400 font-semibold block mb-1">Nome de Exibição:</label>
+                              <input
+                                type="text"
+                                value={closeSeasonName}
+                                onChange={(e) => setCloseSeasonName(e.target.value)}
+                                className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-1.5 text-white focus:outline-none focus:border-amber-500"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Campo de Confirmação Segura */}
+                          <div className="space-y-1.5">
+                            <label className="text-xs text-zinc-300 font-bold block">
+                              Para autorizar, digite <span className="text-yellow-400 font-mono">CONFIRMAR</span> no campo abaixo:
+                            </label>
+                            <input
+                              type="text"
+                              value={closeConfirmInput}
+                              onChange={(e) => setCloseConfirmInput(e.target.value)}
+                              placeholder="CONFIRMAR"
+                              className="w-full bg-zinc-900 border-2 border-zinc-700 rounded-xl px-4 py-2 text-white font-mono font-bold tracking-wider focus:outline-none focus:border-amber-500"
+                            />
+                          </div>
+
+                          {/* Botões do Modal */}
+                          <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/10">
+                            <button
+                              onClick={() => setIsCloseModalOpen(false)}
+                              disabled={isClosingSeason}
+                              className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-xs cursor-pointer"
+                            >
+                              Cancelar
+                            </button>
+                            <button
+                              onClick={handleExecuteCloseSeason}
+                              disabled={closeConfirmInput.trim() !== 'CONFIRMAR' || isClosingSeason}
+                              className="px-5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 disabled:opacity-40 disabled:cursor-not-allowed text-black font-black text-xs cursor-pointer flex items-center gap-2 shadow-lg shadow-amber-500/20"
+                            >
+                              {isClosingSeason ? (
+                                <>
+                                  <RefreshCw className="w-4 h-4 animate-spin text-black" />
+                                  <span>Gravando Hall da Fama...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Trophy className="w-4 h-4 text-black" />
+                                  <span>Encerrar e Imortalizar</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        </motion.div>
+                      </div>
+                    )}
+                  </AnimatePresence>
                 </section>
               )}
 
