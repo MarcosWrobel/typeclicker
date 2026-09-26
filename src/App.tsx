@@ -2480,6 +2480,24 @@ export default function App() {
               saveState(updated, auth.currentUser?.uid);
               if (auth.currentUser) {
                 dbService.saveLegacyGameState(auth.currentUser.uid, updated).catch(console.error);
+
+                if (endStats) {
+                  const sessionPayload: import('./services/dbInterface').GameSessionPayload = {
+                    score: endStats.score,
+                    accuracyPercentage: bytesEarned > 0 ? Math.round((endStats.score / Math.max(endStats.score + 1, 1)) * 100) : 0,
+                    timeSpentSeconds: 0,
+                    correctAnswers: endStats.enemiesDefeated,
+                    wrongAnswers: 0,
+                    extraMetrics: {
+                      bestWave: endStats.bestWave,
+                      maxWpm: endStats.maxWpm,
+                      enemiesDefeated: endStats.enemiesDefeated
+                    }
+                  };
+                  dbService.recordGameSession(auth.currentUser.uid, 'type_radar', bytesEarned, sessionPayload).catch((err) => {
+                    console.warn('Erro ao registrar sessão atômica de jogo via RPC:', err);
+                  });
+                }
               }
               return updated;
             });

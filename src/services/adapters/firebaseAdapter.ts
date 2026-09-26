@@ -72,10 +72,26 @@ export class FirebaseAdapter implements IDatabaseService {
     }
   }
 
-  async recordGameSession(gameId: string, bytesEarned: number, session: GameSessionPayload): Promise<void> {
-    // No firebase legado, delegamos para o saveLegacyGameState via hook
-    // Esta implementacao stub permite interoperabilidade se chamado diretamente
-    console.warn('recordGameSession via FirebaseAdapter requer chamadas locais ao state e depois sync.');
+  async recordGameSession(userId: string, gameId: string, bytesEarned: number, session: GameSessionPayload): Promise<void> {
+    if (!userId) return;
+    const safeBytes = Math.max(0, Math.floor(bytesEarned || 0));
+    try {
+      const docRef = doc(db, 'leaderboard', userId);
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        const currentData = snap.data();
+        const currentBytes = Number(currentData.bytes) || 0;
+        const currentPoints = Number(currentData.points) || 0;
+        await updateDoc(docRef, {
+          bytes: currentBytes + safeBytes,
+          points: currentPoints + safeBytes,
+          totalBytesEarned: currentPoints + safeBytes,
+          updatedAt: new Date().toISOString()
+        });
+      }
+    } catch (e) {
+      console.warn('FirebaseAdapter recordGameSession update failed (fallback to local state sync):', e);
+    }
   }
 
   async getLeaderboard(limitCount: number = 100): Promise<UserProfile[]> {

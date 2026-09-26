@@ -4,6 +4,7 @@
 
 | Feature | Dados DB (Supabase / Legado Firestore) | Telas / Arquivos | Complexidade | Status |
 |---|---|---|---|---|
+| **[ANTI-CHEAT]** Chamada atômica de ganho de bytes via RPC `record_game_session` | RPC `record_game_session` (PostgreSQL) / Firestore fallback | `dbInterface.ts`, `supabaseAdapter.ts`, `firebaseAdapter.ts`, `App.tsx` | P | **Concluído** |
 | **[A11Y/TECLADO]** Detecção global de Caps Lock e aviso pedagógico de Maiúscula/Minúscula em todas as 9 arenas | nenhum (lógica pura client-side) | `keyboardCase.ts`, `CapsLockWarning.tsx`, todas as arenas | M | **Concluído (`39aef74`)** |
 | **[UX/DIGITAÇÃO]** Terminal adaptativo com auto-scroll em frases/códigos e Dead Keys no Modo Foco | nenhum (lógica pura client-side) | `TypingArena.tsx`, `FocusDrillModal.tsx`, `App.tsx` | M | **Concluído (`4ec9cad`)** |
 | **[ARQUITETURA]** Auditoria e Sanitização da Arquitetura Híbrida & Zero Bypasses | `IDatabaseService`, `SupabaseAdapter`, `FirebaseAdapter` | `App.tsx`, `AdminPanel.tsx`, `dbInterface.ts`, `leaderboardUtils.ts` | G | **Concluído (`5f1213c`)** |
@@ -18,7 +19,7 @@
 ### P1 — Integridade & Segurança
 | Feature | Dados DB (Supabase / Legado Firestore) | Telas afetadas | Complexidade | Status |
 |---|---|---|---|---|
-| **[ANTI-CHEAT]** Chamada atômica de ganho de bytes via RPC `record_game_session` | RPC `record_game_session` (PostgreSQL) | `supabaseAdapter.ts`, `App.tsx` | P | Próxima etapa |
+| *(Nenhuma pendência crítica imediata em P1)* | - | - | - | Em dia |
 
 ### P2 — Débitos Técnicos e Trilhas Curriculares
 | Feature | Dados DB (Supabase / Legado Firestore) | Telas afetadas | Complexidade | Status |

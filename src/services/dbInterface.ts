@@ -37,7 +37,7 @@ export interface GameSessionPayload {
 export interface IDatabaseService {
   getUserProfile(userId: string): Promise<UserProfile | null>;
   saveUserProfile(profile: Partial<UserProfile>): Promise<void>;
-  recordGameSession(gameId: string, bytesEarned: number, session: GameSessionPayload): Promise<void>;
+  recordGameSession(userId: string, gameId: string, bytesEarned: number, session: GameSessionPayload): Promise<void>;
   getLeaderboard(limitCount?: number): Promise<UserProfile[]>;
   getClassroomRanking(turma: string): Promise<UserProfile[]>;
   unlockCosmetic(userId: string, itemId: string, category: string): Promise<void>;

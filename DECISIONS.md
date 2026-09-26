@@ -26,6 +26,11 @@
   - A checagem de caracteres migrou de comparações permissivas/case-insensitive para comparação estrita (`finalChar === expectedChar`). Ao detectar divergência exclusiva de caixa alta/baixa, a função `checkCaseMismatch()` aciona feedback pedagógico ("Pressione Shift + [X]" ou "Desative o Caps Lock"), prevenindo frustração e reforçando a ergonomia motora.
 - **Terminal Adaptativo com Auto-Scroll para Frases e Códigos**:
   - Em textos longos (`sentences` e `code`), o container da `TypingArena` utiliza layout dinâmico com auto-scroll focalizado no elemento com a classe `.char-current` (`scrollIntoView`), evitando que caracteres finais fiquem encobertos por sobreposições visuais da interface.
+- **Chamada Atômica de Ganho de Bytes e Progresso de Sessão (`recordGameSession`)**:
+  - A interface `IDatabaseService.recordGameSession` exige o `userId: string` explicitamente para acomodar a arquitetura de Identidade Híbrida (onde o Firebase Auth fornece o UID autenticado que mapeia em `profiles.id`).
+  - No `SupabaseAdapter`, a execução invoca o RPC PostgreSQL `record_game_session`, que de forma atômica atualiza o `game_progress` (com `GREATEST(high_score)` e `metrics`) e credita cumulativamente os `bytes`, `total_bytes_earned` e `season_bytes` na tabela `public.profiles`.
+  - No `FirebaseAdapter`, atualiza de forma defensiva os campos de `bytes` e `points` do documento no Firestore, garantindo simetria de comportamento entre ambos os provedores.
+  - A saída de minijogos (como `Type: Radar` em `App.tsx`) aciona essa gravação imediatamente após a partida.
 
 ## Decisões do Código Legado e Status de Migração
 

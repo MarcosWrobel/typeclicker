@@ -82,15 +82,15 @@ export class SupabaseAdapter implements IDatabaseService {
     }
   }
 
-  async recordGameSession(gameId: string, bytesEarned: number, session: GameSessionPayload): Promise<void> {
-    const { data: userData } = await this.client.auth.getUser();
-    if (!userData.user) throw new Error('User not authenticated via Supabase Auth');
+  async recordGameSession(userId: string, gameId: string, bytesEarned: number, session: GameSessionPayload): Promise<void> {
+    if (!userId) throw new Error('User ID is required for recordGameSession');
+    const safeBytes = Math.max(0, Math.floor(bytesEarned || 0));
 
     const { error } = await this.client.rpc('record_game_session', {
-      p_user_id: userData.user.id,
+      p_user_id: userId,
       p_game_id: gameId,
-      p_bytes_earned: bytesEarned,
-      p_high_score: session.score,
+      p_bytes_earned: safeBytes,
+      p_high_score: Math.max(0, Math.floor(session.score || 0)),
       p_metrics: session
     });
 
