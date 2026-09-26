@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { LeaderboardEntry, isStaffMember, extractLevel100Pioneers, Level100PioneerSlot } from '../services/firebaseService';
+import { LeaderboardEntry, Level100PioneerSlot } from '../types/leaderboard';
+import { isStaffMember, extractLevel100Pioneers } from '../utils/leaderboardUtils';
 import { dbService } from '../services/dbFactory';
 import { LeaderboardMetric } from '../components/LeaderboardModal';
 

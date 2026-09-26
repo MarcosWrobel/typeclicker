@@ -22,8 +22,8 @@ import {
   Landmark,
   Sparkles
 } from 'lucide-react';
-import { LeaderboardEntry, isStaffMember, extractLevel100Pioneers } from '../services/firebaseService';
-import { SeasonHistoryEntry } from '../types/leaderboard';
+import { LeaderboardEntry, SeasonHistoryEntry } from '../types/leaderboard';
+import { isStaffMember, extractLevel100Pioneers } from '../utils/leaderboardUtils';
 import { dbService } from '../services/dbFactory';
 import { Level100PioneersWidget } from './Level100PioneersWidget';
 import { StudentProfileCardModal } from './StudentProfileCardModal';

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Trophy, Crown, Sparkles, Lock, ExternalLink, Calendar, Users, ShieldCheck } from 'lucide-react';
-import { Level100PioneerSlot } from '../services/firebaseService';
+import { Level100PioneerSlot } from '../types/leaderboard';
 
 interface Level100PioneersWidgetProps {
   slots: Level100PioneerSlot[];

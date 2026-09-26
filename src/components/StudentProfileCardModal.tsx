@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Sparkles, Award, RotateCw, CheckCircle2, Trophy, Shield } from 'lucide-react';
-import { LeaderboardEntry } from '../services/firebaseService';
+import { LeaderboardEntry } from '../types/leaderboard';
 import { GameState } from '../types';
 import { StudentProfileCard } from './StudentProfileCard';
 import { calculatePlayerBadges, extractStatsFromPlayer } from '../services/profileBadges';

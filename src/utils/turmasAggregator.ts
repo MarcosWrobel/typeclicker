@@ -1,4 +1,4 @@
-import { LeaderboardEntry } from '../services/firebaseService';
+import { LeaderboardEntry } from '../types/leaderboard';
 import { getSerieIdFromTurma, getSerieLabelFromTurma } from '../constants/school';
 
 export interface ClassStats {

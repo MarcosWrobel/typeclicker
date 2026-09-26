@@ -3,18 +3,14 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Shield, Key, Trash2, X, Clock, AlertTriangle, Users, Search, RefreshCw, BarChart, Database, Download, Upload, CheckCircle2, RotateCcw, FileText, Sliders, Battery, Eye, EyeOff, Filter, Swords, Sparkles, Coins, Zap, Trophy, Award, UserCheck, Plus, History, Gift, ArrowRight, Check, Terminal, Flag, Timer, BookOpen, Flame, GraduationCap, Sword, Activity, Calendar, Landmark } from 'lucide-react';
 import { fetchFirestoreMetrics, FirestoreMetricsData } from '../services/adminMetricsService';
 import { dbService } from '../services/dbFactory';
+import { LeaderboardEntry } from '../types/leaderboard';
+import { isStaffMember, ADMIN_EMAILS } from '../utils/leaderboardUtils';
 import {
   auth,
   generateSessionCode,
   clearSessionCode,
-  adminUpdateStudentProfile,
-  adminAutoBalanceRpgClasses,
-  wipeDatabase,
   SystemSettings,
   getSystemSettings,
-  getAdminDashboardData,
-  LeaderboardEntry,
-  isStaffMember,
   updateAllowedTeachers,
   updateAccessibilitySettings,
   createDatabaseBackup,
@@ -32,14 +28,11 @@ import {
   findUserSaveByEmail,
   TestGrantPayload,
   TestGrantConfig,
-  sanitizeStaffFromLeaderboard,
   saveCustomCurricularText,
   deleteCustomCurricularText,
-  saveProgressToCloud,
   updateActiveSessionTrack,
   updateHubConfig,
-  HubConfig,
-  ADMIN_EMAILS
+  HubConfig
 } from '../services/firebaseService';
 import { exportToCsv, downloadCsv, aggregateByTurma } from '../services/turmasAggregator';
 import { CurricularTrackId } from '../types';
@@ -262,7 +255,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setIsStudentsLoading(true);
     try {
       const targetTurma = turmaToFetch === 'todas' ? undefined : turmaToFetch;
-      const data = await getAdminDashboardData(targetTurma);
+      const data = await dbService.getAdminDashboardData(targetTurma);
       setStudents(data);
       setLastRefreshedAt(new Date());
     } catch (e) {
@@ -1058,7 +1051,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   ) => {
     setUpdatingStudentId(studentUserId);
     try {
-      await adminUpdateStudentProfile(studentUserId, updates);
+      await dbService.adminUpdateStudentProfile(studentUserId, updates);
       setStudents(prev => prev.map(s => {
         if (s.userId === studentUserId) {
           return {
@@ -1088,7 +1081,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     if (!confirmed) return;
     setIsAutoBalancing(true);
     try {
-      const res = await adminAutoBalanceRpgClasses(selectedClassFilter);
+      const res = await dbService.adminAutoBalanceRpgClasses(selectedClassFilter);
       await loadStudents(selectedClassFilter);
       sound.playPrestige();
       alert(
@@ -1147,7 +1140,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     if (wipeConfirm !== 'CONFIRMAR') return;
     setWipeStatus('loading');
     try {
-      await wipeDatabase();
+      await dbService.wipeDatabase();
       setWipeStatus('success');
       setWipeConfirm('');
       if (activeTab === 'dashboard') loadStudents();
@@ -1193,7 +1186,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setIsSanitizingLeaderboard(true);
     setSanitizeMessage(null);
     try {
-      const result = await sanitizeStaffFromLeaderboard();
+      const result = await dbService.sanitizeStaffLeaderboard();
       sound.playWordComplete();
       setSanitizeMessage(`Higienização concluída! ${result.removedCount} registro(s) de professores/administradores removidos de ${result.checkedCount} analisados.`);
       setTimeout(() => setSanitizeMessage(null), 5000);
@@ -3866,7 +3859,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                               onUpdateGameState(fixed);
                               saveState(fixed, auth.currentUser?.uid);
                               if (auth.currentUser) {
-                                await saveProgressToCloud(fixed);
+                                await dbService.saveLegacyGameState(auth.currentUser.uid, fixed);
                               }
                             }
                             if (targetEmail) {

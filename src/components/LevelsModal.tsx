@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Trophy, X, CheckCircle2, Lock, Sparkles, Search, ArrowRight, Target, ChevronRight, Award, GraduationCap, Crown } from 'lucide-react';
 import { ALL_LEVELS, LEVEL_TIERS, LevelDef, PlayerRank } from '../data/levels';
 import { formatBytes } from '../utils/formatting';
-import { Level100PioneerSlot } from '../services/firebaseService';
+import { Level100PioneerSlot } from '../types/leaderboard';
 
 interface LevelsModalProps {
   isOpen: boolean;

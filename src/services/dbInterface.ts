@@ -1,4 +1,5 @@
 import { GameState } from '../types';
+import { RpgClassType } from '../types/rpgClass';
 import { LeaderboardEntry, CloudLoadResponse, SeasonHistoryEntry } from '../types/leaderboard';
 
 export interface UserProfile {
@@ -53,5 +54,21 @@ export interface IDatabaseService {
   getSeasonHistory(seasonId: string): Promise<SeasonHistoryEntry[]>;
   getArchivedSeasonsList(): Promise<{ seasonId: string; seasonName: string; closedAt: string }[]>;
   closeCurrentSeason(seasonId: string, seasonName: string): Promise<number>;
+
+  // Gestão Administrativa e Dashboard Docente
+  getAdminDashboardData(turmaFilter?: string): Promise<LeaderboardEntry[]>;
+  adminUpdateStudentProfile(
+    studentUserId: string,
+    updates: {
+      turma?: string;
+      rpgClass?: RpgClassType;
+      isClassLocked?: boolean;
+      isRpgClassLocked?: boolean;
+    }
+  ): Promise<void>;
+  adminAutoBalanceRpgClasses(turma: string): Promise<{ updatedCount: number; distribution: Record<RpgClassType, number> }>;
+  wipeDatabase(): Promise<void>;
+  sanitizeStaffLeaderboard(): Promise<{ removedCount: number; checkedCount: number }>;
 }
+
 

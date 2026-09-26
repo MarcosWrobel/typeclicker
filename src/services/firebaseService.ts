@@ -17,11 +17,8 @@ const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
 
-export const ADMIN_EMAILS = [
-  'wrobel.marcos@gmail.com',
-  'marcos.wrobel@escola.pr.gov.br',
-  'wrobel.marcos3@gmail.com'
-];
+import { ADMIN_EMAILS, isStaffMember, extractLevel100Pioneers } from '../utils/leaderboardUtils';
+export { ADMIN_EMAILS, isStaffMember, extractLevel100Pioneers };
 
 export function isDevAdminModeActive(): boolean {
   if (typeof window === 'undefined') return false;
@@ -473,33 +470,6 @@ let cachedLeaderboard: { timestamp: number; data: LeaderboardEntry[] } | null = 
 let inFlightLeaderboardPromise: Promise<LeaderboardEntry[]> | null = null;
 const LEADERBOARD_CACHE_TTL_MS = 40000; // 40 segundos de cache
 
-export function isStaffMember(
-  entry: { email?: string; isStaff?: boolean; turma?: string; userId?: string; nome?: string },
-  staffEmailsSet?: Set<string>,
-  staffUserIdsSet?: Set<string>
-): boolean {
-  if (entry.isStaff) return true;
-
-  if (entry.email) {
-    const cleanEmail = entry.email.trim().toLowerCase();
-    if (staffEmailsSet && staffEmailsSet.has(cleanEmail)) return true;
-    if (ADMIN_EMAILS.some((adm) => adm.toLowerCase() === cleanEmail)) return true;
-  }
-
-  if (entry.userId && staffUserIdsSet && staffUserIdsSet.has(entry.userId)) {
-    return true;
-  }
-
-  // Verifica se a turma registrada indica professor/coordenação/admin
-  if (entry.turma) {
-    const t = entry.turma.trim().toLowerCase();
-    if (/^(prof|professor|professora|admin|superadmin|docente|direcao|coordenacao)/i.test(t)) {
-      return true;
-    }
-  }
-
-  return false;
-}
 
 export async function getGlobalLeaderboard(forceRefresh: boolean = false): Promise<LeaderboardEntry[]> {
   const user = auth.currentUser;
@@ -570,45 +540,6 @@ export async function getGlobalLeaderboard(forceRefresh: boolean = false): Promi
   return inFlightLeaderboardPromise;
 }
 
-/**
- * Filtra e extrai os 3 primeiros alunos a alcançarem o Nível 100 na história do colégio.
- * Ordenação estritamente cronológica por reachedLevel100At ou updatedAt.
- * Exclui rigorosamente contas de professores e equipe staff.
- */
-export function extractLevel100Pioneers(players: LeaderboardEntry[]): Level100PioneerSlot[] {
-  // Apenas estudantes com level >= 100
-  const eligible = players.filter(
-    (p) => !isStaffMember(p) && (p.level >= 100 || (p as any).isMaxLevel)
-  );
-
-  // Ordenação cronológica por data de conquista do nível 100
-  eligible.sort((a, b) => {
-    const timeA = a.reachedLevel100At
-      ? new Date(a.reachedLevel100At).getTime()
-      : a.updatedAt
-      ? new Date(a.updatedAt).getTime()
-      : 0;
-    const timeB = b.reachedLevel100At
-      ? new Date(b.reachedLevel100At).getTime()
-      : b.updatedAt
-      ? new Date(b.updatedAt).getTime()
-      : 0;
-    if (timeA !== timeB) return timeA - timeB;
-    return (b.points || 0) - (a.points || 0);
-  });
-
-  const top3 = eligible.slice(0, 3);
-
-  return [1, 2, 3].map((rank) => {
-    const player = top3[rank - 1];
-    return {
-      rank: rank as 1 | 2 | 3,
-      player: player || undefined,
-      reachedAt: player?.reachedLevel100At || player?.updatedAt,
-      isFilled: Boolean(player)
-    };
-  });
-}
 
 export async function getAdminDashboardData(turmaFilter?: string): Promise<LeaderboardEntry[]> {
   const user = auth.currentUser;

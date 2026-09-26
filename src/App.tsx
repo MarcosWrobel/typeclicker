@@ -68,7 +68,9 @@ import {
 import { AchievementDef, AchievementContext } from './types/achievements';
 import { RpgFloorData, QuestEvent } from './types/quests';
 import { calculatePlayerRank, formatBytes } from './utils/formatting';
-import { auth, loginWithGoogle, logoutUser, subscribeToAuthChanges, loadProgressFromCloud, saveProgressToCloud, checkIsAdminAsync, checkIsSuperAdmin, getSystemSettings, subscribeToSystemSettings, claimPendingTestGrants, ADMIN_EMAILS, LeaderboardEntry } from './services/firebaseService';
+import { auth, loginWithGoogle, logoutUser, subscribeToAuthChanges, checkIsAdminAsync, checkIsSuperAdmin, getSystemSettings, subscribeToSystemSettings, claimPendingTestGrants } from './services/firebaseService';
+import { LeaderboardEntry } from './types/leaderboard';
+import { ADMIN_EMAILS } from './utils/leaderboardUtils';
 import { dbService } from './services/dbFactory';
 import { isCategoryAllowed, getMinAllowedCategoryLevel } from './utils/difficulty';
 import { useGameSync } from './hooks/useGameSync';
@@ -204,7 +206,7 @@ export default function App() {
             };
             saveState(updated, auth.currentUser?.uid);
             if (auth.currentUser) {
-              saveProgressToCloud(updated).catch(console.error);
+              dbService.saveLegacyGameState(auth.currentUser.uid, updated).catch(console.error);
             }
             return updated;
           });
@@ -257,7 +259,7 @@ export default function App() {
                   finalState.studentClass = 'Professor';
                   finalState.isClassLocked = true;
                 }
-                await saveProgressToCloud(finalState);
+                await dbService.saveLegacyGameState(currentUser.uid, finalState);
               }
             } catch (e) {
               console.error('Error claiming pending test grants:', e);
@@ -267,7 +269,7 @@ export default function App() {
           // Se for conta de professor e o save da nuvem ainda tiver turma antiga corrompida ou vazia, atualiza imediatamente
           if (isStaffUser && res.saveState.studentClass !== 'Professor') {
             saveState(finalState, currentUser.uid);
-            saveProgressToCloud(finalState).catch(console.error);
+            dbService.saveLegacyGameState(currentUser.uid, finalState).catch(console.error);
           }
 
           // Sincronização retroativa de conquistas na carga da nuvem
@@ -286,7 +288,7 @@ export default function App() {
             if (retroCloud.bonusFragments > 0) {
               spawnFloatingText(`✨ +${retroCloud.bonusFragments} Frag. Quânticos!`, 'bonus');
             }
-            await saveProgressToCloud(finalState);
+            await dbService.saveLegacyGameState(currentUser.uid, finalState);
           }
 
           setState(finalState);
@@ -329,7 +331,7 @@ export default function App() {
               const grantRes = await claimPendingTestGrants(currentUser.email, activeState);
               if (grantRes.claimed && grantRes.updatedState) {
                 activeState = grantRes.updatedState;
-                await saveProgressToCloud(activeState);
+                await dbService.saveLegacyGameState(currentUser.uid, activeState);
               }
             } catch (e) {
               console.error('Error claiming pending test grants:', e);
@@ -1737,7 +1739,7 @@ export default function App() {
       };
       saveState(updated, auth.currentUser?.uid);
       if (auth.currentUser) {
-        saveProgressToCloud(updated);
+        dbService.saveLegacyGameState(auth.currentUser.uid, updated).catch(console.error);
       }
       return updated;
     });
@@ -1773,7 +1775,7 @@ export default function App() {
       };
       saveState(updated, auth.currentUser?.uid);
       if (auth.currentUser) {
-        saveProgressToCloud(updated).catch(console.error);
+        dbService.saveLegacyGameState(auth.currentUser.uid, updated).catch(console.error);
       }
       return updated;
     });
@@ -2088,7 +2090,7 @@ export default function App() {
       };
       saveState(nextState, auth.currentUser?.uid);
       if (auth.currentUser) {
-        saveProgressToCloud(nextState).catch(console.error);
+        dbService.saveLegacyGameState(auth.currentUser.uid, nextState).catch(console.error);
       }
       return nextState;
     });
@@ -2108,7 +2110,7 @@ export default function App() {
     if (nextState) {
       saveState(nextState, auth.currentUser?.uid);
       if (auth.currentUser) {
-        saveProgressToCloud(nextState).catch(console.error);
+        dbService.saveLegacyGameState(auth.currentUser.uid, nextState).catch(console.error);
       }
     }
   }, []);
@@ -2117,7 +2119,7 @@ export default function App() {
     setState(updatedState);
     saveState(updatedState, auth.currentUser?.uid);
     if (auth.currentUser) {
-      saveProgressToCloud(updatedState).catch(console.error);
+      dbService.saveLegacyGameState(auth.currentUser.uid, updatedState).catch(console.error);
     }
   }, []);
 
@@ -2148,7 +2150,7 @@ export default function App() {
       if (updatedState) {
         saveState(updatedState, auth.currentUser?.uid);
         if (auth.currentUser) {
-          saveProgressToCloud(updatedState).catch(console.error);
+          dbService.saveLegacyGameState(auth.currentUser.uid, updatedState).catch(console.error);
         }
       }
       spawnFloatingText(`+${formatBytes(prizeBytes)} 🏁 Vitória na Corrida!`, 'bonus');
@@ -2174,7 +2176,7 @@ export default function App() {
     if (updatedState) {
       saveState(updatedState, auth.currentUser?.uid);
       if (auth.currentUser) {
-        saveProgressToCloud(updatedState).catch(console.error);
+        dbService.saveLegacyGameState(auth.currentUser.uid, updatedState).catch(console.error);
       }
     }
   }, []);
@@ -2207,7 +2209,7 @@ export default function App() {
       if (updatedState) {
         saveState(updatedState, auth.currentUser?.uid);
         if (auth.currentUser) {
-          saveProgressToCloud(updatedState).catch(console.error);
+          dbService.saveLegacyGameState(auth.currentUser.uid, updatedState).catch(console.error);
         }
       }
       spawnFloatingText(`+${formatBytes(prizeBytes)} 🏆 Vitória na Raid Coletiva!`, 'bonus');
@@ -2458,7 +2460,7 @@ export default function App() {
               };
               saveState(updated, auth.currentUser?.uid);
               if (auth.currentUser) {
-                saveProgressToCloud(updated).catch(console.error);
+                dbService.saveLegacyGameState(auth.currentUser.uid, updated).catch(console.error);
               }
               return updated;
             });

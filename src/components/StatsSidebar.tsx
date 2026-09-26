@@ -6,7 +6,7 @@ import { formatBytes, formatRate, calculatePlayerRank } from '../utils/formattin
 import { TopPodiumWidget } from './TopPodiumWidget';
 import { LeaderboardMetric } from './LeaderboardModal';
 import { Level100PioneersWidget } from './Level100PioneersWidget';
-import { Level100PioneerSlot } from '../services/firebaseService';
+import { Level100PioneerSlot } from '../types/leaderboard';
 
 interface StatsSidebarProps {
   state: GameState;

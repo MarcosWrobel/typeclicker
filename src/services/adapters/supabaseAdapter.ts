@@ -340,4 +340,171 @@ export class SupabaseAdapter implements IDatabaseService {
       console.warn('Erro ao salvar snapshot em game_progress:', err);
     }
   }
+
+  async getAdminDashboardData(turmaFilter?: string): Promise<LeaderboardEntry[]> {
+    let query = this.client
+      .from('profiles')
+      .select('*')
+      .order('total_bytes_earned', { ascending: false });
+
+    const cleanTurma = (turmaFilter || '').trim();
+    if (cleanTurma && cleanTurma.toLowerCase() !== 'todas' && cleanTurma.toLowerCase() !== 'all') {
+      query = query.eq('turma', cleanTurma);
+    }
+
+    const { data, error } = await query.limit(300);
+    if (error || !data) {
+      console.error('Supabase getAdminDashboardData error:', error);
+      return [];
+    }
+
+    return data
+      .filter((row: any) => row.role !== 'teacher' && row.role !== 'admin')
+      .map((row: any): LeaderboardEntry => ({
+        userId: row.id,
+        nome: row.display_name || 'Aluno',
+        apelido: row.nickname,
+        turma: row.turma || '',
+        level: row.level || 1,
+        points: Number(row.total_bytes_earned) || 0,
+        seasonBytes: Number(row.season_bytes) || 0,
+        wpm: 0,
+        avatar: row.avatar,
+        updatedAt: row.updated_at || new Date().toISOString(),
+        rpgClass: row.rpg_class,
+        cardFrame: row.equipped_frame,
+        isStaff: false
+      }));
+  }
+
+  async adminUpdateStudentProfile(
+    studentUserId: string,
+    updates: {
+      turma?: string;
+      rpgClass?: any;
+      isClassLocked?: boolean;
+      isRpgClassLocked?: boolean;
+    }
+  ): Promise<void> {
+    const payload: Record<string, any> = { updated_at: new Date().toISOString() };
+    if (updates.turma !== undefined) payload.turma = updates.turma;
+    if (updates.rpgClass !== undefined) payload.rpg_class = updates.rpgClass;
+
+    const { error } = await this.client
+      .from('profiles')
+      .update(payload)
+      .eq('id', studentUserId);
+
+    if (error) {
+      console.error('Supabase adminUpdateStudentProfile error:', error);
+      throw error;
+    }
+
+    try {
+      const { data: progress } = await this.client
+        .from('game_progress')
+        .select('state_payload')
+        .eq('user_id', studentUserId)
+        .eq('game_id', 'typeclicker')
+        .single();
+
+      if (progress?.state_payload) {
+        const nextPayload = {
+          ...progress.state_payload,
+          ...(updates.turma !== undefined ? { studentClass: updates.turma } : {}),
+          ...(updates.rpgClass !== undefined ? { rpgClass: updates.rpgClass } : {}),
+          ...(updates.isClassLocked !== undefined ? { isClassLocked: updates.isClassLocked } : {}),
+          ...(updates.isRpgClassLocked !== undefined ? { isRpgClassLocked: updates.isRpgClassLocked } : {})
+        };
+        await this.client
+          .from('game_progress')
+          .update({ state_payload: nextPayload, updated_at: new Date().toISOString() })
+          .eq('user_id', studentUserId)
+          .eq('game_id', 'typeclicker');
+      }
+    } catch (e) {
+      console.warn('Aviso: save de game_progress não pôde ser atualizado:', e);
+    }
+  }
+
+  async adminAutoBalanceRpgClasses(turma: string): Promise<{ updatedCount: number; distribution: Record<string, number> }> {
+    const classes = ['guerreiro', 'mago', 'arqueiro', 'clerigo', 'ladino'];
+    const { data: students, error } = await this.client
+      .from('profiles')
+      .select('id, rpg_class')
+      .eq('turma', turma);
+
+    if (error || !students) throw new Error(error?.message || 'Falha ao buscar alunos da turma.');
+
+    const distribution: Record<string, number> = {
+      guerreiro: 0,
+      mago: 0,
+      arqueiro: 0,
+      clerigo: 0,
+      ladino: 0
+    };
+
+    let updatedCount = 0;
+    for (let i = 0; i < students.length; i++) {
+      const student = students[i];
+      const assignedClass = classes[i % classes.length];
+      distribution[assignedClass] = (distribution[assignedClass] || 0) + 1;
+
+      if (student.rpg_class !== assignedClass) {
+        await this.client
+          .from('profiles')
+          .update({ rpg_class: assignedClass, updated_at: new Date().toISOString() })
+          .eq('id', student.id);
+        updatedCount++;
+      }
+    }
+
+    return { updatedCount, distribution };
+  }
+
+  async wipeDatabase(): Promise<void> {
+    await this.client.from('game_sessions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    await this.client.from('season_history').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    await this.client.from('game_progress').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    await this.client.from('user_cosmetics').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    await this.client
+      .from('profiles')
+      .update({
+        bytes: 0,
+        total_bytes_earned: 0,
+        season_bytes: 0,
+        level: 1,
+        level_tokens: 0,
+        duel_tokens: 0,
+        quantum_fragments: 0,
+        prestige_count: 0
+      })
+      .neq('role', 'admin')
+      .neq('role', 'teacher');
+  }
+
+  async sanitizeStaffLeaderboard(): Promise<{ removedCount: number; checkedCount: number }> {
+    const { data: staffMembers } = await this.client
+      .from('profiles')
+      .select('id, role')
+      .or('role.eq.teacher,role.eq.admin');
+
+    if (!staffMembers || staffMembers.length === 0) {
+      return { removedCount: 0, checkedCount: 0 };
+    }
+
+    const { error } = await this.client
+      .from('profiles')
+      .update({
+        total_bytes_earned: 0,
+        season_bytes: 0
+      })
+      .or('role.eq.teacher,role.eq.admin');
+
+    return {
+      removedCount: error ? 0 : staffMembers.length,
+      checkedCount: staffMembers.length
+    };
+  }
 }
+

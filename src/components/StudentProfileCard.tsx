@@ -1,6 +1,6 @@
 import React from 'react';
 import { Trophy, Zap, Flame, Database, Swords, Flag, Target, Award, Sparkles, Crown, Shield } from 'lucide-react';
-import { LeaderboardEntry } from '../services/firebaseService';
+import { LeaderboardEntry } from '../types/leaderboard';
 import { GameState } from '../types';
 import { CARD_FRAME_CONFIGS, CardFrameId } from '../types/cardFrames';
 import { calculatePlayerBadges, extractStatsFromPlayer } from '../services/profileBadges';

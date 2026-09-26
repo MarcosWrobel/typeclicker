@@ -1,5 +1,14 @@
 import { IDatabaseService, UserProfile, GameSessionPayload } from '../dbInterface';
-import { db, loadProgressFromCloud, getGlobalLeaderboard } from '../firebaseService';
+import {
+  db,
+  loadProgressFromCloud,
+  getGlobalLeaderboard,
+  getAdminDashboardData,
+  adminUpdateStudentProfile,
+  adminAutoBalanceRpgClasses,
+  wipeDatabase,
+  sanitizeStaffFromLeaderboard
+} from '../firebaseService';
 import { doc, getDoc, setDoc, updateDoc, collection, query, orderBy, limit, getDocs, where } from 'firebase/firestore';
 import { GameState } from '../../types';
 import { CloudLoadResponse, LeaderboardEntry, SeasonHistoryEntry } from '../../types/leaderboard';
@@ -160,5 +169,34 @@ export class FirebaseAdapter implements IDatabaseService {
     console.warn('closeCurrentSeason não é suportado no Firestore legado.');
     return 0;
   }
+
+  async getAdminDashboardData(turmaFilter?: string): Promise<LeaderboardEntry[]> {
+    return getAdminDashboardData(turmaFilter);
+  }
+
+  async adminUpdateStudentProfile(
+    studentUserId: string,
+    updates: {
+      turma?: string;
+      rpgClass?: any;
+      isClassLocked?: boolean;
+      isRpgClassLocked?: boolean;
+    }
+  ): Promise<void> {
+    return adminUpdateStudentProfile(studentUserId, updates);
+  }
+
+  async adminAutoBalanceRpgClasses(turma: string): Promise<{ updatedCount: number; distribution: Record<string, number> }> {
+    return adminAutoBalanceRpgClasses(turma);
+  }
+
+  async wipeDatabase(): Promise<void> {
+    return wipeDatabase();
+  }
+
+  async sanitizeStaffLeaderboard(): Promise<{ removedCount: number; checkedCount: number }> {
+    return sanitizeStaffFromLeaderboard();
+  }
 }
+
 
