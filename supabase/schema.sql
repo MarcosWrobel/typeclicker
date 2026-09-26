@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   role TEXT DEFAULT 'student',
   bytes BIGINT DEFAULT 0,
   total_bytes_earned BIGINT DEFAULT 0,
+  season_bytes BIGINT DEFAULT 0,
   level INTEGER DEFAULT 1,
   level_tokens INTEGER DEFAULT 0,
   duel_tokens INTEGER DEFAULT 0,
@@ -61,17 +62,33 @@ CREATE TABLE IF NOT EXISTS public.user_achievements (
   UNIQUE(user_id, achievement_id)
 );
 
+-- Tabela: public.season_history (Arquivo histórico bimestral / Hall da Fama)
+CREATE TABLE IF NOT EXISTS public.season_history (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  season_id TEXT NOT NULL,
+  season_name TEXT NOT NULL,
+  user_id TEXT REFERENCES public.profiles(id) ON DELETE CASCADE,
+  display_name TEXT NOT NULL,
+  turma TEXT,
+  season_bytes BIGINT NOT NULL DEFAULT 0,
+  rank_position INTEGER,
+  closed_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
 -- Índices para otimização de consultas e leaderboards
 CREATE INDEX IF NOT EXISTS idx_profiles_turma ON public.profiles(turma);
 CREATE INDEX IF NOT EXISTS idx_profiles_level ON public.profiles(level DESC);
 CREATE INDEX IF NOT EXISTS idx_profiles_points ON public.profiles(total_bytes_earned DESC);
+CREATE INDEX IF NOT EXISTS idx_profiles_season_bytes ON public.profiles(season_bytes DESC);
 CREATE INDEX IF NOT EXISTS idx_game_progress_high_score ON public.game_progress(game_id, high_score DESC);
+CREATE INDEX IF NOT EXISTS idx_season_history_season ON public.season_history(season_id, season_bytes DESC);
 
 -- POLÍTICAS RLS (Row Level Security)
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.game_progress ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_cosmetics ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_achievements ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.season_history ENABLE ROW LEVEL SECURITY;
 
 -- Limpa policies existentes para permitir idempotência
 DROP POLICY IF EXISTS "Profiles viewable by everyone" ON public.profiles;
@@ -86,6 +103,8 @@ DROP POLICY IF EXISTS "Users can manage own cosmetics" ON public.user_cosmetics;
 
 DROP POLICY IF EXISTS "Achievements viewable by everyone" ON public.user_achievements;
 DROP POLICY IF EXISTS "Users can manage own achievements" ON public.user_achievements;
+
+DROP POLICY IF EXISTS "Season history viewable by everyone" ON public.season_history;
 
 -- Profiles: Leitura pública, escrita apenas pelo dono da conta
 CREATE POLICY "Profiles viewable by everyone" ON public.profiles FOR SELECT USING (true);
@@ -102,6 +121,9 @@ CREATE POLICY "Users can manage own cosmetics" ON public.user_cosmetics FOR ALL 
 
 CREATE POLICY "Achievements viewable by everyone" ON public.user_achievements FOR SELECT USING (true);
 CREATE POLICY "Users can manage own achievements" ON public.user_achievements FOR ALL USING (auth.uid()::text = user_id);
+
+-- Season History: Leitura pública para Hall da Fama
+CREATE POLICY "Season history viewable by everyone" ON public.season_history FOR SELECT USING (true);
 
 -- RPC (Stored Procedure) atômica para registro seguro de sessão de jogo
 CREATE OR REPLACE FUNCTION public.record_game_session(
@@ -120,12 +142,45 @@ BEGIN
     metrics = public.game_progress.metrics || EXCLUDED.metrics,
     updated_at = now();
 
-  -- 2. Credita a economia global do usuário
+  -- 2. Credita a economia global e sazonal do usuário
   UPDATE public.profiles
   SET 
     bytes = bytes + p_bytes_earned,
     total_bytes_earned = total_bytes_earned + p_bytes_earned,
+    season_bytes = season_bytes + p_bytes_earned,
     updated_at = now()
   WHERE id = p_user_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- RPC para encerramento de temporada / bimestre pelo professor
+CREATE OR REPLACE FUNCTION public.close_current_season(
+  p_season_id TEXT,
+  p_season_name TEXT
+) RETURNS INTEGER AS $$
+DECLARE
+  v_count INTEGER := 0;
+BEGIN
+  -- 1. Arquiva os rankings dos alunos com progresso na temporada
+  INSERT INTO public.season_history (season_id, season_name, user_id, display_name, turma, season_bytes, rank_position)
+  SELECT 
+    p_season_id,
+    p_season_name,
+    p.id,
+    p.display_name,
+    p.turma,
+    p.season_bytes,
+    ROW_NUMBER() OVER (ORDER BY p.season_bytes DESC) as rank_position
+  FROM public.profiles p
+  WHERE p.season_bytes > 0;
+
+  GET DIAGNOSTICS v_count = ROW_COUNT;
+
+  -- 2. Zera a pontuação sazonal de todos os perfis para o início da nova temporada
+  UPDATE public.profiles
+  SET season_bytes = 0,
+      updated_at = now();
+
+  RETURN v_count;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

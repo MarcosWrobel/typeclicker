@@ -14,8 +14,11 @@
 | **[PROFESSOR]** Implementar `math_storm` | `saves/{uid}.saveState.arcadeHistory` | `GameSelectionScreen`, `App.tsx` | M | Pendente |
 | **[PROFESSOR]** Implementar `syntax_maze` | `saves/{uid}.saveState.arcadeHistory` | `GameSelectionScreen`, `App.tsx` | M | Pendente |
 | **[ALUNOS]** Integrar 1º jogo de aluno (ID definido pelo professor) | `saves/{uid}.saveState.arcadeHistory` | `GameSelectionScreen`, `App.tsx` | M | Aguardando entrega |
-| **[ALUNOS]** Integrar 2º jogo de aluno (ID definido pelo professor) | `saves/{uid}.saveState.arcadeHistory` | `GameSelectionScreen`, `App.tsx` | M | Aguardando entrega |
 | Scheduler automático de backups | `backups/{backupId}` | Admin panel | G | Ideia |
+| **[TEMPORADAS]** Suporte a Temporadas Bimestrais no Supabase | `public.profiles(season_bytes)`, `public.season_history` | `schema.sql`, `supabaseAdapter.ts` | M | Pronto no Schema / Pendente UI |
+| **[ADMIN]** Painel Docente: Fechamento de Bimestre / Nova Temporada | RPC `close_current_season` | `AdminPanel.tsx` | M | Pendente |
+| **[LEADERBOARD]** Seletor de "Bimestre Atual vs Todos os Tempos" | `public.profiles.season_bytes`, `public.season_history` | `LeaderboardModal.tsx` | M | Pendente |
+| **[ANTI-CHEAT]** Chamada atômica de ganho de bytes via RPC `record_game_session` | RPC `record_game_session` | `supabaseAdapter.ts`, `App.tsx` | P | Pendente |
 
 ---
 
