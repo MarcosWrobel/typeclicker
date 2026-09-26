@@ -1,4 +1,4 @@
-import { supabase } from './supabaseClient';
+import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { calculateMinBytesForLevel } from '../data/levels';
 import { calculatePlayerRank } from '../utils/formatting';
 import { UPGRADES } from '../data/upgrades';
@@ -12,7 +12,10 @@ import {
   ADMIN_EMAILS,
   TestGrantConfig,
   removeUndefinedFields,
-  db
+  db,
+  findUserSaveByEmail,
+  applyTestResourcesToEmail,
+  claimPendingTestGrants as claimPendingTestGrantsFirebase
 } from './firebaseService';
 import { doc, setDoc } from 'firebase/firestore';
 import { GameState } from '../types';
@@ -67,6 +70,48 @@ export async function findTargetAccount(
   const cleanId = (userId || '').trim();
   const cleanIdentifier = identifier.trim().toLowerCase();
   const isTeacher = ADMIN_EMAILS.some((adm) => adm.toLowerCase() === cleanIdentifier);
+
+  if (!isSupabaseConfigured) {
+    try {
+      const legacy = await findUserSaveByEmail(cleanIdentifier);
+      if (!legacy || !legacy.data) {
+        return {
+          exists: false,
+          name: identifier.split('@')[0],
+          turma: 'Sem turma',
+          currentLevel: 1,
+          currentBytes: 0,
+          levelTokens: 0,
+          duelTokens: 0,
+          quantumFragments: 0
+        };
+      }
+      const saveState = legacy.data.saveState || ({} as any);
+      return {
+        exists: true,
+        userId: legacy.docId,
+        name: saveState.studentName || identifier.split('@')[0],
+        turma: legacy.data.turma || saveState.studentClass || 'Sem turma',
+        email: legacy.data.email,
+        currentLevel: legacy.data.level || 1,
+        currentBytes: saveState.bytes || 0,
+        levelTokens: saveState.cosmetics?.levelTokens || 0,
+        duelTokens: saveState.cosmetics?.duelTokens || 0,
+        quantumFragments: saveState.cosmetics?.quantumFragments || 0
+      };
+    } catch {
+      return {
+        exists: false,
+        name: identifier.split('@')[0],
+        turma: 'Sem turma',
+        currentLevel: 1,
+        currentBytes: 0,
+        levelTokens: 0,
+        duelTokens: 0,
+        quantumFragments: 0
+      };
+    }
+  }
 
   try {
     let profileData: any = null;
@@ -165,6 +210,30 @@ export async function applyTestGrantToSupabase(
   const isAdmin = await checkIsAdminAsync(user);
   if (!isAdmin) {
     throw new Error('Não autorizado: Somente administradores podem conceder recursos de teste.');
+  }
+
+  if (!isSupabaseConfigured) {
+    const legacyRes = await applyTestResourcesToEmail({
+      email: grant.email || grant.identifier,
+      addLevelTokens: grant.addLevelTokens,
+      addDuelTokens: grant.addDuelTokens,
+      addQuantumFragments: grant.addQuantumFragments,
+      levelAction: grant.levelAction,
+      levelAmount: grant.levelAmount,
+      unlockAllCosmetics: grant.unlockAllCosmetics,
+      maxUpgrades: grant.maxUpgrades,
+      resetToLevel1: grant.resetToLevel1,
+      notes: grant.notes
+    });
+    return {
+      success: legacyRes.success,
+      message: legacyRes.message,
+      record: legacyRes.record,
+      updatedSaveState: legacyRes.updatedSaveState,
+      resultingLevel: legacyRes.record.levelAmount || 1,
+      resultingTokens: legacyRes.record.addLevelTokens || 0,
+      resultingDuelTokens: legacyRes.record.addDuelTokens || 0
+    };
   }
 
   // 1. Localiza a conta no Supabase
@@ -392,6 +461,20 @@ export async function claimPendingTestGrantsSupabase(
   currentState: GameState
 ): Promise<{ claimed: boolean; updatedState: GameState; message?: string }> {
   if (!userId && !userEmail) return { claimed: false, updatedState: currentState };
+
+  if (!isSupabaseConfigured) {
+    try {
+      const legacyRes = await claimPendingTestGrantsFirebase(userEmail, currentState);
+      return {
+        claimed: legacyRes.claimed,
+        updatedState: legacyRes.updatedState || currentState,
+        message: legacyRes.message
+      };
+    } catch (e) {
+      console.warn('Erro ao resgatar concessões pendentes no Firebase legado:', e);
+      return { claimed: false, updatedState: currentState };
+    }
+  }
 
   const cleanEmail = (userEmail || '').trim().toLowerCase();
 

@@ -1,4 +1,4 @@
-import { supabase } from './supabaseClient';
+import { supabase, isSupabaseConfigured } from './supabaseClient';
 
 export interface FullSupabaseBackup {
   version: '2.0.0';
@@ -41,6 +41,10 @@ export async function createSupabaseBackup(
   label: string = 'Snapshot de Segurança do Supabase',
   createdBy: string = 'admin'
 ): Promise<FullSupabaseBackup> {
+  if (!isSupabaseConfigured) {
+    throw new Error('Supabase não está configurado neste ambiente (VITE_SUPABASE_URL ausente).');
+  }
+
   const [
     { data: profiles, error: errProfiles },
     { data: gameProgress, error: errProgress },
@@ -110,6 +114,10 @@ export function downloadSupabaseBackupFile(backup: FullSupabaseBackup): void {
  * Aplica upsert idempotente nas tabelas principais.
  */
 export async function restoreSupabaseBackup(backup: FullSupabaseBackup): Promise<RestoreSummary> {
+  if (!isSupabaseConfigured) {
+    throw new Error('Supabase não está configurado neste ambiente (VITE_SUPABASE_URL ausente).');
+  }
+
   if (!backup || !backup.tables || typeof backup.tables !== 'object') {
     throw new Error('Arquivo de backup inválido: estrutura de tabelas não encontrada.');
   }

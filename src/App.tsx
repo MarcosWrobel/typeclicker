@@ -228,21 +228,32 @@ export default function App() {
   };
   
   useEffect(() => {
-    const unsubscribe = subscribeToAuthChanges(async (currentUser) => {
-      setUser(currentUser);
-      const adminStatus = await checkIsAdminAsync(currentUser);
-      setIsAdmin(adminStatus);
+    // Safety fallback: se o callback do auth demorar mais de 3.5s em redes escolares, libera a tela de carregamento
+    const safetyTimer = setTimeout(() => {
       setAuthLoading(false);
+    }, 3500);
+
+    const unsubscribe = subscribeToAuthChanges(async (currentUser) => {
+      try {
+        setUser(currentUser);
+        const adminStatus = await checkIsAdminAsync(currentUser);
+        setIsAdmin(adminStatus);
+      } catch (authErr) {
+        console.error('Erro na checagem de autenticação/admin:', authErr);
+      } finally {
+        setAuthLoading(false);
+      }
       
-      const isStaffUser = adminStatus || (currentUser?.email && ADMIN_EMAILS.some((adm) => adm.toLowerCase() === currentUser.email?.toLowerCase()));
+      const isStaffUser = (currentUser?.email && ADMIN_EMAILS.some((adm) => adm.toLowerCase() === currentUser.email?.toLowerCase()));
 
       if (currentUser) {
-        // Try to load state from cloud automatically upon login
-        const res = await dbService.loadGameState(currentUser.uid);
-        if (res.success && res.saveState) {
-          const loadedNickname = res.saveState.studentNickname || '';
-          const loadedClass = isStaffUser ? 'Professor' : (res.saveState.studentClass || '');
-          const loadedState: GameState = {
+        try {
+          // Try to load state from cloud automatically upon login
+          const res = await dbService.loadGameState(currentUser.uid);
+          if (res.success && res.saveState) {
+            const loadedNickname = res.saveState.studentNickname || '';
+            const loadedClass = isStaffUser ? 'Professor' : (res.saveState.studentClass || '');
+            const loadedState: GameState = {
             ...INITIAL_STATE,
             ...res.saveState,
             studentName: currentUser.displayName || res.saveState.studentName || (isStaffUser ? 'Prof. Marcos Wrobel' : 'Aluno'),
@@ -366,9 +377,12 @@ export default function App() {
           setCharIndex(0);
           setCurrentWord(getRandomWord(activeState.selectedCategory || INITIAL_STATE.selectedCategory));
         }
-      } else {
-        setState({ ...INITIAL_STATE });
-        setCharIndex(0);
+      } catch (loadErr) {
+        console.error('Erro ao carregar estado do jogo na nuvem:', loadErr);
+      }
+    } else {
+      setState({ ...INITIAL_STATE });
+      setCharIndex(0);
         setCurrentWord(getRandomWord(INITIAL_STATE.selectedCategory));
         clearSavedState();
         try {
@@ -379,7 +393,10 @@ export default function App() {
         suppressLevelUpRef.current = false;
       }, 500);
     });
-    return () => unsubscribe();
+    return () => {
+      clearTimeout(safetyTimer);
+      unsubscribe();
+    };
   }, []);
 
   // Sincronização retroativa de conquistas na inicialização local

@@ -1,4 +1,4 @@
-import { supabase } from './supabaseClient';
+import { supabase, isSupabaseConfigured } from './supabaseClient';
 
 export interface SupabaseMetricsData {
   status: 'online' | 'degraded' | 'offline';
@@ -38,6 +38,36 @@ const CACHE_TTL_MS = 30000; // 30 segundos de cache para evitar sobrecarga de co
  * e avalia a saúde da conexão com o PostgreSQL no Supabase.
  */
 export async function fetchSupabaseMetrics(forceRefresh: boolean = false): Promise<SupabaseMetricsData> {
+  if (!isSupabaseConfigured) {
+    return {
+      status: 'offline',
+      latencyMs: 0,
+      timestamp: new Date().toLocaleTimeString('pt-BR'),
+      tables: {
+        profiles: 0,
+        game_progress: 0,
+        user_cosmetics: 0,
+        user_achievements: 0,
+        season_history: 0
+      },
+      totalRows: 0,
+      studentsCount: 0,
+      teachersCount: 0,
+      storage: {
+        databaseLimitMb: 500,
+        estimatedUsedMb: 0,
+        percentUsed: 0
+      },
+      mau: {
+        limitUsers: 50000,
+        activeUsers: 0,
+        percentUsed: 0
+      },
+      environment: 'Supabase não configurado (VITE_SUPABASE_URL ausente)',
+      cacheTtlSeconds: 0
+    };
+  }
+
   const now = Date.now();
   if (!forceRefresh && cachedMetrics && (now - lastFetchTime < CACHE_TTL_MS)) {
     return {
