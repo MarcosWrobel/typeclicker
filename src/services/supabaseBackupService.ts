@@ -42,7 +42,7 @@ export async function createSupabaseBackup(
   createdBy: string = 'admin'
 ): Promise<FullSupabaseBackup> {
   if (!isSupabaseConfigured) {
-    throw new Error('Supabase não está configurado neste ambiente (VITE_SUPABASE_URL ausente).');
+    throw new Error('Supabase não está configurado neste ambiente (VITE_SUPABASE_URL ausente). Verifique as variáveis de ambiente no AI Studio ou o arquivo supabase-applet-config.json.');
   }
 
   const [
@@ -115,7 +115,7 @@ export function downloadSupabaseBackupFile(backup: FullSupabaseBackup): void {
  */
 export async function restoreSupabaseBackup(backup: FullSupabaseBackup): Promise<RestoreSummary> {
   if (!isSupabaseConfigured) {
-    throw new Error('Supabase não está configurado neste ambiente (VITE_SUPABASE_URL ausente).');
+    throw new Error('Supabase não está configurado neste ambiente (VITE_SUPABASE_URL ausente). Verifique as variáveis de ambiente no AI Studio ou o arquivo supabase-applet-config.json.');
   }
 
   if (!backup || !backup.tables || typeof backup.tables !== 'object') {

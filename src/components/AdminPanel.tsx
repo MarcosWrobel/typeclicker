@@ -29,6 +29,7 @@ import {
   Swords
 } from 'lucide-react';
 import { fetchSupabaseMetrics, SupabaseMetricsData } from '../services/supabaseMetricsService';
+import { isSupabaseConfigured } from '../services/supabaseClient';
 import {
   createSupabaseBackup,
   downloadSupabaseBackupFile,
@@ -1162,6 +1163,25 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                   </div>
 
+                  {!isSupabaseConfigured && (
+                    <div className="p-4 rounded-2xl bg-amber-950/40 border border-amber-500/50 text-amber-200 text-xs space-y-2">
+                      <div className="flex items-center gap-2 font-bold text-amber-300 text-sm">
+                        <AlertTriangle className="w-4 h-4 text-amber-400" />
+                        <span>Supabase Não Conectado neste Ambiente</span>
+                      </div>
+                      <p>
+                        A exportação e restauração de snapshots do PostgreSQL exigem a conexão com o Supabase. No momento, o sistema está utilizando o banco de contingência (Firebase Firestore) porque as credenciais não foram encontradas.
+                      </p>
+                      <div className="bg-black/50 rounded-xl p-3 font-mono text-[11px] text-zinc-300 space-y-1">
+                        <div className="text-zinc-400 font-bold mb-1">Como resolver no Google AI Studio / Cloud Run:</div>
+                        <div>1. No painel de configuração/secrets da aplicação, confira o nome da variável: use <span className="text-emerald-400">VITE_SUPABASE_URL</span> (com &quot;E&quot;, e não <span className="text-rose-400">VITA_</span>).</div>
+                        <div>2. Adicione <span className="text-emerald-400">VITE_SUPABASE_ANON_KEY</span> com a chave pública do Supabase.</div>
+                        <div>3. Defina <span className="text-emerald-400">VITE_DB_PROVIDER=supabase</span>.</div>
+                        <div className="mt-2 text-zinc-400">Alternativa: adicione o arquivo <code className="text-cyan-300">supabase-applet-config.json</code> na raiz do projeto (veja modelo em <code className="text-cyan-300">supabase-applet-config.example.json</code>).</div>
+                      </div>
+                    </div>
+                  )}
+
                   {backupActionMessage && (
                     <div
                       className={`p-3.5 rounded-xl border flex items-start gap-2.5 text-xs font-medium ${
@@ -1337,6 +1357,29 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     <div className="p-3 bg-red-950/40 border border-red-500/40 rounded-xl text-xs text-red-300 flex items-center gap-2">
                       <AlertTriangle className="w-4 h-4 flex-shrink-0" />
                       <span>{metricsError}</span>
+                    </div>
+                  )}
+
+                  {!isSupabaseConfigured && (
+                    <div className="p-4 rounded-2xl bg-amber-950/40 border border-amber-500/50 text-amber-200 text-xs space-y-2">
+                      <div className="flex items-center gap-2 font-bold text-amber-300 text-sm">
+                        <AlertTriangle className="w-4 h-4 text-amber-400" />
+                        <span>Supabase Não Conectado neste Ambiente</span>
+                      </div>
+                      <p>
+                        O sistema está operando com o banco de dados de contingência (Firebase Firestore) porque a URL de conexão do Supabase não foi encontrada no build ou no runtime do servidor.
+                      </p>
+                      <div className="bg-black/50 rounded-xl p-3 font-mono text-[11px] text-zinc-300 space-y-1">
+                        <div className="text-zinc-400 font-bold mb-1">Passo a passo para conectar no Google AI Studio / Cloud Run:</div>
+                        <div>1. No painel de publicação/secrets do AI Studio, adicione a variável:</div>
+                        <div className="pl-4 text-emerald-400 font-bold">VITE_SUPABASE_URL=https://seu-projeto.supabase.co</div>
+                        <div className="text-[10px] text-zinc-400 pl-4">(Atenção: verifique se não foi digitado &quot;VITA_&quot; em vez de &quot;VITE_&quot;)</div>
+                        <div>2. Adicione a chave anônima pública:</div>
+                        <div className="pl-4 text-emerald-400 font-bold">VITE_SUPABASE_ANON_KEY=eyJhbGci...</div>
+                        <div>3. Ative o provedor Supabase:</div>
+                        <div className="pl-4 text-emerald-400 font-bold">VITE_DB_PROVIDER=supabase</div>
+                        <div className="mt-2 text-zinc-400">Alternativa com arquivo: salve suas credenciais em <code className="text-cyan-300">supabase-applet-config.json</code> na raiz.</div>
+                      </div>
                     </div>
                   )}
 

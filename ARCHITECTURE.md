@@ -11,8 +11,10 @@
 
 ## Infraestrutura & Banco de Dados
 - **Hospedagem**: Google Cloud Run (containerizado via AI Studio) — `server.ts` detecta `process.env.K_SERVICE` e serve `dist/` em modo produção; em dev local serve via Vite middleware.
+  - **Injeção Dinâmica de Variáveis de Runtime**: O Vite compila variáveis de build (`import.meta.env`), mas em contêineres de produção (Cloud Run / AI Studio Secrets), as variáveis existem apenas em `process.env` no Node. O `server.ts` injeta `window.__APP_ENV__` diretamente no `<head>` do `dist/index.html` a cada requisição, garantindo sincronia imediata entre as credenciais do contêiner e o frontend sem necessidade de rebuild.
+  - **Camada de Resiliência Tripla (Supabase Env)**: O cliente Supabase (`supabaseClient.ts`) e o `dbFactory.ts` resolvem as credenciais na ordem: (1) `window.__APP_ENV__` (runtime Cloud Run), (2) `import.meta.env` (build Vite), (3) arquivo `supabase-applet-config.json` na raiz. Há suporte tolerante a nomes legados ou desvios de digitação comuns como `VITA_SUPABASE_URL` e `SUPABASE_URL`.
 - **Domínio de produção**: `typeclicker-leopoldina.ai.studio`.
-- **Camada de Banco de Dados Agnóstica**: Interface `IDatabaseService` com chaveamento dinâmico via `VITE_DB_PROVIDER` (`supabase` ou `firestore`).
+- **Camada de Banco de Dados Agnóstica**: Interface `IDatabaseService` com chaveamento dinâmico via `VITE_DB_PROVIDER` (`supabase` ou `firestore`). Se credenciais do Supabase forem detectadas, ele se auto-ativa por padrão.
   - **Provedor Oficial Primário (Supabase)**: PostgreSQL hospedado com RLS (Row Level Security), índices B-Tree otimizados e Stored Procedures atômicas. Todos os 161 perfis e saves foram migrados com sucesso para esta base.
   - **Provedor Legado de Contingência (Firestore - Obsoleto)**: `FirebaseAdapter` preservado estritamente para rollback emergencial via `VITE_DB_PROVIDER="firestore"`. Não recebe novas implementações nem regras de negócio.
 - **Identidade e Auth Híbrida**: Firebase Auth (Google Sign-In via `signInWithPopup` + `GoogleAuthProvider`) para e-mails institucionais (`@escola.pr.gov.br`). O UID do Google é a chave primária `TEXT` no Supabase (`profiles.id`).
