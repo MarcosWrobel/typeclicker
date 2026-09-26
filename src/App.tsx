@@ -13,6 +13,7 @@ import { audioSynthesizer } from './services/audioSynthesizer';
 import { GameLayoutWrapper } from './components/layouts/GameLayoutWrapper';
 import { FooterHelpBar } from './components/FooterHelpBar';
 import { combineAccent, isAccentKey, resolveDeadKey } from './utils/keyboardAccents';
+import { checkCaseMismatch } from './utils/keyboardCase';
 import { Header } from './components/Header';
 import { StatsSidebar } from './components/StatsSidebar';
 import { TypingArena } from './components/TypingArena';
@@ -87,7 +88,7 @@ export default function App() {
   const [floatingTexts, setFloatingTexts] = useState<FloatingText[]>([]);
 
   // Spawn floating feedback particle
-  const spawnFloatingText = useCallback((text: string, type: 'success' | 'error' | 'bonus' | 'level') => {
+  const spawnFloatingText = useCallback((text: string, type: 'success' | 'error' | 'bonus' | 'level' | 'warning') => {
     const id = Date.now() + Math.random();
     const x = 50 + (Math.random() * 20 - 10);
     const y = 45 + (Math.random() * 10 - 5);
@@ -1139,12 +1140,17 @@ export default function App() {
       pendingAccentRef.current = null;
     }
 
-    const typedChar = finalChar.toLocaleLowerCase('pt-BR');
     const word = currentWordRef.current;
     const index = charIndexRef.current;
-    const expectedChar = (word[index] || '').toLocaleLowerCase('pt-BR');
+    const rawExpectedChar = word[index] || '';
 
-    if (!expectedChar) return;
+    if (!rawExpectedChar) return;
+
+    // Checagem pedagógica de caixa (maiúscula vs minúscula)
+    const caseMismatch = checkCaseMismatch(finalChar, rawExpectedChar);
+    const isMatch = finalChar === rawExpectedChar;
+    const expectedChar = rawExpectedChar.toLocaleLowerCase('pt-BR');
+    const typedChar = finalChar.toLocaleLowerCase('pt-BR');
 
     // Mede tempo de resposta (delta t em ms, limitado a 50-3000ms para filtrar distrações)
     const now = performance.now();
@@ -1155,7 +1161,7 @@ export default function App() {
     const currState = stateRef.current;
     const prestigeMult = 1 + currState.prestigeCores * 0.2;
 
-    if (typedChar === expectedChar) {
+    if (isMatch) {
       // --- HIT (CORRECT KEY) ---
       // Reset de rastreamento de repetição de erros
       lastMissedCharRef.current = '';
@@ -1403,7 +1409,10 @@ export default function App() {
       setTimeout(() => setIsErrorShaking(false), 380);
 
       let bytesLost = 0;
-      if (nextErrors === 1) {
+      if (caseMismatch.isMismatch) {
+        sound.playError();
+        spawnFloatingText(caseMismatch.message!, 'warning');
+      } else if (nextErrors === 1) {
         // 1º Erro: perda suave de bytes proporcional à força atual
         sound.playError();
         bytesLost = Math.max(1, Math.round(currState.bytesPerChar * 1.5));

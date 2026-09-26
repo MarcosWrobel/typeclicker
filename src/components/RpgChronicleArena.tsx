@@ -28,6 +28,8 @@ import { RpgClassType, RPG_CLASSES } from '../types/rpgClass';
 import { sound } from '../utils/audio';
 import { formatBytes } from '../utils/formatting';
 import { combineAccent, isAccentKey, resolveDeadKey, getAccentDisplayName } from '../utils/keyboardAccents';
+import { CapsLockWarning } from './common/CapsLockWarning';
+import { checkCaseMismatch } from '../utils/keyboardCase';
 
 interface RpgChronicleArenaProps {
   isOpen: boolean;
@@ -71,6 +73,7 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
   const [damagePopups, setDamagePopups] = useState<DamagePopup[]>([]);
   const [pendingAccent, setPendingAccent] = useState<string | null>(null);
   const [isBossHurt, setIsBossHurt] = useState(false);
+  const [caseWarning, setCaseWarning] = useState<string | null>(null);
 
   // Gestão de Chaves de Expedição para Reiniciar após Derrota
   const keysCount = availableKeys ?? dungeon?.keys ?? 0;
@@ -473,6 +476,7 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
 
       // Compara o caractere digitado com o esperado no texto
       if (finalChar === expectedChar) {
+        setCaseWarning(null);
         // Acerto!
         sound.playType();
         const nextIndex = currentIndex + 1;
@@ -675,6 +679,13 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
         }
       } else {
         // Erro!
+        const caseResult = checkCaseMismatch(finalChar, expectedChar);
+        if (caseResult.isMismatch) {
+          setCaseWarning(caseResult.message || null);
+          spawnDamage(0, false, caseResult.message || '');
+        } else {
+          setCaseWarning(null);
+        }
         sound.playError();
         wordCleanRef.current = false;
         setIsErrorShaking(true);
@@ -1329,6 +1340,15 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
               <span className="text-amber-400/90 ml-auto text-[11px] hidden sm:inline font-semibold">
                 ⚡ Ignoram 100% da Armadura + Dano Crítico Massivo!
               </span>
+            </div>
+          )}
+
+          {/* Alertas de Teclado: Caps Lock e Case Mismatch */}
+          <CapsLockWarning className="mx-6 my-2" />
+
+          {caseWarning && (
+            <div className="mx-6 mb-2 py-1.5 px-3 rounded-xl bg-amber-500/25 border border-amber-400 text-amber-200 font-mono text-xs font-bold animate-pulse text-center shadow-lg shadow-amber-950/40">
+              {caseWarning}
             </div>
           )}
 

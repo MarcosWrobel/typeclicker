@@ -184,5 +184,5 @@ export interface FloatingText {
   text: string;
   x: number;
   y: number;
-  type: 'success' | 'error' | 'bonus' | 'level';
+  type: 'success' | 'error' | 'bonus' | 'level' | 'warning';
 }

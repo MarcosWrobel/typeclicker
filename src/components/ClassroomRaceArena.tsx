@@ -14,6 +14,8 @@ import { formatBytes } from '../utils/formatting';
 import { ClassroomRace } from '../types/race';
 import { claimRaceFinish } from '../services/raceService';
 import { combineAccent, isAccentKey, resolveDeadKey, getAccentDisplayName } from '../utils/keyboardAccents';
+import { CapsLockWarning } from './common/CapsLockWarning';
+import { checkCaseMismatch } from '../utils/keyboardCase';
 
 interface ClassroomRaceArenaProps {
   isOpen: boolean;
@@ -53,6 +55,7 @@ export const ClassroomRaceArena: React.FC<ClassroomRaceArenaProps> = ({
   const [finishedPosition, setFinishedPosition] = useState<number | null>(null);
   const [isWinner, setIsWinner] = useState<boolean>(false);
   const [prizeClaimed, setPrizeClaimed] = useState<boolean>(false);
+  const [caseWarning, setCaseWarning] = useState<string | null>(null);
 
   // Telemetria
   const [startTimeMs, setStartTimeMs] = useState<number>(0);
@@ -299,6 +302,7 @@ export const ClassroomRaceArena: React.FC<ClassroomRaceArenaProps> = ({
       const targetChar = race.text[currentIdx];
 
       if (char === targetChar) {
+        setCaseWarning(null);
         sound.playType();
         setCorrectKeyCount((c) => c + 1);
         const nextIdx = currentIdx + 1;
@@ -309,6 +313,12 @@ export const ClassroomRaceArena: React.FC<ClassroomRaceArenaProps> = ({
           handleRaceCompleted();
         }
       } else {
+        const caseResult = checkCaseMismatch(char, targetChar);
+        if (caseResult.isMismatch) {
+          setCaseWarning(caseResult.message || null);
+        } else {
+          setCaseWarning(null);
+        }
         setTotalErrors((e) => e + 1);
         setWrongKeyStrike(true);
         sound.playError();
@@ -539,6 +549,15 @@ export const ClassroomRaceArena: React.FC<ClassroomRaceArenaProps> = ({
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* Alertas de Teclado: Caps Lock e Case Mismatch */}
+          <CapsLockWarning className="mb-2" />
+
+          {caseWarning && (
+            <div className="mb-3 py-1.5 px-3 rounded-xl bg-amber-500/25 border border-amber-400 text-amber-200 font-mono text-xs font-bold animate-pulse text-center shadow-lg shadow-amber-950/40">
+              {caseWarning}
+            </div>
+          )}
 
           {/* FASE 2 & 3: TEXTO DA CORRIDA & DIGITAÇÃO */}
           <div

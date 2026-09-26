@@ -21,6 +21,8 @@ import { submitRaidContribution } from '../services/raidService';
 import { sound } from '../utils/audio';
 import { formatBytes } from '../utils/formatting';
 import { combineAccent, isAccentKey, resolveDeadKey, getAccentDisplayName } from '../utils/keyboardAccents';
+import { CapsLockWarning } from './common/CapsLockWarning';
+import { checkCaseMismatch } from '../utils/keyboardCase';
 import { getRandomWord } from '../data/words';
 import { CurricularTrackId } from '../types';
 
@@ -68,6 +70,7 @@ export const ClassroomRaidArena: React.FC<ClassroomRaidArenaProps> = ({
   const [pendingAccent, setPendingAccent] = useState<string | null>(null);
   const [wrongKeyStrike, setWrongKeyStrike] = useState<boolean>(false);
   const [comboStreak, setComboStreak] = useState<number>(0);
+  const [caseWarning, setCaseWarning] = useState<string | null>(null);
 
   // Telemetria local do aluno na Raid
   const [localDamageDealt, setLocalDamageDealt] = useState<number>(0);
@@ -238,10 +241,10 @@ export const ClassroomRaidArena: React.FC<ClassroomRaidArenaProps> = ({
       const expectedChar = word[idx];
       if (!expectedChar) return;
 
-      const typedLower = finalChar.toLocaleLowerCase('pt-BR');
-      const expectedLower = expectedChar.toLocaleLowerCase('pt-BR');
+      const isMatch = finalChar === expectedChar;
 
-      if (typedLower === expectedLower) {
+      if (isMatch) {
+        setCaseWarning(null);
         // Tecla correta!
         const nextIdx = idx + 1;
         charIndexRef.current = nextIdx;
@@ -304,6 +307,13 @@ export const ClassroomRaidArena: React.FC<ClassroomRaidArenaProps> = ({
         }
       } else {
         // Tecla errada
+        const caseResult = checkCaseMismatch(finalChar, expectedChar);
+        if (caseResult.isMismatch) {
+          setCaseWarning(caseResult.message || null);
+          spawnDamage(0, false, caseResult.message || '');
+        } else {
+          setCaseWarning(null);
+        }
         sound.playError();
         setWrongKeyStrike(true);
         setTimeout(() => setWrongKeyStrike(false), 140);
@@ -557,6 +567,16 @@ export const ClassroomRaidArena: React.FC<ClassroomRaidArenaProps> = ({
 
           {/* PALAVRA ALVO A SER DIGITADA */}
           <div className="text-center my-6">
+            {/* Alerta de Caps Lock Ativado */}
+            <CapsLockWarning className="mb-3" />
+
+            {/* Alerta Pedagógico de Caixa (Maiúscula / Minúscula) */}
+            {caseWarning && (
+              <div className="max-w-md mx-auto mb-3 py-1.5 px-3 rounded-xl bg-amber-500/25 border border-amber-400 text-amber-200 font-mono text-xs font-bold animate-pulse text-center shadow-lg shadow-amber-950/40">
+                {caseWarning}
+              </div>
+            )}
+
             <div className="text-xs text-zinc-500 font-mono uppercase tracking-wider mb-2">
               Digite a palavra para desferir golpes coletivos:
             </div>

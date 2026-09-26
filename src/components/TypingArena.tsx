@@ -7,6 +7,7 @@ import { WORD_CATEGORIES, getCurricularTrack, getTrackCategories } from '../data
 import { isAccentKey, resolveDeadKey, getAccentDisplayName } from '../utils/keyboardAccents';
 import { BytezinhoMascot } from './BytezinhoMascot';
 import { TerminalThemeEffects } from './TerminalThemeEffects';
+import { CapsLockWarning } from './common/CapsLockWarning';
 import { isCategoryAllowed, getMinAllowedCategoryLevel } from '../utils/difficulty';
 import { getLetterVfxClasses, triggerKeystrokeImpact } from '../services/fxEngine';
 import { identificarTeclasFracas } from '../services/adaptiveDrillEngine';
@@ -592,6 +593,9 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
         spellCheck="false"
       />
 
+      {/* Caps Lock Warning Banner */}
+      <CapsLockWarning className="mb-1" />
+
       {/* Main Interactive Typing Box */}
       <div className="w-full flex flex-col items-center justify-start my-0.5 relative flex-shrink-0">
         {/* Floating Particle Texts */}
@@ -599,8 +603,10 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
           {floatingTexts.map((f) => (
             <div
               key={f.id}
-              className={`absolute font-mono font-bold text-sm sm:text-base animate-float-up px-2 py-0.5 rounded shadow-lg backdrop-blur-sm z-30 ${
-                f.type === 'bonus'
+              className={`absolute font-mono font-bold text-sm sm:text-base animate-float-up px-2.5 py-1 rounded-md shadow-lg backdrop-blur-sm z-30 ${
+                f.type === 'warning'
+                  ? 'bg-amber-500/25 text-amber-200 border border-amber-400/70 text-sm sm:text-base shadow-amber-950/40'
+                  : f.type === 'bonus'
                   ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 text-base sm:text-lg'
                   : f.type === 'error'
                   ? 'bg-red-500/20 text-red-300 border border-red-500/40'

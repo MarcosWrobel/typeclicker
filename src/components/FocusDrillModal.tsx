@@ -5,6 +5,8 @@ import { sound } from '../utils/audio';
 import { audioSynthesizer } from '../services/audioSynthesizer';
 import { formatBytes } from '../utils/formatting';
 import { isAccentKey, resolveDeadKey, combineAccent, getAccentDisplayName } from '../utils/keyboardAccents';
+import { CapsLockWarning } from './common/CapsLockWarning';
+import { checkCaseMismatch } from '../utils/keyboardCase';
 
 interface FocusDrillModalProps {
   isOpen: boolean;
@@ -28,6 +30,7 @@ export const FocusDrillModal: React.FC<FocusDrillModalProps> = ({
   const [isErrorShaking, setIsErrorShaking] = useState(false);
   const [pendingAccent, setPendingAccent] = useState<string | null>(null);
   const pendingAccentRef = useRef<string | null>(null);
+  const [caseWarning, setCaseWarning] = useState<string | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const statusRef = useRef<'intro' | 'playing' | 'success'>(status);
@@ -116,9 +119,10 @@ export const FocusDrillModal: React.FC<FocusDrillModalProps> = ({
     if (!expectedChar) return;
 
     // Comparação estrita de caracteres (respeitando maiúsculas/minúsculas e acentuação exata ABNT2)
-    const isMatch = typedChar.toLowerCase() === expectedChar.toLowerCase();
+    const isMatch = typedChar === expectedChar;
 
     if (isMatch) {
+      setCaseWarning(null);
       setPendingAccent(null);
       pendingAccentRef.current = null;
       sound.playKeyStroke(chIdx + 1);
@@ -144,6 +148,12 @@ export const FocusDrillModal: React.FC<FocusDrillModalProps> = ({
         charIndexRef.current = chIdx + 1;
       }
     } else {
+      const caseResult = checkCaseMismatch(typedChar, expectedChar);
+      if (caseResult.isMismatch) {
+        setCaseWarning(caseResult.message || null);
+      } else {
+        setCaseWarning(null);
+      }
       sound.playError();
       setIsErrorShaking(true);
       setTimeout(() => setIsErrorShaking(false), 260);
@@ -374,8 +384,11 @@ export const FocusDrillModal: React.FC<FocusDrillModalProps> = ({
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="flex flex-col items-center w-full gap-6"
+                  className="flex flex-col items-center w-full gap-4"
                 >
+                  {/* Alerta de Caps Lock Ativado */}
+                  <CapsLockWarning className="w-full" />
+
                   {/* Status do treino: Progresso e Tecla Alvo */}
                   <div className="flex justify-between w-full items-center border-b border-amber-500/30 pb-4 flex-wrap gap-2">
                     <div className="flex items-center gap-2 text-zinc-300 font-mono text-xs">
@@ -398,8 +411,22 @@ export const FocusDrillModal: React.FC<FocusDrillModalProps> = ({
                     </div>
                   </div>
 
+                  {/* Alerta Pedagógico de Caixa (Maiúscula / Minúscula) */}
+                  {caseWarning && (
+                    <div className="w-full max-w-md py-1.5 px-3 rounded-lg bg-amber-500/25 border border-amber-400/80 text-amber-200 font-mono text-xs font-bold animate-pulse flex items-center justify-center text-center shadow-lg shadow-amber-950/40">
+                      <span>{caseWarning}</span>
+                    </div>
+                  )}
+
+                  {/* Alerta de Acento Pendente */}
+                  {pendingAccent && (
+                    <div className="w-full max-w-md py-1.5 px-3 rounded-lg bg-sky-500/20 border border-sky-400/60 text-sky-200 font-mono text-xs font-bold flex items-center justify-center gap-1 text-center shadow-lg shadow-sky-950/40">
+                      <span>Acento pendente: {getAccentDisplayName(pendingAccent)} — Digite a vogal</span>
+                    </div>
+                  )}
+
                   {/* Palavras a digitar com animação */}
-                  <div className={`flex flex-wrap justify-center items-center gap-3 sm:gap-6 text-2xl sm:text-4xl font-mono font-black tracking-widest leading-relaxed my-6 transition-transform duration-100 ${
+                  <div className={`flex flex-wrap justify-center items-center gap-3 sm:gap-6 text-2xl sm:text-4xl font-mono font-black tracking-widest leading-relaxed my-4 transition-transform duration-100 ${
                     isErrorShaking ? 'translate-x-1.5' : ''
                   }`}>
                     {words.map((w, i) => renderWord(w, i))}

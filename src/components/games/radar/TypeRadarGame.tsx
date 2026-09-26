@@ -48,6 +48,8 @@ import { CockpitFrame } from './CockpitFrame';
 import { PassivesPanel } from './PassivesPanel';
 import { TriggerDeck } from './TriggerDeck';
 import { formatBytes } from '../../../utils/formatting';
+import { CapsLockWarning } from '../../common/CapsLockWarning';
+import { checkCaseMismatch } from '../../../utils/keyboardCase';
 import { BytezinhoAvatar } from '../../BytezinhoAvatar';
 import { BytezinhoSkinId } from '../../../types/cosmetics';
 import { LeaderboardMetric } from '../../LeaderboardModal';
@@ -105,6 +107,7 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
 
   // Controle de onda e upgrades
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState<boolean>(false);
+  const [caseWarning, setCaseWarning] = useState<string | null>(null);
   const [upgradeCards, setUpgradeCards] = useState<RadarUpgrade[]>([]);
   const enemiesSpawnedThisWaveRef = useRef<number>(0);
   const hasSpawnedBossRef = useRef<boolean>(false);
@@ -945,6 +948,7 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
     const ey = cy + Math.sin(target.angle) * target.distance;
 
     if (isMatch) {
+      setCaseWarning(null);
       const nextTyped = target.typedLength + 1;
       const isWordComplete = nextTyped >= target.word.length;
 
@@ -1122,6 +1126,12 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
       radarAudio.playAlarm();
       setWrongCharAlert(true);
       setTimeout(() => setWrongCharAlert(false), 800);
+      const caseResult = checkCaseMismatch(key, expectedChar);
+      if (caseResult.isMismatch) {
+        setCaseWarning(caseResult.message || null);
+      } else {
+        setCaseWarning(null);
+      }
       const missedKey = expectedChar.toUpperCase();
       setGameState((prev) => ({
         ...prev,
@@ -1513,6 +1523,15 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
                 </div>
               </div>
             </div>
+
+            {/* Alertas de Teclado: Caps Lock e Case Mismatch */}
+            <CapsLockWarning className="w-full max-w-xl mx-auto my-1" />
+
+            {caseWarning && (
+              <div className="w-full max-w-xl mx-auto my-1 py-1 px-3 rounded-lg bg-amber-500/25 border border-amber-400 text-amber-200 font-mono text-xs font-bold animate-pulse text-center shadow-lg shadow-amber-950/40">
+                {caseWarning}
+              </div>
+            )}
 
             {/* 2. Container Central do Radar com Combo Arcade, Mira, Buffer e Banners */}
             <div className="relative flex items-center justify-center">

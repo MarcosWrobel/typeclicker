@@ -52,6 +52,8 @@ import {
   isAccentKey,
   getAccentDisplayName
 } from '../utils/keyboardAccents';
+import { CapsLockWarning } from './common/CapsLockWarning';
+import { checkCaseMismatch } from '../utils/keyboardCase';
 
 interface ArenaModalProps {
   isOpen: boolean;
@@ -129,6 +131,7 @@ export const ArenaModal: React.FC<ArenaModalProps> = ({
 
   // Suporte a Acentuação ABNT2 e Teclas Mortas (Dead Keys)
   const [pendingAccent, setPendingAccent] = useState<string | null>(null);
+  const [caseWarning, setCaseWarning] = useState<string | null>(null);
   const pendingAccentRef = useRef<string | null>(null);
   pendingAccentRef.current = pendingAccent;
 
@@ -395,11 +398,10 @@ export const ArenaModal: React.FC<ArenaModalProps> = ({
     const expectedChar = currentWord[currentCharIndex];
     if (!expectedChar) return;
 
-    // Compara em minúsculas para compatibilidade total ABNT2/Linux
-    const typedLower = finalChar.toLocaleLowerCase('pt-BR');
-    const expectedLower = expectedChar.toLocaleLowerCase('pt-BR');
+    const isMatch = finalChar === expectedChar;
 
-    if (typedLower === expectedLower) {
+    if (isMatch) {
+      setCaseWarning(null);
       // Acerto
       sound.playKeyStroke(currentCharIndex + 1, (equippedSound || 'mechanical') as KeySoundThemeId);
       setCorrectChars(prev => prev + 1);
@@ -461,6 +463,12 @@ export const ArenaModal: React.FC<ArenaModalProps> = ({
       }
     } else {
       // Erro
+      const caseResult = checkCaseMismatch(finalChar, expectedChar);
+      if (caseResult.isMismatch) {
+        setCaseWarning(caseResult.message || null);
+      } else {
+        setCaseWarning(null);
+      }
       sound.playGlitch();
       setWrongChars(prev => prev + 1);
     }
@@ -1315,6 +1323,16 @@ export const ArenaModal: React.FC<ArenaModalProps> = ({
                     spellCheck="false"
                     autoFocus
                   />
+
+                  {/* Alerta de Caps Lock Ativado */}
+                  <CapsLockWarning className="w-full max-w-sm mb-1" />
+
+                  {/* Alerta Pedagógico de Caixa (Maiúscula / Minúscula) */}
+                  {caseWarning && (
+                    <div className="w-full max-w-sm py-1.5 px-3 rounded-xl bg-amber-500/25 border border-amber-400 text-amber-200 font-mono text-xs font-bold animate-pulse text-center shadow-lg shadow-amber-950/40">
+                      {caseWarning}
+                    </div>
+                  )}
 
                   {/* Progresso de Palavras (ex: Palavra 4 de 15) */}
                   <span className="px-3 py-1 rounded-full bg-red-500/20 border border-red-500/40 text-red-300 text-xs font-mono font-bold">

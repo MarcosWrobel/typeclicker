@@ -4,6 +4,8 @@ import { Terminal, ShieldAlert, CheckCircle2, Zap, Keyboard, X, Shield, Flame, R
 import { sound } from '../utils/audio';
 import { formatBytes } from '../utils/formatting';
 import { getLevelBoss, LevelBossDef } from '../data/levelBosses';
+import { CapsLockWarning } from './common/CapsLockWarning';
+import { checkCaseMismatch } from '../utils/keyboardCase';
 
 interface ChallengeArenaProps {
   level: number;
@@ -143,6 +145,7 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
   const [finalReward, setFinalReward] = useState(bossDef.baseRewardBytes);
   const [floatingTexts, setFloatingTexts] = useState<FloatingText[]>([]);
   const [branchChoice, setBranchChoice] = useState<{ fast: string; heavy: string } | null>(null);
+  const [caseWarning, setCaseWarning] = useState<string | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const statusRef = useRef<'intro' | 'playing' | 'success' | 'fail'>(status);
@@ -407,14 +410,10 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
     const expectedChar = activeItem.text[chIdx];
     if (!expectedChar) return;
 
-    const normalizeChar = (c: string) =>
-      c.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-
-    const isMatch =
-      typedChar.toUpperCase() === expectedChar.toUpperCase() ||
-      normalizeChar(typedChar) === normalizeChar(expectedChar);
+    const isMatch = typedChar === expectedChar;
 
     if (isMatch) {
+      setCaseWarning(null);
       sound.playKeyStroke(chIdx + 1);
 
       // Dano por caractere no Boss (-1 a -2 HP)
@@ -484,6 +483,13 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
       }
     } else {
       // Erro de digitação
+      const caseResult = checkCaseMismatch(typedChar, expectedChar);
+      if (caseResult.isMismatch) {
+        setCaseWarning(caseResult.message || null);
+        addFloatingText(caseResult.message || '', 'damage');
+      } else {
+        setCaseWarning(null);
+      }
       sound.playError();
       setErrorCount((prev) => prev + 1);
       errorCountRef.current += 1;
@@ -809,6 +815,15 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
                       {currentItemIndex + 1} de {items.length} etapas concluídas
                     </span>
                   </div>
+
+                  {/* Alertas de Teclado: Caps Lock e Case Mismatch */}
+                  <CapsLockWarning className="w-full mb-1" />
+
+                  {caseWarning && (
+                    <div className="w-full max-w-lg py-1.5 px-3 rounded-xl bg-amber-500/25 border border-amber-400 text-amber-200 font-mono text-xs font-bold animate-pulse text-center shadow-lg shadow-amber-950/40">
+                      {caseWarning}
+                    </div>
+                  )}
 
                   {/* ÁREA DE DIGITAÇÃO DE PALAVRAS / COMANDOS */}
                   <div

@@ -5,6 +5,8 @@ import { sound } from '../utils/audio';
 import { CurricularTrackId, TypingMode } from '../types';
 import { getTextForMode } from '../data/words';
 import { isAccentKey, resolveDeadKey, combineAccent, getAccentDisplayName } from '../utils/keyboardAccents';
+import { CapsLockWarning } from './common/CapsLockWarning';
+import { checkCaseMismatch } from '../utils/keyboardCase';
 
 interface TimeAttackModalProps {
   isOpen: boolean;
@@ -33,6 +35,7 @@ export const TimeAttackModal: React.FC<TimeAttackModalProps> = ({
   const [currentText, setCurrentText] = useState<string>('');
   const [charIndex, setCharIndex] = useState<number>(0);
   const [pendingAccent, setPendingAccent] = useState<string | null>(null);
+  const [caseWarning, setCaseWarning] = useState<string | null>(null);
 
   // Telemetria
   const [keystrokesTotal, setKeystrokesTotal] = useState<number>(0);
@@ -138,16 +141,18 @@ export const TimeAttackModal: React.FC<TimeAttackModalProps> = ({
       pendingAccentRef.current = null;
     }
 
-    const typedLower = finalChar.toLocaleLowerCase('pt-BR');
     const text = currentTextRef.current;
     const index = charIndexRef.current;
-    const expectedChar = (text[index] || '').toLocaleLowerCase('pt-BR');
+    const rawExpectedChar = text[index] || '';
 
-    if (!expectedChar) return;
+    if (!rawExpectedChar) return;
 
     setKeystrokesTotal(t => t + 1);
 
-    if (typedLower === expectedChar) {
+    const isMatch = finalChar === rawExpectedChar;
+
+    if (isMatch) {
+      setCaseWarning(null);
       // Acerto
       const nextCorrect = keystrokesCorrect + 1;
       setKeystrokesCorrect(nextCorrect);
@@ -168,6 +173,12 @@ export const TimeAttackModal: React.FC<TimeAttackModalProps> = ({
       }
     } else {
       // Erro
+      const caseResult = checkCaseMismatch(finalChar, rawExpectedChar);
+      if (caseResult.isMismatch) {
+        setCaseWarning(caseResult.message || null);
+      } else {
+        setCaseWarning(null);
+      }
       sound.playError();
       setErrorsCount(e => e + 1);
       setStreak(0);
@@ -445,6 +456,15 @@ export const TimeAttackModal: React.FC<TimeAttackModalProps> = ({
               {pendingAccent && (
                 <div className="text-xs font-mono font-bold text-sky-400 bg-sky-500/10 px-3 py-1.5 rounded-lg border border-sky-500/30 animate-pulse text-center">
                   {getAccentDisplayName(pendingAccent)} ativo! Digite a vogal...
+                </div>
+              )}
+
+              {/* Alertas de Teclado: Caps Lock e Case Mismatch */}
+              <CapsLockWarning className="w-full" />
+
+              {caseWarning && (
+                <div className="py-1.5 px-3 rounded-xl bg-amber-500/25 border border-amber-400 text-amber-200 font-mono text-xs font-bold animate-pulse text-center shadow-lg shadow-amber-950/40">
+                  {caseWarning}
                 </div>
               )}
 
