@@ -9,19 +9,30 @@
 - **Bibliotecas de Jogos Permitidas**: `@monaco-editor/react` (editor de código), `recharts` (gráficos), `react-markdown` (texto rico)
 - **Package manager**: bun (bun.lock presente) + npm (package-lock.json presente)
 
-## Infraestrutura
-- **Hospedagem**: Google Cloud Run (containerizado via AI Studio) — `server.ts` detecta `process.env.K_SERVICE` e serve `dist/` em modo produção; em dev local serve via Vite middleware
-- **Domínio de produção**: `typeclicker-leopoldina.ai.studio`
-- **Firebase plano**: Blaze — com orçamento controlado para não ultrapassar a cota gratuita incluída
-- **Firebase produto**: Firestore (`firebase.json` → `edition: ENTERPRISE`, `dataAccessMode: FIRESTORE_NATIVE`)
-  - `databaseId`: `ai-studio-typeclickereduca-b411f269-51c7-4c3d-ac8c-f1dd59f2f7ca`
-  - `projectId`: `gen-lang-client-0277873219`
-- **Auth**: Firebase Auth (Google Sign-In via `signInWithPopup` + `GoogleAuthProvider`)
-- **Sem RTDB**: apenas Firestore Nativo
-- **Sem Cloud Functions**: plano Blaze permite, mas não utilizado — toda lógica é client-side
-- **server.ts**: Express + Firebase Admin SDK + `@google-cloud/monitoring` — serve rotas de métricas admin e o SPA compilado em produção
-- **Cotas de referência (hardcoded em `server.ts`)**: 50 000 leituras/dia · 20 000 escritas/dia
-- **Sync throttle**: 60 segundos mínimo entre escritas (`useGameSync`)
+## Infraestrutura & Banco de Dados
+- **Hospedagem**: Google Cloud Run (containerizado via AI Studio) — `server.ts` detecta `process.env.K_SERVICE` e serve `dist/` em modo produção; em dev local serve via Vite middleware.
+- **Domínio de produção**: `typeclicker-leopoldina.ai.studio`.
+- **Camada de Banco de Dados Agnóstica**: Interface `IDatabaseService` com chaveamento dinâmico via `VITE_DB_PROVIDER` (`supabase` ou `firestore`).
+  - **Provedor Primário (Supabase)**: PostgreSQL hospedado com RLS (Row Level Security), índices otimizados e Stored Procedures atômicas.
+  - **Provedor de Contingência (Firestore)**: `FirebaseAdapter` preservado para rollback imediato sem necessidade de re-deploy.
+- **Auth**: Firebase Auth (Google Sign-In via `signInWithPopup` + `GoogleAuthProvider`) para e-mails institucionais (`@escola.pr.gov.br`). O UID é a chave primária `TEXT` no Supabase (`profiles.id`).
+- **Arquitetura de Dados no Supabase**:
+  - `public.profiles`: Colunas relacionais indexadas (`id`, `display_name`, `turma`, `role`, `bytes`, `total_bytes_earned`, `level`, tokens).
+  - `public.game_progress`: Tabela por jogo (`user_id`, `game_id`, `high_score`, `metrics`, `state_payload JSONB`).
+  - `public.user_cosmetics`: Relação de itens e cosméticos desbloqueados (`user_id`, `item_id`, `item_category`).
+  - `public.user_achievements`: Histórico relacional de conquistas (`user_id`, `achievement_id`).
+- **Regras de Leitura e Tráfego (Capacidade: 35–90 máquinas de laboratório)**:
+  - **HTTP REST (PostgREST)**: Placares, pódios e perfil utilizam consultas REST com cache local de 30s–60s e singleflight promise deduplication. Ilimitado no tier gratuito.
+  - **Supabase Realtime (WebSockets)**: Reservado **exclusivamente sob demanda** para disputas síncronas (Corrida e Raid), preservando a cota mensal de 2M mensagens e as 200 conexões simultâneas do tier gratuito.
+- **Política de Sincronização (Autosave)**:
+  - Digitação contínua: Throttle de 60 segundos com contingência em `localStorage` para tolerância a falhas de rede.
+  - Marcos críticos: Flush imediato em level-up, derrotar boss, saída de minijogo e eventos de janela (`beforeunload` / `pagehide`).
+- **Anti-Cheat em Camadas**:
+  - Client: Verificação de deltas máximos por segundo antes do envio.
+  - Database: Stored Procedure `record_game_session` com validação de caps no PostgreSQL.
+- **Temporadas Bimestrais**:
+  - `season_bytes`: Acumulado do bimestre letivo.
+  - `public.season_history`: Tabela de arquivo do Hall da Fama ao encerramento do bimestre pelo professor. Saldo vitalício de moedas e prestígio geral nunca são zerados.
 
 ## Escopo Universal e Organização de Pastas
 
