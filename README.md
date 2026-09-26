@@ -213,10 +213,12 @@ Suite administrativa completa (`AdminPanel.tsx`) com múltiplas abas funcionais:
 - **Lançador de Corridas:** Seleção de texto/modo/duração + monitoramento de pódio ao vivo via canais Realtime
 - **Lançador de Raids:** Seleção de boss com HP calibrado + acompanhamento de dano coletivo via canais Realtime
 - **Biblioteca Curricular:** Acervo de textos temáticos por disciplina com envio direto à corrida
-- **Backup Local / Cloud:** Download/upload de JSON + snapshots do Supabase (e Firestore de contingência) com rollback em 1 clique
-- **Gestão de Temporadas Bimestrais:** Fechamento de ciclo bimestral com geração automática de Hall da Fama (`public.season_history`) e reset de pontuação sazonal sem afetar moedas permanentes
+- **Backup & Restauração Relacional Completa:** Exportação instantânea de snapshots JSON com todas as tabelas do PostgreSQL (`profiles`, `game_progress`, `user_cosmetics`, `user_achievements`, `season_history`) e restauração guiada com validação estrutural e upsert idempotente via [`supabaseBackupService.ts`](src/services/supabaseBackupService.ts)
+- **Monitoramento de Saúde & Infraestrutura:** Diagnóstico de conexão em tempo real, medição de latência da API PostgREST (ms), estimativa de storage contra o limite free (500 MB), tracking de MAU (50k) e contadores exatos de linhas por tabela via requisições HTTP Head sem tráfego de dados (egress 0) via [`supabaseMetricsService.ts`](src/services/supabaseMetricsService.ts)
+- **Zona de Perigo & Wipe Seguro:** Limpeza em cascata no PostgreSQL com retenção de perfis docentes, reset de progresso de alunos e exclusão sincronizada de resíduos nas coleções legadas do Firestore
+- **Painel de Testes & Atribuição de Recursos:** Concessão instantânea de níveis (com cálculo da curva de XP via `calculateMinBytesForLevel`), tokens, fragmentos quânticos, cosméticos e upgrades diretamente no Supabase por `userId` ou e-mail, com fila de resgate para alunos offline via [`supabaseTestService.ts`](src/services/supabaseTestService.ts)
+- **Gestão de Temporadas Bimestrais/Trimestrais:** Fechamento de ciclo letivo com geração de Hall da Fama (`public.season_history`) e reset de pontuação sazonal sem afetar moedas permanentes
 - **Gestão de Professores:** Inclusão e revogação de outros docentes autorizados
-- **Monitor de Cotas e Infraestrutura:** Painel de saúde do Supabase PostgreSQL (com suporte legado a métricas do Google Cloud Monitoring API para instâncias Firestore)
 
 ---
 
@@ -343,6 +345,10 @@ src/
 │   ├── services/
 │   │   ├── dbInterface.ts           # Contrato agnóstico IDatabaseService
 │   │   ├── dbFactory.ts             # Injeção dinâmica do adaptador via VITE_DB_PROVIDER
+│   │   ├── supabaseClient.ts        # Cliente Supabase singleton com variáveis de ambiente
+│   │   ├── supabaseBackupService.ts # Exportação e restauração completa de snapshots do PostgreSQL
+│   │   ├── supabaseMetricsService.ts# Monitoramento de saúde, latência e contadores head queries
+│   │   ├── supabaseTestService.ts   # Concessões e injeções de recursos de teste no Supabase
 │   │   ├── adapters/
 │   │   │   ├── supabaseAdapter.ts   # Provedor oficial Supabase (PostgreSQL 15+)
 │   │   │   └── firebaseAdapter.ts   # [LEGADO / FALLBACK] Provedor Firestore

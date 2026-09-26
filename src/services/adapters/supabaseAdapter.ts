@@ -1,23 +1,22 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { SupabaseClient } from '@supabase/supabase-js';
+import { supabase } from '../supabaseClient';
 import { IDatabaseService, UserProfile, GameSessionPayload } from '../dbInterface';
 import { GameState } from '../../types';
 import { DEFAULT_COSMETICS } from '../../types/cosmetics';
 import { CloudLoadResponse, LeaderboardEntry, SeasonHistoryEntry } from '../../types/leaderboard';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-
 export class SupabaseAdapter implements IDatabaseService {
   private client: SupabaseClient;
 
   constructor() {
-    this.client = createClient(supabaseUrl, supabaseKey);
+    this.client = supabase;
   }
 
   private mapProfile(row: any): UserProfile {
     return {
       id: row.id,
       displayName: row.display_name,
+      email: row.email,
       nickname: row.nickname,
       avatar: row.avatar,
       turma: row.turma,
@@ -55,6 +54,7 @@ export class SupabaseAdapter implements IDatabaseService {
 
     const payload: Record<string, any> = { updated_at: new Date().toISOString() };
     if (profile.displayName !== undefined) payload.display_name = profile.displayName;
+    if (profile.email !== undefined) payload.email = profile.email;
     if (profile.nickname !== undefined) payload.nickname = profile.nickname;
     if (profile.avatar !== undefined) payload.avatar = profile.avatar;
     if (profile.turma !== undefined) payload.turma = profile.turma;
@@ -363,6 +363,7 @@ export class SupabaseAdapter implements IDatabaseService {
       .map((row: any): LeaderboardEntry => ({
         userId: row.id,
         nome: row.display_name || 'Aluno',
+        email: row.email,
         apelido: row.nickname,
         turma: row.turma || '',
         level: row.level || 1,
@@ -467,6 +468,7 @@ export class SupabaseAdapter implements IDatabaseService {
     await this.client.from('season_history').delete().neq('id', '00000000-0000-0000-0000-000000000000');
     await this.client.from('game_progress').delete().neq('id', '00000000-0000-0000-0000-000000000000');
     await this.client.from('user_cosmetics').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    await this.client.from('user_achievements').delete().neq('id', '00000000-0000-0000-0000-000000000000');
     await this.client
       .from('profiles')
       .update({

@@ -72,7 +72,8 @@ import {
 import { AchievementDef, AchievementContext } from './types/achievements';
 import { RpgFloorData, QuestEvent } from './types/quests';
 import { calculatePlayerRank, formatBytes } from './utils/formatting';
-import { auth, loginWithGoogle, logoutUser, subscribeToAuthChanges, checkIsAdminAsync, checkIsSuperAdmin, getSystemSettings, subscribeToSystemSettings, claimPendingTestGrants } from './services/firebaseService';
+import { auth, loginWithGoogle, logoutUser, subscribeToAuthChanges, checkIsAdminAsync, checkIsSuperAdmin, getSystemSettings, subscribeToSystemSettings } from './services/firebaseService';
+import { claimPendingTestGrantsSupabase } from './services/supabaseTestService';
 import { LeaderboardEntry } from './types/leaderboard';
 import { ADMIN_EMAILS } from './utils/leaderboardUtils';
 import { dbService } from './services/dbFactory';
@@ -254,9 +255,9 @@ export default function App() {
             arenaStats: res.saveState.arenaStats || INITIAL_STATE.arenaStats
           };
           let finalState = loadedState;
-          if (currentUser.email) {
+          if (currentUser.uid) {
             try {
-              const grantRes = await claimPendingTestGrants(currentUser.email, finalState);
+              const grantRes = await claimPendingTestGrantsSupabase(currentUser.uid, currentUser.email || '', finalState);
               if (grantRes.claimed && grantRes.updatedState) {
                 finalState = grantRes.updatedState;
                 if (isStaffUser) {
@@ -330,9 +331,9 @@ export default function App() {
             }
           }
 
-          if (currentUser.email) {
+          if (currentUser.uid) {
             try {
-              const grantRes = await claimPendingTestGrants(currentUser.email, activeState);
+              const grantRes = await claimPendingTestGrantsSupabase(currentUser.uid, currentUser.email || '', activeState);
               if (grantRes.claimed && grantRes.updatedState) {
                 activeState = grantRes.updatedState;
                 await dbService.saveLegacyGameState(currentUser.uid, activeState);

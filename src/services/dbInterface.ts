@@ -5,6 +5,7 @@ import { LeaderboardEntry, CloudLoadResponse, SeasonHistoryEntry } from '../type
 export interface UserProfile {
   id: string;
   displayName: string;
+  email?: string;
   nickname?: string;
   avatar?: string;
   turma?: string;

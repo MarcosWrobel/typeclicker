@@ -1,7 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Shield, Key, Trash2, X, Clock, AlertTriangle, Users, Search, RefreshCw, BarChart, Database, Download, Upload, CheckCircle2, RotateCcw, FileText, Sliders, Battery, Eye, EyeOff, Filter, Swords, Sparkles, Coins, Zap, Trophy, Award, UserCheck, Plus, History, Gift, ArrowRight, Check, Terminal, Flag, Timer, BookOpen, Flame, GraduationCap, Sword, Activity, Calendar, Landmark } from 'lucide-react';
-import { fetchFirestoreMetrics, FirestoreMetricsData } from '../services/adminMetricsService';
+import { fetchSupabaseMetrics, SupabaseMetricsData } from '../services/supabaseMetricsService';
+import {
+  createSupabaseBackup,
+  downloadSupabaseBackupFile,
+  restoreSupabaseBackup,
+  FullSupabaseBackup
+} from '../services/supabaseBackupService';
+import {
+  findTargetAccount,
+  applyTestGrantToSupabase,
+  TargetAccountData,
+  SupabaseTestGrantPayload
+} from '../services/supabaseTestService';
 import { dbService } from '../services/dbFactory';
 import { LeaderboardEntry } from '../types/leaderboard';
 import { isStaffMember, ADMIN_EMAILS } from '../utils/leaderboardUtils';
@@ -13,20 +25,9 @@ import {
   getSystemSettings,
   updateAllowedTeachers,
   updateAccessibilitySettings,
-  createDatabaseBackup,
-  listDatabaseBackups,
-  getDatabaseBackup,
-  restoreDatabaseBackup,
-  deleteDatabaseBackup,
-  DatabaseBackupSummary,
-  FullDatabaseBackup,
-  migrateSchemasInFirestore,
-  MigrationSummary,
+  wipeDatabase as wipeLegacyFirestoreDatabase,
   addTesterEmail,
   removeTesterEmail,
-  applyTestResourcesToEmail,
-  findUserSaveByEmail,
-  TestGrantPayload,
   TestGrantConfig,
   saveCustomCurricularText,
   deleteCustomCurricularText,
@@ -101,8 +102,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [isClosingSeason, setIsClosingSeason] = useState<boolean>(false);
   const [seasonActionMessage, setSeasonActionMessage] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  // Estados para Monitoramento de Banco & Cotas do Firestore (Cloud Monitoring)
-  const [metricsData, setMetricsData] = useState<FirestoreMetricsData | null>(null);
+  // Estados para Monitoramento de Banco & Infraestrutura do Supabase
+  const [metricsData, setMetricsData] = useState<SupabaseMetricsData | null>(null);
   const [isMetricsLoading, setIsMetricsLoading] = useState<boolean>(false);
   const [metricsError, setMetricsError] = useState<string | null>(null);
   const [autoRefreshMetrics, setAutoRefreshMetrics] = useState<boolean>(false);
@@ -162,19 +163,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [isSanitizingLeaderboard, setIsSanitizingLeaderboard] = useState(false);
   const [sanitizeMessage, setSanitizeMessage] = useState<string | null>(null);
 
-  // Backup & Restore states
-  const [backups, setBackups] = useState<DatabaseBackupSummary[]>([]);
-  const [isBackupsLoading, setIsBackupsLoading] = useState(false);
+  // Backup & Restore states (Supabase)
+  const [lastBackup, setLastBackup] = useState<FullSupabaseBackup | null>(null);
   const [isCreatingBackup, setIsCreatingBackup] = useState(false);
   const [backupActionMessage, setBackupActionMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [restoreConfirmId, setRestoreConfirmId] = useState<string | null>(null);
   const [isRestoring, setIsRestoring] = useState(false);
-  const [isMigrating, setIsMigrating] = useState(false);
-  const [migrationResult, setMigrationResult] = useState<MigrationSummary | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Estados para Indicação de E-mails e Recursos de Teste
+  // Estados para Indicação de E-mails e Recursos de Teste (Supabase)
   const [targetEmail, setTargetEmail] = useState<string>(userEmail || 'wrobel.marcos@gmail.com');
+  const [targetUserId, setTargetUserId] = useState<string | null>(null);
   const [newTesterEmailInput, setNewTesterEmailInput] = useState<string>('');
   const [isAddingTester, setIsAddingTester] = useState<boolean>(false);
   const [isRemovingTester, setIsRemovingTester] = useState<boolean>(false);
@@ -190,15 +188,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [grantNotes, setGrantNotes] = useState<string>('');
 
   const [isApplyingGrant, setIsApplyingGrant] = useState<boolean>(false);
-  const [targetAccountInfo, setTargetAccountInfo] = useState<{
-    exists: boolean;
-    name?: string;
-    turma?: string;
-    currentLevel?: number;
-    currentBytes?: number;
-    levelTokens?: number;
-    duelTokens?: number;
-  } | null>(null);
+  const [targetAccountInfo, setTargetAccountInfo] = useState<TargetAccountData | null>(null);
   const [isLoadingAccountInfo, setIsLoadingAccountInfo] = useState<boolean>(false);
   const [showStudentPicker, setShowStudentPicker] = useState<boolean>(false);
 
@@ -619,58 +609,39 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setTimeout(() => setTestActionMessage(null), 4000);
   };
 
-  const checkTargetAccount = async (emailToCheck: string) => {
-    const clean = emailToCheck.trim().toLowerCase();
-    if (!clean || !clean.includes('@')) {
+  const checkTargetAccount = async (identifierToCheck: string, userIdToCheck?: string) => {
+    const clean = identifierToCheck.trim();
+    if (!clean && !userIdToCheck) {
       setTargetAccountInfo(null);
       return;
     }
 
-    const isTeacherAccount = ADMIN_EMAILS.some((adm) => adm.toLowerCase() === clean);
-
     // Se for o próprio admin logado
-    if (userEmail && clean === userEmail.trim().toLowerCase() && gameState) {
+    const isCurrentAdmin = (userEmail && clean.toLowerCase() === userEmail.trim().toLowerCase()) ||
+      (auth.currentUser?.uid && userIdToCheck === auth.currentUser.uid);
+
+    if (isCurrentAdmin && gameState) {
       const rank = calculatePlayerRank(gameState.totalBytesEarned || 0);
       setTargetAccountInfo({
         exists: true,
+        userId: auth.currentUser?.uid,
         name: gameState.studentName || 'Prof. Marcos Wrobel (Admin)',
         turma: 'Professor',
+        email: userEmail || 'wrobel.marcos@gmail.com',
+        role: 'admin',
         currentLevel: rank.level,
         currentBytes: gameState.totalBytesEarned || 0,
         levelTokens: gameState.cosmetics?.levelTokens || 0,
-        duelTokens: gameState.cosmetics?.duelTokens || 0
+        duelTokens: gameState.cosmetics?.duelTokens || 0,
+        quantumFragments: gameState.cosmetics?.quantumFragments || 0
       });
       return;
     }
 
     setIsLoadingAccountInfo(true);
     try {
-      const save = await findUserSaveByEmail(clean);
-      if (save) {
-        const isStaffAccount = isTeacherAccount || save.data.isStaff;
-        const effectiveTurma = isStaffAccount ? 'Professor' : (save.data.turma || 'Sem turma');
-        const bytes = save.data.saveState?.totalBytesEarned || save.data.points || 0;
-        const rank = calculatePlayerRank(bytes);
-        setTargetAccountInfo({
-          exists: true,
-          name: save.data.nome || save.data.apelido || (isStaffAccount ? 'Prof. Marcos Wrobel' : clean.split('@')[0]),
-          turma: effectiveTurma,
-          currentLevel: rank.level,
-          currentBytes: bytes,
-          levelTokens: save.data.saveState?.cosmetics?.levelTokens || 0,
-          duelTokens: save.data.saveState?.cosmetics?.duelTokens || 0
-        });
-      } else {
-        setTargetAccountInfo({
-          exists: false,
-          name: isTeacherAccount ? 'Prof. Marcos Wrobel' : clean.split('@')[0],
-          turma: isTeacherAccount ? 'Professor' : 'Conta nova (receberá ao logar)',
-          currentLevel: 1,
-          currentBytes: 0,
-          levelTokens: 0,
-          duelTokens: 0
-        });
-      }
+      const data = await findTargetAccount(clean, userIdToCheck);
+      setTargetAccountInfo(data);
     } catch (e) {
       console.error('Error checking target account:', e);
     } finally {
@@ -689,6 +660,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       const updatedList = await addTesterEmail(clean);
       setSettings(prev => prev ? { ...prev, testerEmails: updatedList } : null);
       setTargetEmail(clean);
+      setTargetUserId(null);
       setNewTesterEmailInput('');
       sound.playUpgrade();
       setTestActionMessage(`E-mail ${clean} indicado com sucesso para receber recursos de teste!`);
@@ -707,7 +679,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       const updatedList = await removeTesterEmail(emailToRemove);
       setSettings(prev => prev ? { ...prev, testerEmails: updatedList } : null);
       if (targetEmail.toLowerCase() === emailToRemove.toLowerCase()) {
-        setTargetEmail(userEmail || 'wrobel.marcos@gmail.com');
+        const defaultAdmin = userEmail || 'wrobel.marcos@gmail.com';
+        setTargetEmail(defaultAdmin);
+        setTargetUserId(auth.currentUser?.uid || null);
+        checkTargetAccount(defaultAdmin, auth.currentUser?.uid);
       }
       sound.playGlitch();
     } catch (e: any) {
@@ -718,18 +693,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   const handleApplyGrant = async () => {
-    const cleanEmail = targetEmail.trim().toLowerCase();
-    if (!cleanEmail || !cleanEmail.includes('@')) {
-      alert('Por favor, informe ou selecione um e-mail válido.');
+    const cleanTarget = targetEmail.trim();
+    if (!cleanTarget && !targetUserId) {
+      alert('Por favor, informe ou selecione um aluno ou e-mail válido.');
       return;
     }
 
     setIsApplyingGrant(true);
     try {
-      const payload: TestGrantPayload = {
-        email: cleanEmail,
+      const resolvedUserId = targetUserId || targetAccountInfo?.userId;
+      const payload: SupabaseTestGrantPayload = {
+        userId: resolvedUserId,
+        email: cleanTarget.includes('@') ? cleanTarget : targetAccountInfo?.email,
+        identifier: cleanTarget || resolvedUserId || 'aluno_teste',
         addLevelTokens: levelTokensToAdd > 0 ? Number(levelTokensToAdd) : undefined,
         addDuelTokens: duelTokensToAdd > 0 ? Number(duelTokensToAdd) : undefined,
+        addQuantumFragments: 0,
         levelAction: levelGrantMode,
         levelAmount: Number(levelAmount),
         unlockAllCosmetics: unlockCosmeticsCheck,
@@ -738,22 +717,21 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         notes: grantNotes.trim() || undefined
       };
 
-      const res = await applyTestResourcesToEmail(payload);
+      const res = await applyTestGrantToSupabase(payload);
       sound.playPrestige();
       setTestActionMessage(res.message);
 
       // Se o alvo for o usuário admin logado na sessão atual, sincroniza o gameState local imediatamente!
-      if (
-        userEmail &&
-        cleanEmail === userEmail.trim().toLowerCase() &&
-        res.updatedSaveState &&
-        onUpdateGameState
-      ) {
+      const isTargetLoggedInUser = (userEmail && cleanTarget.toLowerCase() === userEmail.trim().toLowerCase()) ||
+        (auth.currentUser?.uid && (resolvedUserId === auth.currentUser.uid));
+
+      if (isTargetLoggedInUser && res.updatedSaveState && onUpdateGameState) {
         onUpdateGameState(res.updatedSaveState);
       }
 
       await loadSettings();
-      await checkTargetAccount(cleanEmail);
+      await checkTargetAccount(cleanTarget, resolvedUserId);
+      if (activeTab === 'dashboard') loadStudents();
       setTimeout(() => setTestActionMessage(null), 6000);
     } catch (err: any) {
       alert(`Erro ao conceder recursos: ${err.message}`);
@@ -772,12 +750,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         loadStudents(selectedClassFilter);
       } else if (activeTab === 'temporadas') {
         loadSeasonAdminData();
-      } else if (activeTab === 'backups') {
-        loadBackups();
       } else if (activeTab === 'monitoramento') {
         loadMetrics();
       } else if (activeTab === 'testes') {
-        checkTargetAccount(targetEmail);
+        checkTargetAccount(targetEmail, targetUserId || undefined);
         if (students.length === 0) loadStudents('todas');
       }
     }
@@ -826,22 +802,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
-  // Carregamento de Métricas do Firestore & Cotas Spark
+  // Carregamento de Métricas do Supabase (PostgreSQL)
   const loadMetrics = async (forceRefresh: boolean = false) => {
     setIsMetricsLoading(true);
     setMetricsError(null);
     try {
-      const data = await fetchFirestoreMetrics(forceRefresh);
+      const data = await fetchSupabaseMetrics(forceRefresh);
       setMetricsData(data);
     } catch (err: any) {
-      console.warn('Erro ao carregar métricas do Firestore:', err);
-      setMetricsError(err.message || 'Erro ao carregar métricas do Firestore.');
+      console.warn('Erro ao carregar métricas do Supabase:', err);
+      setMetricsError(err.message || 'Erro ao carregar métricas do Supabase.');
     } finally {
       setIsMetricsLoading(false);
     }
   };
 
-  // Auto-refresh de métricas a cada 30 segundos se ativo (o backend serve do cache de 3 min)
+  // Auto-refresh de métricas a cada 30 segundos se ativo
   useEffect(() => {
     if (!isOpen || activeTab !== 'monitoramento' || !autoRefreshMetrics) return;
 
@@ -861,7 +837,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
     const pollInterval = setInterval(() => {
       if (typeof document !== 'undefined' && (document.hidden || !document.hasFocus())) {
-        return; // Economiza leituras do Firestore quando a aba está em segundo plano
+        return; // Economiza leituras quando a aba está em segundo plano
       }
       loadStudents(selectedClassFilter);
     }, 60000); // 60 segundos controlado
@@ -869,45 +845,23 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     return () => clearInterval(pollInterval);
   }, [isOpen, activeTab, selectedClassFilter]);
 
-  const loadBackups = async () => {
-    setIsBackupsLoading(true);
-    try {
-      const list = await listDatabaseBackups();
-      setBackups(list);
-    } catch (e: any) {
-      console.error(e);
-    } finally {
-      setIsBackupsLoading(false);
-    }
-  };
-
   const handleCreateBackup = async () => {
     setIsCreatingBackup(true);
     setBackupActionMessage(null);
     try {
       const now = new Date();
-      const label = `Backup Manual - ${now.toLocaleDateString('pt-BR')} ${now.toLocaleTimeString('pt-BR')}`;
-      const backupData = await createDatabaseBackup(label);
+      const label = `Backup Supabase - ${now.toLocaleDateString('pt-BR')} ${now.toLocaleTimeString('pt-BR')}`;
+      const backupData = await createSupabaseBackup(label, userEmail || 'admin');
 
       // Gatilho imediato de download de arquivo JSON no navegador do professor
-      const jsonStr = JSON.stringify(backupData, null, 2);
-      const blob = new Blob([jsonStr], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      const filenameDate = now.toISOString().slice(0, 10);
-      a.href = url;
-      a.download = `typeclicker_backup_${filenameDate}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      downloadSupabaseBackupFile(backupData);
+      setLastBackup(backupData);
 
       sound.playUpgrade();
       setBackupActionMessage({
         type: 'success',
-        text: `Backup gerado com sucesso! Arquivo JSON baixado e cópia gravada na nuvem (${backupData.totalSaves} saves / ${backupData.totalLeaderboard} no ranking).`
+        text: `Backup exportado e baixado com sucesso! (${backupData.counts.profiles} perfis, ${backupData.counts.game_progress} progressos, ${backupData.counts.user_cosmetics} cosméticos, ${backupData.counts.user_achievements} conquistas, ${backupData.counts.season_history} temporadas).`
       });
-      await loadBackups();
     } catch (e: any) {
       setBackupActionMessage({
         type: 'error',
@@ -915,61 +869,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       });
     } finally {
       setIsCreatingBackup(false);
-    }
-  };
-
-  const handleRestoreFromCloud = async (backupId: string) => {
-    setIsRestoring(true);
-    setBackupActionMessage(null);
-    try {
-      const fullBackup = await getDatabaseBackup(backupId);
-      if (!fullBackup) throw new Error('Dados do backup não encontrados na nuvem.');
-
-      const result = await restoreDatabaseBackup(fullBackup);
-      sound.playPrestige();
-      setBackupActionMessage({
-        type: 'success',
-        text: `Restauração concluída com êxito! ${result.restoredSaves} saves e ${result.restoredBoard} registros de ranking recuperados.`
-      });
-      setRestoreConfirmId(null);
-      if (activeTab === 'dashboard') loadStudents();
-    } catch (e: any) {
-      setBackupActionMessage({
-        type: 'error',
-        text: `Erro na restauração: ${e.message}`
-      });
-    } finally {
-      setIsRestoring(false);
-    }
-  };
-
-  const handleDownloadCloudBackupJson = async (backupId: string) => {
-    try {
-      const fullBackup = await getDatabaseBackup(backupId);
-      if (!fullBackup) throw new Error('Backup não encontrado.');
-
-      const jsonStr = JSON.stringify(fullBackup, null, 2);
-      const blob = new Blob([jsonStr], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${backupId}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (e: any) {
-      alert(`Erro ao baixar arquivo: ${e.message}`);
-    }
-  };
-
-  const handleDeleteSnapshot = async (backupId: string) => {
-    if (!confirm('Deseja excluir este snapshot do histórico da nuvem?')) return;
-    try {
-      await deleteDatabaseBackup(backupId);
-      await loadBackups();
-    } catch (e: any) {
-      alert(`Erro ao excluir snapshot: ${e.message}`);
     }
   };
 
@@ -981,25 +880,35 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     reader.onload = async (evt) => {
       try {
         const text = evt.target?.result as string;
-        const parsed = JSON.parse(text) as FullDatabaseBackup;
+        const parsed = JSON.parse(text) as FullSupabaseBackup;
 
-        if (!parsed || !parsed.saves) {
-          throw new Error('Arquivo JSON inválido ou incompatível com o TypeClicker.');
+        if (!parsed || !parsed.tables || !parsed.counts) {
+          throw new Error('Arquivo JSON inválido ou incompatível com o formato de backup do Supabase.');
         }
 
-        const totalSaves = Object.keys(parsed.saves).length;
         const confirmRestore = confirm(
-          `Arquivo válido!\nContém ${totalSaves} saves de alunos criados em ${new Date(parsed.createdAt || Date.now()).toLocaleString()}.\n\nDeseja restaurar agora e sobrescrever dados danificados?`
+          `Arquivo de backup válido!\n\n` +
+          `• Perfis: ${parsed.counts.profiles || 0}\n` +
+          `• Progresso de Jogos: ${parsed.counts.game_progress || 0}\n` +
+          `• Cosméticos: ${parsed.counts.user_cosmetics || 0}\n` +
+          `• Conquistas: ${parsed.counts.user_achievements || 0}\n` +
+          `• Temporadas: ${parsed.counts.season_history || 0}\n` +
+          `• Criado em: ${new Date(parsed.createdAt || Date.now()).toLocaleString('pt-BR')}\n\n` +
+          `Deseja restaurar agora e aplicar upsert nas tabelas do Supabase?`
         );
 
         if (!confirmRestore) return;
 
         setIsRestoring(true);
-        const res = await restoreDatabaseBackup(parsed);
+        const res = await restoreSupabaseBackup(parsed);
+        if (res.errors && res.errors.length > 0) {
+          throw new Error(res.errors.join('; '));
+        }
+
         sound.playPrestige();
         setBackupActionMessage({
           type: 'success',
-          text: `Backup do arquivo local restaurado com sucesso! ${res.restoredSaves} saves recuperados.`
+          text: `Restauração concluída! Restaurados: ${res.restoredCounts.profiles} perfis, ${res.restoredCounts.game_progress} progressos, ${res.restoredCounts.user_cosmetics} cosméticos, ${res.restoredCounts.user_achievements} conquistas.`
         });
         if (activeTab === 'dashboard') loadStudents();
       } catch (err: any) {
@@ -1119,28 +1028,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
-  const handleRunMigration = async (dryRun = false) => {
-    setIsMigrating(true);
-    setMigrationResult(null);
-    try {
-      const res = await migrateSchemasInFirestore(dryRun);
-      setMigrationResult(res);
-      if (!dryRun) {
-        sound.playPrestige();
-        if (activeTab === 'dashboard') loadStudents();
-      }
-    } catch (err: any) {
-      alert(`Erro na migração: ${err.message}`);
-    } finally {
-      setIsMigrating(false);
-    }
-  };
-
   const handleWipe = async () => {
     if (wipeConfirm !== 'CONFIRMAR') return;
     setWipeStatus('loading');
     try {
+      // 1. Wipe do banco Supabase (PostgreSQL)
       await dbService.wipeDatabase();
+
+      // 2. Wipe sincronizado nas coleções legadas do Firestore
+      try {
+        await wipeLegacyFirestoreDatabase();
+      } catch (legacyErr) {
+        console.warn('Wipe de coleções legadas do Firestore ignorado ou falhou:', legacyErr);
+      }
+
       setWipeStatus('success');
       setWipeConfirm('');
       if (activeTab === 'dashboard') loadStudents();
@@ -3232,10 +3133,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     <div>
                       <div className="flex items-center gap-2 text-emerald-400 font-bold text-lg">
                         <Database className="w-5 h-5" />
-                        <h3>Backup & Recuperação do Banco de Dados</h3>
+                        <h3>Backup & Recuperação do Supabase (PostgreSQL)</h3>
                       </div>
                       <p className="text-xs text-zinc-400 mt-0.5">
-                        Proteja o progresso de todos os alunos gerando cópias instantâneas na nuvem e arquivos JSON para download.
+                        Exporte snapshots completos em formato JSON ou restaure o estado das tabelas do Supabase com validação de integridade.
                       </p>
                     </div>
 
@@ -3244,13 +3145,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         onClick={handleCreateBackup}
                         disabled={isCreatingBackup || isRestoring}
                         className="flex-1 sm:flex-initial px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/40 cursor-pointer"
-                        title="Salvar snapshot no Firestore e baixar arquivo .json de backup"
+                        title="Extrair dados de profiles, game_progress, user_cosmetics, user_achievements, season_history e baixar .json"
                       >
                         <Download className="w-4 h-4" />
-                        <span>{isCreatingBackup ? 'Gerando Backup...' : 'Gerar Backup Completo'}</span>
+                        <span>{isCreatingBackup ? 'Exportando...' : 'Exportar Snapshot JSON'}</span>
                       </button>
 
-                      {/* Botão de Upload de JSON para restauração manual */}
+                      {/* Botão de Upload de JSON para restauração */}
                       <input
                         ref={fileInputRef}
                         type="file"
@@ -3289,204 +3190,98 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                   )}
 
-                  {/* Card Explicativo de Segurança */}
+                  {/* Cards Explicativos da Arquitetura de Backup */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div className="bg-zinc-900/70 border border-zinc-800 rounded-xl p-3.5">
                       <div className="text-emerald-400 font-bold text-xs flex items-center gap-1.5 mb-1">
                         <Download className="w-3.5 h-3.5" />
-                        Download Local Automático
+                        Snapshot Relacional Completo
                       </div>
                       <p className="text-[11px] text-zinc-400 leading-relaxed">
-                        Ao clicar em "Gerar Backup", o arquivo JSON é salvo no seu computador com a data exata para contingência offline.
+                        Exporta diretamente as tabelas <code className="text-emerald-300">profiles</code>, <code className="text-emerald-300">game_progress</code>, <code className="text-emerald-300">user_cosmetics</code>, <code className="text-emerald-300">user_achievements</code> e <code className="text-emerald-300">season_history</code>.
                       </p>
                     </div>
 
                     <div className="bg-zinc-900/70 border border-zinc-800 rounded-xl p-3.5">
                       <div className="text-purple-400 font-bold text-xs flex items-center gap-1.5 mb-1">
                         <Database className="w-3.5 h-3.5" />
-                        Snapshots na Nuvem
+                        Download JSON Imediato
                       </div>
                       <p className="text-[11px] text-zinc-400 leading-relaxed">
-                        O Firebase mantém o histórico dos últimos snapshots gerados, permitindo restauração em 1 clique direto pelo painel.
+                        O arquivo é baixado instantaneamente pelo navegador, garantindo cópia física local e independente da nuvem para contingência total.
                       </p>
                     </div>
 
                     <div className="bg-zinc-900/70 border border-zinc-800 rounded-xl p-3.5">
                       <div className="text-sky-400 font-bold text-xs flex items-center gap-1.5 mb-1">
                         <RotateCcw className="w-3.5 h-3.5" />
-                        Restauração Protegida
+                        Restauração com Upsert
                       </div>
                       <p className="text-[11px] text-zinc-400 leading-relaxed">
-                        Se qualquer alteração corromper os dados dos alunos, você pode reescrever a base com um estado saudável em segundos.
+                        Ao subir um JSON de backup, o sistema valida a integridade do schema v2 e executa upsert seguro sem duplicar chaves primárias.
                       </p>
                     </div>
                   </div>
 
-                  {/* Normalização e Migração Retrocompatível de Schemas */}
-                  <div className="bg-gradient-to-r from-blue-950/30 to-indigo-950/30 border border-blue-500/30 rounded-2xl p-4 space-y-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div>
-                        <div className="flex items-center gap-2 text-blue-300 font-bold text-sm">
-                          <CheckCircle2 className="w-4 h-4 text-blue-400" />
-                          <span>Normalização Estrutural de Schemas (v2)</span>
-                          <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-blue-900/60 text-blue-200 border border-blue-700/50">
-                            Retrocompatível
-                          </span>
+                  {/* Resumo do Último Backup Exportado nesta Sessão (se houver) */}
+                  {lastBackup && (
+                    <div className="p-4 bg-zinc-900/80 border border-emerald-500/30 rounded-2xl space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-emerald-300 font-bold text-sm">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                          <span>Último Snapshot Exportado nesta Sessão</span>
                         </div>
-                        <p className="text-xs text-zinc-400 mt-1 max-w-2xl leading-relaxed">
-                          Percorre todos os documentos antigos de alunos do Colégio Leopoldina no Firestore, atualizando para a versão de schema 2 sem alterar progresso, pontos ou conquistas.
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-2 flex-wrap">
                         <button
-                          type="button"
-                          onClick={() => handleRunMigration(true)}
-                          disabled={isMigrating}
-                          className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold border border-zinc-700 transition cursor-pointer disabled:opacity-50"
-                          title="Simular migração sem alterar nada no banco de dados"
+                          onClick={() => downloadSupabaseBackupFile(lastBackup)}
+                          className="px-2.5 py-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 rounded-lg flex items-center gap-1.5 transition cursor-pointer"
                         >
-                          Simular (Dry-Run)
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleRunMigration(false)}
-                          disabled={isMigrating}
-                          className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition cursor-pointer shadow-md shadow-blue-950/50 disabled:opacity-50 flex items-center gap-1.5"
-                          title="Normalizar todos os documentos no Firestore"
-                        >
-                          {isMigrating ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : null}
-                          <span>{isMigrating ? 'Normalizando...' : 'Executar Migração v2'}</span>
+                          <Download className="w-3 h-3 text-emerald-400" />
+                          Baixar novamente
                         </button>
                       </div>
-                    </div>
 
-                    {migrationResult && (
-                      <div className="p-3 bg-zinc-900/80 border border-zinc-800 rounded-xl text-xs space-y-1">
-                        <div className="font-bold text-zinc-200 flex items-center gap-1.5">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                          Resultado da Análise de Schema:
+                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center">
+                        <div className="p-2.5 bg-black/40 rounded-xl border border-zinc-800/80">
+                          <div className="text-lg font-black text-white">{lastBackup.counts.profiles}</div>
+                          <div className="text-[10px] text-zinc-400 uppercase font-bold">Perfis</div>
                         </div>
-                        <div className="text-zinc-400 flex flex-wrap gap-x-4 gap-y-1 font-mono text-[11px]">
-                          <span>Total analisados: <strong className="text-white">{migrationResult.totalScanned}</strong></span>
-                          <span>Atualizados: <strong className="text-emerald-400">{migrationResult.totalMigrated}</strong></span>
-                          <span>Já atualizados: <strong className="text-blue-400">{migrationResult.alreadyUpToDate}</strong></span>
-                          {migrationResult.errors.length > 0 && (
-                            <span className="text-rose-400">Erros: {migrationResult.errors.length}</span>
-                          )}
+                        <div className="p-2.5 bg-black/40 rounded-xl border border-zinc-800/80">
+                          <div className="text-lg font-black text-emerald-400">{lastBackup.counts.game_progress}</div>
+                          <div className="text-[10px] text-zinc-400 uppercase font-bold">Progressos</div>
+                        </div>
+                        <div className="p-2.5 bg-black/40 rounded-xl border border-zinc-800/80">
+                          <div className="text-lg font-black text-purple-400">{lastBackup.counts.user_cosmetics}</div>
+                          <div className="text-[10px] text-zinc-400 uppercase font-bold">Cosméticos</div>
+                        </div>
+                        <div className="p-2.5 bg-black/40 rounded-xl border border-zinc-800/80">
+                          <div className="text-lg font-black text-amber-400">{lastBackup.counts.user_achievements}</div>
+                          <div className="text-[10px] text-zinc-400 uppercase font-bold">Conquistas</div>
+                        </div>
+                        <div className="p-2.5 bg-black/40 rounded-xl border border-zinc-800/80">
+                          <div className="text-lg font-black text-sky-400">{lastBackup.counts.season_history}</div>
+                          <div className="text-[10px] text-zinc-400 uppercase font-bold">Temporadas</div>
                         </div>
                       </div>
-                    )}
-                  </div>
 
-                  {/* Lista de Histórico de Backups na Nuvem */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="text-xs font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-2">
-                        <Clock className="w-3.5 h-3.5 text-zinc-400" />
-                        <span>Histórico de Snapshots na Nuvem</span>
-                        <span className="text-zinc-500 font-normal">({backups.length})</span>
+                      <div className="text-[11px] text-zinc-500 flex items-center justify-between pt-1 border-t border-zinc-800/50">
+                        <span>Horário: {new Date(lastBackup.createdAt).toLocaleString('pt-BR')}</span>
+                        <span className="font-mono">Versão: {lastBackup.version}</span>
                       </div>
-                      <button
-                        onClick={loadBackups}
-                        disabled={isBackupsLoading}
-                        className="text-xs text-zinc-400 hover:text-white flex items-center gap-1 transition cursor-pointer"
-                        title="Recarregar histórico"
-                      >
-                        <RefreshCw className={`w-3.5 h-3.5 ${isBackupsLoading ? 'animate-spin' : ''}`} />
-                        <span>Atualizar</span>
-                      </button>
                     </div>
+                  )}
 
-                    {isBackupsLoading ? (
-                      <div className="p-8 text-center text-zinc-500 text-sm flex items-center justify-center gap-2">
-                        <RefreshCw className="w-4 h-4 animate-spin text-emerald-400" />
-                        <span>Carregando snapshots da nuvem...</span>
-                      </div>
-                    ) : backups.length === 0 ? (
-                      <div className="p-8 rounded-xl border border-dashed border-zinc-800 text-center text-zinc-500 text-sm">
-                        Nenhum backup gerado ainda. Clique no botão verde acima para gerar o primeiro snapshot de segurança!
-                      </div>
-                    ) : (
-                      <div className="divide-y divide-zinc-800/80 rounded-xl border border-zinc-800 bg-zinc-900/40 overflow-hidden">
-                        {backups.map((b) => {
-                          const isConfirmingThis = restoreConfirmId === b.id;
-                          return (
-                            <div key={b.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-zinc-900/70 transition">
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <span className="font-bold text-sm text-zinc-200">{b.label || b.id}</span>
-                                  <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950/60 text-emerald-300 border border-emerald-800/50">
-                                    {b.totalSaves} saves
-                                  </span>
-                                  <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-purple-950/60 text-purple-300 border border-purple-800/50">
-                                    {b.totalLeaderboard} no ranking
-                                  </span>
-                                </div>
-                                <div className="text-xs text-zinc-500 flex items-center gap-2 mt-1">
-                                  <span>{new Date(b.createdAt).toLocaleString('pt-BR')}</span>
-                                  <span>•</span>
-                                  <span className="font-mono text-zinc-400">{b.createdBy}</span>
-                                </div>
-                              </div>
-
-                              <div className="flex items-center gap-2">
-                                {!isConfirmingThis ? (
-                                  <>
-                                    <button
-                                      onClick={() => handleDownloadCloudBackupJson(b.id)}
-                                      className="px-2.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white text-xs font-semibold flex items-center gap-1 transition cursor-pointer"
-                                      title="Baixar cópia .json deste snapshot"
-                                    >
-                                      <Download className="w-3.5 h-3.5" />
-                                      <span className="hidden sm:inline">Baixar JSON</span>
-                                    </button>
-
-                                    <button
-                                      onClick={() => setRestoreConfirmId(b.id)}
-                                      disabled={isRestoring}
-                                      className="px-3 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-xs font-bold flex items-center gap-1 transition cursor-pointer"
-                                      title="Restaurar este estado no banco de dados"
-                                    >
-                                      <RotateCcw className="w-3.5 h-3.5" />
-                                      <span>Restaurar</span>
-                                    </button>
-
-                                    {isSuperAdmin && (
-                                      <button
-                                        onClick={() => handleDeleteSnapshot(b.id)}
-                                        className="p-1.5 rounded-lg hover:bg-red-500/20 text-zinc-500 hover:text-red-400 transition cursor-pointer"
-                                        title="Excluir este snapshot antigo"
-                                      >
-                                        <Trash2 className="w-3.5 h-3.5" />
-                                      </button>
-                                    )}
-                                  </>
-                                ) : (
-                                  <div className="flex items-center gap-2 bg-amber-950/50 border border-amber-500/50 p-1.5 rounded-xl animate-pulse">
-                                    <span className="text-[11px] font-bold text-amber-200 px-1">Restaurar {b.totalSaves} saves?</span>
-                                    <button
-                                      onClick={() => handleRestoreFromCloud(b.id)}
-                                      disabled={isRestoring}
-                                      className="px-2.5 py-1 bg-amber-500 hover:bg-amber-400 text-black text-xs font-black rounded-lg transition cursor-pointer"
-                                    >
-                                      {isRestoring ? 'Restaurando...' : 'Confirmar'}
-                                    </button>
-                                    <button
-                                      onClick={() => setRestoreConfirmId(null)}
-                                      disabled={isRestoring}
-                                      className="px-2 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs rounded-lg transition cursor-pointer"
-                                    >
-                                      Cancelar
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
+                  {/* Instruções de Recuperação e Boas Práticas */}
+                  <div className="p-4 rounded-2xl bg-zinc-900/50 border border-zinc-800 text-xs text-zinc-400 space-y-2">
+                    <h4 className="font-bold text-zinc-200 flex items-center gap-2">
+                      <Shield className="w-4 h-4 text-emerald-400" />
+                      Boas Práticas de Backup do Educa GameHub
+                    </h4>
+                    <p>
+                      • <strong>Recomendação de Frequência</strong>: Exporte um snapshot antes de fechamentos de bimestres, viradas de temporada ou antes de executar a limpeza na Zona de Perigo (Wipe).
+                    </p>
+                    <p>
+                      • <strong>Integridade Relacional</strong>: Durante a restauração, a tabela <code className="text-zinc-300">profiles</code> é restaurada prioritariamente como entidade principal, seguida pelas tabelas de progresso e cosméticos associadas aos IDs dos alunos.
+                    </p>
                   </div>
                 </section>
               )}
@@ -3498,10 +3293,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     <div>
                       <div className="flex items-center gap-2 text-cyan-400 font-bold text-lg">
                         <Activity className="w-5 h-5" />
-                        <h3>Monitoramento de Banco & Cotas do Firestore</h3>
+                        <h3>Monitoramento de Banco & Infraestrutura Supabase</h3>
                       </div>
                       <p className="text-xs text-zinc-400 mt-0.5">
-                        Acompanhe o consumo diário de leituras, escritas e recursos do Plano Spark fornecido pela infraestrutura do Google Cloud.
+                        Acompanhe o status da conexão PostgreSQL, a contagem exata de registros por tabela e as cotas do Plano Gratuito.
                       </p>
                     </div>
 
@@ -3532,16 +3327,29 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                   </div>
 
-                  {/* Aviso Discreto de Latência GCP */}
+                  {/* Status da Conexão & Latência */}
                   <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-cyan-950/20 border border-cyan-500/30 text-xs text-cyan-300/90">
                     <div className="flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-cyan-400 flex-shrink-0" />
-                      <span>⏱️ Métricas consolidadas com ~3-5 min de atraso via GCP.</span>
+                      <span className={`w-2.5 h-2.5 rounded-full ${
+                        metricsData?.status === 'online'
+                          ? 'bg-emerald-400 shadow-sm shadow-emerald-400'
+                          : metricsData?.status === 'degraded'
+                          ? 'bg-amber-400 shadow-sm shadow-amber-400'
+                          : 'bg-rose-500'
+                      }`} />
+                      <span className="font-semibold">
+                        PostgreSQL {metricsData ? metricsData.status.toUpperCase() : 'CONECTANDO'}
+                      </span>
+                      {metricsData && (
+                        <span className="text-zinc-400">
+                          • Latência: <strong className="text-white font-mono">{metricsData.latencyMs} ms</strong>
+                        </span>
+                      )}
                     </div>
                     {metricsData && (
                       <span className="text-[11px] text-zinc-400 hidden sm:inline">
                         Última leitura: {new Date(metricsData.timestamp).toLocaleTimeString('pt-BR')}
-                        {metricsData.isFromCache ? ` (Cache: ${metricsData.cachedSecondsAgo}s)` : ''}
+                        {metricsData.isFromCache ? ' (Cache em memória)' : ''}
                       </span>
                     )}
                   </div>
@@ -3555,112 +3363,159 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
                   {/* Grid de 4 Cards Explicativos */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {/* Card 1: Leituras Hoje */}
+                    {/* Card 1: Armazenamento Estimado */}
                     <div className="p-4 rounded-2xl bg-zinc-900/90 border border-zinc-800 flex flex-col justify-between shadow-sm relative overflow-hidden">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-semibold text-zinc-400">Leituras Hoje</span>
+                        <span className="text-xs font-semibold text-zinc-400">Banco de Dados (Storage)</span>
                         <Database className="w-4 h-4 text-emerald-400" />
                       </div>
                       <div className="my-1">
                         <div className="text-2xl font-black text-zinc-100 flex items-baseline gap-1.5">
-                          {metricsData ? metricsData.reads.used.toLocaleString('pt-BR') : '---'}
+                          {metricsData ? `${metricsData.storage.estimatedUsedMb} MB` : '---'}
                           <span className="text-xs font-medium text-zinc-500">
-                            / {metricsData ? metricsData.reads.quota.toLocaleString('pt-BR') : '50.000'}
+                            / {metricsData ? `${metricsData.storage.databaseLimitMb} MB` : '500 MB'}
                           </span>
                         </div>
                         <div className="text-xs font-bold mt-0.5 text-emerald-400">
-                          {metricsData ? `${metricsData.reads.percent}% da cota Spark` : 'Aguardando...'}
+                          {metricsData ? `${metricsData.storage.percentUsed}% do Plano Free` : 'Aguardando...'}
                         </div>
                       </div>
                       {/* Barra de Progresso */}
                       <div className="w-full h-2 bg-zinc-800 rounded-full mt-3 overflow-hidden">
                         <div
                           className={`h-full transition-all duration-500 rounded-full ${
-                            (metricsData?.reads.percent || 0) > 85
+                            (metricsData?.storage.percentUsed || 0) > 85
                               ? 'bg-rose-500'
-                              : (metricsData?.reads.percent || 0) > 60
+                              : (metricsData?.storage.percentUsed || 0) > 60
                               ? 'bg-amber-500'
                               : 'bg-emerald-500'
                           }`}
-                          style={{ width: `${Math.min(100, metricsData?.reads.percent || 0)}%` }}
+                          style={{ width: `${Math.min(100, metricsData?.storage.percentUsed || 0)}%` }}
                         />
                       </div>
-                      <span className="text-[10px] text-zinc-500 mt-2">Limite diário: 50.000 leituras (00:00 UTC)</span>
+                      <span className="text-[10px] text-zinc-500 mt-2">Limite do plano gratuito: 500 MB</span>
                     </div>
 
-                    {/* Card 2: Escritas Hoje */}
+                    {/* Card 2: Usuários Ativos (MAU) */}
                     <div className="p-4 rounded-2xl bg-zinc-900/90 border border-zinc-800 flex flex-col justify-between shadow-sm relative overflow-hidden">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-semibold text-zinc-400">Escritas Hoje</span>
-                        <Zap className="w-4 h-4 text-amber-400" />
+                        <span className="text-xs font-semibold text-zinc-400">Usuários Ativos (MAU)</span>
+                        <Users className="w-4 h-4 text-indigo-400" />
                       </div>
                       <div className="my-1">
                         <div className="text-2xl font-black text-zinc-100 flex items-baseline gap-1.5">
-                          {metricsData ? metricsData.writes.used.toLocaleString('pt-BR') : '---'}
+                          {metricsData ? metricsData.mau.activeUsers.toLocaleString('pt-BR') : '---'}
                           <span className="text-xs font-medium text-zinc-500">
-                            / {metricsData ? metricsData.writes.quota.toLocaleString('pt-BR') : '20.000'}
+                            / {metricsData ? metricsData.mau.limitUsers.toLocaleString('pt-BR') : '50.000'}
                           </span>
                         </div>
-                        <div className="text-xs font-bold mt-0.5 text-amber-400">
-                          {metricsData ? `${metricsData.writes.percent}% da cota Spark` : 'Aguardando...'}
+                        <div className="text-xs font-bold mt-0.5 text-indigo-400">
+                          {metricsData ? `${metricsData.mau.percentUsed}% da cota mensal` : 'Aguardando...'}
                         </div>
                       </div>
                       {/* Barra de Progresso */}
                       <div className="w-full h-2 bg-zinc-800 rounded-full mt-3 overflow-hidden">
                         <div
                           className={`h-full transition-all duration-500 rounded-full ${
-                            (metricsData?.writes.percent || 0) > 85
+                            (metricsData?.mau.percentUsed || 0) > 85
                               ? 'bg-rose-500'
-                              : (metricsData?.writes.percent || 0) > 60
+                              : (metricsData?.mau.percentUsed || 0) > 60
                               ? 'bg-amber-500'
-                              : 'bg-amber-400'
+                              : 'bg-indigo-500'
                           }`}
-                          style={{ width: `${Math.min(100, metricsData?.writes.percent || 0)}%` }}
+                          style={{ width: `${Math.min(100, metricsData?.mau.percentUsed || 0)}%` }}
                         />
                       </div>
-                      <span className="text-[10px] text-zinc-500 mt-2">Limite diário: 20.000 escritas (00:00 UTC)</span>
+                      <span className="text-[10px] text-zinc-500 mt-2">Limite mensal: 50.000 usuários ativos</span>
                     </div>
 
-                    {/* Card 3: Status do Servidor */}
+                    {/* Card 3: Total de Alunos Cadastrados */}
                     <div className="p-4 rounded-2xl bg-zinc-900/90 border border-zinc-800 flex flex-col justify-between shadow-sm relative overflow-hidden">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-semibold text-zinc-400">Status do Servidor</span>
-                        <Terminal className="w-4 h-4 text-cyan-400" />
+                        <span className="text-xs font-semibold text-zinc-400">Alunos no Sistema</span>
+                        <GraduationCap className="w-4 h-4 text-cyan-400" />
                       </div>
                       <div className="my-1">
-                        <div className="text-base font-black flex items-center gap-2">
-                          <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-                          <span className="text-zinc-100">
-                            {metricsData?.server.status === 'warning' ? 'Atenção (Cotas)' : 'Normal'}
-                          </span>
-                        </div>
-                        <div className="text-xs font-medium mt-1 text-zinc-400">
-                          0 msgs pendentes no buffer
-                        </div>
-                      </div>
-                      <div className="text-[11px] text-zinc-500 mt-2 space-y-0.5 border-t border-zinc-800/80 pt-2">
-                        <div>Memória RSS: <strong className="text-zinc-300">{metricsData?.server.memoryRssMb ?? '--'} MB</strong></div>
-                        <div className="truncate">Ambiente: <strong className="text-zinc-300">{metricsData?.server.environment ?? '--'}</strong></div>
-                      </div>
-                    </div>
-
-                    {/* Card 4: Total de Registros de Alunos */}
-                    <div className="p-4 rounded-2xl bg-zinc-900/90 border border-zinc-800 flex flex-col justify-between shadow-sm relative overflow-hidden">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-semibold text-zinc-400">Total de Alunos</span>
-                        <Users className="w-4 h-4 text-indigo-400" />
-                      </div>
-                      <div className="my-1">
-                        <div className="text-2xl font-black text-indigo-300 flex items-baseline gap-1.5">
+                        <div className="text-2xl font-black text-cyan-300 flex items-baseline gap-1.5">
                           {metricsData ? metricsData.studentsCount.toLocaleString('pt-BR') : '---'}
-                          <span className="text-xs font-normal text-zinc-400">contas</span>
+                          <span className="text-xs font-normal text-zinc-400">alunos</span>
                         </div>
                         <div className="text-xs font-medium mt-0.5 text-zinc-400">
-                          Registros na coleção /saves
+                          {metricsData ? `${metricsData.teachersCount} professores/staff` : '---'}
                         </div>
                       </div>
                       <div className="text-[10px] text-zinc-500 mt-3 pt-2 border-t border-zinc-800/80">
-                        Contagem agregada via Firestore count() (1 leitura)
+                        Contagem exata na tabela <code className="text-zinc-400">profiles</code>
+                      </div>
+                    </div>
+
+                    {/* Card 4: Total de Linhas no Banco */}
+                    <div className="p-4 rounded-2xl bg-zinc-900/90 border border-zinc-800 flex flex-col justify-between shadow-sm relative overflow-hidden">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-zinc-400">Total de Registros</span>
+                        <Zap className="w-4 h-4 text-amber-400" />
+                      </div>
+                      <div className="my-1">
+                        <div className="text-2xl font-black text-amber-300 flex items-baseline gap-1.5">
+                          {metricsData ? metricsData.totalRows.toLocaleString('pt-BR') : '---'}
+                          <span className="text-xs font-normal text-zinc-400">linhas</span>
+                        </div>
+                        <div className="text-xs font-medium mt-0.5 text-zinc-400">
+                          Soma de todas as tabelas
+                        </div>
+                      </div>
+                      <div className="text-[10px] text-zinc-500 mt-3 pt-2 border-t border-zinc-800/80">
+                        Consultas HEAD com custo zero de tráfego
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Censo Detalhado por Tabela do PostgreSQL */}
+                  <div className="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-4 space-y-3">
+                    <div className="text-xs font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-2">
+                      <Database className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>Censo de Linhas por Tabela (Supabase PostgreSQL)</span>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                      <div className="p-3 bg-zinc-900/90 border border-zinc-800/80 rounded-xl">
+                        <div className="text-xs text-zinc-400 font-mono">profiles</div>
+                        <div className="text-xl font-bold text-white mt-1">
+                          {metricsData ? metricsData.tables.profiles.toLocaleString('pt-BR') : '---'}
+                        </div>
+                        <div className="text-[10px] text-zinc-500 mt-0.5">Perfis de usuários</div>
+                      </div>
+
+                      <div className="p-3 bg-zinc-900/90 border border-zinc-800/80 rounded-xl">
+                        <div className="text-xs text-zinc-400 font-mono">game_progress</div>
+                        <div className="text-xl font-bold text-emerald-400 mt-1">
+                          {metricsData ? metricsData.tables.game_progress.toLocaleString('pt-BR') : '---'}
+                        </div>
+                        <div className="text-[10px] text-zinc-500 mt-0.5">Progresso nos jogos</div>
+                      </div>
+
+                      <div className="p-3 bg-zinc-900/90 border border-zinc-800/80 rounded-xl">
+                        <div className="text-xs text-zinc-400 font-mono">user_cosmetics</div>
+                        <div className="text-xl font-bold text-purple-400 mt-1">
+                          {metricsData ? metricsData.tables.user_cosmetics.toLocaleString('pt-BR') : '---'}
+                        </div>
+                        <div className="text-[10px] text-zinc-500 mt-0.5">Itens desbloqueados</div>
+                      </div>
+
+                      <div className="p-3 bg-zinc-900/90 border border-zinc-800/80 rounded-xl">
+                        <div className="text-xs text-zinc-400 font-mono">user_achievements</div>
+                        <div className="text-xl font-bold text-amber-400 mt-1">
+                          {metricsData ? metricsData.tables.user_achievements.toLocaleString('pt-BR') : '---'}
+                        </div>
+                        <div className="text-[10px] text-zinc-500 mt-0.5">Conquistas obtidas</div>
+                      </div>
+
+                      <div className="p-3 bg-zinc-900/90 border border-zinc-800/80 rounded-xl">
+                        <div className="text-xs text-zinc-400 font-mono">season_history</div>
+                        <div className="text-xl font-bold text-sky-400 mt-1">
+                          {metricsData ? metricsData.tables.season_history.toLocaleString('pt-BR') : '---'}
+                        </div>
+                        <div className="text-[10px] text-zinc-500 mt-0.5">Registros históricos</div>
                       </div>
                     </div>
                   </div>
@@ -3669,16 +3524,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   <div className="p-4 rounded-2xl bg-zinc-900/50 border border-zinc-800 text-xs text-zinc-400 space-y-2">
                     <h4 className="font-bold text-zinc-200 flex items-center gap-2">
                       <Shield className="w-4 h-4 text-cyan-400" />
-                      Políticas de Conservação de Quota do TypeClicker
+                      Políticas de Performance e Eficiência da Infraestrutura
                     </h4>
                     <p>
-                      • <strong>Throttling de 60 segundos</strong>: O jogo agrupa todas as teclas e pontuações dos alunos, disparando saves periódicos de 60s para manter o consumo diário seguro abaixo de 20.000 escritas mesmo com mais de 300 alunos em aula simultânea.
+                      • <strong>Consultas HEAD com Consumo Zero</strong>: As métricas de monitoramento utilizam o parâmetro HTTP <code className="text-cyan-300">head: true</code> com <code className="text-cyan-300">count: 'exact'</code>. Isso significa que apenas a contagem é calculada pelo PostgreSQL, sem transferir dados de linhas pela rede (egress 0).
                     </p>
                     <p>
-                      • <strong>Deduplicação Singleflight</strong>: Consultas simultâneas ao ranking e ao pódio escolar compartilham promessas ativas na nuvem, evitando picos de centenas de leituras simultâneas.
+                      • <strong>Cache de 30 Segundos</strong>: O painel armazena os números em memória durante 30 segundos para evitar disparos concorrentes caso vários professores acessem a aba simultaneamente.
                     </p>
                     <p>
-                      • <strong>Cache do Monitoramento</strong>: O backend retém os resultados por 3 minutos em memória para permitir que múltiplos professores acessem o painel administrativo sem consumir requisições adicionais à Cloud Monitoring API.
+                      • <strong>Throttling de 60 segundos</strong>: Os jogos salvam em lote a cada 60s, prevenindo picos de concorrência mesmo com laboratórios inteiros digitando em alta frequência.
                     </p>
                   </div>
                 </section>
@@ -3688,12 +3543,21 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 <section className="space-y-4 max-w-xl mx-auto">
                   <div className="flex items-center gap-2 text-red-400 font-bold border-b border-red-900/50 pb-2">
                     <AlertTriangle className="w-5 h-5" />
-                    <h3>Zona de Perigo (Wipe)</h3>
+                    <h3>Zona de Perigo (Wipe do Banco de Dados)</h3>
                   </div>
                   
-                  <p className="text-sm text-zinc-400">
-                    Esta ação irá apagar <strong>TODOS OS SAVES</strong> e o <strong>RANKING GERAL</strong> permanentemente. Ideal para reiniciar o semestre.
-                  </p>
+                  <div className="space-y-2 text-sm text-zinc-400">
+                    <p>
+                      Esta ação irá reiniciar o progresso de <strong>TODOS OS ALUNOS</strong>, limpando as tabelas do Supabase (<code className="text-red-300">game_sessions</code>, <code className="text-red-300">season_history</code>, <code className="text-red-300">game_progress</code>, <code className="text-red-300">user_cosmetics</code>, <code className="text-red-300">user_achievements</code>) e zerando bytes e pontuações na tabela <code className="text-red-300">profiles</code>.
+                    </p>
+                    <p>
+                      Para evitar inconsistências ou dados fantasmas, também realizará a limpeza sincronizada das coleções legadas do Firestore (<code className="text-zinc-300">saves</code>, <code className="text-zinc-300">leaderboard</code>).
+                    </p>
+                    <div className="p-3 bg-amber-950/30 border border-amber-500/30 rounded-xl text-xs text-amber-300 flex items-center gap-2">
+                      <Shield className="w-4 h-4 flex-shrink-0 text-amber-400" />
+                      <span>As contas de <strong>professores e administradores</strong> serão preservadas com acesso intacto.</span>
+                    </div>
+                  </div>
 
                   <div className="flex flex-col gap-2">
                     <input
@@ -3706,13 +3570,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     <button
                       onClick={handleWipe}
                       disabled={wipeConfirm !== 'CONFIRMAR' || wipeStatus === 'loading'}
-                      className="w-full py-3 bg-red-600 hover:bg-red-500 disabled:bg-zinc-800 disabled:text-zinc-600 text-white font-bold rounded-lg transition flex items-center justify-center gap-2"
+                      className="w-full py-3 bg-red-600 hover:bg-red-500 disabled:bg-zinc-800 disabled:text-zinc-600 text-white font-bold rounded-lg transition flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed"
                     >
                       <Trash2 className="w-5 h-5" />
-                      {wipeStatus === 'loading' ? 'APAGANDO...' : 'WIPE TOTAL DO BANCO DE DADOS'}
+                      {wipeStatus === 'loading' ? 'APAGANDO DADOS...' : 'WIPE SINCRONIZADO (SUPABASE + FIRESTORE)'}
                     </button>
                     
-                    {wipeStatus === 'success' && <div className="text-emerald-400 text-center text-sm font-bold">Banco de dados apagado com sucesso.</div>}
+                    {wipeStatus === 'success' && <div className="text-emerald-400 text-center text-sm font-bold">Banco de dados Supabase e registros legados limpos com sucesso.</div>}
                     {wipeStatus === 'error' && <div className="text-red-400 text-center text-sm font-bold">Erro ao apagar banco de dados.</div>}
                   </div>
                 </section>
@@ -3908,8 +3772,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         <button
                           onClick={() => {
                             const adminEmail = userEmail || 'wrobel.marcos@gmail.com';
+                            const adminUid = auth.currentUser?.uid || null;
+                            setTargetUserId(adminUid);
                             setTargetEmail(adminEmail);
-                            checkTargetAccount(adminEmail);
+                            checkTargetAccount(adminEmail, adminUid);
                           }}
                           className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition flex items-center gap-1.5 cursor-pointer ${
                             targetEmail.toLowerCase() === (userEmail || 'wrobel.marcos@gmail.com').toLowerCase()
@@ -3935,8 +3801,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             >
                               <button
                                 onClick={() => {
+                                  setTargetUserId(null);
                                   setTargetEmail(tEmail);
-                                  checkTargetAccount(tEmail);
+                                  checkTargetAccount(tEmail, null);
                                 }}
                                 className="px-2.5 py-1.5 flex items-center gap-1.5 cursor-pointer"
                               >
@@ -3988,9 +3855,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                               <button
                                 key={st.userId}
                                 onClick={() => {
-                                  const emailChoice = (st as any).email || `${st.nome.toLowerCase().replace(/\s+/g, '.')}@escola.pr.gov.br`;
-                                  setTargetEmail(emailChoice);
-                                  checkTargetAccount(emailChoice);
+                                  const displayIdentifier = st.email || st.nome;
+                                  setTargetUserId(st.userId);
+                                  setTargetEmail(st.email || `${st.nome} (${st.turma})`);
+                                  checkTargetAccount(displayIdentifier, st.userId);
                                   setShowStudentPicker(false);
                                 }}
                                 className="w-full text-left p-2 rounded hover:bg-zinc-800 flex items-center justify-between text-xs transition cursor-pointer"
@@ -4000,6 +3868,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                   <span className="font-bold text-white">{st.nome}</span>
                                   {st.apelido && <span className="text-zinc-400">({st.apelido})</span>}
                                   <span className="px-1.5 py-0.5 rounded bg-zinc-800 text-[10px] text-zinc-400">{st.turma}</span>
+                                  {st.email && <span className="text-[10px] text-zinc-500 font-mono truncate max-w-[150px]">{st.email}</span>}
                                 </div>
                                 <span className="text-emerald-400 font-mono">Nv. {st.level} • {formatBytes(st.points || 0)}</span>
                               </button>
@@ -4035,18 +3904,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     <div className="p-3.5 rounded-lg bg-zinc-950 border border-amber-500/30 font-mono text-xs space-y-2">
                       <div className="flex items-center justify-between flex-wrap gap-2">
                         <div className="flex items-center gap-2">
-                          <span className="text-zinc-400">E-mail Selecionado:</span>
+                          <span className="text-zinc-400">Conta Selecionada:</span>
                           <span className="font-bold text-amber-300 text-sm">{targetEmail}</span>
                           {isLoadingAccountInfo && <RefreshCw className="w-3.5 h-3.5 text-amber-400 animate-spin" />}
                         </div>
                         <div>
                           {targetAccountInfo?.exists ? (
                             <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold">
-                              ✅ Save Sincronizado no Firestore
+                              ✅ Perfil Sincronizado no Supabase {targetAccountInfo.userId ? `(${targetAccountInfo.userId.slice(0, 8)}...)` : ''}
                             </span>
                           ) : (
                             <span className="px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-400 border border-sky-500/30 text-[10px] font-bold">
-                              ⏳ Nova Conta (Será criada/injetada ao logar)
+                              ⏳ Nova Conta (Será aplicada ao entrar/vincular)
                             </span>
                           )}
                         </div>

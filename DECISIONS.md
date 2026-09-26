@@ -31,6 +31,19 @@
   - No `SupabaseAdapter`, a execução invoca o RPC PostgreSQL `record_game_session`, que de forma atômica atualiza o `game_progress` (com `GREATEST(high_score)` e `metrics`) e credita cumulativamente os `bytes`, `total_bytes_earned` e `season_bytes` na tabela `public.profiles`.
   - No `FirebaseAdapter`, atualiza de forma defensiva os campos de `bytes` e `points` do documento no Firestore, garantindo simetria de comportamento entre ambos os provedores.
   - A saída de minijogos (como `Type: Radar` em `App.tsx`) aciona essa gravação imediatamente após a partida.
+- **Backups e Restauração Relacional por Arquivo JSON (`supabaseBackupService.ts`)**:
+  - Exporta um snapshot completo de todas as 5 tabelas vitais (`profiles`, `game_progress`, `user_cosmetics`, `user_achievements`, `season_history`) com identificador de versão (`version: 2.0.0`) e metadados de contagem.
+  - A restauração opera inteiramente no navegador do professor através de upload do JSON, com validação estrita de integridade e `upsert` com resolução de conflitos por chave primária no PostgreSQL, dispensando acessos SSH ou painéis externos.
+- **Monitoramento de Infraestrutura com Custo Zero de Transferência (`supabaseMetricsService.ts`)**:
+  - O censo de tabelas utiliza o parâmetro `{ count: 'exact', head: true }` da API PostgREST do Supabase, retornando o total exato de linhas no header `content-range` com corpo vazio (`egress 0`).
+  - A latência ponta a ponta é aferida em tempo real via ping HTTP leve, combinada com cache de 30 segundos para evitar sobrecarga no servidor.
+- **Concessão de Testes com Chave Primária Real e Fila de Resgate (`supabaseTestService.ts`)**:
+  - A seleção de alunos no painel de testes utiliza o `userId` real do Supabase (`profiles.id`), eliminando qualquer suposição de e-mail institucional sintético.
+  - As concessões de teste calculam a curva de XP oficial via `calculateMinBytesForLevel` e atualizam atomicamente o saldo de Bytes, Nível, Tokens e Fragmentos no `profiles`, além de realizar upsert de cosméticos em lote na tabela `user_cosmetics`.
+  - Para contas não cadastradas no momento da concessão, os recursos são agendados e aplicados automaticamente no login via `claimPendingTestGrantsSupabase`.
+- **Wipe Seguro com Limpeza Sincronizada Multi-Provedor**:
+  - A exclusão de dados respeita integridade relacional, preservando contas docentes (`role = 'teacher'`) e limpando tabelas filhas antes de resetar os perfis dos alunos.
+  - Para prevenir ressurgimento de dados fantasmas caso a aplicação seja executada em ambientes com fallback para Firestore ativado, uma exclusão sincronizada é disparada em paralelo nas coleções legadas (`/saves`, `/leaderboard`).
 
 ## Decisões do Código Legado e Status de Migração
 
