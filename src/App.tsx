@@ -607,6 +607,7 @@ export default function App() {
   const lastKeyTimestampRef = useRef<number>(performance.now());
   const lastMissedCharRef = useRef<string>('');
   const sameCharMissCountRef = useRef<number>(0);
+  const lastFocusDrillDismissedAtRef = useRef<number>(0);
   const currentWordHasErrorRef = useRef<boolean>(false);
 
   const typingInputRef = useRef<HTMLInputElement>(null);
@@ -1093,6 +1094,9 @@ export default function App() {
     overloadRecoveryRef.current = 0;
     setActiveFocusDrill(null);
     activeFocusDrillRef.current = null;
+    lastFocusDrillDismissedAtRef.current = Date.now();
+    sameCharMissCountRef.current = 0;
+    lastMissedCharRef.current = '';
     setIsPaused(false);
     isPausedRef.current = false;
     spawnFloatingText(`⚡ CIRCUITO RESTABELECIDO! +${reward} B`, 'success');
@@ -1110,6 +1114,9 @@ export default function App() {
     overloadRecoveryRef.current = 0;
     setActiveFocusDrill(null);
     activeFocusDrillRef.current = null;
+    lastFocusDrillDismissedAtRef.current = Date.now();
+    sameCharMissCountRef.current = 0;
+    lastMissedCharRef.current = '';
     setIsPaused(false);
     isPausedRef.current = false;
     spawnFloatingText('Modo foco dispensado', 'error');
@@ -1432,10 +1439,13 @@ export default function App() {
         perfectWordsStreak: isArcherComboSaved ? prev.perfectWordsStreak : 0
       }));
 
-      // Disparo do Modo Foco (quando o aluno erra sucessivamente a mesma tecla ou sobrecarga persistente)
+      // Disparo do Modo Foco (Reabilitação Motora: limiar calibrado + cooldown pedagógico de 30s)
+      const nowTs = Date.now();
+      const isCooldownOver = nowTs - lastFocusDrillDismissedAtRef.current > 30000;
       if (
         !activeFocusDrill &&
-        (sameCharMissCountRef.current >= 3 || (sameCharMissCountRef.current >= 2 && nextErrors >= 3))
+        isCooldownOver &&
+        (sameCharMissCountRef.current >= 5 || (sameCharMissCountRef.current >= 4 && nextErrors >= 6))
       ) {
         const session = gerarTreinoAdaptativo(updatedTelem, currState.selectedCategory, [expectedChar]);
         const focusWords = session && session.drillWords.length > 0

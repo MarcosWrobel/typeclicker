@@ -4,6 +4,7 @@ import { Terminal, CheckCircle2, Zap, Keyboard, X, Target, Sparkles, ShieldCheck
 import { sound } from '../utils/audio';
 import { audioSynthesizer } from '../services/audioSynthesizer';
 import { formatBytes } from '../utils/formatting';
+import { isAccentKey, resolveDeadKey, combineAccent, getAccentDisplayName } from '../utils/keyboardAccents';
 
 interface FocusDrillModalProps {
   isOpen: boolean;
@@ -25,6 +26,8 @@ export const FocusDrillModal: React.FC<FocusDrillModalProps> = ({
   const [status, setStatus] = useState<'intro' | 'playing' | 'success'>('intro');
   const [isFocused, setIsFocused] = useState(true);
   const [isErrorShaking, setIsErrorShaking] = useState(false);
+  const [pendingAccent, setPendingAccent] = useState<string | null>(null);
+  const pendingAccentRef = useRef<string | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const statusRef = useRef<'intro' | 'playing' | 'success'>(status);
@@ -66,6 +69,8 @@ export const FocusDrillModal: React.FC<FocusDrillModalProps> = ({
       currentWordIndexRef.current = 0;
       setCharIndex(0);
       charIndexRef.current = 0;
+      setPendingAccent(null);
+      pendingAccentRef.current = null;
       setStatus('intro');
       statusRef.current = 'intro';
 
@@ -110,15 +115,12 @@ export const FocusDrillModal: React.FC<FocusDrillModalProps> = ({
     const expectedChar = currentWord[chIdx];
     if (!expectedChar) return;
 
-    // Normalização para comparação sem quebrar acentos
-    const normalizeChar = (c: string) =>
-      c.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-
-    const isMatch =
-      typedChar.toLowerCase() === expectedChar.toLowerCase() ||
-      normalizeChar(typedChar) === normalizeChar(expectedChar);
+    // Comparação estrita de caracteres (respeitando maiúsculas/minúsculas e acentuação exata ABNT2)
+    const isMatch = typedChar.toLowerCase() === expectedChar.toLowerCase();
 
     if (isMatch) {
+      setPendingAccent(null);
+      pendingAccentRef.current = null;
       sound.playKeyStroke(chIdx + 1);
 
       if (chIdx + 1 >= currentWord.length) {
@@ -178,10 +180,40 @@ export const FocusDrillModal: React.FC<FocusDrillModalProps> = ({
         focusInput();
       }
 
+      // 1. Teclas mortas (Dead keys ABNT2/US-Intl)
+      if (e.key === 'Dead' || isAccentKey(e.key)) {
+        e.preventDefault();
+        e.stopPropagation();
+        const currentWords = wordsRef.current;
+        const wordIdx = currentWordIndexRef.current;
+        const chIdx = charIndexRef.current;
+        const expectedChar = currentWords[wordIdx]?.[chIdx];
+        const resolved = resolveDeadKey(e, expectedChar);
+        if (resolved) {
+          setPendingAccent(resolved);
+          pendingAccentRef.current = resolved;
+        }
+        return;
+      }
+
+      // 2. Backspace para cancelar acento pendente
+      if (e.key === 'Backspace' && pendingAccentRef.current) {
+        e.preventDefault();
+        setPendingAccent(null);
+        pendingAccentRef.current = null;
+        return;
+      }
+
       if (e.key.length === 1 || e.key === 'Space') {
         e.preventDefault();
         const rawChar = e.key === ' ' || e.key === 'Space' ? ' ' : e.key;
-        processChar(rawChar);
+        let charToProcess = rawChar;
+        if (pendingAccentRef.current) {
+          charToProcess = combineAccent(pendingAccentRef.current, rawChar);
+          setPendingAccent(null);
+          pendingAccentRef.current = null;
+        }
+        processChar(charToProcess);
       }
     };
 
@@ -193,6 +225,8 @@ export const FocusDrillModal: React.FC<FocusDrillModalProps> = ({
     if (statusRef.current !== 'playing') return;
     const val = e.target.value;
     if (!val) return;
+    setPendingAccent(null);
+    pendingAccentRef.current = null;
     for (const ch of val) {
       processChar(ch);
     }

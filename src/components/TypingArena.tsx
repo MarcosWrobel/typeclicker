@@ -191,12 +191,12 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
   const cardMaxWidthClass = React.useMemo(() => {
     switch (typingMode) {
       case 'code':
-        return 'max-w-4xl xl:max-w-5xl';
+        return 'max-w-4xl xl:max-w-5xl 2xl:max-w-6xl w-full';
       case 'sentences':
-        return 'max-w-3xl lg:max-w-4xl';
+        return 'max-w-4xl xl:max-w-5xl w-full';
       case 'words':
       default:
-        return 'max-w-2xl md:max-w-3xl';
+        return 'max-w-2xl md:max-w-3xl w-full';
     }
   }, [typingMode]);
 
@@ -205,7 +205,7 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
       case 'code':
         return 'tracking-normal';
       case 'sentences':
-        return 'tracking-normal sm:tracking-wide';
+        return 'tracking-normal';
       case 'words':
       default: {
         const len = currentWord?.length || 0;
@@ -220,28 +220,28 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
     if (typingMode === 'sentences') {
       switch (accessibility?.textScale) {
         case 'large':
-          return 'text-2xl sm:text-3xl md:text-4xl';
+          return 'text-lg sm:text-xl md:text-2xl';
         case 'huge':
-          return 'text-3xl sm:text-4xl md:text-5xl';
+          return 'text-xl sm:text-2xl md:text-3xl';
         case 'mega':
-          return 'text-4xl sm:text-5xl md:text-6xl';
+          return 'text-2xl sm:text-3xl md:text-4xl';
         case 'normal':
         default:
-          return 'text-lg sm:text-xl md:text-2xl';
+          return 'text-base sm:text-lg md:text-xl';
       }
     }
 
     if (typingMode === 'code') {
       switch (accessibility?.textScale) {
         case 'large':
-          return 'text-xl sm:text-2xl md:text-3xl';
+          return 'text-base sm:text-lg md:text-xl';
         case 'huge':
-          return 'text-2xl sm:text-3xl md:text-4xl';
+          return 'text-lg sm:text-xl md:text-2xl';
         case 'mega':
-          return 'text-3xl sm:text-4xl md:text-5xl';
+          return 'text-xl sm:text-2xl md:text-3xl';
         case 'normal':
         default:
-          return 'text-base sm:text-lg md:text-xl';
+          return 'text-sm sm:text-base md:text-lg';
       }
     }
 
@@ -450,6 +450,26 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
     }
     lastCharIndexRef.current = charIndex;
   }, [charIndex, currentWord, activeTerminalTheme, equippedAnimation]);
+
+  // Auto-scroll suave para manter a linha e o caractere ativo sempre visíveis em frases e código
+  useEffect(() => {
+    if (typingMode === 'words') return;
+    const activeSpan = wordContainerRef.current?.querySelector('.char-current') as HTMLElement | null;
+    if (activeSpan && wordContainerRef.current) {
+      activeSpan.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'nearest'
+      });
+    }
+  }, [charIndex, typingMode]);
+
+  // Reseta o scroll para o topo ao carregar uma nova palavra, frase ou código
+  useEffect(() => {
+    if (wordContainerRef.current) {
+      wordContainerRef.current.scrollTop = 0;
+    }
+  }, [currentWord]);
 
   // Desfoca imediatamente o input invisível e suspende o foco quando o jogo estiver pausado
   useEffect(() => {
@@ -802,12 +822,18 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
           {/* High-Contrast Interactive Characters com suporte a escala de acessibilidade e agrupamento de palavras intactas */}
           <div
             ref={wordContainerRef}
-            className={`font-mono ${textScaleClass} ${trackingClass} font-bold my-1 sm:my-2 h-[105px] sm:h-[125px] 2xl:h-[140px] max-h-[140px] overflow-hidden flex items-center justify-center flex-wrap gap-y-2 select-none w-full max-w-full px-3 sm:px-6 ${typingMode === 'words' ? 'leading-tight' : 'leading-relaxed'} arena-typing-box`}
+            className={`font-mono ${textScaleClass} ${trackingClass} font-bold my-1 sm:my-2 ${
+              typingMode === 'words'
+                ? 'h-[105px] sm:h-[125px] 2xl:h-[140px] max-h-[140px] overflow-hidden flex items-center justify-center leading-tight'
+                : 'min-h-[130px] max-h-[240px] sm:max-h-[280px] lg:max-h-[320px] overflow-y-auto overflow-x-hidden flex items-start justify-center content-start leading-normal sm:leading-relaxed py-2 scrollbar-thin scrollbar-thumb-zinc-700/60 scrollbar-track-transparent'
+            } flex-wrap gap-y-1 sm:gap-y-1.5 select-none w-full max-w-full px-3 sm:px-6 arena-typing-box`}
           >
             {wordTokens.map((token, tokenIdx) => {
-              const charPadding = (typingMode === 'words' && (currentWord?.length || 0) >= 14)
-                ? 'px-0.5 py-0.5'
-                : 'px-0.5 sm:px-1 py-0.5';
+              const charPadding = typingMode === 'words'
+                ? (currentWord?.length || 0) >= 14
+                  ? 'px-0.5 py-0.5'
+                  : 'px-0.5 sm:px-1 py-0.5'
+                : 'px-0 sm:px-[1px] py-0.5';
 
               return (
                 <span key={tokenIdx} className="inline-flex flex-nowrap items-center max-w-full justify-center">
