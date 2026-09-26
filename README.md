@@ -37,6 +37,9 @@ O modo central da plataforma. O aluno digita palavras ou frases em um terminal g
 - **Multiplicador de Combo:** A cada sequência de acertos consecutivos o multiplicador de Bytes cresce (até 8x)
 - **Focus Buffer System:** Barra de calor que drena com erros e entra em sobreaquecimento — aciona debuffs visuais
 - **Teclas ABNT2 e Dead Keys:** Suporte completo a acentos do português (`´`, `` ` ``, `^`, `~`, `¨`) via resolução de dead keys
+- **Detecção Global de Caps Lock:** Alerta visual instantâneo quando o Caps Lock está ativo, prevenindo sequências de erros involuntários em todas as 9 interfaces de digitação
+- **Aviso Pedagógico de Caixa (Case Mismatch):** Identificação contextual quando a letra correta é digitada com caixa invertida, orientando o aluno a usar `Shift` ou desativar o `Caps Lock`
+- **Auto-Scroll e Responsividade para Frases e Códigos:** Terminal adaptativo com rolagem suave que mantém o caractere ativo `.char-current` sempre visível em telas de qualquer proporção
 - **Input invisível nativo:** Compatível com IME de entrada de texto, sem conflito com atalhos do sistema operacional
 - **Keystroke VFX:** Animações de partículas temáticas a cada acerto, configuráveis por skin comprada na loja
 - **Screen Shake:** Tremor de tela configurável por nível de acessibilidade

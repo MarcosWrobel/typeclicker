@@ -20,6 +20,12 @@
 - **Zero Bypasses e Mediação Estrita via `dbService`**: Toda persistência de progresso de jogos (`saveLegacyGameState`), consultas de placares e operações de painel administrativo (`adminUpdateStudentProfile`, `adminAutoBalanceRpgClasses`, `wipeDatabase`, `sanitizeStaffLeaderboard`, `getAdminDashboardData`) devem ser realizadas unicamente através da interface [`IDatabaseService`](src/services/dbInterface.ts). Chamadas diretas da UI para métodos de SDK (`firebase/firestore`, `saveProgressToCloud`, `@supabase/supabase-js`) são expressamente proibidas para garantir alternância funcional imediata via `VITE_DB_PROVIDER`.
 - **Desacoplamento de Utilitários de Domínio (`leaderboardUtils.ts`)**: Funções de domínio puras (`isStaffMember`, `extractLevel100Pioneers`, `ADMIN_EMAILS`) foram isoladas em [`src/utils/leaderboardUtils.ts`](src/utils/leaderboardUtils.ts). Componentes visuais (`LeaderboardModal`, `StatsSidebar`, `StudentProfileCard*`, etc.) e hooks não importam mais arquivos de infraestrutura de banco (`firebaseService.ts`) para avaliações lógicas puras.
 - **Bibliotecas whitelisted e Lazy Loading obrigatório**: pacotes permitidos (`@monaco-editor/react`, `recharts`, `react-markdown`) importados dinamicamente via `React.lazy()` e `<Suspense>` no roteador do Hub para proteger a performance inicial.
+- **Detecção de Caps Lock e Comparação Estrita de Caracteres**:
+  - Para garantir suporte a teclados escolares heterogêneos (Chromebooks, ABNT2 e US), a detecção de Caps Lock foi centralizada no hook `useCapsLock()` (`keyboardCase.ts`) utilizando `e.getModifierState('CapsLock')` em fase de captura global.
+  - O componente visual [`CapsLockWarning`](src/components/common/CapsLockWarning.tsx) unifica a sinalização nas 9 instâncias de digitação do sistema.
+  - A checagem de caracteres migrou de comparações permissivas/case-insensitive para comparação estrita (`finalChar === expectedChar`). Ao detectar divergência exclusiva de caixa alta/baixa, a função `checkCaseMismatch()` aciona feedback pedagógico ("Pressione Shift + [X]" ou "Desative o Caps Lock"), prevenindo frustração e reforçando a ergonomia motora.
+- **Terminal Adaptativo com Auto-Scroll para Frases e Códigos**:
+  - Em textos longos (`sentences` e `code`), o container da `TypingArena` utiliza layout dinâmico com auto-scroll focalizado no elemento com a classe `.char-current` (`scrollIntoView`), evitando que caracteres finais fiquem encobertos por sobreposições visuais da interface.
 
 ## Decisões do Código Legado e Status de Migração
 

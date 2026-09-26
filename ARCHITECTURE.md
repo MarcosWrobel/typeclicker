@@ -80,12 +80,32 @@ Para garantir que a plataforma opere sem acoplamento a um provedor específico d
 3. **Operações Administrativas no Contrato**:
    - Consultas de dashboard docente (`getAdminDashboardData`), atualizações de turma e classe RPG (`adminUpdateStudentProfile`), auto-balanceamento de classes (`adminAutoBalanceRpgClasses`), higienização de placares (`sanitizeStaffLeaderboard`) e reset de banco (`wipeDatabase`) possuem implementações completas e equivalentes tanto no `SupabaseAdapter` quanto no `FirebaseAdapter`.
 
+## Arquitetura de Entrada de Teclado, Ergonomia & Acessibilidade
+
+Para atender aos diferentes dispositivos escolares (Chromebooks, teclados ABNT2 de desktop e notebooks), o ecossistema TypeClicker adota componentes e utilitários centralizados para tratamento de entrada:
+
+1. **Detecção Global de Modificadores (`src/utils/keyboardCase.ts`)**:
+   - Hook `useCapsLock()`: escuta eventos de teclado globais em fase de captura e monitora `e.getModifierState('CapsLock')`, notificando o estado da tecla ativa.
+   - Utilitário `checkCaseMismatch(typedChar, expectedChar)`: identifica erros de digitação causados exclusivamente por divergência de caixa alta vs caixa baixa, gerando instruções assertivas para uso do Shift ou desativação do Caps Lock.
+   - Componente visual reutilizável [`src/components/common/CapsLockWarning.tsx`](src/components/common/CapsLockWarning.tsx) padronizado em todas as 9 interfaces de digitação.
+
+2. **Resolução de Dead Keys & Composição ABNT2 (`src/utils/keyboardAccents.ts`)**:
+   - Interceptação de eventos `e.key === 'Dead'` e teclas de acento sequencial (`´`, `` ` ``, `~`, `^`, `¨`).
+   - Composição estrita sem bypass de normalização, garantindo que letras acentuadas exijam a combinação real no teclado.
+
+3. **Responsividade e Auto-Scroll Dinâmico da Arena (`src/components/TypingArena.tsx`)**:
+   - O container de texto alterna comportamento conforme o `TypingMode`:
+     - Modo `words`: dimensões estáticas (`h-[105px] ... overflow-hidden flex items-center justify-center`) para preservar o alinhamento de palavras individuais.
+     - Modos `sentences` e `code`: container expandido e dinâmico (`min-h-[130px] max-h-[240px...320px] overflow-y-auto`) com auto-scroll suave (`scrollIntoView`) focalizando o caractere ativo `.char-current`.
+
 ---
 
-## Histórico de Sanitização da Arquitetura Híbrida
+## Histórico de Sanitização da Arquitetura Híbrida & Evolução do Core
 
 | Ciclo | Commit | Escopo | Descrição das Intervenções |
 |---|---|---|---|
+| **Caps Lock Global & Case Mismatch** | `39aef74` | `keyboardCase.ts`, `CapsLockWarning.tsx`, 9 Arenas | • Criação do hook `useCapsLock()` e utilitário `checkCaseMismatch`;<br>• Componente visual `CapsLockWarning` integrado em todas as 9 instâncias do TypeClicker;<br>• Alerta pedagógico flutuante/contextual de tecla Maiúscula (`Shift + [X]`) ou Minúscula. |
+| **Correção de Frases no Terminal & Dead Keys** | `4ec9cad` | `TypingArena.tsx`, `FocusDrillModal.tsx`, `App.tsx` | • Container adaptativo com auto-scroll em frases/códigos sem corte de texto;<br>• Interceptação e composição de `Dead` keys no Modo Foco com remoção de bypass de acento;<br>• Elevação do limiar de ativação para 5 erros repetidos e cooldown de 30s. |
 | **Auditoria & Sanitização de Bypasses** | `5f1213c` | `App.tsx`, `AdminPanel.tsx`, `adapters/*`, `dbInterface.ts`, `leaderboardUtils.ts` | • Eliminados 14 pontos de bypass onde `saveProgressToCloud` burlava o provedor ativo;<br>• Todas as gravações de estado redirecionadas para `dbService.saveLegacyGameState`;<br>• Extensão de `IDatabaseService` com 5 operações administrativas implementadas no `SupabaseAdapter` e `FirebaseAdapter`;<br>• Extração de utilitários puros para `leaderboardUtils.ts` e desacoplamento de 8 componentes visuais/hooks de `firebaseService`. |
 | **Temporadas Trimestrais & Hall da Fama** | `2924470` | `LeaderboardModal.tsx`, `AdminPanel.tsx`, `schema.sql`, `supabaseAdapter.ts` | • Ciclo trimestral alinhado ao calendário SEED-PR;<br>• Seletor "3º Trimestre (Atual) \| Todos os Tempos \| Hall da Fama";<br>• Pódio comemorativo e memorial histórico Top 3;<br>• Fechamento seguro de temporada no painel docente com confirmação digitada (`"CONFIRMAR"`). |
 | **Migração Baseline v1.0.0** | `5b4aaa5` | Core Platform | • Baseline de referência estável da plataforma com arquitetura original Cloud Firestore. |
