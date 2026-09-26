@@ -13,9 +13,9 @@
 - **Hospedagem**: Google Cloud Run (containerizado via AI Studio) — `server.ts` detecta `process.env.K_SERVICE` e serve `dist/` em modo produção; em dev local serve via Vite middleware.
 - **Domínio de produção**: `typeclicker-leopoldina.ai.studio`.
 - **Camada de Banco de Dados Agnóstica**: Interface `IDatabaseService` com chaveamento dinâmico via `VITE_DB_PROVIDER` (`supabase` ou `firestore`).
-  - **Provedor Primário (Supabase)**: PostgreSQL hospedado com RLS (Row Level Security), índices otimizados e Stored Procedures atômicas.
-  - **Provedor de Contingência (Firestore)**: `FirebaseAdapter` preservado para rollback imediato sem necessidade de re-deploy.
-- **Auth**: Firebase Auth (Google Sign-In via `signInWithPopup` + `GoogleAuthProvider`) para e-mails institucionais (`@escola.pr.gov.br`). O UID é a chave primária `TEXT` no Supabase (`profiles.id`).
+  - **Provedor Oficial Primário (Supabase)**: PostgreSQL hospedado com RLS (Row Level Security), índices B-Tree otimizados e Stored Procedures atômicas. Todos os 161 perfis e saves foram migrados com sucesso para esta base.
+  - **Provedor Legado de Contingência (Firestore - Obsoleto)**: `FirebaseAdapter` preservado estritamente para rollback emergencial via `VITE_DB_PROVIDER="firestore"`. Não recebe novas implementações nem regras de negócio.
+- **Identidade e Auth Híbrida**: Firebase Auth (Google Sign-In via `signInWithPopup` + `GoogleAuthProvider`) para e-mails institucionais (`@escola.pr.gov.br`). O UID do Google é a chave primária `TEXT` no Supabase (`profiles.id`).
 - **Arquitetura de Dados no Supabase**:
   - `public.profiles`: Colunas relacionais indexadas (`id`, `display_name`, `turma`, `role`, `bytes`, `total_bytes_earned`, `level`, tokens).
   - `public.game_progress`: Tabela por jogo (`user_id`, `game_id`, `high_score`, `metrics`, `state_payload JSONB`).
@@ -42,7 +42,7 @@ Para suportar essa escala, o código é estritamente separado:
 - `src/components/games/`: Jogos Oficiais do Professor (Core da plataforma).
 - `src/plugins/`: Jogos criados por Alunos e pela Comunidade.
 
-O catálogo de jogos e seus metadados (para alimentar filtros do Hub) fica armazenado localmente em `src/data/gameCatalog.ts`, envelopado por um hook `useGameCatalog()`. Isso prepara o terreno para uma futura migração para Firestore ou Firebase Remote Config sem quebrar a interface visual.
+O catálogo de jogos e seus metadados (para alimentar filtros do Hub) fica armazenado localmente em `src/data/gameCatalog.ts`, envelopado por um hook `useGameCatalog()`. Isso prepara o terreno para uma futura migração remota (tabela `catalog_games` no Supabase) sem quebrar a interface visual. O Firestore e o Firebase Remote Config são considerados obsoletos para novos desenvolvimentos e mantidos apenas na camada de contingência.
 
 ## Arquitetura de jogos — Hub + Plug-ins
 

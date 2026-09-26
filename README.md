@@ -16,10 +16,11 @@ Desenvolvida para o **Colégio Estadual Leopoldina Bittencourt Pedroso** (Curiti
 | **Estilização** | [Tailwind CSS](https://tailwindcss.com/) | 4.1.14 |
 | **Animações** | [Motion (Framer Motion)](https://motion.dev/) | 12.23.x |
 | **Ícones** | [Lucide React](https://lucide.dev/) | 0.546.x |
-| **Banco de Dados** | [Cloud Firestore](https://firebase.google.com/docs/firestore) | SDK 12.x |
-| **Autenticação** | [Firebase Auth](https://firebase.google.com/docs/auth) (Google Identity) | SDK 12.x |
-| **Servidor** | [Express](https://expressjs.com/) + [Firebase Admin SDK](https://firebase.google.com/docs/admin/setup) | 4.x / 14.x |
-| **Monitoramento** | [@google-cloud/monitoring](https://cloud.google.com/monitoring) | 6.x |
+| **Banco de Dados (Oficial)** | [Supabase](https://supabase.com/) (PostgreSQL 15+) | `@supabase/supabase-js` 2.x |
+| **Banco de Dados (Legado / Contingência)** | [Cloud Firestore](https://firebase.google.com/docs/firestore) *(obsoleto)* | SDK 12.x (`FirebaseAdapter`) |
+| **Autenticação** | [Firebase Auth](https://firebase.google.com/docs/auth) (Google Identity institucional) | SDK 12.x |
+| **Servidor** | [Express](https://expressjs.com/) + Vite SSR/Middleware | 4.x / 6.x |
+| **Monitoramento** | Métricas Supabase Postgres + [@google-cloud/monitoring](https://cloud.google.com/monitoring) *(legado)* | 6.x |
 | **VFX de Confetti** | [canvas-confetti](https://github.com/catdad/canvas-confetti) | 1.9.x |
 | **Áudio** | Web Audio API (nativa) — sintetizador procedural | — |
 | **Hospedagem** | Google Cloud Run (containerizado) | — |
@@ -55,7 +56,7 @@ Modo de ação estratégica com mecânica de mira por digitação. O jogador con
 Corrida de digitação simultânea para toda a sala de aula, lançada pelo professor no painel administrativo.
 
 - **Disparo por sessão:** O professor seleciona os parâmetros (texto, modo, duração) e lança a corrida com 1 clique
-- **Barra de progresso ao vivo:** Cada aluno vê em tempo real o avanço de todos os competidores via Firestore `onSnapshot`
+- **Barra de progresso ao vivo:** Cada aluno vê em tempo real o avanço de todos os competidores via Supabase Realtime sob demanda (WebSockets) *(com fallback para Firestore `onSnapshot`)*
 - **Pódio automático:** 🥇🥈🥉 exibido ao finalizar com PPM, acurácia e bytes ganhos
 - **Recompensas escaladas:** Configuráveis por colocação
 - **Cancelamento de emergência:** O professor pode encerrar a corrida a qualquer momento
@@ -65,7 +66,7 @@ Batalha cooperativa em que **toda a sala digita junta** para derrotar um boss co
 
 - **Bosses calibrados:** HP escalonado pelo número de alunos ativos (ex: *Sentinela de Dados*, *Leviatã de Fogo*, *Titã Quântico*)
 - **Dano coletivo:** Cada aluno contribui com dano proporcional à sua velocidade e precisão
-- **Barra de HP ao vivo:** Estado do boss sincronizado em tempo real para todos via Firestore
+- **Barra de HP ao vivo:** Estado do boss sincronizado em tempo real para todos via Supabase Realtime *(com fallback para Firestore `onSnapshot`)*
 - **Modo Fúria:** Boss entra em berserk abaixo de 30% de HP
 - **Professor como GM:** Escolhe o boss, lança a raid e monitora o dano de cada aluno
 
@@ -193,7 +194,7 @@ O professor seleciona a trilha ao criar uma sessão. O banco de palavras e texto
 
 1. O professor gera um **código de sessão** (ex: `A5F9`) com validade configurável (1h, 2h ou 4h)
 2. O aluno insere o código; o sistema verifica criptograficamente se pertence à sessão atual
-3. A turma é gravada no Firestore do aluno, protegida pelas regras de segurança
+3. A turma é gravada no perfil do aluno no Supabase (`public.profiles.turma`), protegida pelas políticas RLS (e replicada no Firestore em modo de contingência)
 4. Após a atribuição, o campo de turma é **somente-leitura para o aluno**
 
 ---
@@ -205,13 +206,14 @@ Suite administrativa completa (`AdminPanel.tsx`) com múltiplas abas funcionais:
 - **Trava de Laboratório:** Bloqueia/libera acesso à plataforma fora do horário de aula
 - **Código de Sessão:** Geração com validade, trilha curricular selecionada e tela de espera do aluno
 - **Dashboard de Métricas:** PPM médio, acurácia, nível e Bytes por turma em tempo real
-- **Exportação CSV (UTF-8 BOM):** Boletim escolar com compatibilidade nativa com Excel — Nome, E-mail, Turma, Nível, PPM, Acurácia, Maior Combo, Bytes, Vitórias em Corridas — **0 leituras ao Firestore**
-- **Lançador de Corridas:** Seleção de texto/modo/duração + monitoramento de pódio ao vivo
-- **Lançador de Raids:** Seleção de boss com HP calibrado + acompanhamento de dano coletivo
+- **Exportação CSV (UTF-8 BOM):** Boletim escolar com compatibilidade nativa com Excel — Nome, E-mail, Turma, Nível, PPM, Acurácia, Maior Combo, Bytes, Vitórias em Corridas — **0 requisições adicionais ao banco** (agregado client-side em memória)
+- **Lançador de Corridas:** Seleção de texto/modo/duração + monitoramento de pódio ao vivo via canais Realtime
+- **Lançador de Raids:** Seleção de boss com HP calibrado + acompanhamento de dano coletivo via canais Realtime
 - **Biblioteca Curricular:** Acervo de textos temáticos por disciplina com envio direto à corrida
-- **Backup Local / Cloud:** Download/upload de JSON + snapshots Firestore com rollback em 1 clique
+- **Backup Local / Cloud:** Download/upload de JSON + snapshots do Supabase (e Firestore de contingência) com rollback em 1 clique
+- **Gestão de Temporadas Bimestrais:** Fechamento de ciclo bimestral com geração automática de Hall da Fama (`public.season_history`) e reset de pontuação sazonal sem afetar moedas permanentes
 - **Gestão de Professores:** Inclusão e revogação de outros docentes autorizados
-- **Monitor de Cotas Spark:** Integração com Google Cloud Monitoring API para monitorar uso do Firestore
+- **Monitor de Cotas e Infraestrutura:** Painel de saúde do Supabase PostgreSQL (com suporte legado a métricas do Google Cloud Monitoring API para instâncias Firestore)
 
 ---
 
@@ -225,32 +227,43 @@ Suite administrativa completa (`AdminPanel.tsx`) com múltiplas abas funcionais:
 
 ---
 
-## ⚙️ Arquitetura de Sincronização (Zero Custo — Plano Spark)
+## ⚙️ Arquitetura de Sincronização & Capacidade (Supabase PostgreSQL)
 
-| Métrica | Limite Spark | Consumo Típico (300 alunos/dia) |
-|---|---|---|
-| **Gravações** | 20.000/dia | ~1.500–3.000 |
-| **Leituras** | 50.000/dia | ~2.000–5.000 |
-| **Armazenamento** | 1 GB | < 25 MB para 5.000+ alunos |
+A plataforma opera com **custo zero** no tier gratuito do Supabase, calibrada para atender picos simultâneos de **35 a 90 máquinas** no laboratório de informática escolar:
+
+| Dimensão | Cota Supabase (Free Tier) | Estratégia Adotada | Impacto no Laboratório |
+|---|---|---|---|
+| **Armazenamento** | 500 MB PostgreSQL | Modelo Híbrido: Relacional (`profiles`) + `JSONB` (`game_progress`) | < 30 MB para 5.000+ alunos |
+| **Requisições de Leitura** | Ilimitadas (PostgREST HTTP) | Placares e pódios consultam API REST com cache de 30s–60s e deduplicação de promessas | Consultas indexadas executam em < 5ms |
+| **WebSockets Realtime** | 200 conexões / 2M msgs/mês | Realtime ativado **estritamente sob demanda** apenas durante Corridas e Raids | Zero risco de esgotamento de mensagens mensais |
+| **Escritas / Autosave** | Ilimitadas (PostgREST HTTP) | Throttle de 60s em digitação + flush imediato em marcos críticos | Evita sobrecarga de pooling |
 
 ### Estratégias de Engenharia:
 
-- **Throttle de 60s:** Progresso acumulado localmente e gravado em lote (`useGameSync.ts`)
-- **Buffer Offline por UID:** Evita conflito em computadores compartilhados por múltiplos turnos
-- **Persistência no Desligamento:** `beforeunload` + `pagehide` — nenhum Byte perdido ao fechar o navegador
-- **Pódio com Dual-Timer:** Rotação local (12s) sem custo + sincronização cloud a cada 3 minutos
-- **Agregação em Memória:** Guerra de Turmas calculada localmente em `turmasAggregator.ts` — **0 leituras adicionais**
-- **Congelamento por inatividade:** Timers pausados quando a aba perde foco (`document.hidden`)
+- **Autosave Event-Driven:** Progresso contínuo acumulado localmente e enviado com throttle de 60s (`useGameSync.ts`). Em eventos críticos (subir de nível, derrotar boss, sair de jogo), o flush é executado instantaneamente.
+- **Buffer Offline e Tolerância a Falhas:** Contingência em `localStorage` por UID evita perda de progresso caso a conexão do laboratório oscile.
+- **Persistência no Desligamento:** `beforeunload` + `pagehide` garantem salvamento atômico quando o aluno fecha a tampa do notebook ou encerra a aba.
+- **Pódio com Dual-Timer:** Rotação visual local (12s) sem requisições de rede + sincronização cloud com cache de 3 minutos.
+- **Guerra de Turmas em Memória:** Agregações por turma e série calculadas em memória via `turmasAggregator.ts` — **0 leituras adicionais ao banco**.
+- **Pausa por Inatividade:** Timers e conexões em segundo plano pausados quando a aba perde foco (`document.hidden`).
+
+> **Nota sobre o Firestore (Legado / Contingência):** A plataforma mantém o `FirebaseAdapter` totalmente funcional via flag `VITE_DB_PROVIDER="firestore"`. A arquitetura anterior operava sob o plano Spark do Firebase (limite de 50.000 leituras e 20.000 gravações diárias). Todo o tráfego atual de produção foi migrado com sucesso para o Supabase.
 
 ---
 
 ## 🔒 Segurança
 
-- **Firebase Auth + Google Identity:** Suporte a contas `@escola.pr.gov.br`
-- **Firestore Rules Granulares:** Alunos só acessam seu próprio documento (`isOwner(userId)`); rotas de admin verificam `systemSettings/config`
-- **Anti-cheat:** Validação de sanidade do `GameState` no cliente antes de qualquer gravação (`validateStateSanity`)
-- **Turma imutável pelo aluno:** Atribuição somente via código de sessão verificado
-- **Código de sessão com expiração:** Validade configurável pelo professor
+- **Identidade Híbrida (Firebase Auth + Supabase):** Autenticação segura via Google Identity institucional (`@escola.pr.gov.br`). O UID gerado no Google Auth é mapeado diretamente como chave primária `TEXT` no Supabase (`public.profiles.id`).
+- **Supabase Row Level Security (RLS):** Todas as tabelas possuem políticas RLS ativas:
+  - `public.profiles`: Leitura pública para pódios/placar; inserção e atualização permitidas apenas para o próprio usuário (`auth.uid() = id`).
+  - `public.game_progress`: Leitura pública de pontuações; gravação restrita ao proprietário.
+  - `public.user_cosmetics` e `public.user_achievements`: Apenas o dono pode gerenciar seu inventário.
+  - `public.season_history`: Histórico de Hall da Fama aberto para consulta pública.
+- **Anti-Cheat em Camadas:**
+  - *Client-side:* Validação de sanidade do estado (`validateStateSanity`) checa deltas máximos por segundo.
+  - *Database-side:* Stored Procedure `record_game_session` com validação de caps no PostgreSQL, impedindo adulteração de saldo via DevTools.
+- **Turma Imutável pelo Aluno:** Atribuição de turma somente via código de sessão verificado pelo professor.
+- **Código de Sessão com Expiração:** Validade configurável pelo professor (1h a 4h) com invalidação automática.
 
 ---
 
@@ -289,47 +302,89 @@ src/
 │   ├── games/radar/
 │   │   └── TypeRadarGame.tsx        # Jogo Type: Radar completo
 │   └── layouts/                     # 18 layouts de interface cosméticos
-├── services/
-│   ├── firebaseService.ts           # CRUD Firestore, auth, admin ops, backup
-│   ├── raceService.ts               # Launchpad e stream de Corridas Escolares
-│   ├── raidService.ts               # Launchpad e stream de Raids Coletivas
-│   ├── arenaService.ts              # Duelos 1x1 PvP no Firestore
-│   ├── audioSynthesizer.ts          # Sons sintetizados via Web Audio API
-│   ├── fxEngine.ts                  # VFX de partículas + canvas-confetti customizado
-│   ├── arcadeVfxEngine.ts           # VFX do modo Arcade
-│   ├── adaptiveDrillEngine.ts       # IDT, análise de telemetria, geração de drills
-│   ├── questsEngine.ts              # Quests semanais + geração de andares RPG
-│   ├── achievementEngine.ts         # Avaliação e desbloqueio de conquistas
-│   ├── profileBadges.ts             # Badges dinâmicos do card de perfil
-│   ├── radarEngine.ts               # Motor de física e estado do Type: Radar
-│   ├── radarAudio.ts                # Áudio procedural do Type: Radar
-│   └── adminMetricsService.ts       # Integração com Google Cloud Monitoring
-├── data/
-│   ├── tracks/                      # 5 trilhas curriculares (geral, scratch, web, empresarial, ingles)
-│   ├── levelBosses.ts               # 10 guardiões únicos de nível (Nv 10–100)
-│   ├── rpgChronicles.ts             # Narrativas RPG e lore dos bosses
-│   ├── levels.ts                    # Curva de progressão dos 100 níveis
-│   ├── sentences.ts                 # Banco de frases por categoria
-│   ├── words.ts                     # Banco de palavras por categoria
-│   ├── radarWords.ts                # Banco de palavras do Type: Radar
-│   └── codeSnippets.ts              # Trechos de código para o modo `code`
-├── hooks/
-│   ├── useGameSync.ts               # Hook de sincronização Firestore (throttle 60s)
-│   └── useLeaderboardPodium.ts      # Hook de pódio com dual-timer (12s/3min)
-├── constants/
-│   ├── achievementsCatalog.ts       # 60+ conquistas com evaluate functions
-│   ├── cosmeticsCatalog.ts          # Catálogo completo de cosméticos com preços
-│   ├── themes.ts                    # 30+ temas de terminal (CSS vars)
-│   └── school.ts                    # Config de turmas e séries da escola
-├── types/                           # Types TypeScript (GameState, cosmetics, RPG, arena, raid...)
-└── utils/
-    ├── keyboardAccents.ts           # Resolução de dead keys ABNT2
-    ├── antiCheat.ts                 # Validação de sanidade do GameState
-    ├── turmasAggregator.ts          # Agregação de ranking por turma (in-memory)
-    ├── audio.ts                     # Engine de som com toggle e volume
-    ├── formatting.ts                # PPM, acurácia, rank, formatBytes
-    ├── storage.ts                   # Estado inicial, exportação de save, defaults
-    └── difficulty.ts                # Filtro de categorias por dificuldade e nível
+├── supabase/
+│   └── schema.sql                   # DDL PostgreSQL, RLS, índices e Stored Procedures
+├── src/
+│   ├── App.tsx                      # Componente raiz — estado global, modais, listeners
+│   ├── components/
+│   │   ├── TypingArena.tsx          # Arena de digitação ABNT2 + dead keys + VFX + IME
+│   │   ├── AdminPanel.tsx           # Painel administrativo completo do professor
+│   │   ├── GameSelectionScreen.tsx  # Hub multi-jogos (abas, filtros, busca)
+│   │   ├── LeaderboardModal.tsx     # Ranking multimétrica + Guerra de Turmas
+│   │   ├── CosmeticsShopModal.tsx   # Loja de cosméticos com 5 categorias
+│   │   ├── ArenaModal.tsx           # Duelos 1x1 PvP (com bot IA)
+│   │   ├── ClassroomRaceArena.tsx   # Arena de Corrida Escolar (multiplayer)
+│   │   ├── ClassroomRaidArena.tsx   # Arena de Raid Coletiva (cooperativo)
+│   │   ├── RpgDungeonModal.tsx      # Entrada e gestão da Masmorra RPG
+│   │   ├── RpgChronicleArena.tsx    # Combate de texto nos andares da Masmorra
+│   │   ├── RpgChestMinigame.tsx     # Minigame de baú criptográfico
+│   │   ├── TimeAttackModal.tsx      # Desafio cronometrado 30s/60s
+│   │   ├── FocusDrillModal.tsx      # Treino adaptativo de teclas fracas
+│   │   ├── QuestsModal.tsx          # Quests semanais e progresso
+│   │   ├── AchievementsModal.tsx    # Catálogo de 60+ conquistas
+│   │   ├── StudentModal.tsx         # Perfil, nickname, turma e classe RPG do aluno
+│   │   ├── StudentProfileCard.tsx   # Card de perfil colecionável com moldura e badges
+│   │   ├── MetricsModal.tsx         # Métricas pedagógicas detalhadas do aluno
+│   │   ├── AccessibilityModal.tsx   # Central de acessibilidade
+│   │   ├── PauseOverlay.tsx         # Overlay de pausa do jogo
+│   │   ├── SessionLockOverlay.tsx   # Tela de espera antes da sessão
+│   │   ├── StatsSidebar.tsx         # Barra lateral de status e pódio ao vivo
+│   │   ├── TopPodiumWidget.tsx      # Widget do pódio Top 3 com dual-timer
+│   │   ├── Level100PioneersWidget.tsx # Hall of Fame dos pioneiros nível 100
+│   │   ├── BytezinhoAvatar.tsx      # Avatar animado do mascote (20+ skins)
+│   │   ├── TerminalThemeEffects.tsx # Efeitos visuais temáticos do terminal
+│   │   ├── games/radar/
+│   │   │   └── TypeRadarGame.tsx    # Jogo Type: Radar completo
+│   │   └── layouts/                 # 18 layouts de interface cosméticos
+│   ├── plugins/                     # Jogos criados e submetidos por alunos
+│   ├── services/
+│   │   ├── dbInterface.ts           # Contrato agnóstico IDatabaseService
+│   │   ├── dbFactory.ts             # Injeção dinâmica do adaptador via VITE_DB_PROVIDER
+│   │   ├── adapters/
+│   │   │   ├── supabaseAdapter.ts   # Provedor oficial Supabase (PostgreSQL 15+)
+│   │   │   └── firebaseAdapter.ts   # [LEGADO / FALLBACK] Provedor Firestore
+│   │   ├── firebaseService.ts       # Auth Google institucional e rotas legadas
+│   │   ├── raceService.ts           # Launchpad e stream de Corridas Escolares
+│   │   ├── raidService.ts           # Launchpad e stream de Raids Coletivas
+│   │   ├── arenaService.ts          # Duelos 1x1 PvP
+│   │   ├── audioSynthesizer.ts      # Sons sintetizados via Web Audio API
+│   │   ├── fxEngine.ts              # VFX de partículas + canvas-confetti customizado
+│   │   ├── arcadeVfxEngine.ts       # VFX do modo Arcade
+│   │   ├── adaptiveDrillEngine.ts   # IDT, análise de telemetria, geração de drills
+│   │   ├── questsEngine.ts          # Quests semanais + geração de andares RPG
+│   │   ├── achievementEngine.ts     # Avaliação e desbloqueio de conquistas
+│   │   ├── profileBadges.ts         # Badges dinâmicos do card de perfil
+│   │   ├── radarEngine.ts           # Motor de física e estado do Type: Radar
+│   │   ├── radarAudio.ts            # Áudio procedural do Type: Radar
+│   │   └── adminMetricsService.ts   # Métricas operacionais e monitoramento
+│   ├── data/
+│   │   ├── gameCatalog.ts           # Catálogo centralizado de jogos da vitrine
+│   │   ├── tracks/                  # 5 trilhas curriculares (geral, scratch, web, empresarial, ingles)
+│   │   ├── levelBosses.ts           # 10 guardiões únicos de nível (Nv 10–100)
+│   │   ├── rpgChronicles.ts         # Narrativas RPG e lore dos bosses
+│   │   ├── levels.ts                # Curva de progressão dos 100 níveis
+│   │   ├── sentences.ts             # Banco de frases por categoria
+│   │   ├── words.ts                 # Banco de palavras por categoria
+│   │   ├── radarWords.ts            # Banco de palavras do Type: Radar
+│   │   └── codeSnippets.ts          # Trechos de código para o modo `code`
+│   ├── hooks/
+│   │   ├── useGameCatalog.ts        # Hook para catálogo de jogos, abas e filtros
+│   │   ├── useGameSync.ts           # Sincronização agnóstica (throttle 60s + flush)
+│   │   └── useLeaderboardPodium.ts  # Hook de pódio com dual-timer desacoplado
+│   ├── constants/
+│   │   ├── achievementsCatalog.ts   # 60+ conquistas com evaluate functions
+│   │   ├── cosmeticsCatalog.ts      # Catálogo completo de cosméticos com preços
+│   │   ├── themes.ts                # 30+ temas de terminal (CSS vars)
+│   │   └── school.ts                # Config de turmas e séries da escola
+│   ├── types/                       # Types TypeScript (GameState, cosmetics, RPG, leaderboard...)
+│   └── utils/
+│       ├── keyboardAccents.ts       # Resolução de dead keys ABNT2
+│       ├── antiCheat.ts             # Validação de sanidade do GameState
+│       ├── turmasAggregator.ts      # Agregação de ranking por turma (in-memory)
+│       ├── audio.ts                 # Engine de som com toggle e volume
+│       ├── formatting.ts            # PPM, acurácia, rank, formatBytes
+│       ├── storage.ts               # Estado inicial, exportação de save, defaults
+│       └── difficulty.ts            # Filtro de categorias por dificuldade e nível
 ```
 
 ---
@@ -338,8 +393,17 @@ src/
 
 ### Pré-requisitos
 - Node.js 20+
-- Projeto Firebase configurado (Firestore + Authentication)
-- Arquivo `firebase-applet-config.json` na raiz do projeto
+- Instância Supabase (PostgreSQL) com o schema `supabase/schema.sql` executado
+- Projeto Firebase configurado para autenticação Google Identity institucional (`firebase-applet-config.json`)
+- Variáveis de ambiente configuradas no `.env` (ou `.env.local`):
+  ```bash
+  # Provedor ativo ('supabase' oficial ou 'firestore' legado de contingência)
+  VITE_DB_PROVIDER="supabase"
+
+  # Credenciais Supabase
+  VITE_SUPABASE_URL="https://seu-projeto.supabase.co"
+  VITE_SUPABASE_ANON_KEY="sua-anon-key"
+  ```
 
 ### Instalação e Dev
 

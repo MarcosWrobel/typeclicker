@@ -50,7 +50,7 @@ FERRAMENTAS AVANÇADAS PERMITIDAS (Podem ser usadas livremente):
 NÃO use:
 - Nenhum pacote npm além dos listados acima.
 - Imagens externas, fontes de CDN, fetch para APIs.
-- import de firebaseService, db, setDoc, getDoc ou qualquer Firebase.
+- import de banco de dados (`firebaseService`, `supabaseAdapter`, `@supabase/supabase-js`, `db`, `setDoc`, `getDoc` ou qualquer cliente DB). O Hub gerencia a persistência no Supabase automaticamente.
 - localStorage ou sessionStorage dentro do jogo (o Hub cuida do save).
 ```
 
@@ -182,7 +182,7 @@ REGRAS INVIOLÁVEIS:
 6. TODO requestAnimationFrame, setInterval, setTimeout cancelados no cleanup do useEffect
 7. GameAudio.cleanup() chamado no cleanup do useEffect
 8. window.removeEventListener para todos os listeners globais no cleanup
-9. Zero imports de firebaseService, db, setDoc, getDoc
+9. Zero imports de banco de dados (`firebaseService`, `supabaseAdapter`, `supabase`, `db`, `setDoc`, `getDoc`)
 10. Zero arquivos externos: sem .mp3, .ogg, imagens de URL, fontes remotas
 11. Tailwind CSS para estilo — fundo escuro (#0e1013 ou slate-950), texto claro
 12. Botão "Voltar ao Hub" no topo esquerdo com ícone ArrowLeft do lucide-react
@@ -330,7 +330,7 @@ Revise cada item antes de passar o código para o professor:
 - [ ] `onExitToHub(payload)` é chamado em TODOS os caminhos de saída (vitória, derrota, botão voltar)
 - [ ] `bytesEarned` = `Math.round(score × 0.15 × difficultyMultiplier × classBônus)`
 - [ ] `levelTokensEarned` = `accuracy >= 80 ? 1 : 0` (nunca mais que 2)
-- [ ] Nenhum import de Firebase no arquivo
+- [ ] Nenhum import de banco de dados (Supabase, Firebase, etc.) no arquivo
 - [ ] Nenhum `fetch`, `axios` ou chamada de rede
 - [ ] Nenhum arquivo `.mp3`, `.ogg`, imagem de URL
 - [ ] `GameAudio.cleanup()` está no `return` do `useEffect` principal
