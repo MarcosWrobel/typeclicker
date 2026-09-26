@@ -98,28 +98,30 @@ Para atender aos diferentes dispositivos escolares (Chromebooks, teclados ABNT2 
      - Modo `words`: dimensões estáticas (`h-[105px] ... overflow-hidden flex items-center justify-center`) para preservar o alinhamento de palavras individuais.
      - Modos `sentences` e `code`: container expandido e dinâmico (`min-h-[130px] max-h-[240px...320px] overflow-y-auto`) com auto-scroll suave (`scrollIntoView`) focalizando o caractere ativo `.char-current`.
 
-## Arquitetura de Gestão de Dados & Painel Administrativo no Supabase
+## Separação Arquitetural: Painel Pedagógico vs. Administração do Sistema
 
-Com a consolidação do Supabase (PostgreSQL 15+) como banco primário oficial, as abas administrativas de gestão de dados no [`AdminPanel.tsx`](src/components/AdminPanel.tsx) foram completamente desacopladas de métricas e coleções legadas do Firestore, operando agora através de serviços modulares dedicados:
+O antigo componente monolítico `AdminPanel.tsx` foi desacoplado em dois subsistemas independentes, com papéis, temas visuais e permissões estritas:
 
-1. **Backups Relacionais & Restauração Idempotente ([`src/services/supabaseBackupService.ts`](src/services/supabaseBackupService.ts))**:
-   - **Exportação de Snapshot JSON**: Extrai registros em paralelo de `profiles`, `game_progress`, `user_cosmetics`, `user_achievements` e `season_history`.
-   - **Download Client-Side**: O navegador gera e descarrega um arquivo no formato `typeclicker_supabase_backup_YYYY-MM-DD_HH-mm.json`.
-   - **Restauração Segura com Upsert**: O administrador carrega o arquivo `.json`, o sistema valida os cabeçalhos (`version: 2.0.0`, contagens e integridade das chaves) e executa `upsert` com resolução de conflitos por chave primária, mantendo a consistência relacional.
+1. **Painel Pedagógico ([`src/components/PedagogicalPanel.tsx`](src/components/PedagogicalPanel.tsx))**:
+   - **Público-Alvo**: Todos os professores e docentes autorizados (`isAdmin = true`).
+   - **Identidade Visual**: Tema Esmeralda/Sky (`border-emerald-500/40`, ícone `GraduationCap`, badges verdes/azuis).
+   - **Abas Inclusas**:
+     - 🔒 **Sessões & Códigos**: Trava de laboratório, geração de código com turma e trilha curricular vinculada, controle de acessibilidade e controlo do hub de jogos ativos.
+     - 📊 **Desempenho & Boletim**: Tabela de alunos da turma com edição rápida de turma e classe RPG, distribuição balanceada 1/3, exportação de boletim CSV in-browser, CSV pedagógico multi-jogo e resumo por turma.
+     - 🏁 **Corrida da Turma**: Lançador e monitor de corrida síncrona multiplayer com presets literários ou textos criados pelo docente.
+     - 🐉 **Raid Coletiva**: Lançador e monitor de raid cooperativa de chefe titânico em tempo real com HP compartilhado e sinergia de classes.
+     - 📚 **Textos Curriculares**: Acervo e cadastro de textos escolares com filtros por disciplina e integração direta de envio para corrida.
 
-2. **Diagnóstico de Infraestrutura & Métricas de Cota Zero-Egress ([`src/services/supabaseMetricsService.ts`](src/services/supabaseMetricsService.ts))**:
-   - **Contadores de Linhas Head Queries**: Consultas executam `select('*', { count: 'exact', head: true })`, obtendo o censo exato do PostgreSQL sem trafegar o payload de dados pela rede (**zero custo de egress**).
-   - **Medição de Latência**: Monitora o round-trip time da API PostgREST em milissegundos com classificação visual (Excelente < 150ms, Moderada < 400ms, Lenta >= 400ms).
-   - **Cache em Memória (30s)**: Previne flood de requisições caso múltiplos docentes acessem o painel ao mesmo tempo.
-
-3. **Concessão de Testes & Fila Offline Resiliente ([`src/services/supabaseTestService.ts`](src/services/supabaseTestService.ts))**:
-   - **Seleção Direta por `userId`**: Elimina o bug legado de fabricação de e-mails artificiais; o seletor de alunos vincula diretamente o UUID/identificador do perfil.
-   - **Injeção Atômica de Recursos**: Atualiza `profiles` com cálculo exato de XP por nível (`calculateMinBytesForLevel`), tokens e fragmentos quânticos; upserta cosméticos completos em `user_cosmetics`; atualiza upgrades no JSONB de `game_progress`.
-   - **Fila de Resgate no Login**: Concessões atribuídas a e-mails ou contas que ainda não realizaram o primeiro acesso são mantidas em fila e injetadas no banco via `claimPendingTestGrantsSupabase` durante o bootstrap no [`App.tsx`](src/App.tsx).
-
-4. **Wipe Seguro em Cascata**:
-   - Execução no PostgreSQL limpando dependências relacionais dos alunos sem deletar contas de equipe pedagógica (`role = 'teacher'`).
-   - Exclusão sincronizada e defensiva das coleções legadas do Firestore (`/saves`, `/leaderboard`) para evitar dados fantasmas em caso de rollback emergencial.
+2. **Administração do Sistema ([`src/components/AdminPanel.tsx`](src/components/AdminPanel.tsx))**:
+   - **Público-Alvo**: Estritamente Super Administradores (`isSuperAdmin = true`).
+   - **Identidade Visual**: Tema Roxo/Âmbar (`border-purple-500/50`, ícone `Shield`, badges roxo/âmbar).
+   - **Abas Inclusas**:
+     - 🏆 **Trimestres & Temporadas**: Ciclos letivos, pódio provisório, Hall da Fama e encerramento com modal e confirmação digitada (`"CONFIRMAR"`).
+     - 💾 **Backups**: Extração de snapshots JSON das 5 tabelas relacionais do Supabase e restauração segura com validação e upsert idempotente.
+     - 📈 **Monitoramento Banco**: Censo exato de linhas via consultas HEAD zero-egress, latência PostgREST e monitoramento de cotas do PostgreSQL.
+     - 🧪 **Recursos de Teste**: Seletor de contas por UUID ou e-mail, progressão gradativa de níveis, moedas de teste, atalhos de desafios e auditoria de concessões.
+     - 👨‍🏫 **Professores**: Adição e revogação de acessos de docentes com e-mail institucional e higienização retroativa de rankings escolares.
+     - ⚠️ **Zona de Perigo (Wipe)**: Limpeza total do banco Supabase e coleções legadas com dupla confirmação digitada.
 
 ---
 
@@ -127,7 +129,8 @@ Com a consolidação do Supabase (PostgreSQL 15+) como banco primário oficial, 
 
 | Ciclo | Commit | Escopo | Descrição das Intervenções |
 |---|---|---|---|
-| **Gestão de Dados & Testes no Supabase** | *(Atual)* | `AdminPanel.tsx`, `supabaseBackupService.ts`, `supabaseMetricsService.ts`, `supabaseTestService.ts`, `App.tsx` | • Modernização integral das abas `backups`, `monitoramento`, `wipe` e `testes` no painel administrativo;<br>• Exportação de snapshot JSON e restauração com upsert idempotente no PostgreSQL;<br>• Monitoramento de latência e contadores de tabelas via head queries HTTP sem consumo de egress;<br>• Seletor de alunos por `userId` real e injeção atômica de recursos de teste no Supabase com resgate automático no login. |
+| **Segregação Pedagógico vs. Administrativo** | *(Atual)* | `PedagogicalPanel.tsx`, `AdminPanel.tsx`, `Header.tsx`, `GameSelectionScreen.tsx`, `App.tsx` | • Separação do painel monolítico em dois componentes focados: `PedagogicalPanel` (rotina de sala, docentes) e `AdminPanel` (infraestrutura e governança, SuperAdmin);<br>• Entradas visuais independentes no Header e no Hub de Jogos (Esmeralda/Sky vs Roxo/Âmbar);<br>• Proteção de acesso e desacoplamento de listeners de corrida/raid em tela ativa. |
+| **Gestão de Dados & Testes no Supabase** | `18a2831` | `AdminPanel.tsx`, `supabaseBackupService.ts`, `supabaseMetricsService.ts`, `supabaseTestService.ts`, `App.tsx` | • Modernização integral das abas `backups`, `monitoramento`, `wipe` e `testes` no painel administrativo;<br>• Exportação de snapshot JSON e restauração com upsert idempotente no PostgreSQL;<br>• Monitoramento de latência e contadores de tabelas via head queries HTTP sem consumo de egress;<br>• Seletor de alunos por `userId` real e injeção atômica de recursos de teste no Supabase com resgate automático no login. |
 | **RPC Atômica `record_game_session`** | `7d8ef01` | `dbInterface.ts`, `supabaseAdapter.ts`, `firebaseAdapter.ts`, `App.tsx` | • Padronização de `recordGameSession(userId, gameId, bytesEarned, session)` na interface e adaptadores;<br>• Chamada segura à Stored Procedure `record_game_session` no PostgreSQL do Supabase (atualização atômica de `game_progress` e `profiles`);<br>• Fallback simétrico no `FirebaseAdapter` e integração imediata no encerramento de partidas (`Type: Radar` em `App.tsx`). |
 | **Caps Lock Global & Case Mismatch** | `39aef74` | `keyboardCase.ts`, `CapsLockWarning.tsx`, 9 Arenas | • Criação do hook `useCapsLock()` e utilitário `checkCaseMismatch`;<br>• Componente visual `CapsLockWarning` integrado em todas as 9 instâncias do TypeClicker;<br>• Alerta pedagógico flutuante/contextual de tecla Maiúscula (`Shift + [X]`) ou Minúscula. |
 | **Correção de Frases no Terminal & Dead Keys** | `4ec9cad` | `TypingArena.tsx`, `FocusDrillModal.tsx`, `App.tsx` | • Container adaptativo com auto-scroll em frases/códigos sem corte de texto;<br>• Interceptação e composição de `Dead` keys no Modo Foco com remoção de bypass de acento;<br>• Elevação do limiar de ativação para 5 erros repetidos e cooldown de 30s. |

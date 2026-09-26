@@ -30,6 +30,7 @@ import { useLeaderboardPodium } from './hooks/useLeaderboardPodium';
 import { ArenaModal } from './components/ArenaModal';
 import { TimeAttackModal } from './components/TimeAttackModal';
 import { ArenaStats, getArenaRank } from './types/arena';
+import { PedagogicalPanel } from './components/PedagogicalPanel';
 import { AdminPanel } from './components/AdminPanel';
 import { SessionLockOverlay } from './components/SessionLockOverlay';
 import { GameSelectionScreen } from './components/GameSelectionScreen';
@@ -146,6 +147,7 @@ export default function App() {
   const { pioneers: podiumPioneers } = useLeaderboardPodium();
 
   const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
+  const [isPedagogicalOpen, setIsPedagogicalOpen] = useState<boolean>(false);
   const [isAppLocked, setIsAppLocked] = useState<boolean>(true);
   const [isVerifyingLock, setIsVerifyingLock] = useState<boolean>(false);
 
@@ -160,6 +162,7 @@ export default function App() {
   const isAnyModalOpen = Boolean(
     !selectedGame ||
     isAdminOpen ||
+    isPedagogicalOpen ||
     isStudentModalOpen ||
     isMetricsOpen ||
     isPrestigeOpen ||
@@ -476,8 +479,8 @@ export default function App() {
       }
 
       if (race.status === 'countdown' || race.status === 'in_progress') {
-        // Se o professor estiver com o painel ADM aberto, não interrompe a tela dele
-        if (isAdmin && isAdminOpen) {
+        // Se o professor estiver com o painel ADM ou Pedagógico aberto, não interrompe a tela dele
+        if (isAdmin && (isAdminOpen || isPedagogicalOpen)) {
           return;
         }
 
@@ -493,7 +496,7 @@ export default function App() {
     });
 
     return () => unsubRace();
-  }, [state.studentClass, dismissedRaceId, isAdmin, isAdminOpen]);
+  }, [state.studentClass, dismissedRaceId, isAdmin, isAdminOpen, isPedagogicalOpen]);
 
   // Escuta Raids Coletivas em tempo real disparadas pelo professor
   useEffect(() => {
@@ -513,7 +516,7 @@ export default function App() {
       }
 
       if (raid.status === 'in_progress') {
-        if (isAdmin && isAdminOpen) {
+        if (isAdmin && (isAdminOpen || isPedagogicalOpen)) {
           return;
         }
 
@@ -529,7 +532,7 @@ export default function App() {
     });
 
     return () => unsubRaid();
-  }, [state.studentClass, dismissedRaidId, isAdmin, isAdminOpen]);
+  }, [state.studentClass, dismissedRaidId, isAdmin, isAdminOpen, isPedagogicalOpen]);
 
   const [pendingAccent, setPendingAccent] = useState<string | null>(null);
   const [recentWordComplete, setRecentWordComplete] = useState<boolean>(false);
@@ -2486,6 +2489,7 @@ export default function App() {
             }
           }}
           onOpenStudentModal={() => setIsStudentModalOpen(true)}
+          onOpenPedagogical={() => setIsPedagogicalOpen(true)}
           onOpenAdmin={() => setIsAdminOpen(true)}
           onOpenLeaderboard={handleOpenGeneralLeaderboard}
           onOpenLeaderboardTab={handleOpenLeaderboardTab}
@@ -2553,19 +2557,36 @@ export default function App() {
           onConvertBytesToTokens={handleConvertBytesToTokens}
         />
 
+        {/* Painel Pedagógico do Professor (Docentes) */}
         {isAdmin && (
+          <PedagogicalPanel
+            isOpen={isPedagogicalOpen}
+            onClose={() => setIsPedagogicalOpen(false)}
+            userEmail={user?.email}
+            activeClass={state.studentClass || systemSettingsState?.activeTurma}
+            onOpenRaceArena={() => {
+              setSelectedGame('typeclicker');
+              setIsRaceArenaOpen(true);
+            }}
+            onOpenRaidArena={() => {
+              setSelectedGame('typeclicker');
+              setIsRaidArenaOpen(true);
+            }}
+          />
+        )}
+
+        {/* Painel Administrativo do Sistema (Restrito a Super Admin) */}
+        {checkIsSuperAdmin(user) && (
           <AdminPanel
             isOpen={isAdminOpen}
             onClose={() => setIsAdminOpen(false)}
-            isSuperAdmin={checkIsSuperAdmin(user)}
+            isSuperAdmin={true}
             gameState={state}
             onUpdateGameState={handleAdminUpdateGameState}
             userEmail={user?.email}
             onOpenArena={() => setIsArenaOpen(true)}
             onOpenCosmetics={() => setIsCosmeticsOpen(true)}
             onTriggerChallenge={(lvl) => setActiveChallengeLevel(lvl || 10)}
-            onOpenRaceArena={() => setIsRaceArenaOpen(true)}
-            onOpenRaidArena={() => setIsRaidArenaOpen(true)}
           />
         )}
       </>
@@ -2679,6 +2700,7 @@ export default function App() {
             onOpenLevels={() => setIsLevelsModalOpen(true)}
             onOpenHelp={() => setIsHelpOpen(true)}
             onOpenLeaderboard={handleOpenGeneralLeaderboard}
+            onOpenPedagogical={() => setIsPedagogicalOpen(true)}
             onOpenAdmin={() => setIsAdminOpen(true)}
             onOpenCosmetics={() => setIsCosmeticsOpen(true)}
             onOpenArena={() => setIsArenaOpen(true)}
@@ -3071,20 +3093,38 @@ export default function App() {
         isAdmin={isAdmin}
       />
 
-      {/* Admin Panel */}
-      <AdminPanel
-        isOpen={isAdminOpen}
-        onClose={() => setIsAdminOpen(false)}
-        isSuperAdmin={checkIsSuperAdmin(user)}
-        gameState={state}
-        onUpdateGameState={handleAdminUpdateGameState}
-        userEmail={user?.email}
-        onOpenArena={() => setIsArenaOpen(true)}
-        onOpenCosmetics={() => setIsCosmeticsOpen(true)}
-        onTriggerChallenge={(lvl) => setActiveChallengeLevel(lvl || 10)}
-        onOpenRaceArena={() => setIsRaceArenaOpen(true)}
-        onOpenRaidArena={() => setIsRaidArenaOpen(true)}
-      />
+      {/* Painel Pedagógico do Professor (Docentes) */}
+      {isAdmin && (
+        <PedagogicalPanel
+          isOpen={isPedagogicalOpen}
+          onClose={() => setIsPedagogicalOpen(false)}
+          userEmail={user?.email}
+          activeClass={state.studentClass || systemSettingsState?.activeTurma}
+          onOpenRaceArena={() => {
+            setSelectedGame('typeclicker');
+            setIsRaceArenaOpen(true);
+          }}
+          onOpenRaidArena={() => {
+            setSelectedGame('typeclicker');
+            setIsRaidArenaOpen(true);
+          }}
+        />
+      )}
+
+      {/* Painel Administrativo do Sistema (Restrito a Super Admin) */}
+      {checkIsSuperAdmin(user) && (
+        <AdminPanel
+          isOpen={isAdminOpen}
+          onClose={() => setIsAdminOpen(false)}
+          isSuperAdmin={true}
+          gameState={state}
+          onUpdateGameState={handleAdminUpdateGameState}
+          userEmail={user?.email}
+          onOpenArena={() => setIsArenaOpen(true)}
+          onOpenCosmetics={() => setIsCosmeticsOpen(true)}
+          onTriggerChallenge={(lvl) => setActiveChallengeLevel(lvl || 10)}
+        />
+      )}
 
       {/* Arena de Corrida Escolar Sincronizada em Tempo Real */}
       {activeRace && (

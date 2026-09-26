@@ -27,7 +27,8 @@ import {
   Lock,
   RotateCcw,
   Code,
-  Calculator
+  Calculator,
+  GraduationCap
 } from 'lucide-react';
 import { GameState, CurricularTrackId } from '../types';
 import { RPG_CLASSES } from '../types/rpgClass';
@@ -54,6 +55,7 @@ export interface GameSelectionScreenProps {
   hubConfig?: HubConfig | null;
   onSelectGame: (gameId: 'typeclicker' | 'type_radar' | 'time_attack' | 'dungeon' | string) => void;
   onOpenStudentModal: () => void;
+  onOpenPedagogical: () => void;
   onOpenAdmin: () => void;
   onOpenLeaderboard: () => void;
   onOpenLeaderboardTab?: (metric: LeaderboardMetric) => void;
@@ -75,6 +77,7 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
   hubConfig,
   onSelectGame,
   onOpenStudentModal,
+  onOpenPedagogical,
   onOpenAdmin,
   onOpenLeaderboard,
   onOpenLeaderboardTab,
@@ -287,16 +290,29 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
               <span className="hidden md:inline">Ranking</span>
             </button>
 
-            {/* Painel do Professor (Admin) */}
+            {/* Painel Pedagógico do Professor */}
             {isAdmin && (
               <button
                 type="button"
-                onClick={onOpenAdmin}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-950/60 hover:bg-rose-900/70 text-rose-200 border border-rose-500/40 text-xs font-bold transition cursor-pointer shadow-sm"
-                title="Painel de Controle do Professor"
+                onClick={onOpenPedagogical}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-950/60 hover:bg-emerald-900/70 text-emerald-200 border border-emerald-500/40 text-xs font-bold transition cursor-pointer shadow-sm"
+                title="Painel Pedagógico do Professor (Sessões, Alunos, Corridas, Raids)"
               >
-                <Shield className="w-4 h-4 text-rose-400" />
-                <span className="hidden md:inline">Painel Admin</span>
+                <GraduationCap className="w-4 h-4 text-emerald-400" />
+                <span className="hidden md:inline">Painel Pedagógico</span>
+              </button>
+            )}
+
+            {/* Painel de Administração do Sistema (Super Admin) */}
+            {isSuperAdmin && (
+              <button
+                type="button"
+                onClick={onOpenAdmin}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-purple-950/60 hover:bg-purple-900/70 text-purple-200 border border-purple-500/40 text-xs font-bold transition cursor-pointer shadow-sm"
+                title="Administração do Sistema (Super Admin)"
+              >
+                <Shield className="w-4 h-4 text-purple-400" />
+                <span className="hidden md:inline">Administração</span>
               </button>
             )}
 

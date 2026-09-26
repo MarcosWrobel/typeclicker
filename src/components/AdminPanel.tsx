@@ -1,6 +1,33 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Shield, Key, Trash2, X, Clock, AlertTriangle, Users, Search, RefreshCw, BarChart, Database, Download, Upload, CheckCircle2, RotateCcw, FileText, Sliders, Battery, Eye, EyeOff, Filter, Swords, Sparkles, Coins, Zap, Trophy, Award, UserCheck, Plus, History, Gift, ArrowRight, Check, Terminal, Flag, Timer, BookOpen, Flame, GraduationCap, Sword, Activity, Calendar, Landmark } from 'lucide-react';
+import {
+  Shield,
+  Trash2,
+  X,
+  AlertTriangle,
+  Users,
+  Search,
+  RefreshCw,
+  Database,
+  Download,
+  Upload,
+  CheckCircle2,
+  RotateCcw,
+  Sliders,
+  Sparkles,
+  Coins,
+  Zap,
+  Trophy,
+  Plus,
+  History,
+  Gift,
+  ArrowRight,
+  Terminal,
+  Activity,
+  Calendar,
+  Timer,
+  Swords
+} from 'lucide-react';
 import { fetchSupabaseMetrics, SupabaseMetricsData } from '../services/supabaseMetricsService';
 import {
   createSupabaseBackup,
@@ -19,49 +46,22 @@ import { LeaderboardEntry } from '../types/leaderboard';
 import { isStaffMember, ADMIN_EMAILS } from '../utils/leaderboardUtils';
 import {
   auth,
-  generateSessionCode,
-  clearSessionCode,
   SystemSettings,
   getSystemSettings,
   updateAllowedTeachers,
-  updateAccessibilitySettings,
   wipeDatabase as wipeLegacyFirestoreDatabase,
   addTesterEmail,
-  removeTesterEmail,
-  TestGrantConfig,
-  saveCustomCurricularText,
-  deleteCustomCurricularText,
-  updateActiveSessionTrack,
-  updateHubConfig,
-  HubConfig
+  removeTesterEmail
 } from '../services/firebaseService';
-import { exportToCsv, downloadCsv, aggregateByTurma } from '../services/turmasAggregator';
-import { CurricularTrackId } from '../types';
-import { CURRICULAR_TRACKS, getCurricularTrack, suggestTrackForTurma } from '../data/tracks';
-import { RpgClassType } from '../types/rpgClass';
-import {
-  launchClassroomRace,
-  cancelClassroomRace,
-  subscribeToActiveRace,
-  PRESET_RACE_TEXTS
-} from '../services/raceService';
-import {
-  launchClassroomRaid,
-  cancelClassroomRaid,
-  subscribeToActiveRaid
-} from '../services/raidService';
-import { ClassroomRace, PresetRaceText } from '../types/race';
-import { ClassroomRaid, PRESET_RAID_BOSSES, PresetRaidBoss } from '../types/raid';
-import { SCHOOL_CLASSES_CONFIG } from './StudentModal';
 import { sound } from '../utils/audio';
 import { formatBytes, calculatePlayerRank } from '../utils/formatting';
 import { ALL_LEVELS, calculateMinBytesForLevel } from '../data/levels';
-import { GameState, CustomCurricularText } from '../types';
+import { GameState } from '../types';
 import { DEFAULT_COSMETICS } from '../types/cosmetics';
 import { getAllUnlockedCosmetics } from '../constants/cosmeticsCatalog';
 import { saveState } from '../utils/storage';
 
-interface AdminPanelProps {
+export interface AdminPanelProps {
   isOpen: boolean;
   onClose: () => void;
   isSuperAdmin?: boolean;
@@ -71,24 +71,20 @@ interface AdminPanelProps {
   onOpenArena?: () => void;
   onOpenCosmetics?: () => void;
   onTriggerChallenge?: (level: number) => void;
-  onOpenRaceArena?: () => void;
-  onOpenRaidArena?: () => void;
 }
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({
   isOpen,
   onClose,
-  isSuperAdmin,
+  isSuperAdmin = true,
   gameState,
   onUpdateGameState,
   userEmail,
   onOpenArena,
   onOpenCosmetics,
-  onTriggerChallenge,
-  onOpenRaceArena,
-  onOpenRaidArena
+  onTriggerChallenge
 }) => {
-  const [activeTab, setActiveTab] = useState<'locks' | 'dashboard' | 'temporadas' | 'corrida' | 'raid' | 'textos' | 'backups' | 'monitoramento' | 'wipe' | 'professores' | 'testes'>('locks');
+  const [activeTab, setActiveTab] = useState<'temporadas' | 'backups' | 'monitoramento' | 'testes' | 'professores' | 'wipe'>('temporadas');
   const [testActionMessage, setTestActionMessage] = useState<string | null>(null);
 
   // Estados para Gestão de Trimestres e Temporadas (Supabase / Hall da Fama)
@@ -108,56 +104,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [metricsError, setMetricsError] = useState<string | null>(null);
   const [autoRefreshMetrics, setAutoRefreshMetrics] = useState<boolean>(false);
 
-  // Estados para Textos Curriculares do Professor
-  const [newTextTitle, setNewTextTitle] = useState<string>('');
-  const [newTextDiscipline, setNewTextDiscipline] = useState<string>('Português');
-  const [newTextTurma, setNewTextTurma] = useState<string>('todas');
-  const [newTextContent, setNewTextContent] = useState<string>('');
-  const [isSavingText, setIsSavingText] = useState<boolean>(false);
-  const [textFeedback, setTextFeedback] = useState<string | null>(null);
-  const [selectedPreviewText, setSelectedPreviewText] = useState<CustomCurricularText | null>(null);
-  const [textFilterDiscipline, setTextFilterDiscipline] = useState<string>('todas');
-  
+  // Configurações e Wipe
   const [settings, setSettings] = useState<SystemSettings | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
   const [wipeConfirm, setWipeConfirm] = useState('');
   const [wipeStatus, setWipeStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
 
-  // Estados para Corrida em Tempo Real da Turma
-  const [activeRace, setActiveRace] = useState<ClassroomRace | null>(null);
-  const [selectedPresetId, setSelectedPresetId] = useState<string>(PRESET_RACE_TEXTS[0].id);
-  const [customRaceTitle, setCustomRaceTitle] = useState<string>(PRESET_RACE_TEXTS[0].title);
-  const [customRaceText, setCustomRaceText] = useState<string>(PRESET_RACE_TEXTS[0].text);
-  const [customRaceSource, setCustomRaceSource] = useState<string>(PRESET_RACE_TEXTS[0].source);
-  const [raceTargetTurma, setRaceTargetTurma] = useState<string>('todas');
-  const [raceCountdownSec, setRaceCountdownSec] = useState<number>(5);
-  const [racePrizeBytes, setRacePrizeBytes] = useState<number>(25000);
-  const [isLaunchingRace, setIsLaunchingRace] = useState<boolean>(false);
-  const [isCancellingRace, setIsCancellingRace] = useState<boolean>(false);
-  const [raceActionFeedback, setRaceActionFeedback] = useState<string | null>(null);
-
-  // Estados para Raid Coletiva contra Chefe
-  const [activeRaid, setActiveRaid] = useState<ClassroomRaid | null>(null);
-  const [selectedRaidBossId, setSelectedRaidBossId] = useState<string>(PRESET_RAID_BOSSES[0].id);
-  const [raidTargetTurma, setRaidTargetTurma] = useState<string>('todas');
-  const [raidMaxHp, setRaidMaxHp] = useState<number>(PRESET_RAID_BOSSES[0].maxHp);
-  const [raidTimeLimitSec, setRaidTimeLimitSec] = useState<number>(PRESET_RAID_BOSSES[0].timeLimitSeconds);
-  const [raidPrizeBytes, setRaidPrizeBytes] = useState<number>(PRESET_RAID_BOSSES[0].prizeBytes);
-  const [isLaunchingRaid, setIsLaunchingRaid] = useState<boolean>(false);
-  const [isCancellingRaid, setIsCancellingRaid] = useState<boolean>(false);
-  const [raidActionFeedback, setRaidActionFeedback] = useState<string | null>(null);
-
-  const [students, setStudents] = useState<LeaderboardEntry[]>([]);
-  const [isStudentsLoading, setIsStudentsLoading] = useState(false);
-  const [searchTurma, setSearchTurma] = useState('');
-  const [selectedClassFilter, setSelectedClassFilter] = useState<string>('todas');
-  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
-  const [targetTurmaForCode, setTargetTurmaForCode] = useState<string>('');
-  const [selectedTrackForCode, setSelectedTrackForCode] = useState<CurricularTrackId>('geral');
-  const [isChangingLiveTrack, setIsChangingLiveTrack] = useState<boolean>(false);
-  const [updatingStudentId, setUpdatingStudentId] = useState<string | null>(null);
-  const [isAutoBalancing, setIsAutoBalancing] = useState<boolean>(false);
-  
+  // Professores & Sanitização
   const [newTeacherEmail, setNewTeacherEmail] = useState('');
   const [isUpdatingTeachers, setIsUpdatingTeachers] = useState(false);
   const [isSanitizingLeaderboard, setIsSanitizingLeaderboard] = useState(false);
@@ -179,7 +131,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   // Parâmetros de Recursos de Teste
   const [levelGrantMode, setLevelGrantMode] = useState<'add_levels' | 'set_level'>('add_levels');
-  const [levelAmount, setLevelAmount] = useState<number>(1); // padrão: subir +1 nível gradativamente
+  const [levelAmount, setLevelAmount] = useState<number>(1);
   const [levelTokensToAdd, setLevelTokensToAdd] = useState<number>(1000);
   const [duelTokensToAdd, setDuelTokensToAdd] = useState<number>(1000);
   const [unlockCosmeticsCheck, setUnlockCosmeticsCheck] = useState<boolean>(true);
@@ -191,71 +143,23 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [targetAccountInfo, setTargetAccountInfo] = useState<TargetAccountData | null>(null);
   const [isLoadingAccountInfo, setIsLoadingAccountInfo] = useState<boolean>(false);
   const [showStudentPicker, setShowStudentPicker] = useState<boolean>(false);
-
-  // ── Hub de Jogos: controlo docente dos jogos disponíveis ──
-  const [hubConfig, setHubConfig] = useState<HubConfig>(
-    () => (settings as any)?.hubConfig ?? {}
-  );
-  const [isUpdatingHub, setIsUpdatingHub] = useState<boolean>(false);
-  const [hubFeedback, setHubFeedback] = useState<string | null>(null);
-
-  const handleToggleGame = async (gameId: string) => {
-    const current = Array.isArray(hubConfig.disabledGames) ? hubConfig.disabledGames : [];
-    const next = current.includes(gameId)
-      ? current.filter(g => g !== gameId)
-      : [...current, gameId];
-    const newConfig: HubConfig = { ...hubConfig, disabledGames: next };
-    setHubConfig(newConfig);
-    setIsUpdatingHub(true);
-    setHubFeedback(null);
-    try {
-      await updateHubConfig(newConfig);
-      setHubFeedback(`Hub atualizado! Jogo "${gameId}" ${next.includes(gameId) ? 'desativado' : 'reativado'} para os alunos.`);
-    } catch (e: any) {
-      setHubFeedback(`Erro ao atualizar hub: ${e.message}`);
-    } finally {
-      setIsUpdatingHub(false);
-      setTimeout(() => setHubFeedback(null), 4000);
-    }
-  };
-
-  // ── Exportação pedagógica multi-gênero (0 reads Firestore) ──
-  const handleExportPedagogicalCSV = (mode: 'pedagogical' | 'turmas' = 'pedagogical') => {
-    const list = filteredStudents.length > 0 ? filteredStudents : students;
-    if (!list || list.length === 0) {
-      alert('Nenhum dado de aluno disponível para exportação.');
-      return;
-    }
-    const csv = exportToCsv(list, mode, selectedClassFilter);
-    const turmaSuffix = selectedClassFilter === 'todas' ? 'todas_turmas' : selectedClassFilter.replace(/[^a-zA-Z0-9]/g, '_');
-    const dateSuffix = new Date().toISOString().slice(0, 10);
-    const label = mode === 'turmas' ? 'resumo_turmas' : 'pedagogico_multigame';
-    downloadCsv(csv, `typeclicker_${label}_${turmaSuffix}_${dateSuffix}.csv`);
-    sound.playWordComplete();
-  };
+  const [studentsForPicker, setStudentsForPicker] = useState<LeaderboardEntry[]>([]);
 
   const loadSettings = async () => {
-    setIsLoading(true);
     const data = await getSystemSettings();
     setSettings(data);
-    setIsLoading(false);
   };
 
-  const loadStudents = async (turmaToFetch = selectedClassFilter) => {
-    setIsStudentsLoading(true);
+  const loadStudentsForPicker = async () => {
     try {
-      const targetTurma = turmaToFetch === 'todas' ? undefined : turmaToFetch;
-      const data = await dbService.getAdminDashboardData(targetTurma);
-      setStudents(data);
-      setLastRefreshedAt(new Date());
+      const data = await dbService.getAdminDashboardData();
+      setStudentsForPicker(data);
     } catch (e) {
-      console.error('Error loading students:', e);
-    } finally {
-      setIsStudentsLoading(false);
+      console.error('Error loading students for picker:', e);
     }
   };
 
-  // Fechamento pelo teclado com Escape (compatível com a dica visual do header "Fechar Painel (ESC)")
+  // Fechamento pelo teclado com Escape
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -267,255 +171,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
-  // Escuta a corrida ativa da turma em tempo real
-  useEffect(() => {
-    const unsub = subscribeToActiveRace((race) => {
-      setActiveRace(race);
-    });
-    return () => unsub();
-  }, []);
-
-  // Escuta a Raid ativa da turma em tempo real
-  useEffect(() => {
-    const unsub = subscribeToActiveRaid((raid) => {
-      setActiveRaid(raid);
-    });
-    return () => unsub();
-  }, []);
-
-  const handleSelectPreset = (preset: PresetRaceText) => {
-    setSelectedPresetId(preset.id);
-    setCustomRaceTitle(preset.title);
-    setCustomRaceText(preset.text);
-    setCustomRaceSource(preset.source);
-  };
-
-  const handleLaunchRace = async () => {
-    const currentUser = auth.currentUser || {
-      uid: 'admin_' + (userEmail ? userEmail.replace(/[^a-zA-Z0-9]/g, '_') : 'teacher'),
-      email: userEmail || 'professor@escola.pr.gov.br'
-    };
-    if (!customRaceText.trim()) {
-      setRaceActionFeedback('O texto da corrida não pode estar vazio!');
-      return;
-    }
-    setIsLaunchingRace(true);
-    setRaceActionFeedback(null);
-    try {
-      await launchClassroomRace(
-        {
-          title: customRaceTitle,
-          text: customRaceText,
-          source: customRaceSource,
-          targetTurma: raceTargetTurma,
-          countdownSeconds: raceCountdownSec,
-          prizeBytes: racePrizeBytes
-        },
-        currentUser
-      );
-      sound.playPrestige();
-      setRaceActionFeedback('🚀 Corrida disparada com sucesso para a sessão escolar!');
-      setTimeout(() => setRaceActionFeedback(null), 5000);
-    } catch (err: any) {
-      sound.playChallengeFail();
-      console.error('Erro ao disparar corrida:', err);
-      setRaceActionFeedback(`Erro ao disparar corrida: ${err.message || err}`);
-    } finally {
-      setIsLaunchingRace(false);
-    }
-  };
-
-  const handleCancelRace = async () => {
-    setIsCancellingRace(true);
-    try {
-      await cancelClassroomRace();
-      sound.playWordComplete();
-      setRaceActionFeedback('Corrida ativa cancelada.');
-      setTimeout(() => setRaceActionFeedback(null), 3000);
-    } catch (err: any) {
-      setRaceActionFeedback(`Erro ao cancelar corrida: ${err.message}`);
-    } finally {
-      setIsCancellingRace(false);
-    }
-  };
-
-  const handleSelectRaidBoss = (boss: PresetRaidBoss) => {
-    setSelectedRaidBossId(boss.id);
-    setRaidMaxHp(boss.maxHp);
-    setRaidTimeLimitSec(boss.timeLimitSeconds);
-    setRaidPrizeBytes(boss.prizeBytes);
-  };
-
-  const handleLaunchRaid = async () => {
-    const currentUser = auth.currentUser || {
-      uid: 'admin_' + (userEmail ? userEmail.replace(/[^a-zA-Z0-9]/g, '_') : 'teacher'),
-      email: userEmail || 'professor@escola.pr.gov.br'
-    };
-
-    const boss = PRESET_RAID_BOSSES.find((b) => b.id === selectedRaidBossId) || PRESET_RAID_BOSSES[0];
-
-    setIsLaunchingRaid(true);
-    setRaidActionFeedback(null);
-    try {
-      await launchClassroomRaid(
-        {
-          bossId: boss.id,
-          bossName: boss.name,
-          bossSubtitle: boss.subtitle,
-          bossIcon: boss.icon,
-          maxHp: raidMaxHp,
-          timeLimitSeconds: raidTimeLimitSec,
-          prizeBytes: raidPrizeBytes,
-          targetTurma: raidTargetTurma
-        },
-        currentUser
-      );
-      sound.playChallengeSuccess();
-      setRaidActionFeedback(`🔥 Raid contra "${boss.name}" iniciada com sucesso!`);
-      setTimeout(() => setRaidActionFeedback(null), 5000);
-    } catch (err: any) {
-      sound.playError();
-      setRaidActionFeedback(`Erro ao iniciar Raid: ${err.message || err}`);
-    } finally {
-      setIsLaunchingRaid(false);
-    }
-  };
-
-  const handleCancelRaid = async () => {
-    setIsCancellingRaid(true);
-    try {
-      await cancelClassroomRaid();
-      sound.playWordComplete();
-      setRaidActionFeedback('Raid ativa cancelada.');
-      setTimeout(() => setRaidActionFeedback(null), 3000);
-    } catch (err: any) {
-      setRaidActionFeedback(`Erro ao cancelar Raid: ${err.message}`);
-    } finally {
-      setIsCancellingRaid(false);
-    }
-  };
-
-  // Exportação de Boletim Escolar (CSV) 100% In-Browser (0 Reads / Writes)
-  const handleExportCSV = () => {
-    const listToExport = filteredStudents.length > 0 ? filteredStudents : students;
-    if (!listToExport || listToExport.length === 0) {
-      alert('Nenhum dado de aluno disponível para exportação no momento.');
-      return;
-    }
-
-    const headers = [
-      'Nome',
-      'Apelido',
-      'Turma',
-      'Nivel',
-      'Total Bytes',
-      'PPM Atual',
-      'Melhor PPM',
-      'Precisao (%)',
-      'Vitorias Corridas',
-      'Participacoes Corridas',
-      'Vitorias PvP',
-      'Pontos PvP',
-      'Maior Combo',
-      'Alerta Anti-Cheat',
-      'Motivo Alerta',
-      'Ultima Atividade'
-    ];
-
-    const rows = listToExport.map((s) => {
-      const escape = (val: any) => `"${String(val ?? '').replace(/"/g, '""')}"`;
-      return [
-        escape(s.nome),
-        escape(s.apelido || ''),
-        escape(s.turma || ''),
-        s.level ?? 1,
-        s.points ?? 0,
-        s.wpm ?? 0,
-        s.bestWpm || s.wpm || 0,
-        s.accuracy ?? 100,
-        s.raceWins ?? 0,
-        s.racesParticipated ?? 0,
-        s.pvpWins ?? 0,
-        s.pvpPoints ?? 0,
-        s.maxCombo ?? 0,
-        s.flaggedForReview ? 'SIM' : 'NAO',
-        escape(s.flagReason || ''),
-        escape(s.updatedAt ? new Date(s.updatedAt).toLocaleString('pt-BR') : '')
-      ].join(';');
-    });
-
-    const csvContent = '\uFEFF' + [headers.join(';'), ...rows].join('\r\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    const turmaSuffix = selectedClassFilter === 'todas' ? 'todas_turmas' : selectedClassFilter.replace(/[^a-zA-Z0-9]/g, '_');
-    const dateSuffix = new Date().toISOString().slice(0, 10);
-    link.setAttribute('download', `boletim_typeclicker_${turmaSuffix}_${dateSuffix}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    sound.playWordComplete();
-  };
-
-  // Gerenciamento de Textos Curriculares do Professor
-  const handleSaveCustomText = async () => {
-    if (!newTextTitle.trim()) {
-      setTextFeedback('Por favor, informe o título do texto curricular.');
-      return;
-    }
-    if (!newTextContent.trim() || newTextContent.trim().length < 20) {
-      setTextFeedback('O conteúdo deve ter pelo menos 20 caracteres para ser aproveitado.');
-      return;
-    }
-    setIsSavingText(true);
-    setTextFeedback(null);
-    try {
-      await saveCustomCurricularText({
-        title: newTextTitle.trim(),
-        discipline: newTextDiscipline,
-        targetTurma: newTextTurma,
-        content: newTextContent.trim()
-      });
-      await loadSettings();
-      setNewTextTitle('');
-      setNewTextContent('');
-      sound.playPrestige();
-      setTextFeedback('Texto curricular salvo e publicado com sucesso!');
-      setTimeout(() => setTextFeedback(null), 4000);
-    } catch (err: any) {
-      sound.playChallengeFail();
-      setTextFeedback(`Erro ao salvar texto: ${err.message || err}`);
-    } finally {
-      setIsSavingText(false);
-    }
-  };
-
-  const handleDeleteCustomText = async (textId: string) => {
-    if (!confirm('Deseja realmente remover este texto da biblioteca escolar?')) return;
-    try {
-      await deleteCustomCurricularText(textId);
-      await loadSettings();
-      sound.playWordComplete();
-    } catch (err: any) {
-      alert(`Erro ao excluir texto: ${err.message || err}`);
-    }
-  };
-
-  const handleUseCustomTextInRace = (text: CustomCurricularText) => {
-    setSelectedPresetId(text.id);
-    setCustomRaceTitle(text.title);
-    setCustomRaceText(text.content);
-    setCustomRaceSource(`Professor (${text.discipline} - ${text.authorName || 'Docente'})`);
-    if (text.targetTurma && text.targetTurma !== 'todas') {
-      setRaceTargetTurma(text.targetTurma);
-    }
-    setActiveTab('corrida');
-    sound.playPrestige();
-  };
-
-  // Ações Rápidas de Teste para o Administrador (Marcos Wrobel)
+  // Ações Rápidas de Teste para o Administrador
   const handleUnlockAllCosmetics = () => {
     if (!gameState || !onUpdateGameState) return;
     const all = getAllUnlockedCosmetics(gameState.cosmetics);
@@ -616,7 +272,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       return;
     }
 
-    // Se for o próprio admin logado
     const isCurrentAdmin = (userEmail && clean.toLowerCase() === userEmail.trim().toLowerCase()) ||
       (auth.currentUser?.uid && userIdToCheck === auth.currentUser.uid);
 
@@ -658,7 +313,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setIsAddingTester(true);
     try {
       const updatedList = await addTesterEmail(clean);
-      setSettings(prev => prev ? { ...prev, testerEmails: updatedList } : null);
+      setSettings((prev) => (prev ? { ...prev, testerEmails: updatedList } : null));
       setTargetEmail(clean);
       setTargetUserId(null);
       setNewTesterEmailInput('');
@@ -677,7 +332,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setIsRemovingTester(true);
     try {
       const updatedList = await removeTesterEmail(emailToRemove);
-      setSettings(prev => prev ? { ...prev, testerEmails: updatedList } : null);
+      setSettings((prev) => (prev ? { ...prev, testerEmails: updatedList } : null));
       if (targetEmail.toLowerCase() === emailToRemove.toLowerCase()) {
         const defaultAdmin = userEmail || 'wrobel.marcos@gmail.com';
         setTargetEmail(defaultAdmin);
@@ -721,9 +376,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       sound.playPrestige();
       setTestActionMessage(res.message);
 
-      // Se o alvo for o usuário admin logado na sessão atual, sincroniza o gameState local imediatamente!
-      const isTargetLoggedInUser = (userEmail && cleanTarget.toLowerCase() === userEmail.trim().toLowerCase()) ||
-        (auth.currentUser?.uid && (resolvedUserId === auth.currentUser.uid));
+      const isTargetLoggedInUser =
+        (userEmail && cleanTarget.toLowerCase() === userEmail.trim().toLowerCase()) ||
+        (auth.currentUser?.uid && resolvedUserId === auth.currentUser.uid);
 
       if (isTargetLoggedInUser && res.updatedSaveState && onUpdateGameState) {
         onUpdateGameState(res.updatedSaveState);
@@ -731,7 +386,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
       await loadSettings();
       await checkTargetAccount(cleanTarget, resolvedUserId);
-      if (activeTab === 'dashboard') loadStudents();
       setTimeout(() => setTestActionMessage(null), 6000);
     } catch (err: any) {
       alert(`Erro ao conceder recursos: ${err.message}`);
@@ -746,18 +400,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       setWipeConfirm('');
       setWipeStatus('idle');
       setBackupActionMessage(null);
-      if (activeTab === 'dashboard') {
-        loadStudents(selectedClassFilter);
-      } else if (activeTab === 'temporadas') {
+      if (activeTab === 'temporadas') {
         loadSeasonAdminData();
       } else if (activeTab === 'monitoramento') {
         loadMetrics();
       } else if (activeTab === 'testes') {
         checkTargetAccount(targetEmail, targetUserId || undefined);
-        if (students.length === 0) loadStudents('todas');
+        if (studentsForPicker.length === 0) loadStudentsForPicker();
       }
     }
-  }, [isOpen, activeTab, selectedClassFilter, targetEmail]);
+  }, [isOpen, activeTab, targetEmail]);
 
   const loadSeasonAdminData = async () => {
     setIsSeasonLoading(true);
@@ -802,7 +454,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
-  // Carregamento de Métricas do Supabase (PostgreSQL)
   const loadMetrics = async (forceRefresh: boolean = false) => {
     setIsMetricsLoading(true);
     setMetricsError(null);
@@ -817,7 +468,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
-  // Auto-refresh de métricas a cada 30 segundos se ativo
   useEffect(() => {
     if (!isOpen || activeTab !== 'monitoramento' || !autoRefreshMetrics) return;
 
@@ -829,22 +479,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     return () => clearInterval(interval);
   }, [isOpen, activeTab, autoRefreshMetrics]);
 
-  // Polling Controlado (60s) para o Dashboard do Professor:
-  // Só executa se o painel estiver aberto na aba 'dashboard' E se a janela estiver visível e com foco.
-  // Evita leituras desnecessárias quando o professor está em outra aba ou fora da máquina.
-  useEffect(() => {
-    if (!isOpen || activeTab !== 'dashboard') return;
-
-    const pollInterval = setInterval(() => {
-      if (typeof document !== 'undefined' && (document.hidden || !document.hasFocus())) {
-        return; // Economiza leituras quando a aba está em segundo plano
-      }
-      loadStudents(selectedClassFilter);
-    }, 60000); // 60 segundos controlado
-
-    return () => clearInterval(pollInterval);
-  }, [isOpen, activeTab, selectedClassFilter]);
-
   const handleCreateBackup = async () => {
     setIsCreatingBackup(true);
     setBackupActionMessage(null);
@@ -853,7 +487,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       const label = `Backup Supabase - ${now.toLocaleDateString('pt-BR')} ${now.toLocaleTimeString('pt-BR')}`;
       const backupData = await createSupabaseBackup(label, userEmail || 'admin');
 
-      // Gatilho imediato de download de arquivo JSON no navegador do professor
       downloadSupabaseBackupFile(backupData);
       setLastBackup(backupData);
 
@@ -910,7 +543,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           type: 'success',
           text: `Restauração concluída! Restaurados: ${res.restoredCounts.profiles} perfis, ${res.restoredCounts.game_progress} progressos, ${res.restoredCounts.user_cosmetics} cosméticos, ${res.restoredCounts.user_achievements} conquistas.`
         });
-        if (activeTab === 'dashboard') loadStudents();
       } catch (err: any) {
         setBackupActionMessage({
           type: 'error',
@@ -924,118 +556,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     reader.readAsText(file);
   };
 
-  const handleGenerateCode = async (hours: number) => {
-    if (!targetTurmaForCode) {
-      alert("Por favor, selecione a Turma antes de gerar o código da sessão.");
-      return;
-    }
-    setIsLoading(true);
-    try {
-      await generateSessionCode(hours, targetTurmaForCode, selectedTrackForCode);
-      await loadSettings();
-      sound.playPrestige();
-    } catch (e) {
-      alert("Erro ao gerar código");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleChangeLiveTrack = async (newTrack: CurricularTrackId) => {
-    setIsChangingLiveTrack(true);
-    try {
-      await updateActiveSessionTrack(newTrack);
-      await loadSettings();
-      sound.playUpgrade();
-    } catch (e: any) {
-      alert("Erro ao alterar a trilha da aula: " + (e.message || e));
-    } finally {
-      setIsChangingLiveTrack(false);
-    }
-  };
-
-  const handleUpdateStudentProfile = async (
-    studentUserId: string,
-    updates: { turma?: string; rpgClass?: RpgClassType }
-  ) => {
-    setUpdatingStudentId(studentUserId);
-    try {
-      await dbService.adminUpdateStudentProfile(studentUserId, updates);
-      setStudents(prev => prev.map(s => {
-        if (s.userId === studentUserId) {
-          return {
-            ...s,
-            ...(updates.turma !== undefined ? { turma: updates.turma } : {}),
-            ...(updates.rpgClass !== undefined ? { rpgClass: updates.rpgClass } : {})
-          };
-        }
-        return s;
-      }));
-      sound.playUpgrade();
-    } catch (e: any) {
-      alert(`Erro ao atualizar aluno: ${e.message || e}`);
-    } finally {
-      setUpdatingStudentId(null);
-    }
-  };
-
-  const handleAutoBalanceRpg = async () => {
-    if (!selectedClassFilter || selectedClassFilter === 'todas') {
-      alert("Selecione uma turma específica no filtro para balancear as classes.");
-      return;
-    }
-    const confirmed = window.confirm(
-      `Deseja distribuir automaticamente as classes RPG para os alunos da turma ${selectedClassFilter}? (1/3 Guerreiro, 1/3 Arqueiro, 1/3 Mago)`
-    );
-    if (!confirmed) return;
-    setIsAutoBalancing(true);
-    try {
-      const res = await dbService.adminAutoBalanceRpgClasses(selectedClassFilter);
-      await loadStudents(selectedClassFilter);
-      sound.playPrestige();
-      alert(
-        `Balanceamento concluído para ${res.updatedCount} alunos da turma ${selectedClassFilter}!\n⚔️ Guerreiros: ${res.distribution.warrior} | 🏹 Arqueiros: ${res.distribution.archer} | 🔮 Magos: ${res.distribution.mage}`
-      );
-    } catch (err: any) {
-      alert(`Erro ao balancear classes: ${err.message || err}`);
-    } finally {
-      setIsAutoBalancing(false);
-    }
-  };
-
-  const handleClearCode = async () => {
-    setIsLoading(true);
-    try {
-      await clearSessionCode();
-      await loadSettings();
-    } catch (e) {
-      alert("Erro ao limpar código");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleUpdateAccessibility = async (updates: { focusTimeoutSetting?: number; reducedAlerts?: boolean }) => {
-    setIsLoading(true);
-    try {
-      await updateAccessibilitySettings(updates);
-      await loadSettings();
-      sound.playUpgrade();
-    } catch (e: any) {
-      alert(`Erro ao salvar configurações de acessibilidade: ${e.message}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handleWipe = async () => {
     if (wipeConfirm !== 'CONFIRMAR') return;
     setWipeStatus('loading');
     try {
-      // 1. Wipe do banco Supabase (PostgreSQL)
       await dbService.wipeDatabase();
 
-      // 2. Wipe sincronizado nas coleções legadas do Firestore
       try {
         await wipeLegacyFirestoreDatabase();
       } catch (legacyErr) {
@@ -1044,7 +570,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
       setWipeStatus('success');
       setWipeConfirm('');
-      if (activeTab === 'dashboard') loadStudents();
       sound.playGlitch();
     } catch (e) {
       setWipeStatus('error');
@@ -1059,7 +584,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       if (!currentList.includes(newTeacherEmail)) {
         const newList = [...currentList, newTeacherEmail.trim().toLowerCase()];
         await updateAllowedTeachers(newList);
-        setSettings(prev => prev ? { ...prev, allowedTeachers: newList } : null);
+        setSettings((prev) => (prev ? { ...prev, allowedTeachers: newList } : null));
         setNewTeacherEmail('');
       }
     } catch (e) {
@@ -1073,9 +598,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setIsUpdatingTeachers(true);
     try {
       const currentList = settings?.allowedTeachers || [];
-      const newList = currentList.filter(e => e !== emailToRemove);
+      const newList = currentList.filter((e) => e !== emailToRemove);
       await updateAllowedTeachers(newList);
-      setSettings(prev => prev ? { ...prev, allowedTeachers: newList } : null);
+      setSettings((prev) => (prev ? { ...prev, allowedTeachers: newList } : null));
     } catch (e) {
       console.error(e);
     } finally {
@@ -1091,7 +616,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       sound.playWordComplete();
       setSanitizeMessage(`Higienização concluída! ${result.removedCount} registro(s) de professores/administradores removidos de ${result.checkedCount} analisados.`);
       setTimeout(() => setSanitizeMessage(null), 5000);
-      loadStudents();
     } catch (e: any) {
       sound.playChallengeFail();
       setSanitizeMessage(`Erro ao higienizar: ${e.message}`);
@@ -1100,18 +624,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
-  const isActive = settings?.activeCode && settings?.expiresAt && new Date(settings.expiresAt) > new Date();
-
-  const filteredStudents = students.filter(s => {
-    if (!searchTurma.trim()) return true;
-    const term = searchTurma.toLowerCase().trim();
-    return (
-      (s.nome || '').toLowerCase().includes(term) ||
-      (s.apelido || '').toLowerCase().includes(term) ||
-      (s.turma || '').toLowerCase().includes(term)
-    );
-  });
-
   return (
     <AnimatePresence>
       {isOpen && (
@@ -1119,7 +631,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/90 backdrop-blur-md"
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/90 backdrop-blur-md"
           onClick={onClose}
         >
           <motion.div
@@ -1130,19 +642,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             className="w-full max-w-5xl xl:max-w-6xl bg-zinc-950 border border-purple-500/50 rounded-2xl shadow-[0_0_50px_rgba(168,85,247,0.15)] flex flex-col overflow-hidden max-h-[92vh]"
           >
             {/* Header Superior: Identificação e Botão Fechar */}
-            <div className="px-5 pt-4 pb-3 border-b border-white/10 bg-purple-950/20 flex flex-col gap-3.5">
+            <div className="px-5 pt-4 pb-3 border-b border-white/10 bg-gradient-to-r from-purple-950/40 via-zinc-950 to-amber-950/20 flex flex-col gap-3.5">
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-9 h-9 rounded-xl bg-purple-600/20 border border-purple-500/40 flex items-center justify-center text-purple-300 shadow-sm flex-shrink-0">
-                    <Shield className="w-5 h-5" />
+                  <div className="w-10 h-10 rounded-xl bg-purple-600/20 border border-purple-500/40 flex items-center justify-center text-purple-300 shadow-sm flex-shrink-0">
+                    <Shield className="w-5 h-5 text-purple-400" />
                   </div>
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <h2 className="text-lg sm:text-xl font-black text-white tracking-tight truncate">
-                        Painel Administrativo
+                        Administração do Sistema
                       </h2>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40 hidden sm:inline-block">
-                        {isSuperAdmin ? 'Super Admin' : 'Docente'}
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40">
+                        Super Admin
                       </span>
                     </div>
                     {userEmail && (
@@ -1162,30 +674,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 </button>
               </div>
 
-              {/* Linha de Navegação Dedicada com Suporte a Overflow Suave */}
+              {/* Linha de Navegação Dedicada para Abas Administrativas */}
               <div className="flex items-center gap-1.5 p-1.5 bg-zinc-900/90 rounded-xl border border-zinc-800/90 overflow-x-auto custom-scrollbar flex-wrap sm:flex-nowrap">
-                <button
-                  onClick={() => setActiveTab('locks')}
-                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-                    activeTab === 'locks'
-                      ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30'
-                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
-                  }`}
-                >
-                  <Key className="w-4 h-4" />
-                  <span>Sessões</span>
-                </button>
-                <button
-                  onClick={() => setActiveTab('dashboard')}
-                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-                    activeTab === 'dashboard'
-                      ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30'
-                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
-                  }`}
-                >
-                  <BarChart className="w-4 h-4" />
-                  <span>Progresso</span>
-                </button>
                 <button
                   onClick={() => setActiveTab('temporadas')}
                   className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
@@ -1198,42 +688,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   <Trophy className="w-4 h-4 text-amber-400" />
                   <span>Trimestres & Temporadas</span>
                 </button>
-                <button
-                  onClick={() => setActiveTab('corrida')}
-                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-                    activeTab === 'corrida'
-                      ? 'bg-amber-500 text-black shadow-md shadow-amber-500/30 font-black'
-                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
-                  }`}
-                  title="Lançador de Corrida da Turma em Tempo Real"
-                >
-                  <Flag className="w-4 h-4 text-amber-400" />
-                  <span>Corrida da Turma</span>
-                </button>
-                <button
-                  onClick={() => setActiveTab('raid')}
-                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-                    activeTab === 'raid'
-                      ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30 font-black'
-                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
-                  }`}
-                  title="Lançador de Raid Coletiva contra Chefe em Tempo Real"
-                >
-                  <Swords className="w-4 h-4 text-rose-400" />
-                  <span>Raid Coletiva</span>
-                </button>
-                <button
-                  onClick={() => setActiveTab('textos')}
-                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-                    activeTab === 'textos'
-                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30 font-bold'
-                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
-                  }`}
-                  title="Biblioteca de Textos Curriculares e Pedagógicos do Professor"
-                >
-                  <BookOpen className="w-4 h-4 text-indigo-400" />
-                  <span>Textos Curriculares</span>
-                </button>
+
                 <button
                   onClick={() => setActiveTab('backups')}
                   className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
@@ -1241,11 +696,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30'
                       : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
                   }`}
-                  title="Backups e Restauração de Segurança"
+                  title="Backups e Restauração de Segurança (JSON Supabase)"
                 >
                   <Database className="w-4 h-4 text-emerald-400" />
                   <span>Backups</span>
                 </button>
+
                 <button
                   onClick={() => setActiveTab('monitoramento')}
                   className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
@@ -1253,608 +709,57 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/30 font-black'
                       : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
                   }`}
-                  title="Monitoramento de Cotas Spark & Saúde do Firestore (Cloud Monitoring)"
+                  title="Monitoramento de Cotas e Saúde do PostgreSQL Supabase"
                 >
                   <Activity className="w-4 h-4 text-cyan-400" />
                   <span>Monitoramento Banco</span>
                 </button>
+
                 <button
                   onClick={() => setActiveTab('testes')}
                   className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
                     activeTab === 'testes'
-                      ? 'bg-amber-600 text-white shadow-md shadow-amber-600/30'
+                      ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30'
                       : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
                   }`}
-                  title="Recursos de Teste e Desbloqueio Rápido (ADM)"
+                  title="Recursos de Teste e Concessão de Tokens/Níveis"
                 >
-                  <Sparkles className="w-4 h-4 text-amber-400" />
-                  <span>Testes ADM</span>
+                  <Sparkles className="w-4 h-4 text-purple-300" />
+                  <span>Recursos de Teste</span>
                 </button>
 
-                {isSuperAdmin && (
-                  <>
-                    <div className="h-4 w-[1px] bg-zinc-700/60 mx-1 hidden sm:block flex-shrink-0" />
-                    <button
-                      onClick={() => setActiveTab('professores')}
-                      className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-                        activeTab === 'professores'
-                          ? 'bg-sky-600 text-white shadow-md shadow-sky-600/30'
-                          : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
-                      }`}
-                    >
-                      <Users className="w-4 h-4" />
-                      <span>Professores</span>
-                    </button>
-                    <button
-                      onClick={() => setActiveTab('wipe')}
-                      className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-                        activeTab === 'wipe'
-                          ? 'bg-red-600 text-white shadow-md shadow-red-600/40'
-                          : 'text-red-400/80 hover:text-red-300 hover:bg-red-950/40'
-                      }`}
-                      title="Wipe Total do Banco de Dados"
-                    >
-                      <Trash2 className="w-4 h-4 text-red-400" />
-                      <span>Wipe</span>
-                    </button>
-                  </>
-                )}
+                <div className="h-4 w-[1px] bg-zinc-700/60 mx-1 hidden sm:block flex-shrink-0" />
+
+                <button
+                  onClick={() => setActiveTab('professores')}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+                    activeTab === 'professores'
+                      ? 'bg-sky-600 text-white shadow-md shadow-sky-600/30'
+                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
+                  }`}
+                  title="Autorização de Novos Professores e Higienização de Ranking"
+                >
+                  <Users className="w-4 h-4 text-sky-300" />
+                  <span>Professores</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('wipe')}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+                    activeTab === 'wipe'
+                      ? 'bg-red-600 text-white shadow-md shadow-red-600/40'
+                      : 'text-red-400/80 hover:text-red-300 hover:bg-red-950/40'
+                  }`}
+                  title="Wipe Total do Banco de Dados"
+                >
+                  <Trash2 className="w-4 h-4 text-red-400" />
+                  <span>Wipe</span>
+                </button>
               </div>
             </div>
 
-            <div className="p-6 overflow-y-auto">
-              {activeTab === 'locks' && (
-                <>
-                  <section className="space-y-4 max-w-xl mx-auto">
-                  <div className="flex items-center gap-2 text-zinc-300 font-bold border-b border-zinc-800 pb-2">
-                    <Key className="w-5 h-5" />
-                    <h3>Trava de Ambiente Escolar (Laboratório)</h3>
-                  </div>
-                  
-                  <p className="text-sm text-zinc-400">
-                    Gere um código de aula temporário. Alunos precisarão digitar este código para desbloquear o jogo. Sem um código ativo, o acesso ao jogo fica bloqueado.
-                  </p>
-
-                  <div className="bg-zinc-900 rounded-xl p-4 border border-zinc-800 flex flex-col gap-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-xs text-zinc-500 uppercase tracking-wider font-bold mb-1">Status da Aula</div>
-                        {isActive ? (
-                          <div>
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-3xl font-black text-emerald-400 tracking-widest">{settings?.activeCode}</span>
-                              {settings?.activeTurma && (
-                                <span className="text-xs px-2.5 py-1 rounded-full font-mono font-bold bg-sky-950 text-sky-300 border border-sky-500/40">
-                                  🎒 Turma: {settings.activeTurma}
-                                </span>
-                              )}
-                              {settings?.activeTrack && (
-                                <span className="text-xs px-2.5 py-1 rounded-full font-mono font-bold bg-purple-950 text-purple-300 border border-purple-500/40 flex items-center gap-1.5 shadow-sm">
-                                  <span>{getCurricularTrack(settings.activeTrack).icon}</span>
-                                  <span>{getCurricularTrack(settings.activeTrack).name}</span>
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-xs text-emerald-500/70 mt-1.5 flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              Expira em: {new Date(settings!.expiresAt!).toLocaleTimeString()}
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="text-lg font-bold text-zinc-500">Nenhuma aula ativa</div>
-                        )}
-                      </div>
-                      
-                      {isActive && (
-                        <button
-                          onClick={handleClearCode}
-                          disabled={isLoading}
-                          className="px-4 py-2 bg-red-500/10 text-red-400 border border-red-500/30 rounded-lg text-sm hover:bg-red-500/20 font-bold transition cursor-pointer"
-                        >
-                          Encerrar
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Alternador Rápido de Trilha em Aula Aberta */}
-                    {isActive && (
-                      <div className="pt-2.5 border-t border-zinc-800/80 flex flex-col gap-1.5">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[11px] font-mono font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1">
-                            <BookOpen className="w-3.5 h-3.5 text-purple-400" />
-                            <span>Mudar Trilha da Aula em Tempo Real:</span>
-                          </span>
-                          {isChangingLiveTrack && (
-                            <span className="text-[10px] text-amber-400 font-mono animate-pulse">Sincronizando...</span>
-                          )}
-                        </div>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-1.5">
-                          {CURRICULAR_TRACKS.map((t) => {
-                            const isCurrent = (settings?.activeTrack || 'geral') === t.id;
-                            return (
-                              <button
-                                key={t.id}
-                                type="button"
-                                disabled={isChangingLiveTrack}
-                                onClick={() => handleChangeLiveTrack(t.id)}
-                                className={`px-2 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 border text-center ${
-                                  isCurrent
-                                    ? 'bg-purple-600 text-white border-purple-400 shadow-md shadow-purple-600/30'
-                                    : 'bg-zinc-950 text-zinc-400 border-zinc-800 hover:text-zinc-200 hover:bg-zinc-800 hover:border-zinc-700'
-                                }`}
-                                title={`${t.discipline} • ${t.targetAudience}`}
-                              >
-                                <span>{t.icon}</span>
-                                <span className="truncate">{t.name.split('(')[0].trim()}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Seletor de Turma Obrigatório */}
-                  <div className="space-y-2 bg-zinc-900/60 p-4 rounded-xl border border-zinc-800">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold text-zinc-200 uppercase tracking-wider font-mono flex items-center gap-1.5">
-                        <GraduationCap className="w-4 h-4 text-purple-400" />
-                        <span>Turma para esta Aula (Obrigatória):</span>
-                      </label>
-                      {targetTurmaForCode && (
-                        <span className="text-[10px] font-mono font-bold text-purple-300 bg-purple-950 px-2 py-0.5 rounded border border-purple-500/40">
-                          {targetTurmaForCode}
-                        </span>
-                      )}
-                    </div>
-                    <select
-                      value={targetTurmaForCode}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setTargetTurmaForCode(val);
-                        if (val) {
-                          const suggested = suggestTrackForTurma(val);
-                          setSelectedTrackForCode(suggested);
-                        }
-                      }}
-                      disabled={isLoading}
-                      className="w-full bg-zinc-950 border border-zinc-700 focus:border-purple-400 rounded-xl px-3.5 py-2.5 text-sm text-zinc-100 focus:outline-none focus:ring-1 focus:ring-purple-400/50 transition font-mono font-bold cursor-pointer"
-                    >
-                      <option value="">-- Selecione a Turma que Terá Aula Agora --</option>
-                      {SCHOOL_CLASSES_CONFIG.map((group) => (
-                        <optgroup key={group.grade} label={group.grade}>
-                          {group.classes.map((cls) => (
-                            <option key={cls} value={cls}>
-                              {cls}
-                            </option>
-                          ))}
-                        </optgroup>
-                      ))}
-                    </select>
-                    {!targetTurmaForCode && (
-                      <p className="text-[11px] text-amber-400/90 flex items-center gap-1 pt-0.5">
-                        <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
-                        <span>Selecione a turma para vincular e travar automaticamente nos alunos ao desbloquear.</span>
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Seletor de Trilha Curricular Dinâmica */}
-                  <div className="space-y-2 bg-zinc-900/60 p-4 rounded-xl border border-zinc-800">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold text-zinc-200 uppercase tracking-wider font-mono flex items-center gap-1.5">
-                        <BookOpen className="w-4 h-4 text-emerald-400" />
-                        <span>Trilha Curricular da Aula:</span>
-                      </label>
-                      <span className="text-[10px] font-mono font-bold text-emerald-300 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-500/40">
-                        {getCurricularTrack(selectedTrackForCode).icon} {getCurricularTrack(selectedTrackForCode).name}
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {CURRICULAR_TRACKS.map((track) => {
-                        const isSelected = selectedTrackForCode === track.id;
-                        return (
-                          <button
-                            key={track.id}
-                            type="button"
-                            onClick={() => setSelectedTrackForCode(track.id)}
-                            className={`p-3 rounded-xl border text-left transition flex flex-col gap-1 cursor-pointer ${
-                              isSelected
-                                ? 'bg-purple-950/50 border-purple-500 text-white shadow-[0_0_12px_rgba(168,85,247,0.25)]'
-                                : 'bg-zinc-950/80 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200 hover:bg-zinc-900'
-                            }`}
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-1.5 font-bold text-xs">
-                                <span className="text-base">{track.icon}</span>
-                                <span className={isSelected ? 'text-purple-200' : 'text-zinc-200'}>{track.name}</span>
-                              </div>
-                              {isSelected && (
-                                <span className="text-[9px] font-mono font-black text-purple-300 bg-purple-900/80 px-1.5 py-0.5 rounded border border-purple-400/40">
-                                  SELECIONADA
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-[10px] text-zinc-400 line-clamp-1">{track.description}</p>
-                            <div className="mt-1 flex items-center justify-between text-[9px] font-mono text-zinc-500">
-                              <span>Público: <strong className="text-zinc-300">{track.targetAudience}</strong></span>
-                              <span>{track.discipline}</span>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleGenerateCode(1)}
-                      disabled={isLoading || !targetTurmaForCode}
-                      className="flex-1 py-2.5 bg-purple-600 hover:bg-purple-500 disabled:bg-zinc-800 disabled:text-zinc-600 disabled:border-zinc-700/50 text-white font-bold rounded-xl transition cursor-pointer disabled:cursor-not-allowed flex items-center justify-center gap-2 border border-purple-500/30 shadow-md"
-                    >
-                      <Key className="w-4 h-4" />
-                      <span>Gerar para {targetTurmaForCode || '...'} (1 Hora)</span>
-                    </button>
-                    <button
-                      onClick={() => handleGenerateCode(2)}
-                      disabled={isLoading || !targetTurmaForCode}
-                      className="flex-1 py-2.5 bg-purple-600 hover:bg-purple-500 disabled:bg-zinc-800 disabled:text-zinc-600 disabled:border-zinc-700/50 text-white font-bold rounded-xl transition cursor-pointer disabled:cursor-not-allowed flex items-center justify-center gap-2 border border-purple-500/30 shadow-md"
-                    >
-                      <Key className="w-4 h-4" />
-                      <span>Gerar para {targetTurmaForCode || '...'} (2 Horas)</span>
-                    </button>
-                  </div>
-
-                  {/* Configurações de Acessibilidade Pedagógica */}
-                  <div className="mt-8 pt-6 border-t border-zinc-800 space-y-4">
-                    <div className="flex items-center gap-2 text-zinc-300 font-bold">
-                      <Sliders className="w-5 h-5 text-purple-400" />
-                      <h3>Parâmetros de Acessibilidade Pedagógica</h3>
-                    </div>
-                    <p className="text-xs text-zinc-400">
-                      Ajuste dinamicamente o ritmo de aula para alunos neurodivergentes ou turmas com ritmo de digitação inicial.
-                    </p>
-
-                    {/* Tempo de Inatividade da Bateria de Foco */}
-                    <div className="bg-zinc-900 rounded-xl p-4 border border-zinc-800 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-sm font-semibold text-zinc-200">
-                          <Battery className="w-4 h-4 text-emerald-400" />
-                          <span>Duração da Bateria de Foco (Cadência)</span>
-                        </div>
-                        <span className="text-xs px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 font-mono font-bold">
-                          {settings?.focusTimeoutSetting === 0 ? 'Desativada (Inclusivo)' : `${settings?.focusTimeoutSetting || 5} segundos`}
-                        </span>
-                      </div>
-                      <p className="text-xs text-zinc-400">
-                        Tempo que o aluno tem para continuar digitando antes que a bateria comece a esgotar o combo.
-                      </p>
-                      <div className="grid grid-cols-4 gap-2 pt-2">
-                        {[
-                          { label: '5s (Padrão)', val: 5 },
-                          { label: '10s (Suave)', val: 10 },
-                          { label: '15s (Amplo)', val: 15 },
-                          { label: 'Sem Limite', val: 0 }
-                        ].map((opt) => (
-                          <button
-                            key={opt.val}
-                            type="button"
-                            disabled={isLoading}
-                            onClick={() => handleUpdateAccessibility({ focusTimeoutSetting: opt.val })}
-                            className={`py-1.5 px-2 text-xs font-mono font-bold rounded-lg border transition ${(settings?.focusTimeoutSetting ?? 5) === opt.val
-                              ? 'bg-purple-600 text-white border-purple-400 shadow-[0_0_10px_rgba(168,85,247,0.4)]'
-                              : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:text-white hover:bg-zinc-700'
-                            }`}
-                          >
-                            {opt.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Modo Alertas Reduzidos */}
-                    <div className="bg-zinc-900 rounded-xl p-4 border border-zinc-800 flex items-center justify-between gap-4">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2 text-sm font-semibold text-zinc-200">
-                          <EyeOff className="w-4 h-4 text-amber-400" />
-                          <span>Modo Alertas Reduzidos (Sem Flashes)</span>
-                        </div>
-                        <p className="text-xs text-zinc-400">
-                          Desativa efeitos de luz piscantes e estroboscópicos nas animações dos vírus para alunos fotossensíveis.
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        disabled={isLoading}
-                        onClick={() => handleUpdateAccessibility({ reducedAlerts: !settings?.reducedAlerts })}
-                        className={`px-4 py-2 text-xs font-bold rounded-lg border transition ${settings?.reducedAlerts
-                          ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                          : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:text-zinc-200'
-                        }`}
-                      >
-                        {settings?.reducedAlerts ? 'ATIVADO' : 'DESATIVADO'}
-                      </button>
-                    </div>
-                  </div>
-                </section>
-
-                {/* ── Controlo do Hub de Jogos ── */}
-                <section className="bg-zinc-900/60 border border-zinc-700/60 rounded-xl p-4 space-y-3">
-                  <div className="flex items-center gap-2 text-zinc-200 font-bold text-sm mb-1">
-                    <span>🎮</span>
-                    <span>Controlo do Hub de Jogos</span>
-                    <span className="text-[10px] font-mono text-zinc-500 ml-auto">0 leituras Firestore</span>
-                  </div>
-                  <p className="text-xs text-zinc-400">
-                    Ative ou desative jogos para os alunos da turma. Professores sempre vêem todos os jogos.
-                  </p>
-                  {hubFeedback && (
-                    <div className="text-xs text-emerald-300 bg-emerald-950/40 border border-emerald-800/40 rounded-lg px-3 py-1.5">
-                      {hubFeedback}
-                    </div>
-                  )}
-                  <div className="grid grid-cols-2 gap-2">
-                    {([
-                      { id: 'typeclicker', label: 'TypeClicker', icon: '⌨️' },
-                      { id: 'type_radar',  label: 'Type: Radar', icon: '📡' },
-                      { id: 'time_attack', label: 'Time Attack',  icon: '⏱️' },
-                      { id: 'dungeon',     label: 'Masmorra RPG', icon: '🗡️' }
-                    ] as const).map(({ id, label, icon }) => {
-                      const disabled = Array.isArray(hubConfig.disabledGames) && hubConfig.disabledGames.includes(id);
-                      return (
-                        <button
-                          key={id}
-                          type="button"
-                          disabled={isUpdatingHub}
-                          onClick={() => handleToggleGame(id)}
-                          className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-bold transition ${
-                            disabled
-                              ? 'bg-red-950/40 border-red-700/50 text-red-300 line-through opacity-70'
-                              : 'bg-emerald-950/40 border-emerald-700/50 text-emerald-200 hover:bg-emerald-900/50'
-                          }`}
-                          title={disabled ? `Reativar ${label} para alunos` : `Desativar ${label} para alunos`}
-                        >
-                          <span>{icon}</span>
-                          <span>{label}</span>
-                          <span className="ml-auto text-[10px]">{disabled ? '🔴' : '🟢'}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </section>
-                </>
-              )}
-
-              {activeTab === 'dashboard' && (
-                <section className="space-y-4">
-                  <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 border-b border-zinc-800 pb-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                      <div className="flex items-center gap-2 text-zinc-300 font-bold">
-                        <Users className="w-5 h-5 text-purple-400" />
-                        <h3>Desempenho dos Alunos</h3>
-                      </div>
-                      {lastRefreshedAt && (
-                        <span className="text-[11px] font-mono text-zinc-400 bg-zinc-900 px-2 py-0.5 rounded border border-zinc-800 flex items-center gap-1">
-                          <Clock className="w-3 h-3 text-emerald-400" />
-                          Atualizado às {lastRefreshedAt.toLocaleTimeString('pt-BR')}
-                        </span>
-                      )}
-                    </div>
-                    
-                    <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
-                      {/* Seletor de Turma Ativa (Reduz consumo Firestore) */}
-                      <div className="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5">
-                        <Filter className="w-3.5 h-3.5 text-purple-400" />
-                        <select
-                          value={selectedClassFilter}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setSelectedClassFilter(val);
-                            loadStudents(val);
-                          }}
-                          className="bg-transparent text-xs font-semibold text-zinc-200 focus:outline-none cursor-pointer"
-                          title="Filtrar por Turma no Firestore (Otimização de Leituras)"
-                        >
-                          <option value="todas" className="bg-zinc-900 text-white">Todas as Turmas</option>
-                          {SCHOOL_CLASSES_CONFIG.map((group) => (
-                            <optgroup key={group.grade} label={group.grade} className="bg-zinc-900 text-zinc-400">
-                              {group.classes.map((cls) => (
-                                <option key={cls} value={cls} className="bg-zinc-900 text-white font-medium">
-                                  {cls}
-                                </option>
-                              ))}
-                            </optgroup>
-                          ))}
-                        </select>
-                      </div>
-
-                      {/* Busca Rápida por Nome/Turma */}
-                      <div className="relative flex-1 sm:w-48">
-                        <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
-                        <input
-                          type="text"
-                          placeholder="Buscar aluno..."
-                          value={searchTurma}
-                          onChange={(e) => setSearchTurma(e.target.value)}
-                          className="w-full bg-zinc-900 border border-zinc-800 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white focus:outline-none focus:border-purple-500"
-                        />
-                      </div>
-
-                      {/* Botão Explícito de Atualização Sob Demanda */}
-                      <button
-                        onClick={() => loadStudents(selectedClassFilter)}
-                        disabled={isStudentsLoading}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-950/60 hover:bg-purple-900/80 border border-purple-600/40 rounded-lg text-purple-200 text-xs font-bold transition disabled:opacity-50 shadow-sm cursor-pointer"
-                        title="Atualizar Dados da Turma no Firestore"
-                      >
-                        <RefreshCw className={`w-3.5 h-3.5 text-purple-300 ${isStudentsLoading ? 'animate-spin' : ''}`} />
-                        <span>{isStudentsLoading ? 'Atualizando...' : 'Atualizar Dados'}</span>
-                      </button>
-
-                      {/* Exportação de Boletim da Turma em CSV (0 leituras/escritas) */}
-                      <button
-                        onClick={handleExportCSV}
-                        disabled={isStudentsLoading || students.length === 0}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-950/60 hover:bg-emerald-900/80 border border-emerald-600/40 rounded-lg text-emerald-200 text-xs font-bold transition disabled:opacity-50 shadow-sm cursor-pointer"
-                        title="Exportar Boletim Escolar com PPM, Nível, Acurácia e Corridas em planilha CSV"
-                      >
-                        <Download className="w-3.5 h-3.5 text-emerald-300" />
-                        <span>Exportar Boletim (CSV)</span>
-                      </button>
-
-                      {/* Exportação Pedagógica Multi-Jogo (0 reads Firestore — turmasAggregator.ts) */}
-                      <button
-                        onClick={() => handleExportPedagogicalCSV('pedagogical')}
-                        disabled={isStudentsLoading || students.length === 0}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-950/60 hover:bg-sky-900/80 border border-sky-600/40 rounded-lg text-sky-200 text-xs font-bold transition disabled:opacity-50 shadow-sm cursor-pointer"
-                        title="Exportar dados pedagógicos de TypeClicker, Radar, Arena PvP e Corridas (por aluno) — 0 leituras Firestore"
-                      >
-                        <Download className="w-3.5 h-3.5 text-sky-300" />
-                        <span>CSV Pedagógico Multi-Jogo</span>
-                      </button>
-
-                      <button
-                        onClick={() => handleExportPedagogicalCSV('turmas')}
-                        disabled={isStudentsLoading || students.length === 0}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-950/60 hover:bg-indigo-900/80 border border-indigo-600/40 rounded-lg text-indigo-200 text-xs font-bold transition disabled:opacity-50 shadow-sm cursor-pointer"
-                        title="Exportar resumo agregado por turma com médias de todos os gêneros de jogo — 0 leituras Firestore"
-                      >
-                        <BarChart className="w-3.5 h-3.5 text-indigo-300" />
-                        <span>Resumo por Turma (CSV)</span>
-                      </button>
-
-                      {/* Equilíbrio de Classes RPG para a Turma Selecionada */}
-                      {selectedClassFilter && selectedClassFilter !== 'todas' && (
-                        <button
-                          onClick={handleAutoBalanceRpg}
-                          disabled={isAutoBalancing || isStudentsLoading || students.length === 0}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-950/60 hover:bg-amber-900/80 border border-amber-600/40 rounded-lg text-amber-200 text-xs font-bold transition disabled:opacity-50 shadow-sm cursor-pointer"
-                          title="Distribuir 1/3 Guerreiro, 1/3 Arqueiro e 1/3 Mago igualmente entre os alunos desta turma"
-                        >
-                          <Swords className={`w-3.5 h-3.5 text-amber-300 ${isAutoBalancing ? 'animate-spin' : ''}`} />
-                          <span>{isAutoBalancing ? 'Equilibrando...' : `Equilibrar Classes (${selectedClassFilter})`}</span>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="overflow-x-auto rounded-xl border border-zinc-800 bg-zinc-900/50">
-                    <table className="w-full text-left text-sm text-zinc-400">
-                      <thead className="bg-zinc-900 text-zinc-300 uppercase font-bold text-xs">
-                        <tr>
-                          <th className="px-4 py-3 border-b border-zinc-800 rounded-tl-xl">Aluno</th>
-                          <th className="px-3 py-3 border-b border-zinc-800">Turma</th>
-                          <th className="px-3 py-3 border-b border-zinc-800">Classe RPG</th>
-                          <th className="px-4 py-3 border-b border-zinc-800 text-right">Nível</th>
-                          <th className="px-4 py-3 border-b border-zinc-800 text-right">Bytes</th>
-                          <th className="px-4 py-3 border-b border-zinc-800 text-right">PPM</th>
-                          <th className="px-4 py-3 border-b border-zinc-800 text-right">Precisão</th>
-                          <th className="px-4 py-3 border-b border-zinc-800 text-center rounded-tr-xl">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {isStudentsLoading ? (
-                          <tr>
-                            <td colSpan={8} className="px-4 py-8 text-center text-zinc-500">
-                              <div className="flex items-center justify-center gap-2">
-                                <RefreshCw className="w-5 h-5 animate-spin" />
-                                Carregando dados...
-                              </div>
-                            </td>
-                          </tr>
-                        ) : filteredStudents.length === 0 ? (
-                          <tr>
-                            <td colSpan={8} className="px-4 py-8 text-center text-zinc-500">
-                              Nenhum aluno encontrado.
-                            </td>
-                          </tr>
-                        ) : (
-                          filteredStudents.map((s, idx) => (
-                            <tr key={s.userId} className={`hover:bg-zinc-800/50 transition-colors ${idx !== filteredStudents.length - 1 ? 'border-b border-zinc-800/50' : ''}`}>
-                              <td className="px-4 py-3 font-medium text-white flex items-center gap-2">
-                                <span className="text-xl leading-none">{s.nome.split(' ')[0] || 'Aluno'}</span>
-                                <div className="flex flex-col">
-                                  <div className="flex items-center gap-1.5">
-                                    <span>{s.apelido || s.nome}</span>
-                                    {s.flaggedForReview && (
-                                      <span
-                                        title={s.flagReason || 'Valores anormais detectados na sincronização.'}
-                                        className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/40 cursor-help"
-                                      >
-                                        <AlertTriangle className="w-3 h-3" />
-                                        Revisar
-                                      </span>
-                                    )}
-                                  </div>
-                                  <span className="text-xs text-zinc-600 font-mono">{s.userId.slice(0,8)}</span>
-                                </div>
-                              </td>
-
-                              {/* Turma (Reatribuível pelo Professor) */}
-                              <td className="px-3 py-2.5 font-mono">
-                                <select
-                                  value={s.turma || ''}
-                                  disabled={updatingStudentId === s.userId}
-                                  onChange={(e) => handleUpdateStudentProfile(s.userId, { turma: e.target.value })}
-                                  className="bg-zinc-950/90 border border-emerald-500/40 text-emerald-300 text-xs font-bold font-mono rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-emerald-400 cursor-pointer disabled:opacity-50"
-                                  title="Alterar Turma do Aluno"
-                                >
-                                  <option value="">Sem Turma</option>
-                                  {SCHOOL_CLASSES_CONFIG.map((group) => (
-                                    <optgroup key={group.grade} label={group.grade}>
-                                      {group.classes.map((cls) => (
-                                        <option key={cls} value={cls}>
-                                          {cls}
-                                        </option>
-                                      ))}
-                                    </optgroup>
-                                  ))}
-                                </select>
-                              </td>
-
-                              {/* Classe RPG (Reatribuível pelo Professor) */}
-                              <td className="px-3 py-2.5 font-mono">
-                                <select
-                                  value={s.rpgClass || ''}
-                                  disabled={updatingStudentId === s.userId}
-                                  onChange={(e) => handleUpdateStudentProfile(s.userId, { rpgClass: (e.target.value as RpgClassType) || undefined })}
-                                  className="bg-zinc-950/90 border border-amber-500/40 text-amber-300 text-xs font-bold font-mono rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-amber-400 cursor-pointer disabled:opacity-50"
-                                  title="Alterar Classe RPG do Aluno"
-                                >
-                                  <option value="">Sem Classe</option>
-                                  <option value="warrior">⚔️ Guerreiro</option>
-                                  <option value="archer">🏹 Arqueiro</option>
-                                  <option value="mage">🔮 Mago</option>
-                                </select>
-                              </td>
-
-                              <td className="px-4 py-3 text-right font-bold text-purple-400">{s.level}</td>
-                              <td className="px-4 py-3 text-right font-mono text-zinc-300">{formatBytes(s.points)}</td>
-                              <td className={`px-4 py-3 text-right font-mono font-bold ${s.wpm > 200 ? 'text-amber-400' : ''}`}>
-                                {s.wpm}
-                              </td>
-                              <td className="px-4 py-3 text-right font-mono">{s.accuracy}%</td>
-                              <td className="px-4 py-3 text-center">
-                                {s.flaggedForReview ? (
-                                  <span className="inline-block px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-red-500/20 text-red-400 border border-red-500/30">
-                                    Suspeito
-                                  </span>
-                                ) : (
-                                  <span className="inline-block px-2 py-0.5 rounded text-[11px] font-mono font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                                    Normal
-                                  </span>
-                                )}
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </section>
-              )}
-
+            {/* Conteúdo com Scroll */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 custom-scrollbar space-y-6">
               {/* ABA: GESTÃO DE TRIMESTRES & TEMPORADAS (SUPABASE / HALL DA FAMA) */}
               {activeTab === 'temporadas' && (
                 <section className="space-y-6">
@@ -1998,155 +903,127 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           <Trophy className="w-4 h-4 text-amber-400" />
                           <h4 className="text-sm font-bold text-white">Pódio Provisório do 3º Trimestre</h4>
                         </div>
-                        <span className="text-[11px] font-mono text-zinc-400">
-                          Classificação pelos bytes da temporada atual
-                        </span>
+                        <span className="text-xs text-zinc-500 font-mono">Candidatos ao Hall da Fama</span>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        {/* 2º Lugar */}
-                        {seasonStudents[1] && (
-                          <div className="order-2 sm:order-1 p-3.5 rounded-xl bg-zinc-900/80 border border-slate-400/30 flex items-center gap-3">
-                            <span className="text-2xl">🥈</span>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        {seasonStudents.slice(0, 3).map((st, idx) => (
+                          <div
+                            key={st.userId}
+                            className={`p-3.5 rounded-xl border flex items-center gap-3 ${
+                              idx === 0
+                                ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-200'
+                                : idx === 1
+                                ? 'bg-slate-400/10 border-slate-400/30 text-slate-200'
+                                : 'bg-orange-600/10 border-orange-500/30 text-orange-200'
+                            }`}
+                          >
+                            <span className="text-2xl font-black">{idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'}</span>
                             <div className="min-w-0 flex-1">
-                              <span className="text-[10px] font-mono font-bold text-slate-300 block">2º Lugar</span>
-                              <div className="text-sm font-bold text-white truncate">{seasonStudents[1].apelido || seasonStudents[1].nome}</div>
-                              <div className="text-[11px] font-mono text-purple-300">{formatBytes(seasonStudents[1].seasonBytes || 0)} • Turma {seasonStudents[1].turma}</div>
+                              <div className="font-bold text-white text-xs truncate">{st.apelido || st.nome}</div>
+                              <div className="text-[10px] text-zinc-400 font-mono">Turma {st.turma}</div>
+                            </div>
+                            <div className="text-right font-mono font-bold text-xs">
+                              <div>{formatBytes(st.seasonBytes || 0)}</div>
+                              <div className="text-[10px] text-zinc-500 font-normal">Nv. {st.level}</div>
                             </div>
                           </div>
-                        )}
-
-                        {/* 1º Lugar */}
-                        {seasonStudents[0] && (
-                          <div className="order-1 sm:order-2 p-3.5 rounded-xl bg-yellow-500/10 border-2 border-yellow-500/50 flex items-center gap-3 shadow-md shadow-yellow-500/10 scale-102">
-                            <span className="text-3xl">🥇</span>
-                            <div className="min-w-0 flex-1">
-                              <span className="text-[10px] font-mono font-black text-yellow-300 uppercase block">👑 Líder Atual</span>
-                              <div className="text-base font-black text-white truncate">{seasonStudents[0].apelido || seasonStudents[0].nome}</div>
-                              <div className="text-xs font-mono font-bold text-yellow-300">{formatBytes(seasonStudents[0].seasonBytes || 0)} • Turma {seasonStudents[0].turma}</div>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* 3º Lugar */}
-                        {seasonStudents[2] && (
-                          <div className="order-3 p-3.5 rounded-xl bg-zinc-900/80 border border-orange-600/30 flex items-center gap-3">
-                            <span className="text-2xl">🥉</span>
-                            <div className="min-w-0 flex-1">
-                              <span className="text-[10px] font-mono font-bold text-orange-300 block">3º Lugar</span>
-                              <div className="text-sm font-bold text-white truncate">{seasonStudents[2].apelido || seasonStudents[2].nome}</div>
-                              <div className="text-[11px] font-mono text-purple-300">{formatBytes(seasonStudents[2].seasonBytes || 0)} • Turma {seasonStudents[2].turma}</div>
-                            </div>
-                          </div>
-                        )}
+                        ))}
                       </div>
                     </div>
                   )}
 
-                  {/* Card de Ação Segura: Encerramento do Trimestre */}
-                  <div className="p-5 rounded-2xl bg-gradient-to-r from-amber-950/30 via-zinc-900/90 to-zinc-950 border border-amber-500/30 space-y-4 shadow-lg">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <Landmark className="w-5 h-5 text-yellow-400" />
-                          <h4 className="text-base font-bold text-white">Encerramento do 3º Trimestre & Gravação no Hall da Fama</h4>
-                        </div>
-                        <p className="text-xs text-zinc-300 mt-1 max-w-2xl leading-relaxed">
-                          Quando o trimestre letivo chegar ao fim, utilize esta função para arquivar formalmente as colocações de todos os alunos na tabela histórica do colégio e reiniciar a disputa para o próximo trimestre.
-                        </p>
+                  {/* Seção de Ação: Encerrar Trimestre com Modal Seguro */}
+                  <div className="p-5 rounded-2xl bg-gradient-to-r from-amber-950/40 via-zinc-900 to-black border-2 border-amber-500/40 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <Trophy className="w-5 h-5 text-amber-400" />
+                        <h4 className="font-black text-white text-base">Encerramento Oficial do Trimestre Letivo</h4>
                       </div>
-
-                      <button
-                        onClick={() => {
-                          setCloseConfirmInput('');
-                          setIsCloseModalOpen(true);
-                        }}
-                        className="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-black text-xs rounded-xl transition flex items-center gap-2 shadow-lg shadow-amber-500/20 cursor-pointer flex-shrink-0"
-                      >
-                        <Trophy className="w-4 h-4 text-black" />
-                        <span>Encerrar 3º Trimestre</span>
-                      </button>
+                      <p className="text-xs text-zinc-300 max-w-xl leading-relaxed">
+                        Ao encerrar a temporada, o pódio e o ranking consolidado serão imortalizados permanentemente na tabela <code className="text-amber-300 font-mono">season_history</code> do Supabase, disponíveis para consulta eterna no Hall da Fama pelos alunos. As pontuações <code className="text-amber-300 font-mono">season_bytes</code> serão reiniciadas para o próximo trimestre, preservando níveis e cosméticos conquistados.
+                      </p>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 border-t border-white/5 text-xs text-zinc-400">
-                      <div className="flex items-start gap-2">
-                        <span className="text-amber-400 font-bold">1.</span>
-                        <span><strong>Congela o Ranking:</strong> Todos os alunos com pontuação são registrados no histórico perpétuo com seu rank oficial.</span>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <span className="text-yellow-400 font-bold">2.</span>
-                        <span><strong>Consagra o Hall da Fama:</strong> O pódio dos 3 maiores digitadores é eternizado no memorial para toda a escola ver.</span>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <span className="text-emerald-400 font-bold">3.</span>
-                        <span><strong>Zera season_bytes:</strong> Todos começam o novo trimestre do zero. XP, conquistas e total de bytes permanecem intactos.</span>
-                      </div>
-                    </div>
+                    <button
+                      onClick={() => {
+                        setCloseConfirmInput('');
+                        setIsCloseModalOpen(true);
+                      }}
+                      className="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-black text-xs uppercase tracking-wider transition shadow-lg shadow-amber-500/30 flex items-center justify-center gap-2 cursor-pointer flex-shrink-0"
+                    >
+                      <Trophy className="w-4 h-4 text-black" />
+                      <span>Encerrar Trimestre Agora</span>
+                    </button>
                   </div>
 
-                  {/* Lista de Trimestres já Arquivados */}
+                  {/* Histórico de Temporadas Já Arquivadas */}
                   <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-zinc-300 font-bold text-sm">
-                      <History className="w-4 h-4 text-yellow-400" />
-                      <h4>Edições Arquivadas no Hall da Fama ({archivedSeasonsAdmin.length})</h4>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <History className="w-4 h-4 text-zinc-400" />
+                        <h4 className="text-sm font-bold text-zinc-200">Ciclos Anteriores Gravados no Hall da Fama</h4>
+                      </div>
+                      <span className="text-xs text-zinc-500 font-mono">{archivedSeasonsAdmin.length} arquivada(s)</span>
                     </div>
 
                     {archivedSeasonsAdmin.length === 0 ? (
-                      <div className="p-4 rounded-xl bg-zinc-900/60 border border-zinc-800 text-xs text-zinc-500 text-center">
-                        Nenhum trimestre foi encerrado ainda. O 3º Trimestre de 2026 será o pioneiro no memorial escolar.
+                      <div className="p-4 rounded-xl bg-zinc-900/50 border border-zinc-800 text-center text-xs text-zinc-500">
+                        Nenhuma temporada foi encerrada ainda. O 3º Trimestre 2026 é o primeiro ciclo a ser arquivado no novo banco relacional!
                       </div>
                     ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {archivedSeasonsAdmin.map((season) => (
-                          <div key={season.seasonId} className="p-3.5 rounded-xl bg-zinc-900/80 border border-zinc-800 flex items-center justify-between">
-                            <div className="flex items-center gap-2.5">
-                              <Landmark className="w-4 h-4 text-yellow-400 flex-shrink-0" />
-                              <div>
-                                <div className="text-xs font-bold text-white">{season.seasonName}</div>
-                                <div className="text-[10px] font-mono text-zinc-500">ID: {season.seasonId}</div>
-                              </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                        {archivedSeasonsAdmin.map((s) => (
+                          <div key={s.seasonId} className="p-3.5 rounded-xl bg-zinc-900/80 border border-zinc-800 space-y-1 font-mono text-xs">
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-amber-300">{s.seasonName}</span>
+                              <span className="text-[10px] text-zinc-500">ID: {s.seasonId}</span>
                             </div>
-                            <span className="text-[10px] font-mono text-zinc-400 bg-zinc-800 px-2 py-0.5 rounded">
-                              {new Date(season.closedAt).toLocaleDateString('pt-BR')}
-                            </span>
+                            <div className="text-[11px] text-zinc-400">
+                              Encerrado em: {new Date(s.closedAt).toLocaleDateString('pt-BR')}
+                            </div>
                           </div>
                         ))}
                       </div>
                     )}
                   </div>
 
-                  {/* Modal de Confirmação Segura de Encerramento */}
+                  {/* Modal de Confirmação Segura do Fechamento de Trimestre */}
                   <AnimatePresence>
                     {isCloseModalOpen && (
-                      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
+                      <div
+                        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
+                        onClick={() => !isClosingSeason && setIsCloseModalOpen(false)}
+                      >
                         <motion.div
                           initial={{ scale: 0.95, opacity: 0 }}
                           animate={{ scale: 1, opacity: 1 }}
                           exit={{ scale: 0.95, opacity: 0 }}
-                          className="w-full max-w-lg bg-[#12151f] border-2 border-amber-500/60 rounded-2xl p-6 shadow-2xl space-y-5"
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-full max-w-lg bg-zinc-950 border-2 border-amber-500/60 rounded-2xl p-6 shadow-2xl space-y-4"
                         >
-                          <div className="flex items-center justify-between pb-3 border-b border-white/10">
-                            <div className="flex items-center gap-2.5 text-amber-400 font-black text-base">
-                              <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0" />
-                              <span>Confirmar Encerramento de Trimestre</span>
+                          <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
+                                <Trophy className="w-5 h-5" />
+                              </div>
+                              <div>
+                                <h3 className="text-base font-black text-white">Confirmar Encerramento do Trimestre</h3>
+                                <p className="text-xs text-zinc-400 font-mono">Operação Irreversível no Hall da Fama</p>
+                              </div>
                             </div>
                             <button
                               onClick={() => setIsCloseModalOpen(false)}
                               disabled={isClosingSeason}
-                              className="text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-zinc-800 cursor-pointer"
+                              className="p-1 rounded-lg text-zinc-500 hover:text-white"
                             >
                               <X className="w-5 h-5" />
                             </button>
                           </div>
 
-                          <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-200 leading-relaxed">
-                            ⚠️ <strong>Ação de Ciclo Letivo Oficial:</strong> O encerramento disparará a RPC <code className="text-yellow-300 font-mono">close_current_season</code> no Supabase PostgreSQL. Todos os alunos pontuando serão gravados no Hall da Fama e o contador <code className="text-yellow-300 font-mono">season_bytes</code> será zerado para todos os perfis.
-                          </div>
-
-                          {/* Prévia dos 3 Campeões a serem Imortalizados */}
-                          <div className="p-3.5 rounded-xl bg-zinc-900/90 border border-zinc-800 space-y-2">
-                            <span className="text-xs font-mono font-bold uppercase text-zinc-400 block">
-                              🏆 Prévia dos Campeões que entrarão no Hall da Fama:
+                          <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl space-y-2 text-xs text-zinc-300">
+                            <span className="font-bold text-amber-300 block">
+                              Resumo do Pódio que será Imortalizado:
                             </span>
                             <div className="space-y-1.5 text-xs font-mono">
                               {seasonStudents[0] && (
@@ -2240,895 +1117,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 </section>
               )}
 
-              {/* ABA: CORRIDA DA TURMA EM TEMPO REAL */}
-              {activeTab === 'corrida' && (
-                <section className="space-y-6">
-                  {/* Cabeçalho da Aba */}
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-zinc-800 pb-3">
-                    <div>
-                      <div className="flex items-center gap-2 text-amber-400 font-bold text-lg">
-                        <Flag className="w-5 h-5" />
-                        <h3>Corrida da Turma em Tempo Real</h3>
-                        <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                          Sincronizado
-                        </span>
-                      </div>
-                      <p className="text-xs text-zinc-400 mt-0.5">
-                        Dispare uma prova de digitação com texto fixo para todos os alunos na sessão. O terminal de todos será interrompido com contagem regressiva e o primeiro a concluir 100% vence!
-                      </p>
-                    </div>
-
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {activeRace && activeRace.status !== 'cancelled' && onOpenRaceArena && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            onClose();
-                            onOpenRaceArena();
-                          }}
-                          className="px-3.5 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 font-bold text-xs transition cursor-pointer flex items-center gap-1.5"
-                          title="Fechar Painel e Visualizar Corrida como Aluno no Terminal"
-                        >
-                          <Flag className="w-4 h-4" />
-                          <span>Ver Corrida como Aluno</span>
-                        </button>
-                      )}
-
-                      {activeRace && activeRace.status !== 'cancelled' && (
-                        <button
-                          type="button"
-                          onClick={handleCancelRace}
-                          disabled={isCancellingRace}
-                          className="px-3.5 py-1.5 rounded-xl bg-red-600/20 hover:bg-red-600/30 border border-red-500/40 text-red-300 font-bold text-xs transition cursor-pointer flex items-center gap-1.5"
-                        >
-                          <X className="w-4 h-4" />
-                          <span>{isCancellingRace ? 'Cancelando...' : 'Encerrar Corrida'}</span>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {raceActionFeedback && (
-                    <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-300 font-mono text-xs font-bold flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-amber-400" />
-                      <span>{raceActionFeedback}</span>
-                    </div>
-                  )}
-
-                  {/* MONITOR DA CORRIDA ATIVA (Caso exista) */}
-                  {activeRace && activeRace.status !== 'cancelled' && (
-                    <div className="p-5 rounded-2xl bg-gradient-to-r from-amber-950/40 via-[#181308] to-black border-2 border-amber-500/60 shadow-xl space-y-4">
-                      <div className="flex items-center justify-between flex-wrap gap-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xl">🏁</span>
-                          <h4 className="text-base font-bold text-white">{activeRace.title}</h4>
-                          <span className="text-xs text-zinc-400 font-mono">({activeRace.source})</span>
-                        </div>
-
-                        <span className={`px-3 py-1 rounded-full text-xs font-black uppercase font-mono ${
-                          activeRace.status === 'countdown'
-                            ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 animate-pulse'
-                            : activeRace.status === 'in_progress'
-                            ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse'
-                            : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                        }`}>
-                          {activeRace.status === 'countdown'
-                            ? '⏳ Em Contagem Regressiva...'
-                            : activeRace.status === 'in_progress'
-                            ? '🏎️ Corrida em Andamento!'
-                            : '🏆 Corrida Concluída!'}
-                        </span>
-                      </div>
-
-                      {/* Card de Vencedor */}
-                      {activeRace.winner && (
-                        <div className="p-4 rounded-xl bg-amber-500/15 border border-amber-500/40 flex items-center justify-between flex-wrap gap-3">
-                          <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 rounded-xl bg-amber-500/30 border border-amber-400 flex items-center justify-center text-3xl shadow-md">
-                              🏆
-                            </div>
-                            <div>
-                              <span className="text-xs font-black uppercase text-amber-400 tracking-wider font-mono block">
-                                VENCEDOR DA CORRIDA
-                              </span>
-                              <span className="text-base font-black text-white">
-                                {activeRace.winner.apelido} ({activeRace.winner.nome})
-                              </span>
-                              <span className="text-xs text-zinc-300 block font-mono">
-                                Turma: {activeRace.winner.turma} • {activeRace.winner.wpm} PPM • {(activeRace.winner.timeMs / 1000).toFixed(1)}s
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="px-3 py-1.5 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-200 text-xs font-mono font-bold">
-                            Prêmio: +{formatBytes(activeRace.prizeBytes)} Bytes
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Lista de Concluintes (Pódio ao Vivo) */}
-                      {activeRace.finishers && activeRace.finishers.length > 0 && (
-                        <div className="space-y-2">
-                          <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider font-mono">
-                            Pódio de Chegada ({activeRace.finishers.length} aluno{activeRace.finishers.length > 1 ? 's' : ''}):
-                          </span>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                            {activeRace.finishers.map((f, idx) => (
-                              <div
-                                key={f.userId}
-                                className={`p-2.5 rounded-xl border flex items-center justify-between text-xs font-mono ${
-                                  idx === 0
-                                    ? 'bg-amber-500/10 border-amber-500/40 text-amber-200'
-                                    : idx === 1
-                                    ? 'bg-zinc-800/60 border-zinc-600 text-zinc-200'
-                                    : idx === 2
-                                    ? 'bg-amber-950/30 border-amber-700/50 text-amber-300'
-                                    : 'bg-zinc-900/60 border-zinc-800 text-zinc-400'
-                                }`}
-                              >
-                                <div className="flex items-center gap-2">
-                                  <span className="font-bold text-sm">
-                                    {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}º`}
-                                  </span>
-                                  <div>
-                                    <span className="font-bold text-white block">{f.apelido}</span>
-                                    <span className="text-[10px] text-zinc-400">{f.turma}</span>
-                                  </div>
-                                </div>
-                                <div className="text-right">
-                                  <span className="font-bold text-cyan-300 block">{f.wpm} PPM</span>
-                                  <span className="text-[10px] text-zinc-400">{(f.timeMs / 1000).toFixed(1)}s</span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* FORMULÁRIO DE LANÇAMENTO DE NOVA CORRIDA */}
-                  <div className="p-5 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-5">
-                    <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
-                      <div className="flex items-center gap-2 text-white font-bold text-sm">
-                        <Sparkles className="w-4 h-4 text-amber-400" />
-                        <span>Configurar e Lançar Nova Corrida</span>
-                      </div>
-                      <span className="text-xs text-zinc-500 font-mono">
-                        Texto fixo idêntico para todos os participantes
-                      </span>
-                    </div>
-
-                    {/* Catálogo de Textos Pré-Definidos */}
-                    <div className="space-y-3">
-                      {settings?.customTexts && settings.customTexts.length > 0 && (
-                        <div className="space-y-2 p-3 rounded-xl bg-indigo-950/25 border border-indigo-500/30">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
-                              <BookOpen className="w-3.5 h-3.5 text-indigo-400" />
-                              Textos Curriculares do Professor ({settings.customTexts.length})
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => setActiveTab('textos')}
-                              className="text-[11px] text-indigo-400 hover:text-indigo-200 underline cursor-pointer font-mono"
-                            >
-                              + Adicionar / Gerenciar
-                            </button>
-                          </div>
-                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                            {settings.customTexts.map((txt) => (
-                              <button
-                                key={txt.id}
-                                type="button"
-                                onClick={() => handleUseCustomTextInRace(txt)}
-                                className={`p-2.5 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between ${
-                                  selectedPresetId === txt.id
-                                    ? 'bg-indigo-500/25 border-indigo-500/80 shadow-md shadow-indigo-500/20'
-                                    : 'bg-zinc-900/70 border-zinc-700/60 hover:bg-zinc-800 text-zinc-300'
-                                }`}
-                              >
-                                <div>
-                                  <div className="flex items-center gap-1 mb-1">
-                                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                                      {txt.discipline}
-                                    </span>
-                                    {txt.targetTurma && txt.targetTurma !== 'todas' && (
-                                      <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-purple-500/20 text-purple-300">
-                                        {txt.targetTurma}
-                                      </span>
-                                    )}
-                                  </div>
-                                  <span className="text-xs font-bold text-white line-clamp-1">{txt.title}</span>
-                                </div>
-                                <span className="text-[10px] text-indigo-400 font-mono mt-1.5 font-semibold">
-                                  {txt.content.length} caracteres
-                                </span>
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      <label className="text-xs font-bold text-zinc-300 block uppercase tracking-wider font-mono">
-                        1. Escolha um Texto Literário/Pedagógico ou Crie o Seu:
-                      </label>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                        {PRESET_RACE_TEXTS.map((preset) => (
-                          <button
-                            key={preset.id}
-                            type="button"
-                            onClick={() => handleSelectPreset(preset)}
-                            className={`p-3 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between ${
-                              selectedPresetId === preset.id
-                                ? 'bg-amber-500/15 border-amber-500/60 shadow-sm'
-                                : 'bg-zinc-800/40 border-zinc-800 hover:bg-zinc-800 text-zinc-300'
-                            }`}
-                          >
-                            <div>
-                              <span className="text-xs font-bold text-white line-clamp-1">{preset.title}</span>
-                              <span className="text-[10px] text-zinc-400 line-clamp-1">{preset.source}</span>
-                            </div>
-                            <span className="text-[10px] text-amber-400 font-mono mt-2 font-semibold">
-                              {preset.text.length} caracteres
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Campos de Título e Fonte */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-xs text-zinc-400 font-mono block mb-1">Título da Prova:</label>
-                        <input
-                          type="text"
-                          value={customRaceTitle}
-                          onChange={(e) => setCustomRaceTitle(e.target.value)}
-                          className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-amber-400"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs text-zinc-400 font-mono block mb-1">Fonte / Referência:</label>
-                        <input
-                          type="text"
-                          value={customRaceSource}
-                          onChange={(e) => setCustomRaceSource(e.target.value)}
-                          className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-amber-400"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Área do Texto da Corrida */}
-                    <div>
-                      <div className="flex items-center justify-between text-xs text-zinc-400 font-mono mb-1">
-                        <label>Conteúdo do Texto a ser digitado pelos alunos:</label>
-                        <span>
-                          {customRaceText.trim().split(/\s+/).filter(Boolean).length} palavras • {customRaceText.length} caracteres
-                        </span>
-                      </div>
-                      <textarea
-                        rows={4}
-                        value={customRaceText}
-                        onChange={(e) => {
-                          setCustomRaceText(e.target.value);
-                          setSelectedPresetId('');
-                        }}
-                        className="w-full bg-zinc-950 border border-zinc-700 rounded-xl p-3 text-sm text-white font-mono leading-relaxed focus:outline-none focus:border-amber-400 custom-scrollbar"
-                        placeholder="Digite ou cole aqui o texto que todos os alunos deverão digitar..."
-                      />
-                    </div>
-
-                    {/* Opções de Turma, Contagem e Prêmio */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-zinc-800">
-                      {/* Turma Alvo */}
-                      <div>
-                        <label className="text-xs text-zinc-400 font-mono block mb-1">Turma Participante:</label>
-                        <select
-                          value={raceTargetTurma}
-                          onChange={(e) => setRaceTargetTurma(e.target.value)}
-                          className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-400 cursor-pointer"
-                        >
-                          <option value="todas">Geral (Todas as Turmas Ativas)</option>
-                          {SCHOOL_CLASSES_CONFIG.map((group) => (
-                            <optgroup key={group.grade} label={group.grade} className="bg-zinc-900 text-zinc-400">
-                              {group.classes.map((cls) => (
-                                <option key={cls} value={cls} className="bg-zinc-900 text-white font-medium">
-                                  Turma {cls}
-                                </option>
-                              ))}
-                            </optgroup>
-                          ))}
-                        </select>
-                      </div>
-
-                      {/* Tempo de Contagem Regressiva */}
-                      <div>
-                        <label className="text-xs text-zinc-400 font-mono block mb-1">Contagem Regressiva:</label>
-                        <div className="flex gap-2">
-                          {[3, 5, 10].map((sec) => (
-                            <button
-                              key={sec}
-                              type="button"
-                              onClick={() => setRaceCountdownSec(sec)}
-                              className={`flex-1 py-2 rounded-xl text-xs font-mono font-bold border transition cursor-pointer ${
-                                raceCountdownSec === sec
-                                  ? 'bg-amber-500 text-black border-amber-400'
-                                  : 'bg-zinc-950 text-zinc-300 border-zinc-700 hover:border-zinc-500'
-                              }`}
-                            >
-                              {sec}s
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Prêmio em Bytes */}
-                      <div>
-                        <label className="text-xs text-zinc-400 font-mono block mb-1">Bônus para o Vencedor:</label>
-                        <div className="flex gap-1.5">
-                          {[10000, 25000, 50000, 100000].map((amt) => (
-                            <button
-                              key={amt}
-                              type="button"
-                              onClick={() => setRacePrizeBytes(amt)}
-                              className={`flex-1 py-2 rounded-xl text-[11px] font-mono font-bold border transition cursor-pointer ${
-                                racePrizeBytes === amt
-                                  ? 'bg-emerald-500 text-black border-emerald-400'
-                                  : 'bg-zinc-950 text-zinc-300 border-zinc-700 hover:border-zinc-500'
-                              }`}
-                            >
-                              {amt >= 1000 ? `${amt / 1000}k` : amt}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Botão de Lançamento */}
-                    <div className="pt-3">
-                      <button
-                        type="button"
-                        onClick={handleLaunchRace}
-                        disabled={isLaunchingRace || !customRaceText.trim()}
-                        className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 disabled:opacity-50 text-black font-black text-sm uppercase tracking-wider transition shadow-lg shadow-amber-500/30 flex items-center justify-center gap-2 cursor-pointer"
-                      >
-                        <Flag className="w-5 h-5 text-black" />
-                        <span>{isLaunchingRace ? 'Lançando Corrida...' : '🚀 LANÇAR CORRIDA PARA OS ALUNOS AGORA'}</span>
-                      </button>
-                      <p className="text-[11px] text-zinc-500 font-mono text-center mt-2">
-                        * Ao clicar, todos os alunos conectados receberão o aviso de largada imediatamente em tela cheia.
-                      </p>
-                    </div>
-                  </div>
-                </section>
-              )}
-
-              {/* ABA: RAID COLETIVA CONTRA CHEFE EM TEMPO REAL */}
-              {activeTab === 'raid' && (
-                <section className="space-y-6">
-                  {/* Cabeçalho da Aba */}
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-zinc-800 pb-3">
-                    <div>
-                      <div className="flex items-center gap-2 text-rose-400 font-bold text-lg">
-                        <Swords className="w-5 h-5" />
-                        <h3>Raid Coletiva contra Chefe em Tempo Real</h3>
-                        <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-rose-500/20 text-rose-300 border border-rose-500/40">
-                          Multiplayer Co-op
-                        </span>
-                      </div>
-                      <p className="text-xs text-zinc-400 mt-0.5">
-                        Dispare um evento cooperativo para toda a turma! Um chefe titânico surge na tela dos alunos com HP compartilhado e contagem regressiva. Os alunos digitam juntos acumulando dano e usando as sinergias das classes RPG para derrotá-lo!
-                      </p>
-                    </div>
-
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {activeRaid && activeRaid.status === 'in_progress' && onOpenRaidArena && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            onClose();
-                            onOpenRaidArena();
-                          }}
-                          className="px-3.5 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-300 font-bold text-xs transition cursor-pointer flex items-center gap-1.5"
-                          title="Fechar Painel e Entrar na Batalha com os Alunos"
-                        >
-                          <Swords className="w-4 h-4" />
-                          <span>Entrar na Batalha</span>
-                        </button>
-                      )}
-
-                      {activeRaid && activeRaid.status === 'in_progress' && (
-                        <button
-                          type="button"
-                          onClick={handleCancelRaid}
-                          disabled={isCancellingRaid}
-                          className="px-3.5 py-1.5 rounded-xl bg-red-600/20 hover:bg-red-600/30 border border-red-500/40 text-red-300 font-bold text-xs transition cursor-pointer flex items-center gap-1.5"
-                        >
-                          <X className="w-4 h-4" />
-                          <span>{isCancellingRaid ? 'Cancelando...' : 'Encerrar Raid'}</span>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {raidActionFeedback && (
-                    <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-300 font-mono text-xs font-bold flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-rose-400" />
-                      <span>{raidActionFeedback}</span>
-                    </div>
-                  )}
-
-                  {/* MONITOR DA RAID ATIVA (se houver uma em andamento) */}
-                  {activeRaid && activeRaid.status === 'in_progress' && (
-                    <div className="p-4 rounded-2xl bg-zinc-950 border-2 border-rose-500/50 shadow-[0_0_30px_rgba(244,63,94,0.15)] relative overflow-hidden">
-                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                          <div className="text-3xl p-2 bg-zinc-900 rounded-xl border border-rose-500/30 animate-pulse">
-                            {activeRaid.bossIcon}
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 text-[10px] font-mono font-bold">
-                                EM ANDAMENTO
-                              </span>
-                              <span className="text-xs text-zinc-400 font-mono">
-                                Turma: <strong className="text-zinc-200 uppercase">{activeRaid.targetTurma}</strong>
-                              </span>
-                            </div>
-                            <h4 className="text-lg font-black text-white font-mono">{activeRaid.bossName}</h4>
-                            <p className="text-xs text-zinc-400 font-mono">{activeRaid.bossSubtitle}</p>
-                          </div>
-                        </div>
-
-                        <div className="text-right font-mono text-xs text-zinc-400">
-                          <div>Alunos Ativos: <strong className="text-indigo-400 text-sm">{Object.keys(activeRaid.participants || {}).length}</strong></div>
-                          <div>Dano Total: <strong className="text-rose-400 text-sm">{(activeRaid.totalDamageDealt || 0).toLocaleString()} HP</strong></div>
-                        </div>
-                      </div>
-
-                      {/* Barra de HP em Tempo Real */}
-                      <div className="mt-4">
-                        <div className="flex justify-between text-xs font-mono mb-1">
-                          <span className="text-rose-400 font-bold">VIDA RESTANTE DO CHEFE:</span>
-                          <span className="text-zinc-200">
-                            <strong>{activeRaid.currentHp.toLocaleString()}</strong> / {activeRaid.maxHp.toLocaleString()} HP (
-                            {Math.max(0, Math.round((activeRaid.currentHp / activeRaid.maxHp) * 100))}%)
-                          </span>
-                        </div>
-                        <div className="w-full h-3 rounded-full bg-zinc-900 overflow-hidden border border-zinc-800 p-0.5">
-                          <div
-                            className="h-full rounded-full bg-gradient-to-r from-rose-600 to-amber-500 transition-all duration-300"
-                            style={{
-                              width: `${Math.max(0, Math.min(100, Math.round((activeRaid.currentHp / activeRaid.maxHp) * 100)))}%`
-                            }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* FORMULÁRIO DE LANÇAMENTO DA RAID */}
-                  <div className="p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800 space-y-5">
-                    <div>
-                      <h4 className="text-sm font-bold text-zinc-200 font-mono flex items-center gap-2">
-                        <Flame className="w-4 h-4 text-rose-400" />
-                        1. Selecione o Chefe de Raid da Batalha:
-                      </h4>
-                      <p className="text-xs text-zinc-400 mt-1">
-                        Cada chefe possui temática própria, atributos de HP calibrados e exigências de cooperação:
-                      </p>
-                    </div>
-
-                    {/* Cards de Chefes Pré-definidos */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      {PRESET_RAID_BOSSES.map((boss) => {
-                        const isSelected = selectedRaidBossId === boss.id;
-                        return (
-                          <div
-                            key={boss.id}
-                            onClick={() => handleSelectRaidBoss(boss)}
-                            className={`p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between ${
-                              isSelected
-                                ? 'bg-rose-950/40 border-rose-500/80 shadow-[0_0_20px_rgba(244,63,94,0.25)]'
-                                : 'bg-zinc-950/60 border-zinc-800 hover:border-zinc-700'
-                            }`}
-                          >
-                            <div>
-                              <div className="flex items-center justify-between gap-2 mb-2">
-                                <span className="text-2xl">{boss.icon}</span>
-                                <span className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-700 text-[10px] font-mono text-zinc-300">
-                                  {boss.maxHp.toLocaleString()} HP
-                                </span>
-                              </div>
-                              <h5 className="font-bold text-white text-sm font-mono">{boss.name}</h5>
-                              <p className="text-[11px] text-zinc-400 font-mono mt-0.5 line-clamp-1">{boss.subtitle}</p>
-                              <p className="text-xs text-zinc-500 font-mono mt-2 line-clamp-2">{boss.description}</p>
-                            </div>
-
-                            <div className="mt-3 pt-2 border-t border-zinc-800/80 flex items-center justify-between text-[10px] font-mono text-zinc-400">
-                              <span>⏱️ {Math.floor(boss.timeLimitSeconds / 60)} min</span>
-                              <span className="text-amber-400 font-bold">+{formatBytes(boss.prizeBytes)}</span>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* Configuração de Parâmetros */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-zinc-800">
-                      {/* Turma Alvo */}
-                      <div>
-                        <label className="text-xs text-zinc-400 font-mono block mb-1">Turma Participante:</label>
-                        <select
-                          value={raidTargetTurma}
-                          onChange={(e) => setRaidTargetTurma(e.target.value)}
-                          className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-rose-400 cursor-pointer"
-                        >
-                          <option value="todas">Geral (Todas as Turmas Ativas)</option>
-                          {SCHOOL_CLASSES_CONFIG.map((group) => (
-                            <optgroup key={group.grade} label={group.grade} className="bg-zinc-900 text-zinc-400">
-                              {group.classes.map((cls) => (
-                                <option key={cls} value={cls} className="bg-zinc-900 text-white font-medium">
-                                  Turma {cls}
-                                </option>
-                              ))}
-                            </optgroup>
-                          ))}
-                        </select>
-                      </div>
-
-                      {/* Tempo Limite */}
-                      <div>
-                        <label className="text-xs text-zinc-400 font-mono block mb-1">Tempo Limite da Batalha:</label>
-                        <div className="flex gap-2">
-                          {[120, 180, 240, 300].map((sec) => (
-                            <button
-                              key={sec}
-                              type="button"
-                              onClick={() => setRaidTimeLimitSec(sec)}
-                              className={`flex-1 py-2 rounded-xl text-xs font-mono font-bold transition border cursor-pointer ${
-                                raidTimeLimitSec === sec
-                                  ? 'bg-rose-500 text-white border-rose-400 shadow-md'
-                                  : 'bg-zinc-950 text-zinc-400 border-zinc-700 hover:border-zinc-500'
-                              }`}
-                            >
-                              {sec / 60}m
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Prêmio de Vitória por Aluno */}
-                      <div>
-                        <label className="text-xs text-zinc-400 font-mono block mb-1">Prêmio de Vitória por Aluno:</label>
-                        <div className="flex gap-2">
-                          {[25000, 50000, 100000, 250000].map((amt) => (
-                            <button
-                              key={amt}
-                              type="button"
-                              onClick={() => setRaidPrizeBytes(amt)}
-                              className={`flex-1 py-2 rounded-xl text-xs font-mono font-bold transition border cursor-pointer ${
-                                raidPrizeBytes === amt
-                                  ? 'bg-amber-500 text-black border-amber-400 font-black shadow-md'
-                                  : 'bg-zinc-950 text-zinc-400 border-zinc-700 hover:border-zinc-500'
-                              }`}
-                            >
-                              {amt >= 1000 ? `${amt / 1000}k` : amt}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Botão de Lançamento */}
-                    <div className="pt-3">
-                      <button
-                        type="button"
-                        onClick={handleLaunchRaid}
-                        disabled={isLaunchingRaid}
-                        className="w-full py-3.5 rounded-xl bg-gradient-to-r from-rose-600 via-red-500 to-rose-600 hover:from-rose-500 hover:to-red-400 disabled:opacity-50 text-white font-black text-sm uppercase tracking-wider transition shadow-lg shadow-rose-600/30 flex items-center justify-center gap-2 cursor-pointer"
-                      >
-                        <Swords className="w-5 h-5 text-white" />
-                        <span>{isLaunchingRaid ? 'Iniciando Batalha...' : '🚀 LANÇAR RAID COLETIVA PARA A SALA AGORA'}</span>
-                      </button>
-                      <p className="text-[11px] text-zinc-500 font-mono text-center mt-2">
-                        * Ao clicar, todos os alunos conectados receberão o alerta de batalha com o Chefe Coletivo em tempo real.
-                      </p>
-                    </div>
-                  </div>
-                </section>
-              )}
-
-              {activeTab === 'textos' && (
-                <section className="space-y-6">
-                  {/* Cabeçalho */}
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-zinc-800 pb-3">
-                    <div>
-                      <div className="flex items-center gap-2 text-indigo-400 font-bold text-lg">
-                        <BookOpen className="w-5 h-5" />
-                        <h3>Biblioteca de Textos Curriculares do Professor</h3>
-                      </div>
-                      <p className="text-xs text-zinc-400 mt-0.5">
-                        Cadastre e organize conteúdos de História, Ciências, Geografia, Português e outras matérias para usar em treinos e corridas da turma.
-                      </p>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-mono px-3 py-1 bg-indigo-950/60 border border-indigo-500/30 text-indigo-300 rounded-lg">
-                        {settings?.customTexts?.length || 0} textos ativos
-                      </span>
-                    </div>
-                  </div>
-
-                  {textFeedback && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className={`p-3.5 rounded-xl border text-xs font-mono font-bold flex items-center gap-2 ${
-                        textFeedback.includes('Erro')
-                          ? 'bg-red-950/50 border-red-500/40 text-red-300'
-                          : 'bg-emerald-950/50 border-emerald-500/40 text-emerald-300'
-                      }`}
-                    >
-                      {textFeedback.includes('Erro') ? (
-                        <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0" />
-                      ) : (
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                      )}
-                      <span>{textFeedback}</span>
-                    </motion.div>
-                  )}
-
-                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                    {/* Formulário de Cadastro (5 colunas) */}
-                    <div className="lg:col-span-5 p-5 rounded-2xl bg-zinc-900/60 border border-indigo-500/30 space-y-4">
-                      <div className="flex items-center gap-2 pb-2 border-b border-zinc-800">
-                        <Plus className="w-4 h-4 text-indigo-400" />
-                        <h4 className="text-sm font-bold text-white">Cadastrar Novo Texto Curricular</h4>
-                      </div>
-
-                      <div className="space-y-3">
-                        <div>
-                          <label className="text-xs text-zinc-300 font-medium block mb-1">Título do Conteúdo:</label>
-                          <input
-                            type="text"
-                            placeholder="Ex: A Chegada do Homem à Lua"
-                            value={newTextTitle}
-                            onChange={(e) => setNewTextTitle(e.target.value)}
-                            className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-indigo-400"
-                          />
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="text-xs text-zinc-300 font-medium block mb-1">Disciplina / Matéria:</label>
-                            <select
-                              value={newTextDiscipline}
-                              onChange={(e) => setNewTextDiscipline(e.target.value)}
-                              className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-indigo-400 cursor-pointer"
-                            >
-                              <option value="Português">Português</option>
-                              <option value="História">História</option>
-                              <option value="Geografia">Geografia</option>
-                              <option value="Ciências">Ciências</option>
-                              <option value="Matemática">Matemática</option>
-                              <option value="Inglês">Inglês</option>
-                              <option value="Filosofia">Filosofia</option>
-                              <option value="Robótica">Robótica / TI</option>
-                              <option value="Geral">Geral / Literatura</option>
-                            </select>
-                          </div>
-
-                          <div>
-                            <label className="text-xs text-zinc-300 font-medium block mb-1">Turma Alvo:</label>
-                            <select
-                              value={newTextTurma}
-                              onChange={(e) => setNewTextTurma(e.target.value)}
-                              className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-indigo-400 cursor-pointer"
-                            >
-                              <option value="todas">Todas as Turmas</option>
-                              {SCHOOL_CLASSES_CONFIG.map((group) => (
-                                <optgroup key={group.grade} label={group.grade} className="bg-zinc-900 text-zinc-400">
-                                  {group.classes.map((cls) => (
-                                    <option key={cls} value={cls} className="bg-zinc-900 text-white">
-                                      {cls}
-                                    </option>
-                                  ))}
-                                </optgroup>
-                              ))}
-                            </select>
-                          </div>
-                        </div>
-
-                        <div>
-                          <div className="flex items-center justify-between text-xs text-zinc-400 font-mono mb-1">
-                            <label className="text-zinc-300 font-medium font-sans">Texto a Ser Digitado:</label>
-                            <span>
-                              {newTextContent.trim().split(/\s+/).filter(Boolean).length} palavras • {newTextContent.length} carac.
-                            </span>
-                          </div>
-                          <textarea
-                            rows={6}
-                            placeholder="Insira o parágrafo ou texto que os alunos irão ler e digitar durante a atividade..."
-                            value={newTextContent}
-                            onChange={(e) => setNewTextContent(e.target.value)}
-                            className="w-full bg-zinc-950 border border-zinc-700 rounded-xl p-3 text-sm text-white font-mono leading-relaxed placeholder-zinc-500 focus:outline-none focus:border-indigo-400 custom-scrollbar"
-                          />
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={handleSaveCustomText}
-                          disabled={isSavingText || !newTextTitle.trim() || !newTextContent.trim()}
-                          className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-bold text-xs uppercase tracking-wider transition shadow-md shadow-indigo-600/30 flex items-center justify-center gap-2 cursor-pointer"
-                        >
-                          <BookOpen className="w-4 h-4 text-white" />
-                          <span>{isSavingText ? 'Salvando...' : 'Salvar Texto na Biblioteca'}</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Acervo de Textos Cadastrados (7 colunas) */}
-                    <div className="lg:col-span-7 space-y-3">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                        <h4 className="text-sm font-bold text-zinc-200 flex items-center gap-2">
-                          <FileText className="w-4 h-4 text-indigo-400" />
-                          Textos Salvos no Sistema
-                        </h4>
-
-                        {/* Filtro por Disciplina */}
-                        <div className="flex items-center gap-2">
-                          <Filter className="w-3.5 h-3.5 text-zinc-400" />
-                          <select
-                            value={textFilterDiscipline}
-                            onChange={(e) => setTextFilterDiscipline(e.target.value)}
-                            className="bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1 text-xs text-zinc-300 focus:outline-none cursor-pointer"
-                          >
-                            <option value="todas">Todas as Matérias</option>
-                            <option value="Português">Português</option>
-                            <option value="História">História</option>
-                            <option value="Geografia">Geografia</option>
-                            <option value="Ciências">Ciências</option>
-                            <option value="Matemática">Matemática</option>
-                            <option value="Inglês">Inglês</option>
-                            <option value="Filosofia">Filosofia</option>
-                            <option value="Robótica">Robótica / TI</option>
-                            <option value="Geral">Geral / Literatura</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      {(!settings?.customTexts || settings.customTexts.length === 0) ? (
-                        <div className="p-8 rounded-2xl bg-zinc-900/30 border border-zinc-800 text-center space-y-2">
-                          <BookOpen className="w-8 h-8 text-zinc-600 mx-auto" />
-                          <p className="text-sm font-bold text-zinc-400">Nenhum texto cadastrado ainda.</p>
-                          <p className="text-xs text-zinc-500 max-w-sm mx-auto">
-                            Cadastre seu primeiro texto escolar no formulário ao lado para enriquecer a digitação pedagógica dos alunos.
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="space-y-2.5 max-h-[500px] overflow-y-auto pr-1 custom-scrollbar">
-                          {settings.customTexts
-                            .filter((t) => textFilterDiscipline === 'todas' || t.discipline === textFilterDiscipline)
-                            .map((t) => (
-                              <div
-                                key={t.id}
-                                className="p-3.5 rounded-xl bg-zinc-900/60 border border-zinc-800 hover:border-indigo-500/40 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                              >
-                                <div className="space-y-1 min-w-0 flex-1">
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                                      {t.discipline}
-                                    </span>
-                                    {t.targetTurma && (
-                                      <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                                        Turma: {t.targetTurma}
-                                      </span>
-                                    )}
-                                    <span className="text-[10px] text-zinc-500 font-mono">
-                                      {new Date(t.createdAt).toLocaleDateString('pt-BR')} • por {t.authorName || 'Professor'}
-                                    </span>
-                                  </div>
-                                  <h5 className="text-sm font-bold text-white truncate">{t.title}</h5>
-                                  <p className="text-xs text-zinc-400 line-clamp-2 font-mono bg-zinc-950/60 p-2 rounded-lg border border-zinc-800/80">
-                                    {t.content}
-                                  </p>
-                                  <span className="text-[10px] text-zinc-500 font-mono block">
-                                    {t.content.trim().split(/\s+/).filter(Boolean).length} palavras • {t.content.length} caracteres
-                                  </span>
-                                </div>
-
-                                <div className="flex sm:flex-col items-center sm:items-end justify-end gap-1.5 flex-shrink-0">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleUseCustomTextInRace(t)}
-                                    className="px-2.5 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
-                                    title="Carregar este texto imediatamente na Corrida da Turma"
-                                  >
-                                    <Flag className="w-3.5 h-3.5 text-amber-400" />
-                                    <span>Usar em Corrida</span>
-                                  </button>
-
-                                  <button
-                                    type="button"
-                                    onClick={() => setSelectedPreviewText(t)}
-                                    className="px-2.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
-                                  >
-                                    <Eye className="w-3.5 h-3.5" />
-                                    <span>Ler</span>
-                                  </button>
-
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDeleteCustomText(t.id)}
-                                    className="px-2 py-1.5 rounded-lg bg-red-950/30 hover:bg-red-950/60 text-red-400 border border-red-900/40 text-xs font-medium transition flex items-center gap-1 cursor-pointer"
-                                    title="Remover texto"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
-                                </div>
-                              </div>
-                            ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Modal de Leitura Completa de Texto */}
-                  {selectedPreviewText && (
-                    <div
-                      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
-                      onClick={() => setSelectedPreviewText(null)}
-                    >
-                      <div
-                        onClick={(e) => e.stopPropagation()}
-                        className="w-full max-w-lg bg-zinc-900 border border-indigo-500/50 rounded-2xl p-6 shadow-2xl space-y-4"
-                      >
-                        <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
-                          <div>
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-400 font-mono">
-                              {selectedPreviewText.discipline} • Turma {selectedPreviewText.targetTurma || 'todas'}
-                            </span>
-                            <h3 className="text-lg font-bold text-white">{selectedPreviewText.title}</h3>
-                          </div>
-                          <button
-                            onClick={() => setSelectedPreviewText(null)}
-                            className="p-1 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white"
-                          >
-                            <X className="w-5 h-5" />
-                          </button>
-                        </div>
-
-                        <div className="p-4 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-200 text-sm font-mono leading-relaxed max-h-[300px] overflow-y-auto custom-scrollbar whitespace-pre-wrap">
-                          {selectedPreviewText.content}
-                        </div>
-
-                        <div className="flex items-center justify-between pt-2">
-                          <span className="text-xs text-zinc-500 font-mono">
-                            {selectedPreviewText.content.trim().split(/\s+/).filter(Boolean).length} palavras
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              handleUseCustomTextInRace(selectedPreviewText);
-                              setSelectedPreviewText(null);
-                            }}
-                            className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-black text-xs uppercase tracking-wider transition flex items-center gap-2 cursor-pointer"
-                          >
-                            <Flag className="w-4 h-4 text-black" />
-                            <span>Lançar Corrida com Este Texto</span>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </section>
-              )}
-
+              {/* ABA: BACKUPS E RECUPERAÇÃO DO SUPABASE */}
               {activeTab === 'backups' && (
                 <section className="space-y-6">
-                  {/* Cabeçalho e Ações Principais */}
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-zinc-800 pb-3">
                     <div>
                       <div className="flex items-center gap-2 text-emerald-400 font-bold text-lg">
@@ -3151,7 +1142,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         <span>{isCreatingBackup ? 'Exportando...' : 'Exportar Snapshot JSON'}</span>
                       </button>
 
-                      {/* Botão de Upload de JSON para restauração */}
                       <input
                         ref={fileInputRef}
                         type="file"
@@ -3172,7 +1162,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                   </div>
 
-                  {/* Feedback Message */}
                   {backupActionMessage && (
                     <div
                       className={`p-3.5 rounded-xl border flex items-start gap-2.5 text-xs font-medium ${
@@ -3190,7 +1179,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                   )}
 
-                  {/* Cards Explicativos da Arquitetura de Backup */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div className="bg-zinc-900/70 border border-zinc-800 rounded-xl p-3.5">
                       <div className="text-emerald-400 font-bold text-xs flex items-center gap-1.5 mb-1">
@@ -3223,7 +1211,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                   </div>
 
-                  {/* Resumo do Último Backup Exportado nesta Sessão (se houver) */}
                   {lastBackup && (
                     <div className="p-4 bg-zinc-900/80 border border-emerald-500/30 rounded-2xl space-y-3">
                       <div className="flex items-center justify-between">
@@ -3262,19 +1249,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           <div className="text-[10px] text-zinc-400 uppercase font-bold">Temporadas</div>
                         </div>
                       </div>
-
-                      <div className="text-[11px] text-zinc-500 flex items-center justify-between pt-1 border-t border-zinc-800/50">
-                        <span>Horário: {new Date(lastBackup.createdAt).toLocaleString('pt-BR')}</span>
-                        <span className="font-mono">Versão: {lastBackup.version}</span>
-                      </div>
                     </div>
                   )}
 
-                  {/* Instruções de Recuperação e Boas Práticas */}
                   <div className="p-4 rounded-2xl bg-zinc-900/50 border border-zinc-800 text-xs text-zinc-400 space-y-2">
                     <h4 className="font-bold text-zinc-200 flex items-center gap-2">
                       <Shield className="w-4 h-4 text-emerald-400" />
-                      Boas Práticas de Backup do Educa GameHub
+                      Boas Práticas de Contingência Escolar
                     </h4>
                     <p>
                       • <strong>Recomendação de Frequência</strong>: Exporte um snapshot antes de fechamentos de bimestres, viradas de temporada ou antes de executar a limpeza na Zona de Perigo (Wipe).
@@ -3286,9 +1267,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 </section>
               )}
 
+              {/* ABA: MONITORAMENTO DE BANCO & INFRAESTRUTURA SUPABASE */}
               {activeTab === 'monitoramento' && (
                 <section className="space-y-6">
-                  {/* Cabeçalho e Controles */}
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-zinc-800 pb-3">
                     <div>
                       <div className="flex items-center gap-2 text-cyan-400 font-bold text-lg">
@@ -3301,7 +1282,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
 
                     <div className="flex items-center gap-3 w-full sm:w-auto flex-wrap">
-                      {/* Toggle Auto-Refresh */}
                       <label className="flex items-center gap-2 text-xs text-zinc-300 bg-zinc-900/90 border border-zinc-800 px-3 py-1.5 rounded-xl cursor-pointer select-none hover:border-zinc-700 transition">
                         <input
                           type="checkbox"
@@ -3327,7 +1307,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                   </div>
 
-                  {/* Status da Conexão & Latência */}
                   <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-cyan-950/20 border border-cyan-500/30 text-xs text-cyan-300/90">
                     <div className="flex items-center gap-2">
                       <span className={`w-2.5 h-2.5 rounded-full ${
@@ -3361,9 +1340,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                   )}
 
-                  {/* Grid de 4 Cards Explicativos */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {/* Card 1: Armazenamento Estimado */}
                     <div className="p-4 rounded-2xl bg-zinc-900/90 border border-zinc-800 flex flex-col justify-between shadow-sm relative overflow-hidden">
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-xs font-semibold text-zinc-400">Banco de Dados (Storage)</span>
@@ -3380,7 +1357,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           {metricsData ? `${metricsData.storage.percentUsed}% do Plano Free` : 'Aguardando...'}
                         </div>
                       </div>
-                      {/* Barra de Progresso */}
                       <div className="w-full h-2 bg-zinc-800 rounded-full mt-3 overflow-hidden">
                         <div
                           className={`h-full transition-all duration-500 rounded-full ${
@@ -3396,7 +1372,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       <span className="text-[10px] text-zinc-500 mt-2">Limite do plano gratuito: 500 MB</span>
                     </div>
 
-                    {/* Card 2: Usuários Ativos (MAU) */}
                     <div className="p-4 rounded-2xl bg-zinc-900/90 border border-zinc-800 flex flex-col justify-between shadow-sm relative overflow-hidden">
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-xs font-semibold text-zinc-400">Usuários Ativos (MAU)</span>
@@ -3413,7 +1388,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           {metricsData ? `${metricsData.mau.percentUsed}% da cota mensal` : 'Aguardando...'}
                         </div>
                       </div>
-                      {/* Barra de Progresso */}
                       <div className="w-full h-2 bg-zinc-800 rounded-full mt-3 overflow-hidden">
                         <div
                           className={`h-full transition-all duration-500 rounded-full ${
@@ -3429,11 +1403,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       <span className="text-[10px] text-zinc-500 mt-2">Limite mensal: 50.000 usuários ativos</span>
                     </div>
 
-                    {/* Card 3: Total de Alunos Cadastrados */}
                     <div className="p-4 rounded-2xl bg-zinc-900/90 border border-zinc-800 flex flex-col justify-between shadow-sm relative overflow-hidden">
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-xs font-semibold text-zinc-400">Alunos no Sistema</span>
-                        <GraduationCap className="w-4 h-4 text-cyan-400" />
+                        <Shield className="w-4 h-4 text-cyan-400" />
                       </div>
                       <div className="my-1">
                         <div className="text-2xl font-black text-cyan-300 flex items-baseline gap-1.5">
@@ -3449,7 +1422,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       </div>
                     </div>
 
-                    {/* Card 4: Total de Linhas no Banco */}
                     <div className="p-4 rounded-2xl bg-zinc-900/90 border border-zinc-800 flex flex-col justify-between shadow-sm relative overflow-hidden">
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-xs font-semibold text-zinc-400">Total de Registros</span>
@@ -3470,7 +1442,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                   </div>
 
-                  {/* Censo Detalhado por Tabela do PostgreSQL */}
                   <div className="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-4 space-y-3">
                     <div className="text-xs font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-2">
                       <Database className="w-3.5 h-3.5 text-cyan-400" />
@@ -3520,7 +1491,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                   </div>
 
-                  {/* Informações Complementares & Boas Práticas do Laboratório */}
                   <div className="p-4 rounded-2xl bg-zinc-900/50 border border-zinc-800 text-xs text-zinc-400 space-y-2">
                     <h4 className="font-bold text-zinc-200 flex items-center gap-2">
                       <Shield className="w-4 h-4 text-cyan-400" />
@@ -3530,137 +1500,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       • <strong>Consultas HEAD com Consumo Zero</strong>: As métricas de monitoramento utilizam o parâmetro HTTP <code className="text-cyan-300">head: true</code> com <code className="text-cyan-300">count: 'exact'</code>. Isso significa que apenas a contagem é calculada pelo PostgreSQL, sem transferir dados de linhas pela rede (egress 0).
                     </p>
                     <p>
-                      • <strong>Cache de 30 Segundos</strong>: O painel armazena os números em memória durante 30 segundos para evitar disparos concorrentes caso vários professores acessem a aba simultaneamente.
+                      • <strong>Cache de 30 Segundos</strong>: O painel armazena os números em memória durante 30 segundos para evitar disparos concorrentes caso vários administradores acessem a aba simultaneamente.
                     </p>
-                    <p>
-                      • <strong>Throttling de 60 segundos</strong>: Os jogos salvam em lote a cada 60s, prevenindo picos de concorrência mesmo com laboratórios inteiros digitando em alta frequência.
-                    </p>
-                  </div>
-                </section>
-              )}
-
-              {isSuperAdmin && activeTab === 'wipe' && (
-                <section className="space-y-4 max-w-xl mx-auto">
-                  <div className="flex items-center gap-2 text-red-400 font-bold border-b border-red-900/50 pb-2">
-                    <AlertTriangle className="w-5 h-5" />
-                    <h3>Zona de Perigo (Wipe do Banco de Dados)</h3>
-                  </div>
-                  
-                  <div className="space-y-2 text-sm text-zinc-400">
-                    <p>
-                      Esta ação irá reiniciar o progresso de <strong>TODOS OS ALUNOS</strong>, limpando as tabelas do Supabase (<code className="text-red-300">game_sessions</code>, <code className="text-red-300">season_history</code>, <code className="text-red-300">game_progress</code>, <code className="text-red-300">user_cosmetics</code>, <code className="text-red-300">user_achievements</code>) e zerando bytes e pontuações na tabela <code className="text-red-300">profiles</code>.
-                    </p>
-                    <p>
-                      Para evitar inconsistências ou dados fantasmas, também realizará a limpeza sincronizada das coleções legadas do Firestore (<code className="text-zinc-300">saves</code>, <code className="text-zinc-300">leaderboard</code>).
-                    </p>
-                    <div className="p-3 bg-amber-950/30 border border-amber-500/30 rounded-xl text-xs text-amber-300 flex items-center gap-2">
-                      <Shield className="w-4 h-4 flex-shrink-0 text-amber-400" />
-                      <span>As contas de <strong>professores e administradores</strong> serão preservadas com acesso intacto.</span>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    <input
-                      type="text"
-                      value={wipeConfirm}
-                      onChange={(e) => setWipeConfirm(e.target.value)}
-                      placeholder="Digite CONFIRMAR para habilitar o botão"
-                      className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-red-500"
-                    />
-                    <button
-                      onClick={handleWipe}
-                      disabled={wipeConfirm !== 'CONFIRMAR' || wipeStatus === 'loading'}
-                      className="w-full py-3 bg-red-600 hover:bg-red-500 disabled:bg-zinc-800 disabled:text-zinc-600 text-white font-bold rounded-lg transition flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                      {wipeStatus === 'loading' ? 'APAGANDO DADOS...' : 'WIPE SINCRONIZADO (SUPABASE + FIRESTORE)'}
-                    </button>
-                    
-                    {wipeStatus === 'success' && <div className="text-emerald-400 text-center text-sm font-bold">Banco de dados Supabase e registros legados limpos com sucesso.</div>}
-                    {wipeStatus === 'error' && <div className="text-red-400 text-center text-sm font-bold">Erro ao apagar banco de dados.</div>}
-                  </div>
-                </section>
-              )}
-
-              {isSuperAdmin && activeTab === 'professores' && (
-                <section className="space-y-4 max-w-xl mx-auto">
-                  <div className="flex items-center gap-2 text-sky-400 font-bold border-b border-sky-900/50 pb-2">
-                    <Users className="w-5 h-5" />
-                    <h3>Acesso de Professores</h3>
-                  </div>
-                  
-                  <p className="text-sm text-zinc-400">
-                    Insira o email Google de outros professores. Eles terão acesso a este painel para gerar Códigos de Sessão e visualizar o Progresso dos Alunos.
-                  </p>
-
-                  <div className="flex gap-2">
-                    <input
-                      type="email"
-                      value={newTeacherEmail}
-                      onChange={(e) => setNewTeacherEmail(e.target.value)}
-                      placeholder="email.do.professor@escola.pr.gov.br"
-                      className="flex-1 bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-sky-500"
-                    />
-                    <button
-                      onClick={handleAddTeacher}
-                      disabled={isUpdatingTeachers || !newTeacherEmail.includes('@')}
-                      className="px-4 py-2 bg-sky-600 hover:bg-sky-500 disabled:bg-zinc-800 disabled:text-zinc-600 text-white font-bold rounded-lg transition"
-                    >
-                      Adicionar
-                    </button>
-                  </div>
-
-                  <div className="bg-zinc-900 rounded-lg border border-zinc-800 overflow-hidden mt-4">
-                    <div className="px-4 py-2 bg-zinc-800/50 text-xs font-bold text-zinc-400 uppercase tracking-wider">
-                      Professores Autorizados
-                    </div>
-                    {(!settings?.allowedTeachers || settings.allowedTeachers.length === 0) ? (
-                      <div className="p-4 text-sm text-zinc-500 text-center">Nenhum professor adicionado ainda.</div>
-                    ) : (
-                      <ul className="divide-y divide-zinc-800">
-                        {settings.allowedTeachers.map(email => (
-                          <li key={email} className="p-4 flex items-center justify-between">
-                            <span className="text-sm font-mono text-zinc-300">{email}</span>
-                            <button
-                              onClick={() => handleRemoveTeacher(email)}
-                              disabled={isUpdatingTeachers}
-                              className="text-red-400 hover:text-red-300 p-2 rounded-lg hover:bg-red-500/10 transition"
-                              title="Remover Acesso"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-
-                  {/* Card de Higienização de Rankings */}
-                  <div className="p-4 rounded-xl bg-gradient-to-r from-zinc-900 via-[#161a22] to-zinc-900 border border-zinc-800 space-y-3 mt-6 shadow-md">
-                    <div className="flex items-center justify-between flex-wrap gap-3">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <Shield className="w-4 h-4 text-amber-400" />
-                          <h4 className="text-sm font-bold text-zinc-100">Higienização dos Rankings Escolares</h4>
-                        </div>
-                        <p className="text-xs text-zinc-400 mt-1 max-w-md">
-                          Remove retroativamente do Firestore qualquer conta de professor ou administrador que ainda conste na coleção de ranking dos alunos.
-                        </p>
-                      </div>
-                      <button
-                        onClick={handleSanitizeStaffLeaderboard}
-                        disabled={isSanitizingLeaderboard}
-                        className="px-4 py-2 bg-amber-600/20 hover:bg-amber-600/30 border border-amber-500/40 text-amber-300 font-bold text-xs rounded-lg transition flex items-center gap-2 cursor-pointer disabled:opacity-50"
-                      >
-                        <Sparkles className="w-4 h-4" />
-                        {isSanitizingLeaderboard ? 'Higienizando...' : 'Higienizar Rankings'}
-                      </button>
-                    </div>
-                    {sanitizeMessage && (
-                      <p className="text-xs font-semibold text-emerald-400 bg-emerald-950/30 border border-emerald-500/30 p-2.5 rounded-lg">
-                        {sanitizeMessage}
-                      </p>
-                    )}
                   </div>
                 </section>
               )}
@@ -3736,7 +1577,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           className="px-3 py-1.5 rounded-lg bg-emerald-950/80 hover:bg-emerald-900/90 text-emerald-200 border border-emerald-500/50 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm"
                           title="Garante que a conta do professor esteja com a turma 'Professor' no save local e na nuvem"
                         >
-                          <GraduationCap className="w-3.5 h-3.5 text-emerald-400" />
+                          <Shield className="w-3.5 h-3.5 text-emerald-400" />
                           <span>Fixar Turma: Professor</span>
                         </button>
                       </div>
@@ -3746,6 +1587,60 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       <div className="p-3 rounded-lg bg-emerald-950/70 border border-emerald-500/50 text-emerald-300 text-xs font-mono flex items-center gap-2.5 animate-fadeIn">
                         <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
                         <span>{testActionMessage}</span>
+                      </div>
+                    )}
+
+                    {/* Ações Rápidas no Perfil do Próprio Admin */}
+                    {gameState && (
+                      <div className="pt-2 border-t border-white/10">
+                        <div className="text-[11px] font-mono text-amber-400 font-bold mb-2 flex items-center gap-1">
+                          <Zap className="w-3 h-3" />
+                          <span>Ações Instantâneas no Perfil Local ({userEmail || 'Admin'}):</span>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+                          <button
+                            onClick={handleUnlockAllCosmetics}
+                            className="p-2 rounded-lg bg-zinc-900/80 hover:bg-amber-950/40 border border-amber-500/30 text-amber-300 text-xs font-bold transition cursor-pointer flex flex-col items-center text-center gap-1"
+                          >
+                            <Sparkles className="w-4 h-4 text-amber-400" />
+                            <span>Desbloquear 100% Cosméticos</span>
+                          </button>
+                          <button
+                            onClick={handleAddMaxTokens}
+                            className="p-2 rounded-lg bg-zinc-900/80 hover:bg-amber-950/40 border border-amber-500/30 text-amber-300 text-xs font-bold transition cursor-pointer flex flex-col items-center text-center gap-1"
+                          >
+                            <Coins className="w-4 h-4 text-yellow-400" />
+                            <span>+10k Tokens & Duelo</span>
+                          </button>
+                          <button
+                            onClick={handleSetLevel100}
+                            className="p-2 rounded-lg bg-zinc-900/80 hover:bg-amber-950/40 border border-amber-500/30 text-amber-300 text-xs font-bold transition cursor-pointer flex flex-col items-center text-center gap-1"
+                          >
+                            <Trophy className="w-4 h-4 text-emerald-400" />
+                            <span>Nível 100 Máximo</span>
+                          </button>
+                          <button
+                            onClick={handleSetMaxArenaRank}
+                            className="p-2 rounded-lg bg-zinc-900/80 hover:bg-amber-950/40 border border-amber-500/30 text-amber-300 text-xs font-bold transition cursor-pointer flex flex-col items-center text-center gap-1"
+                          >
+                            <Swords className="w-4 h-4 text-rose-400" />
+                            <span>Lenda Imortal Arena</span>
+                          </button>
+                          <button
+                            onClick={handleMaxAllUpgrades}
+                            className="p-2 rounded-lg bg-zinc-900/80 hover:bg-amber-950/40 border border-amber-500/30 text-amber-300 text-xs font-bold transition cursor-pointer flex flex-col items-center text-center gap-1"
+                          >
+                            <Sliders className="w-4 h-4 text-cyan-400" />
+                            <span>Upgrades Nv. 50</span>
+                          </button>
+                          <button
+                            onClick={handleResetForTesting}
+                            className="p-2 rounded-lg bg-zinc-900/80 hover:bg-red-950/40 border border-red-500/30 text-red-400 text-xs font-bold transition cursor-pointer flex flex-col items-center text-center gap-1"
+                          >
+                            <RotateCcw className="w-4 h-4 text-red-400" />
+                            <span>Resetar para Nv. 1</span>
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -3762,13 +1657,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       </span>
                     </div>
 
-                    {/* Barra de Seleção Rápida */}
                     <div className="space-y-2">
                       <label className="text-xs text-zinc-400 font-semibold block">
                         Selecione a conta que receberá os recursos:
                       </label>
                       <div className="flex flex-wrap items-center gap-2">
-                        {/* Botão Meu Perfil Admin */}
                         <button
                           onClick={() => {
                             const adminEmail = userEmail || 'wrobel.marcos@gmail.com';
@@ -3787,7 +1680,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           <span>Meu Perfil ({userEmail || 'Admin'})</span>
                         </button>
 
-                        {/* Badges de E-mails Cadastrados */}
                         {(settings?.testerEmails || []).map((tEmail) => {
                           const isSelected = targetEmail.toLowerCase() === tEmail.toLowerCase();
                           return (
@@ -3822,18 +1714,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           );
                         })}
 
-                        {/* Botão para buscar aluno existente */}
                         <button
                           onClick={() => setShowStudentPicker(!showStudentPicker)}
                           className="px-3 py-1.5 rounded-lg bg-zinc-800/80 hover:bg-zinc-750 text-sky-400 border border-sky-500/40 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
                         >
                           <Search className="w-3.5 h-3.5" />
-                          <span>Selecionar Aluno da Escola ({students.length})</span>
+                          <span>Selecionar Aluno da Escola ({studentsForPicker.length})</span>
                         </button>
                       </div>
                     </div>
 
-                    {/* Dropdown / Seletor de Alunos da Escola */}
                     {showStudentPicker && (
                       <div className="p-3 rounded-lg bg-zinc-950 border border-sky-500/40 space-y-2">
                         <div className="flex items-center justify-between">
@@ -3848,10 +1738,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           </button>
                         </div>
                         <div className="max-h-40 overflow-y-auto space-y-1">
-                          {students.length === 0 ? (
+                          {studentsForPicker.length === 0 ? (
                             <p className="text-xs text-zinc-500 py-2">Nenhum aluno com save encontrado no momento.</p>
                           ) : (
-                            students.map((st) => (
+                            studentsForPicker.map((st) => (
                               <button
                                 key={st.userId}
                                 onClick={() => {
@@ -3878,7 +1768,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       </div>
                     )}
 
-                    {/* Cadastrar / Indicar Novo E-mail */}
                     <div className="pt-2 border-t border-zinc-800 flex flex-col sm:flex-row gap-2">
                       <div className="relative flex-1">
                         <input
@@ -3900,7 +1789,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       </button>
                     </div>
 
-                    {/* Cartão de Resumo da Conta Alvo Atualmente Selecionada */}
                     <div className="p-3.5 rounded-lg bg-zinc-950 border border-amber-500/30 font-mono text-xs space-y-2">
                       <div className="flex items-center justify-between flex-wrap gap-2">
                         <div className="flex items-center gap-2">
@@ -3965,7 +1853,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
                   {/* SEÇÃO 2: CONFIGURAÇÃO DOS RECURSOS A CONCEDER */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Painel A: Subir de Nível de Forma Gradativa */}
                     <div className="p-4 rounded-xl bg-zinc-900/90 border border-emerald-500/30 space-y-3 flex flex-col justify-between">
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
@@ -3978,7 +1865,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           </span>
                         </div>
 
-                        {/* Modos: Incrementar vs Definir */}
                         <div className="flex rounded-lg bg-zinc-950 p-1 border border-zinc-800 text-xs">
                           <button
                             onClick={() => {
@@ -4008,7 +1894,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           </button>
                         </div>
 
-                        {/* Opções Rápidas de Incremento / Nível */}
                         {levelGrantMode === 'add_levels' ? (
                           <div className="space-y-2">
                             <label className="text-[11px] text-zinc-400">Escolha o salto gradativo:</label>
@@ -4080,7 +1965,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           </div>
                         )}
 
-                        {/* Prévia do Resultado do Nível */}
                         {(() => {
                           const currLvl = targetAccountInfo?.currentLevel ?? 1;
                           const targetLvl = levelGrantMode === 'add_levels'
@@ -4114,7 +1998,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       </div>
                     </div>
 
-                    {/* Painel B: Adicionar Moedas (Level Tokens & Duelo) */}
                     <div className="p-4 rounded-xl bg-zinc-900/90 border border-amber-500/30 space-y-3 flex flex-col justify-between">
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
@@ -4127,7 +2010,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           </span>
                         </div>
 
-                        {/* Moedas de Nível (Level Tokens 🪙) */}
                         <div className="space-y-1.5">
                           <div className="flex justify-between text-xs">
                             <span className="text-zinc-300 font-semibold flex items-center gap-1">
@@ -4163,7 +2045,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           </div>
                         </div>
 
-                        {/* Moedas de Duelo (Arena Coins ⚔️) */}
                         <div className="space-y-1.5 pt-2 border-t border-zinc-800">
                           <div className="flex justify-between text-xs">
                             <span className="text-zinc-300 font-semibold flex items-center gap-1">
@@ -4291,7 +2172,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </button>
                   </div>
 
-                  {/* TESTE RÁPIDO DE DESAFIOS (A CADA 10 NÍVEIS) */}
+                  {/* TESTE RÁPIDO DE DESAFIOS */}
                   {onTriggerChallenge && (
                     <div className="p-4 rounded-xl bg-gradient-to-r from-red-950/40 via-zinc-900 to-black border border-red-500/30 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-md">
                       <div>
@@ -4321,7 +2202,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                   )}
 
-                  {/* SEÇÃO 4: HISTÓRICO DE RECURSOS CONCEDIDOS (AUDIT TRAIL) */}
+                  {/* SEÇÃO 4: HISTÓRICO DE RECURSOS CONCEDIDOS */}
                   <div className="p-4 rounded-xl bg-zinc-900/90 border border-zinc-800 space-y-3">
                     <div className="flex items-center justify-between">
                       <h4 className="font-bold text-xs text-zinc-300 uppercase tracking-wider flex items-center gap-2">
@@ -4373,6 +2254,142 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             </div>
                           </div>
                         ))}
+                      </div>
+                    )}
+                  </div>
+                </section>
+              )}
+
+              {/* ABA: GESTÃO DE PROFESSORES */}
+              {isSuperAdmin && activeTab === 'professores' && (
+                <section className="space-y-4 max-w-xl mx-auto">
+                  <div className="flex items-center gap-2 text-sky-400 font-bold border-b border-sky-900/50 pb-2">
+                    <Users className="w-5 h-5" />
+                    <h3>Acesso de Professores</h3>
+                  </div>
+
+                  <p className="text-sm text-zinc-400">
+                    Insira o email Google de outros professores. Eles terão acesso ao Painel Pedagógico para gerar Códigos de Sessão, visualizar o Progresso dos Alunos e lançar Corridas e Raids da Turma.
+                  </p>
+
+                  <div className="flex gap-2">
+                    <input
+                      type="email"
+                      value={newTeacherEmail}
+                      onChange={(e) => setNewTeacherEmail(e.target.value)}
+                      placeholder="email.do.professor@escola.pr.gov.br"
+                      className="flex-1 bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-sky-500"
+                    />
+                    <button
+                      onClick={handleAddTeacher}
+                      disabled={isUpdatingTeachers || !newTeacherEmail.includes('@')}
+                      className="px-4 py-2 bg-sky-600 hover:bg-sky-500 disabled:bg-zinc-800 disabled:text-zinc-600 text-white font-bold rounded-lg transition cursor-pointer"
+                    >
+                      Adicionar
+                    </button>
+                  </div>
+
+                  <div className="bg-zinc-900 rounded-lg border border-zinc-800 overflow-hidden mt-4">
+                    <div className="px-4 py-2 bg-zinc-800/50 text-xs font-bold text-zinc-400 uppercase tracking-wider">
+                      Professores Autorizados
+                    </div>
+                    {(!settings?.allowedTeachers || settings.allowedTeachers.length === 0) ? (
+                      <div className="p-4 text-sm text-zinc-500 text-center">Nenhum professor adicionado ainda.</div>
+                    ) : (
+                      <ul className="divide-y divide-zinc-800">
+                        {settings.allowedTeachers.map((email) => (
+                          <li key={email} className="p-4 flex items-center justify-between">
+                            <span className="text-sm font-mono text-zinc-300">{email}</span>
+                            <button
+                              onClick={() => handleRemoveTeacher(email)}
+                              disabled={isUpdatingTeachers}
+                              className="text-red-400 hover:text-red-300 p-2 rounded-lg hover:bg-red-500/10 transition cursor-pointer"
+                              title="Remover Acesso"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+
+                  {/* Card de Higienização de Rankings */}
+                  <div className="p-4 rounded-xl bg-gradient-to-r from-zinc-900 via-[#161a22] to-zinc-900 border border-zinc-800 space-y-3 mt-6 shadow-md">
+                    <div className="flex items-center justify-between flex-wrap gap-3">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <Shield className="w-4 h-4 text-amber-400" />
+                          <h4 className="text-sm font-bold text-zinc-100">Higienização dos Rankings Escolares</h4>
+                        </div>
+                        <p className="text-xs text-zinc-400 mt-1 max-w-md">
+                          Remove retroativamente do Firestore qualquer conta de professor ou administrador que ainda conste na coleção de ranking dos alunos.
+                        </p>
+                      </div>
+                      <button
+                        onClick={handleSanitizeStaffLeaderboard}
+                        disabled={isSanitizingLeaderboard}
+                        className="px-4 py-2 bg-amber-600/20 hover:bg-amber-600/30 border border-amber-500/40 text-amber-300 font-bold text-xs rounded-lg transition flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                      >
+                        <Sparkles className="w-4 h-4" />
+                        {isSanitizingLeaderboard ? 'Higienizando...' : 'Higienizar Rankings'}
+                      </button>
+                    </div>
+                    {sanitizeMessage && (
+                      <p className="text-xs font-semibold text-emerald-400 bg-emerald-950/30 border border-emerald-500/30 p-2.5 rounded-lg">
+                        {sanitizeMessage}
+                      </p>
+                    )}
+                  </div>
+                </section>
+              )}
+
+              {/* ABA: ZONA DE PERIGO (WIPE) */}
+              {isSuperAdmin && activeTab === 'wipe' && (
+                <section className="space-y-4 max-w-xl mx-auto">
+                  <div className="flex items-center gap-2 text-red-400 font-bold border-b border-red-900/50 pb-2">
+                    <AlertTriangle className="w-5 h-5" />
+                    <h3>Zona de Perigo (Wipe do Banco de Dados)</h3>
+                  </div>
+
+                  <div className="space-y-2 text-sm text-zinc-400">
+                    <p>
+                      Esta ação irá reiniciar o progresso de <strong>TODOS OS ALUNOS</strong>, limpando as tabelas do Supabase (<code className="text-red-300">game_sessions</code>, <code className="text-red-300">season_history</code>, <code className="text-red-300">game_progress</code>, <code className="text-red-300">user_cosmetics</code>, <code className="text-red-300">user_achievements</code>) e zerando bytes e pontuações na tabela <code className="text-red-300">profiles</code>.
+                    </p>
+                    <p>
+                      Para evitar inconsistências ou dados fantasmas, também realizará a limpeza sincronizada das coleções legadas do Firestore (<code className="text-zinc-300">saves</code>, <code className="text-zinc-300">leaderboard</code>).
+                    </p>
+                    <div className="p-3 bg-amber-950/30 border border-amber-500/30 rounded-xl text-xs text-amber-300 flex items-center gap-2">
+                      <Shield className="w-4 h-4 flex-shrink-0 text-amber-400" />
+                      <span>As contas de <strong>professores e administradores</strong> serão preservadas com acesso intacto.</span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <input
+                      type="text"
+                      value={wipeConfirm}
+                      onChange={(e) => setWipeConfirm(e.target.value)}
+                      placeholder="Digite CONFIRMAR para habilitar o botão"
+                      className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-red-500"
+                    />
+                    <button
+                      onClick={handleWipe}
+                      disabled={wipeConfirm !== 'CONFIRMAR' || wipeStatus === 'loading'}
+                      className="w-full py-3 bg-red-600 hover:bg-red-500 disabled:bg-zinc-800 disabled:text-zinc-600 text-white font-bold rounded-lg transition flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                      {wipeStatus === 'loading' ? 'APAGANDO DADOS...' : 'WIPE SINCRONIZADO (SUPABASE + FIRESTORE)'}
+                    </button>
+
+                    {wipeStatus === 'success' && (
+                      <div className="text-emerald-400 text-center text-sm font-bold">
+                        Banco de dados Supabase e registros legados limpos com sucesso.
+                      </div>
+                    )}
+                    {wipeStatus === 'error' && (
+                      <div className="text-red-400 text-center text-sm font-bold">
+                        Erro ao apagar banco de dados.
                       </div>
                     )}
                   </div>

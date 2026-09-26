@@ -1,5 +1,5 @@
 import React from 'react';
-import { Volume2, VolumeX, BarChart3, RefreshCw, Trophy, Cloud, Pause, Play, Shield, Eye, Timer, LayoutGrid } from 'lucide-react';
+import { Volume2, VolumeX, BarChart3, RefreshCw, Trophy, Cloud, Pause, Play, Shield, Eye, Timer, LayoutGrid, GraduationCap } from 'lucide-react';
 import { GameState } from '../types';
 import { calculatePlayerRank } from '../utils/formatting';
 
@@ -18,6 +18,7 @@ interface HeaderProps {
   onOpenLevels?: () => void;
   onOpenHelp?: () => void;
   onOpenLeaderboard?: () => void;
+  onOpenPedagogical?: () => void;
   onOpenAdmin?: () => void;
   onOpenCosmetics?: () => void;
   onOpenArena?: () => void;
@@ -42,6 +43,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenStudentModal,
   onOpenLevels,
   onOpenLeaderboard,
+  onOpenPedagogical,
   onOpenAdmin,
   onOpenCosmetics,
   onOpenArena,
@@ -195,15 +197,28 @@ export const Header: React.FC<HeaderProps> = ({
             {state.soundEnabled ? <Volume2 className="w-4 h-4 text-emerald-400" /> : <VolumeX className="w-4 h-4 text-zinc-500" />}
           </button>
 
-          {/* Admin Panel Button */}
-          {isAdmin && onOpenAdmin && (
+          {/* Painel Pedagógico do Professor */}
+          {isAdmin && onOpenPedagogical && (
+            <button
+              type="button"
+              onClick={onOpenPedagogical}
+              className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-xl bg-emerald-950/60 hover:bg-emerald-900/80 text-emerald-200 border border-emerald-500/50 text-xs font-semibold transition shadow-sm cursor-pointer"
+              title="Painel Pedagógico do Professor (Sessões, Alunos, Corridas, Raids)"
+            >
+              <GraduationCap className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="hidden md:inline">Pedagógico</span>
+            </button>
+          )}
+
+          {/* Painel de Administração do Sistema (Super Admin) */}
+          {isSuperAdmin && onOpenAdmin && (
             <button
               type="button"
               onClick={onOpenAdmin}
-              className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-xl bg-rose-950/50 hover:bg-rose-900/60 text-rose-200 border border-rose-600/40 text-xs font-semibold transition shadow-sm cursor-pointer"
-              title="Painel do Professor / Administrador"
+              className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-xl bg-purple-950/60 hover:bg-purple-900/80 text-purple-200 border border-purple-500/50 text-xs font-semibold transition shadow-sm cursor-pointer"
+              title="Administração do Sistema (Super Admin)"
             >
-              <Shield className="w-3.5 h-3.5 text-rose-400" />
+              <Shield className="w-3.5 h-3.5 text-purple-400" />
               <span className="hidden md:inline">Admin</span>
             </button>
           )}
