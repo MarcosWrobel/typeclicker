@@ -65,6 +65,10 @@ export const TopPodiumWidget: React.FC<TopPodiumWidgetProps> = ({
         return `${player.pvpWins || 0} vit.`;
       case 'races':
         return `${player.raceWins || 0} vit.`;
+      case 'radar':
+        return `Onda ${player.radarBestWave || 1}`;
+      case 'dash':
+        return `${(player.dashHighScore || 0).toLocaleString()} pts`;
       default:
         return `${player.points || 0}`;
     }

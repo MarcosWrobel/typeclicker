@@ -22,6 +22,9 @@ interface RadarCanvasProps {
   shockwaveActive: boolean;
   screenShakeIntensity?: number;
   isPaused: boolean;
+  crtFxEnabled?: boolean;
+  isGlitchActive?: boolean;
+  wave?: number;
 }
 
 interface PhosphorDust {
@@ -55,7 +58,10 @@ export const RadarCanvas: React.FC<RadarCanvasProps> = ({
   freezeActive,
   shockwaveActive,
   screenShakeIntensity = 0,
-  isPaused
+  isPaused,
+  crtFxEnabled = true,
+  isGlitchActive = false,
+  wave = 1
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const sweepAngleRef = useRef<number>(0);
@@ -136,9 +142,14 @@ export const RadarCanvas: React.FC<RadarCanvasProps> = ({
         ctx.translate(shakeX, shakeY);
       }
 
-      // 1. Limpar Fundo Radar CRT
-      ctx.fillStyle = '#05080d';
-      ctx.fillRect(0, 0, width, height);
+      // 1. Limpar Fundo Radar CRT (com rastro fosforescente quando ativado)
+      if (crtFxEnabled) {
+        ctx.fillStyle = 'rgba(5, 8, 13, 0.28)';
+        ctx.fillRect(0, 0, width, height);
+      } else {
+        ctx.fillStyle = '#05080d';
+        ctx.fillRect(0, 0, width, height);
+      }
 
       // Fundo fosforescente com gradiente radial
       const bgGrad = ctx.createRadialGradient(cx, cy, 20, cx, cy, maxR);
@@ -502,23 +513,61 @@ export const RadarCanvas: React.FC<RadarCanvasProps> = ({
 
         ctx.restore();
 
+        // Efeito de Escudo Defletor de Chefão contra /NUKE
+        if (enemy.deflectActiveUntilMs && enemy.deflectActiveUntilMs > Date.now()) {
+          const deflectRemaining = enemy.deflectActiveUntilMs - Date.now();
+          const deflectAlpha = Math.min(1, deflectRemaining / 500);
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(ex, ey, 46, 0, Math.PI * 2);
+          ctx.strokeStyle = `rgba(56, 189, 248, ${deflectAlpha})`;
+          ctx.lineWidth = 3.5;
+          ctx.shadowColor = '#0284c7';
+          ctx.shadowBlur = 20;
+          ctx.stroke();
+
+          // Anel Hexagonal de Barreira Tática
+          ctx.beginPath();
+          for (let hi = 0; hi < 6; hi++) {
+            const ha = (hi * Math.PI) / 3;
+            const hx = ex + Math.cos(ha) * 40;
+            const hy = ey + Math.sin(ha) * 40;
+            if (hi === 0) ctx.moveTo(hx, hy);
+            else ctx.lineTo(hx, hy);
+          }
+          ctx.closePath();
+          ctx.strokeStyle = `rgba(244, 63, 94, ${deflectAlpha * 0.9})`;
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          ctx.restore();
+        }
+
         // 11. Caixa de Palavra Tática Flutuante com Brackets [ type-lock ]
         ctx.save();
-        ctx.font = 'bold 13px monospace';
+        const isBoss = enemy.type === 'boss';
+        const fontSize = (isTarget || isBoss) ? 17 : 15;
+        ctx.font = `bold ${fontSize}px 'JetBrains Mono', 'Fira Code', 'Courier New', monospace`;
         const textWidth = ctx.measureText(enemy.word).width;
-        const boxPadX = 10;
-        const boxPadY = 5;
-        const boxW = Math.max(textWidth + boxPadX * 2, 70);
-        const boxH = 26;
-        const boxX = ex - boxW / 2;
-        const boxY = ey - 36;
+        const boxPadX = 12;
+        // Jitter tático mecânico em momentos de dificuldade extrema (onda >= 5, boss ou escudo quebrado)
+        let jitterX = 0;
+        let jitterY = 0;
+        if (crtFxEnabled && isGlitchActive && (wave >= 5 || shield <= 0 || isBoss)) {
+          jitterX = (Math.random() - 0.5) * 3.5;
+          jitterY = (Math.random() - 0.5) * 2;
+        }
+
+        const boxW = Math.max(textWidth + boxPadX * 2, (isTarget || isBoss) ? 84 : 74);
+        const boxH = (isTarget || isBoss) ? 34 : 28;
+        const boxX = ex - boxW / 2 + jitterX;
+        const boxY = ey - 42 + jitterY;
 
         // Fundo com visual de visor holográfico
         ctx.fillStyle = isTarget
-          ? 'rgba(7, 22, 42, 0.95)'
+          ? 'rgba(7, 22, 42, 0.96)'
           : isCriticalZone
-          ? 'rgba(68, 10, 10, 0.94)'
-          : 'rgba(9, 14, 22, 0.9)';
+          ? 'rgba(68, 10, 10, 0.95)'
+          : 'rgba(9, 14, 22, 0.92)';
         ctx.beginPath();
         ctx.roundRect(boxX, boxY, boxW, boxH, 6);
         ctx.fill();
@@ -528,14 +577,14 @@ export const RadarCanvas: React.FC<RadarCanvasProps> = ({
           ? '#38bdf8'
           : isCriticalZone
           ? '#ef4444'
-          : 'rgba(16, 185, 129, 0.4)';
-        ctx.lineWidth = isTarget ? 2.2 : 1.2;
+          : 'rgba(16, 185, 129, 0.45)';
+        ctx.lineWidth = isTarget ? 2.4 : 1.4;
         ctx.shadowColor = isTarget ? '#38bdf8' : 'transparent';
-        ctx.shadowBlur = isTarget ? 12 : 0;
+        ctx.shadowBlur = isTarget ? 14 : 0;
         ctx.stroke();
 
         // Rótulo de status no topo da palavra
-        if (enemy.type === 'boss') {
+        if (isBoss) {
           ctx.font = 'bold 9px monospace';
           ctx.fillStyle = '#f43f5e';
           const bossBadge = `[ CHEFÃO: FASE ${enemy.bossHp || 1}/${enemy.bossMaxHp || 3} ]`;
@@ -559,14 +608,18 @@ export const RadarCanvas: React.FC<RadarCanvasProps> = ({
           ctx.stroke();
         }
 
-        // Renderização das letras digitadas vs restantes
-        ctx.font = 'bold 13px monospace';
+        // Renderização das letras: Digitadas / Próxima (Cursor Tático) / Restantes
+        ctx.font = `bold ${fontSize}px 'JetBrains Mono', 'Fira Code', 'Courier New', monospace`;
         const typedPart = enemy.word.slice(0, enemy.typedLength);
-        const remainingPart = enemy.word.slice(enemy.typedLength);
+        const nextChar = isTarget && enemy.typedLength < enemy.word.length ? enemy.word[enemy.typedLength] : '';
+        const remainingPart = isTarget 
+          ? enemy.word.slice(enemy.typedLength + 1)
+          : enemy.word.slice(enemy.typedLength);
 
         let currX = boxX + (boxW - textWidth) / 2;
-        const textBaselineY = boxY + 17;
+        const textBaselineY = boxY + (boxH / 2) + (fontSize * 0.35);
 
+        // 1. Letras já digitadas corretamente (Verde Esmeralda Brilhante com Glow)
         if (typedPart.length > 0) {
           ctx.fillStyle = '#34d399';
           ctx.shadowColor = '#10b981';
@@ -575,9 +628,31 @@ export const RadarCanvas: React.FC<RadarCanvasProps> = ({
           currX += ctx.measureText(typedPart).width;
         }
 
-        ctx.fillStyle = isTarget ? '#ffffff' : '#94a3b8';
-        ctx.shadowBlur = 0;
-        ctx.fillText(remainingPart, currX, textBaselineY);
+        // 2. Cursor Tático: Próxima letra imediata a teclar (Amarelo Néon com Sublinhado)
+        if (nextChar) {
+          const nextCharWidth = ctx.measureText(nextChar).width;
+          // Fundo de destaque suave sob a próxima tecla
+          ctx.fillStyle = 'rgba(251, 191, 36, 0.22)';
+          ctx.fillRect(currX - 1, boxY + 4, nextCharWidth + 2, boxH - 8);
+
+          // Sublinhado néon
+          ctx.fillStyle = '#fde047';
+          ctx.fillRect(currX - 1, textBaselineY + 3, nextCharWidth + 2, 2.5);
+
+          // Letra com glow âmbar/amarelo
+          ctx.fillStyle = '#fde047';
+          ctx.shadowColor = '#f59e0b';
+          ctx.shadowBlur = 14;
+          ctx.fillText(nextChar, currX, textBaselineY);
+          currX += nextCharWidth;
+        }
+
+        // 3. Letras restantes (Branco nítido para alvo travado, cinza de alto contraste para outros)
+        if (remainingPart.length > 0) {
+          ctx.fillStyle = isTarget ? '#f8fafc' : '#cbd5e1';
+          ctx.shadowBlur = 0;
+          ctx.fillText(remainingPart, currX, textBaselineY);
+        }
 
         ctx.restore();
       });

@@ -31,6 +31,7 @@ export interface GameSessionPayload {
   timeSpentSeconds: number;
   correctAnswers: number;
   wrongAnswers: number;
+  levelReached?: number;
   extraMetrics?: Record<string, any>;
 }
 

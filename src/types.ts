@@ -80,6 +80,8 @@ export interface GameState {
     totalGames: number;
     totalEnemiesDefeated: number;
   };
+  // Estatísticas do TyperDash (Manga Rhythm Runner)
+  dashStats?: TyperDashStats;
   // Estatísticas dos minijogos adicionais (retrocompatíveis)
   logicStats?: LogicStats;   // ByteLogic — Portas Lógicas
   mathStats?: MathStats;     // MathStorm — Aritmética Rogue-lite
@@ -186,3 +188,14 @@ export interface FloatingText {
   y: number;
   type: 'success' | 'error' | 'bonus' | 'level' | 'warning';
 }
+
+export interface TyperDashStats {
+  highScore: number;
+  maxDistance: number;
+  maxCombo: number;
+  bestAccuracy: number;
+  totalRuns: number;
+  bestClass?: string;
+  bestSkin?: string;
+}
+

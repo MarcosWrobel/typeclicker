@@ -120,6 +120,12 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
     onSelectGame('type_radar');
   };
 
+  const handlePlayTyperDash = () => {
+    if (isGameDisabled('typerdash')) return;
+    sound.playWordComplete();
+    onSelectGame('typerdash');
+  };
+
   const handlePlayTimeAttack = () => {
     if (isGameDisabled('time_attack')) return;
     sound.playWordComplete();
@@ -759,6 +765,78 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
                         title="Ver Ranking do Type: Radar"
                       >
                         <Trophy className="w-4 h-4 text-cyan-400" />
+                        <span>Ranking</span>
+                      </button>
+                    )}
+                  </div>
+                </motion.div>
+              );
+            }
+
+            // CARD: TYPERDASH (SINGLE-BEAT RHYTHM RUNNER)
+            if (game.id === 'typerdash') {
+              return (
+                <motion.div
+                  key="typerdash"
+                  whileHover={{ y: -4 }}
+                  className="group relative rounded-3xl bg-[#12151c] border-2 border-amber-500/50 hover:border-amber-400 p-6 flex flex-col justify-between shadow-[0_0_35px_rgba(245,158,11,0.15)] transition-all overflow-hidden"
+                >
+                  <div className="absolute top-0 right-0 w-44 h-44 bg-amber-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-amber-500/20 transition-colors" />
+
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                      <span className="px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/50 text-amber-300 font-mono text-[11px] font-black tracking-wider flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                        {game.badgeTag}
+                      </span>
+                      <span className="text-2xl">⚡</span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-amber-400">
+                        📚 {game.subject}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-zinc-400">
+                        🎯 {game.genre}
+                      </span>
+                    </div>
+
+                    <h2 className="text-2xl font-black text-white group-hover:text-amber-300 transition-colors tracking-tight">
+                      {game.title}
+                    </h2>
+                    <p className="text-xs font-mono text-amber-400/90 font-semibold mb-3">
+                      Por {game.author}
+                    </p>
+                    <p className="text-sm text-zinc-300 leading-relaxed mb-4">
+                      {game.description}
+                    </p>
+
+                    <div className="flex flex-wrap gap-1.5 mb-6">
+                      {game.tags?.map(t => (
+                        <span key={t} className="px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] font-mono text-zinc-300">
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-zinc-800/80 flex flex-col sm:flex-row items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handlePlayTyperDash}
+                      className="flex-1 w-full py-4 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-500 hover:from-amber-400 hover:to-orange-400 text-black font-black text-sm font-mono uppercase tracking-wider flex items-center justify-center gap-2.5 shadow-[0_0_25px_rgba(245,158,11,0.4)] transition-all cursor-pointer transform group-hover:scale-[1.02] active:scale-95"
+                    >
+                      <Play className="w-5 h-5 fill-current" />
+                      <span>JOGAR TYPERDASH</span>
+                    </button>
+                    {onOpenLeaderboardTab && (
+                      <button
+                        type="button"
+                        onClick={() => onOpenLeaderboardTab('dash')}
+                        className="w-full sm:w-auto px-4 py-4 rounded-2xl bg-amber-950/70 hover:bg-amber-900/80 border border-amber-500/50 text-amber-300 font-mono font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer hover:scale-105 active:scale-95"
+                        title="Ver Ranking do TyperDash"
+                      >
+                        <Trophy className="w-4 h-4 text-amber-400" />
                         <span>Ranking</span>
                       </button>
                     )}

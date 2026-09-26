@@ -77,6 +77,23 @@ export const INITIAL_GAME_CATALOG: GameMetadata[] = [
     tags: ['Trava de Mira', 'Comandos /NUKE', 'Cartas Roguelike']
   },
   {
+    id: 'typerdash',
+    title: 'TyperDash',
+    description: 'Rhythm runner no estilo Geometry Dash! Salte sobre espinhos neon no timing exato da Linha Guia (A S D F J K L) com batida a 130 BPM.',
+    author: 'Prof. Marcos Wrobel',
+    category: 'Oficiais',
+    subject: 'Educação Digital',
+    genre: 'Arcade',
+    coverGradient: 'from-amber-500/20 via-yellow-500/10 to-transparent',
+    borderColor: 'border-amber-500/50 hover:border-amber-400',
+    glowColor: 'bg-amber-500/10 group-hover:bg-amber-500/20',
+    badgeTag: 'NOVO RITMO',
+    icon: 'Zap',
+    isNew: true,
+    status: 'playable',
+    tags: ['130 BPM', 'Linha Guia (A S D F J K L)', 'Geometry Dash', 'Timing Windows']
+  },
+  {
     id: 'time_attack',
     title: 'Sprint Time Attack',
     description: 'Teste seus limites de digitação pura contra o cronômetro. Escolha entre 30s, 60s ou 120s e conquiste o maior WPM da sua turma.',

@@ -34,6 +34,10 @@ export interface LeaderboardEntry {
   radarBestWave?: number;
   radarHighScore?: number;
   radarMaxWpm?: number;
+  dashHighScore?: number;
+  dashMaxDistance?: number;
+  dashMaxCombo?: number;
+  dashBestClass?: string;
 }
 
 export interface Level100PioneerSlot {

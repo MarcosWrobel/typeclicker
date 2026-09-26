@@ -34,6 +34,9 @@ import { AdminPanel } from './components/AdminPanel';
 import { SessionLockOverlay } from './components/SessionLockOverlay';
 import { GameSelectionScreen } from './components/GameSelectionScreen';
 import { TypeRadarGame } from './components/games/radar/TypeRadarGame';
+import { TyperDashGame } from './components/games/typerdash';
+import { GameExitPayload, ArcadeMatchRecord, GameId } from './types/gamePlugin';
+import { normalizePluginBytes } from './utils/gameNormalizer';
 import { LevelUpOverlay } from './components/LevelUpOverlay';
 import { PauseOverlay } from './components/PauseOverlay';
 import { ChallengeArena } from './components/ChallengeArena';
@@ -79,7 +82,7 @@ import { Loader2 } from 'lucide-react';
 
 export default function App() {
   const suppressLevelUpRef = useRef<boolean>(true);
-  const [selectedGame, setSelectedGame] = useState<'typeclicker' | 'type_radar' | 'byte_logic' | 'math_storm' | 'syntax_maze' | null>(null);
+  const [selectedGame, setSelectedGame] = useState<'typeclicker' | 'type_radar' | 'typerdash' | 'byte_logic' | 'math_storm' | 'syntax_maze' | null>(null);
   const [state, setState] = useState<GameState>(() => loadSavedState());
   const [typingMode, setTypingMode] = useState<TypingMode>(state.typingMode || 'words');
   const [currentWord, setCurrentWord] = useState<string>(() => getTextForMode(state.typingMode || 'words', state.selectedCategory));
@@ -525,7 +528,12 @@ export default function App() {
     if (activeTrackRef.current !== activeCurricularTrack) {
       activeTrackRef.current = activeCurricularTrack;
       if (!drillSessionRef.current) {
-        const newWord = getRandomWord(stateRef.current.selectedCategory, currentWordRef.current, activeCurricularTrack);
+        const newWord = getTextForMode(
+          typingModeRef.current,
+          stateRef.current.selectedCategory,
+          currentWordRef.current,
+          activeCurricularTrack
+        );
         currentWordRef.current = newWord;
         setCurrentWord(newWord);
         setCharIndex(0);
@@ -891,6 +899,121 @@ export default function App() {
     spawnFloatingText('🔑 -1 Chave de Expedição utilizada', 'bonus');
     return true;
   }, [isAdmin, spawnFloatingText]);
+
+  // Handler genérico de saída de minijogos plug-in com normalização de bytes e registro atômico via RPC
+  const handleGamePluginExit = useCallback(
+    async (gameId: GameId, payload: GameExitPayload) => {
+      const normalizedBytes = normalizePluginBytes(payload);
+      const earnedTokens = Math.max(0, Math.floor(payload.levelTokensEarned || 0));
+
+      setState((prev) => {
+        let updatedRadarStats = prev.radarStats;
+        if (gameId === 'type_radar') {
+          const currentRadarStats = prev.radarStats || {
+            bestWave: 1,
+            highScore: 0,
+            maxWpm: 0,
+            totalGames: 0,
+            totalEnemiesDefeated: 0
+          };
+          const reachedWave = Number(payload.sessionStats.levelReached || payload.sessionStats.extraMetrics?.bestWave) || 1;
+          const sessionMaxWpm = Number(payload.sessionStats.extraMetrics?.maxWpm) || 0;
+          const defeated = Number(payload.sessionStats.extraMetrics?.enemiesDefeated || payload.sessionStats.correctAnswers) || 0;
+
+          updatedRadarStats = {
+            bestWave: Math.max(currentRadarStats.bestWave, reachedWave),
+            highScore: Math.max(currentRadarStats.highScore, payload.sessionStats.score),
+            maxWpm: Math.max(currentRadarStats.maxWpm, sessionMaxWpm),
+            totalGames: currentRadarStats.totalGames + 1,
+            totalEnemiesDefeated: currentRadarStats.totalEnemiesDefeated + defeated
+          };
+        }
+
+        const currentCosmetics = prev.cosmetics || { ...DEFAULT_COSMETICS };
+        let updatedDashStats = prev.dashStats;
+        if (gameId === 'typerdash') {
+          const currentDashStats = prev.dashStats || {
+            highScore: 0,
+            maxDistance: 0,
+            maxCombo: 0,
+            bestAccuracy: 0,
+            totalRuns: 0
+          };
+          const runScore = payload.sessionStats.score;
+          const runDistance = Number(payload.sessionStats.extraMetrics?.distanceMeters) || 0;
+          const runCombo = Number(payload.sessionStats.extraMetrics?.maxCombo) || 0;
+          const runAccuracy = payload.sessionStats.accuracyPercentage || 0;
+          const runClass = String(payload.sessionStats.extraMetrics?.studentClass || '');
+
+          updatedDashStats = {
+            highScore: Math.max(currentDashStats.highScore, runScore),
+            maxDistance: Math.max(currentDashStats.maxDistance, runDistance),
+            maxCombo: Math.max(currentDashStats.maxCombo, runCombo),
+            bestAccuracy: Math.max(currentDashStats.bestAccuracy, runAccuracy),
+            totalRuns: currentDashStats.totalRuns + 1,
+            bestClass: runScore >= currentDashStats.highScore ? (runClass || currentDashStats.bestClass) : currentDashStats.bestClass,
+            bestSkin: currentCosmetics.equippedSkin || 'classic'
+          };
+        }
+
+        // Registra partida no histórico arcade (array circular, máx 10)
+        const newRecord: ArcadeMatchRecord = {
+          gameId,
+          score: payload.sessionStats.score,
+          wave: payload.sessionStats.levelReached || (payload.sessionStats.extraMetrics?.bestWave as number) || undefined,
+          wpm: Number(payload.sessionStats.extraMetrics?.maxWpm) || 0,
+          accuracy: payload.sessionStats.accuracyPercentage,
+          bytesEarned: normalizedBytes,
+          playedAt: Date.now()
+        };
+        const prevHistory = Array.isArray(prev.arcadeHistory) ? prev.arcadeHistory : [];
+        const updatedHistory = [...prevHistory, newRecord].slice(-10);
+
+        const updated: GameState = {
+          ...prev,
+          bytes: prev.bytes + normalizedBytes,
+          totalBytesEarned: prev.totalBytesEarned + normalizedBytes,
+          cosmetics: {
+            ...currentCosmetics,
+            levelTokens: (currentCosmetics.levelTokens || 0) + earnedTokens
+          },
+          radarStats: updatedRadarStats,
+          dashStats: updatedDashStats,
+          arcadeHistory: updatedHistory
+        };
+
+        saveState(updated, auth.currentUser?.uid);
+
+        if (auth.currentUser) {
+          dbService.saveLegacyGameState(auth.currentUser.uid, updated).catch(console.error);
+
+          const sessionPayload: import('./services/dbInterface').GameSessionPayload = {
+            score: payload.sessionStats.score,
+            accuracyPercentage: payload.sessionStats.accuracyPercentage,
+            timeSpentSeconds: payload.sessionStats.timeSpentSeconds,
+            correctAnswers: payload.sessionStats.correctAnswers,
+            wrongAnswers: payload.sessionStats.wrongAnswers,
+            levelReached: payload.sessionStats.levelReached,
+            extraMetrics: payload.sessionStats.extraMetrics
+          };
+          dbService.recordGameSession(auth.currentUser.uid, gameId, normalizedBytes, sessionPayload).catch((err) => {
+            console.warn('Erro ao registrar sessão atômica de jogo via RPC:', err);
+          });
+        }
+
+        return updated;
+      });
+
+      if (normalizedBytes > 0) {
+        spawnFloatingText(`✨ +${formatBytes(normalizedBytes)} Bytes Conquistados!`, 'bonus');
+      }
+      if (earnedTokens > 0) {
+        spawnFloatingText(`🪙 +${earnedTokens} Ficha${earnedTokens > 1 ? 's' : ''}!`, 'bonus');
+      }
+      setSelectedGame(null);
+    },
+    [spawnFloatingText]
+  );
 
   // Recompensa do Minigame Baú Criptográfico da Masmorra
   const handleChestReward = useCallback(
@@ -2334,6 +2457,8 @@ export default function App() {
               setSelectedGame('typeclicker');
             } else if (gameId === 'type_radar') {
               setSelectedGame('type_radar');
+            } else if (gameId === 'typerdash') {
+              setSelectedGame('typerdash');
             } else if (gameId === 'time_attack') {
               setSelectedGame('typeclicker');
               setIsTimeAttackOpen(true);
@@ -2437,76 +2562,40 @@ export default function App() {
           studentName={state.studentNickname || state.studentName || user?.displayName || 'Operador'}
           activeTrack={activeCurricularTrack}
           equippedSkin={currentCosmetics.equippedSkin || 'classic'}
+          accessibility={state.accessibility}
           onOpenLeaderboardTab={() => handleOpenLeaderboardTab('radar')}
-          onExitToHub={async (bytesEarned, endStats) => {
-            setState((prev) => {
-              const currentRadarStats = prev.radarStats || {
-                bestWave: 1,
-                highScore: 0,
-                maxWpm: 0,
-                totalGames: 0,
-                totalEnemiesDefeated: 0
-              };
-              const updatedRadarStats = endStats ? {
-                bestWave: Math.max(currentRadarStats.bestWave, endStats.bestWave),
-                highScore: Math.max(currentRadarStats.highScore, endStats.score),
-                maxWpm: Math.max(currentRadarStats.maxWpm, endStats.maxWpm),
-                totalGames: currentRadarStats.totalGames + 1,
-                totalEnemiesDefeated: currentRadarStats.totalEnemiesDefeated + endStats.enemiesDefeated
-              } : currentRadarStats;
+          onExitToHub={(payload) => handleGamePluginExit('type_radar', payload)}
+        />
 
-              // Registra partida no histórico arcade (array circular, máx 10)
-              const newRecord = endStats ? {
-                gameId: 'type_radar' as const,
-                score: endStats.score,
-                wave: endStats.bestWave,
-                wpm: endStats.maxWpm,
-                accuracy: bytesEarned > 0 ? Math.round((endStats.score / Math.max(endStats.score + 1, 1)) * 100) : 0,
-                bytesEarned,
-                playedAt: Date.now()
-              } : null;
-              const prevHistory = Array.isArray(prev.arcadeHistory) ? prev.arcadeHistory : [];
-              const updatedHistory = newRecord
-                ? [...prevHistory, newRecord].slice(-10)
-                : prevHistory;
+        <LeaderboardModal
+          isOpen={isLeaderboardOpen}
+          onClose={() => setIsLeaderboardOpen(false)}
+          currentUserId={user?.uid}
+          currentUserClass={state.studentClass}
+          initialTab={leaderboardInitialTab}
+        />
+      </>
+    );
+  }
 
-              const updated: GameState = {
-                ...prev,
-                bytes: prev.bytes + bytesEarned,
-                totalBytesEarned: prev.totalBytesEarned + bytesEarned,
-                radarStats: updatedRadarStats,
-                arcadeHistory: updatedHistory.length > 0 ? updatedHistory : undefined
-              };
-              saveState(updated, auth.currentUser?.uid);
-              if (auth.currentUser) {
-                dbService.saveLegacyGameState(auth.currentUser.uid, updated).catch(console.error);
-
-                if (endStats) {
-                  const sessionPayload: import('./services/dbInterface').GameSessionPayload = {
-                    score: endStats.score,
-                    accuracyPercentage: bytesEarned > 0 ? Math.round((endStats.score / Math.max(endStats.score + 1, 1)) * 100) : 0,
-                    timeSpentSeconds: 0,
-                    correctAnswers: endStats.enemiesDefeated,
-                    wrongAnswers: 0,
-                    extraMetrics: {
-                      bestWave: endStats.bestWave,
-                      maxWpm: endStats.maxWpm,
-                      enemiesDefeated: endStats.enemiesDefeated
-                    }
-                  };
-                  dbService.recordGameSession(auth.currentUser.uid, 'type_radar', bytesEarned, sessionPayload).catch((err) => {
-                    console.warn('Erro ao registrar sessão atômica de jogo via RPC:', err);
-                  });
-                }
-              }
-              return updated;
+  // Jogo Standalone: TyperDash (Single-Beat Rhythm Runner)
+  if (selectedGame === 'typerdash') {
+    return (
+      <>
+        <TyperDashGame
+          studentClass={state.rpgClass}
+          difficultyMultiplier={1.0}
+          equippedSkin={currentCosmetics.equippedSkin || 'classic'}
+          unlockedSkins={currentCosmetics.unlockedSkins || ['classic']}
+          onEquipSkin={(skinId) => {
+            handleUpdateCosmetics({
+              ...currentCosmetics,
+              equippedSkin: skinId
             });
-            if (bytesEarned > 0) {
-              spawnFloatingText(`✨ +${formatBytes(bytesEarned)} Bytes do Radar Conquistados!`, 'bonus');
-            }
-            setSelectedGame(null);
           }}
-
+          dashStats={state.dashStats}
+          onOpenLeaderboardTab={handleOpenLeaderboardTab}
+          onExitToHub={(payload) => handleGamePluginExit('typerdash', payload)}
         />
 
         <LeaderboardModal

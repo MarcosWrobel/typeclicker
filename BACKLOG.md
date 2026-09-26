@@ -4,6 +4,10 @@
 
 | Feature | Dados DB (Supabase / Legado Firestore) | Telas / Arquivos | Complexidade | Status |
 |---|---|---|---|---|
+| **[BUG]** Corrigir `hackTokens` → `cosmetics.levelTokens` no Baú Criptográfico | `game_progress.state_payload` / `saves/{uid}` | `App.tsx`, `storage.ts` | P | **Concluído** |
+| **[DÉBITO]** Migrar `TypeRadarGame.onExitToHub` para novo `GameExitPayload` | `game_progress.state_payload.arcadeHistory` | `App.tsx`, `TypeRadarGame.tsx` | P | **Concluído** |
+| **[DÉBITO]** Implementar normalização de bytes no Hub para jogos plug-in | nenhum (lógica pura) | `App.tsx`, `gameNormalizer.ts` | P | **Concluído** |
+| **[CURRÍCULO]** Finalizar trilhas curriculares (Scratch, Web, Empresarial, Inglês) em Palavras, Frases e Código | `system/settings.activeTrack` | `words.ts`, `codeSnippets.ts`, `App.tsx` | M | **Concluído** |
 | **[ANTI-CHEAT]** Chamada atômica de ganho de bytes via RPC `record_game_session` | RPC `record_game_session` (PostgreSQL) / Firestore fallback | `dbInterface.ts`, `supabaseAdapter.ts`, `firebaseAdapter.ts`, `App.tsx` | P | **Concluído** |
 | **[A11Y/TECLADO]** Detecção global de Caps Lock e aviso pedagógico de Maiúscula/Minúscula em todas as 9 arenas | nenhum (lógica pura client-side) | `keyboardCase.ts`, `CapsLockWarning.tsx`, todas as arenas | M | **Concluído (`39aef74`)** |
 | **[UX/DIGITAÇÃO]** Terminal adaptativo com auto-scroll em frases/códigos e Dead Keys no Modo Foco | nenhum (lógica pura client-side) | `TypingArena.tsx`, `FocusDrillModal.tsx`, `App.tsx` | M | **Concluído (`4ec9cad`)** |
@@ -11,6 +15,7 @@
 | **[TEMPORADAS]** Suporte a Temporadas Trimestrais no Supabase | `public.profiles(season_bytes)`, `public.seasons_history` | `schema.sql`, `supabaseAdapter.ts`, `dbInterface.ts` | M | **Concluído (`2924470`)** |
 | **[ADMIN]** Painel Docente: Fechamento Seguro de Trimestre com Confirmação | RPC `close_current_season` | `AdminPanel.tsx` | M | **Concluído (`2924470`)** |
 | **[LEADERBOARD]** Seletor de "3º Trimestre (Atual) | Todos os Tempos | Hall da Fama" | `public.profiles.season_bytes`, `public.seasons_history` | `LeaderboardModal.tsx` | M | **Concluído (`2924470`)** |
+| **[JOGO/RITMO]** Construção e Integração do `TyperDash` (Single-Beat Rhythm Runner) | `public.profiles`, `gamePlugin.ts` | `TyperDashGame.tsx`, `TyperDashCanvas.tsx`, `typerDashAudio.ts`, `gameCatalog.ts`, `App.tsx` | G | **Concluído** |
 
 ---
 
@@ -24,10 +29,7 @@
 ### P2 — Débitos Técnicos e Trilhas Curriculares
 | Feature | Dados DB (Supabase / Legado Firestore) | Telas afetadas | Complexidade | Status |
 |---|---|---|---|---|
-| **[BUG]** Corrigir `hackTokens` → `cosmetics.levelTokens` no Baú Criptográfico | `game_progress.state_payload` / `saves/{uid}` | `App.tsx:905` | P | Bug confirmado |
-| **[DÉBITO]** Migrar `TypeRadarGame.onExitToHub` para novo `GameExitPayload` | `game_progress.state_payload.arcadeHistory` | `App.tsx`, `TypeRadarGame.tsx` | P | Débito técnico |
-| **[DÉBITO]** Implementar normalização de bytes no Hub para jogos plug-in | nenhum (lógica pura) | `App.tsx` (handler de saída de plug-ins) | P | Débito técnico |
-| Finalizar trilhas curriculares (Scratch, Web, Empresarial, Inglês) | `system/settings.activeTrack` | `words.ts`, `App.tsx` | M | Em andamento |
+| *(Nenhuma pendência imediata em P2)* | - | - | - | Em dia |
 
 ### P3 — Novos Jogos e Expansão do Hub
 | Feature | Dados DB (Supabase / Legado Firestore) | Telas afetadas | Complexidade | Status |

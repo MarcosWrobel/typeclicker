@@ -4,7 +4,7 @@ import { isStaffMember, extractLevel100Pioneers } from '../utils/leaderboardUtil
 import { dbService } from '../services/dbFactory';
 import { LeaderboardMetric } from '../components/LeaderboardModal';
 
-const METRIC_ORDER: LeaderboardMetric[] = ['level', 'wpm', 'combo', 'bytes', 'pvp', 'races'];
+const METRIC_ORDER: LeaderboardMetric[] = ['level', 'wpm', 'combo', 'bytes', 'pvp', 'races', 'dash'];
 const ROTATION_INTERVAL_SEC = 12; // 12 segundos por ranking (custo zero de banco)
 const CLOUD_SYNC_INTERVAL_SEC = 180; // 3 minutos para nova consulta ao Firestore (Spark-Safe)
 
@@ -126,7 +126,8 @@ export function useLeaderboardPodium(): UseLeaderboardPodiumReturn {
       bytes: [],
       radar: [],
       pvp: [],
-      races: []
+      races: [],
+      dash: []
     };
 
     if (allPlayers.length === 0) return map;
@@ -193,6 +194,19 @@ export function useLeaderboardPodium(): UseLeaderboardPodiumReturn {
         const scoreB = b.radarHighScore || 0;
         if (scoreB !== scoreA) return scoreB - scoreA;
         return (b.radarMaxWpm || 0) - (a.radarMaxWpm || 0);
+      })
+      .slice(0, 3);
+
+    // 8. TyperDash (Manga Rhythm Runner)
+    map.dash = [...allPlayers]
+      .sort((a, b) => {
+        const scoreA = a.dashHighScore || 0;
+        const scoreB = b.dashHighScore || 0;
+        if (scoreB !== scoreA) return scoreB - scoreA;
+        const distA = a.dashMaxDistance || 0;
+        const distB = b.dashMaxDistance || 0;
+        if (distB !== distA) return distB - distA;
+        return (b.dashMaxCombo || 0) - (a.dashMaxCombo || 0);
       })
       .slice(0, 3);
 

@@ -43,7 +43,7 @@ import {
   ClassRankingSortMetric
 } from '../utils/turmasAggregator';
 
-export type LeaderboardMetric = 'level' | 'wpm' | 'combo' | 'bytes' | 'radar' | 'pvp' | 'races';
+export type LeaderboardMetric = 'level' | 'wpm' | 'combo' | 'bytes' | 'radar' | 'pvp' | 'races' | 'dash';
 
 interface MetricTabDef {
   id: LeaderboardMetric;
@@ -166,11 +166,27 @@ export const METRIC_TABS: MetricTabDef[] = [
     title: 'RANKING TYPE: RADAR',
     badgeTag: '🛰️ Maior Onda & Score',
     description: 'Classificação por maior onda alcançada e pontuação no Type: Radar'
+  },
+  {
+    id: 'dash',
+    label: 'TyperDash',
+    shortLabel: 'TyperDash',
+    icon: Zap,
+    color: 'text-amber-400',
+    badgeBg: 'bg-amber-500/20',
+    badgeBorder: 'border-amber-500/40',
+    badgeText: 'text-amber-300',
+    activeBorder: 'border-amber-500/50',
+    activeGlow: 'shadow-[0_0_50px_rgba(245,158,11,0.25)]',
+    title: 'RANKING TYPERDASH (CEL-SHADED MANGA)',
+    badgeTag: '⚡ High Score & Distância',
+    description: 'Classificação por maior pontuação e metros percorridos no TyperDash'
   }
 ];
 
 const normalizeTab = (tab?: string): LeaderboardMetric => {
   if (!tab || tab === 'points') return 'level';
+  if (tab === 'dash' || tab === 'typerdash') return 'dash';
   if (tab === 'level' || tab === 'wpm' || tab === 'combo' || tab === 'bytes' || tab === 'radar' || tab === 'pvp' || tab === 'races') {
     return tab;
   }
@@ -435,6 +451,17 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
           const scoreB = b.radarHighScore || 0;
           if (scoreB !== scoreA) return scoreB - scoreA;
           return (b.radarMaxWpm || 0) - (a.radarMaxWpm || 0);
+        });
+
+      case 'dash':
+        return list.sort((a, b) => {
+          const scoreA = a.dashHighScore || 0;
+          const scoreB = b.dashHighScore || 0;
+          if (scoreB !== scoreA) return scoreB - scoreA;
+          const distA = a.dashMaxDistance || 0;
+          const distB = b.dashMaxDistance || 0;
+          if (distB !== distA) return distB - distA;
+          return (b.dashMaxCombo || 0) - (a.dashMaxCombo || 0);
         });
 
       default:
@@ -1532,6 +1559,11 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                                   🛰️ Onda {player.radarBestWave || 1} • {(player.radarHighScore || 0).toLocaleString()} pts
                                 </span>
                               )}
+                              {activeRankTab === 'dash' && (
+                                <span className="text-[11px] text-amber-300/90 font-mono">
+                                  ⚡ {(player.dashHighScore || 0).toLocaleString()} pts • {player.dashMaxDistance || 0}m
+                                </span>
+                              )}
                               {activeRankTab === 'level' && (
                                 <span className="text-[11px] text-emerald-300/90 font-mono">
                                   Nv. {player.level}
@@ -1670,6 +1702,27 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                               </span>
                             </div>
                           </div>
+                        ) : activeRankTab === 'dash' ? (
+                          <div className="hidden sm:flex items-center gap-4 sm:gap-6 shrink-0">
+                            <div className="flex flex-col items-end">
+                              <span className="text-[10px] text-amber-400 uppercase font-bold tracking-wider">High Score</span>
+                              <span className="font-mono font-black text-amber-300 text-sm flex items-center gap-1">
+                                ⚡ {(player.dashHighScore || 0).toLocaleString()} pts
+                              </span>
+                            </div>
+                            <div className="flex flex-col items-end">
+                              <span className="text-[10px] text-cyan-400 uppercase font-bold tracking-wider">Distância</span>
+                              <span className="font-mono font-bold text-cyan-300 text-sm">
+                                {player.dashMaxDistance ? `${player.dashMaxDistance}m` : '-'}
+                              </span>
+                            </div>
+                            <div className="flex flex-col items-end w-20">
+                              <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Combo Max</span>
+                              <span className="font-mono font-bold text-emerald-400 text-sm">
+                                {player.dashMaxCombo ? `${player.dashMaxCombo}x` : '-'}
+                              </span>
+                            </div>
+                          </div>
                         ) : (
                           // Nível / Geral
                           <div className="hidden sm:flex items-center gap-4 sm:gap-6 shrink-0">
@@ -1747,6 +1800,15 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                             </span>
                             <span className="font-mono font-bold text-amber-300 text-[11px]">
                               {(player.radarHighScore || 0).toLocaleString()} pts
+                            </span>
+                          </div>
+                        ) : activeRankTab === 'dash' ? (
+                          <div className="sm:hidden flex flex-col items-end shrink-0 text-right">
+                            <span className="font-mono font-black text-amber-400 text-xs">
+                              ⚡ {(player.dashHighScore || 0).toLocaleString()} pts
+                            </span>
+                            <span className="font-mono font-bold text-cyan-300 text-[11px]">
+                              {player.dashMaxDistance ? `${player.dashMaxDistance}m` : '-'}
                             </span>
                           </div>
                         ) : (
@@ -1850,6 +1912,8 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                         ? 'Participe de corridas em sala de aula para pontuar no ranking!'
                         : activeRankTab === 'pvp'
                         ? 'Participe de duelos na Arena 1x1 para ingressar no ranking!'
+                        : activeRankTab === 'dash'
+                        ? 'Jogue o TyperDash para registrar seu recorde de pontuação e distância!'
                         : 'Pratique no terminal para ingressar no ranking escolar!'}
                     </span>
                   )}

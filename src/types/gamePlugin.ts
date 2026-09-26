@@ -6,11 +6,13 @@ import { RpgClassType } from './rpgClass';
 export type GameId =
   | 'typeclicker'
   | 'type_radar'
+  | 'typerdash'
   | 'byte_logic'
   | 'math_storm'
   | 'syntax_maze';
 
 export type StudentRpgClass = RpgClassType; // alias pedagógico para o guia dos alunos
+export type GamePluginProps = BaseGameProps;
 
 // ─────────────────────────────────────────────────────────────
 // Métricas brutas de uma sessão de jogo.

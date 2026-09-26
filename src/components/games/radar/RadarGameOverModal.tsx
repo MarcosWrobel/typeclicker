@@ -15,9 +15,12 @@ interface RadarGameOverModalProps {
   wpm: number;
   peakWpm: number;
   worstKey: { key: string; count: number } | null;
+  scrapEarned?: number;
+  totalScrap?: number;
   onRestart: () => void;
   onExitToHub: () => void;
   onOpenLeaderboard?: () => void;
+  onOpenHangar?: () => void;
 }
 
 export const RadarGameOverModal: React.FC<RadarGameOverModalProps> = ({
@@ -31,9 +34,12 @@ export const RadarGameOverModal: React.FC<RadarGameOverModalProps> = ({
   wpm,
   peakWpm,
   worstKey,
+  scrapEarned = 0,
+  totalScrap = 0,
   onRestart,
   onExitToHub,
-  onOpenLeaderboard
+  onOpenLeaderboard,
+  onOpenHangar
 }) => {
   if (!isOpen) return null;
 
@@ -66,21 +72,27 @@ export const RadarGameOverModal: React.FC<RadarGameOverModalProps> = ({
             Defesa de Radar Concluída
           </p>
 
-          {/* Destaque de Bytes e Pontuação */}
-          <div className="w-full p-4 rounded-2xl bg-zinc-900/90 border border-zinc-800 mb-5 flex items-center justify-around gap-2">
+          {/* Destaque de Pontuação, Bytes e Sucata Tecnológica */}
+          <div className="w-full p-3 sm:p-4 rounded-2xl bg-zinc-900/90 border border-zinc-800 mb-5 grid grid-cols-3 gap-2 text-center">
             <div>
-              <div className="text-[11px] text-zinc-400 font-mono font-semibold">PONTUAÇÃO</div>
-              <div className="text-2xl font-black text-amber-400 font-mono">
+              <div className="text-[10px] sm:text-[11px] text-zinc-400 font-mono font-semibold">PONTUAÇÃO</div>
+              <div className="text-xl sm:text-2xl font-black text-amber-400 font-mono">
                 {score.toLocaleString()}
               </div>
             </div>
 
-            <div className="h-8 w-[1px] bg-zinc-800" />
+            <div className="border-x border-zinc-800 px-1">
+              <div className="text-[10px] sm:text-[11px] text-zinc-400 font-mono font-semibold">BYTES GANHOS</div>
+              <div className="text-xl sm:text-2xl font-black text-emerald-400 font-mono flex items-center justify-center gap-0.5">
+                <span>+{formatBytes(bytesEarned)}</span>
+              </div>
+            </div>
 
             <div>
-              <div className="text-[11px] text-zinc-400 font-mono font-semibold">BYTES GANHOS</div>
-              <div className="text-2xl font-black text-emerald-400 font-mono flex items-center justify-center gap-1">
-                <span>+{formatBytes(bytesEarned)}</span>
+              <div className="text-[10px] sm:text-[11px] text-zinc-400 font-mono font-semibold">SUCATA RADAR</div>
+              <div className="text-xl sm:text-2xl font-black text-amber-300 font-mono flex items-center justify-center gap-1">
+                <span>+{scrapEarned}</span>
+                <span className="text-sm">⚙️</span>
               </div>
             </div>
           </div>
@@ -137,21 +149,33 @@ export const RadarGameOverModal: React.FC<RadarGameOverModalProps> = ({
           )}
 
           {/* Botões de Ação */}
-          <div className="flex flex-col sm:flex-row items-center gap-3 w-full">
+          <div className="flex flex-col sm:flex-row items-center gap-2.5 w-full">
             <button
               type="button"
               onClick={onRestart}
-              className="flex-1 w-full py-3.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs font-mono uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition cursor-pointer active:scale-95"
+              className="flex-1 w-full py-3.5 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs font-mono uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-lg transition cursor-pointer active:scale-95"
             >
               <RefreshCw className="w-4 h-4" />
               <span>Jogar Novamente</span>
             </button>
 
+            {onOpenHangar && (
+              <button
+                type="button"
+                onClick={onOpenHangar}
+                className="w-full sm:w-auto py-3.5 px-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black text-xs font-mono uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-[0_0_15px_rgba(245,158,11,0.25)] transition cursor-pointer active:scale-95"
+                title="Acessar o Hangar para comprar melhorias permanentes"
+              >
+                <span>🚀 Hangar</span>
+                <span className="px-1.5 py-0.5 rounded bg-black/20 text-[10px]">({totalScrap})</span>
+              </button>
+            )}
+
             {onOpenLeaderboard && (
               <button
                 type="button"
                 onClick={onOpenLeaderboard}
-                className="w-full sm:w-auto py-3.5 px-4 rounded-xl bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-500/50 text-cyan-300 font-black text-xs font-mono uppercase tracking-wider flex items-center justify-center gap-2 transition cursor-pointer active:scale-95 shadow-lg"
+                className="w-full sm:w-auto py-3.5 px-3 rounded-xl bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-500/50 text-cyan-300 font-black text-xs font-mono uppercase tracking-wider flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-95 shadow-lg"
                 title="Ver Ranking Escolar do Type: Radar"
               >
                 <Trophy className="w-4 h-4 text-cyan-400" />
@@ -162,7 +186,7 @@ export const RadarGameOverModal: React.FC<RadarGameOverModalProps> = ({
             <button
               type="button"
               onClick={onExitToHub}
-              className="flex-1 w-full py-3.5 px-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-black text-xs font-mono uppercase tracking-wider flex items-center justify-center gap-2 border border-zinc-700 transition cursor-pointer active:scale-95"
+              className="flex-1 w-full py-3.5 px-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-black text-xs font-mono uppercase tracking-wider flex items-center justify-center gap-1.5 border border-zinc-700 transition cursor-pointer active:scale-95"
             >
               <LayoutGrid className="w-4 h-4 text-emerald-400" />
               <span>Voltar ao Hub</span>

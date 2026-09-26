@@ -4,15 +4,30 @@ interface CockpitFrameProps {
   children: React.ReactNode;
   wave: number;
   enemiesCount: number;
+  shield?: number;
+  maxShield?: number;
+  isBossWave?: boolean;
+  glitchActive?: boolean;
+  crtFxEnabled?: boolean;
+  scrap?: number;
+  onOpenHangar?: () => void;
 }
 
 export const CockpitFrame: React.FC<CockpitFrameProps> = ({
   children,
   wave,
-  enemiesCount
+  enemiesCount,
+  shield = 100,
+  maxShield = 100,
+  isBossWave = false,
+  glitchActive = false,
+  crtFxEnabled = true,
+  scrap,
+  onOpenHangar
 }) => {
   // Simulação de dados dinâmicos de terminal nos visores secundários
   const [telemetryTick, setTelemetryTick] = useState<number>(0);
+  const shieldPercent = maxShield > 0 ? Math.round((shield / maxShield) * 100) : 0;
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -142,7 +157,68 @@ export const CockpitFrame: React.FC<CockpitFrameProps> = ({
       </div>
 
       {/* 6. Moldura do Console Central do Monitor do Radar */}
-      <div className="relative flex flex-col items-center justify-center p-2 sm:p-3 lg:p-4 rounded-3xl bg-[#090c13] border-4 border-zinc-800/95 shadow-[0_0_60px_rgba(0,0,0,0.95),inset_0_0_30px_rgba(0,0,0,0.85)] z-10 max-w-full">
+      <div className={`relative flex flex-col items-center justify-center p-2 sm:p-3 lg:p-4 rounded-3xl bg-[#090c13] border-4 border-zinc-800/95 shadow-[0_0_60px_rgba(0,0,0,0.95),inset_0_0_30px_rgba(0,0,0,0.85)] z-10 max-w-full transition-all duration-150 ${
+        glitchActive ? 'radar-glitch-active border-rose-500/80 shadow-[0_0_80px_rgba(239,68,68,0.4)]' : ''
+      }`}>
+        {/* Painel Tático Superior de LEDs de Status */}
+        <div className="w-full flex items-center justify-between px-3 py-1 mb-2 bg-[#06080e] rounded-xl border border-zinc-800/80 font-mono text-[9px] select-none">
+          <div className="flex items-center gap-3">
+            {/* LED PWR */}
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]" />
+              <span className="text-zinc-400 font-bold hidden sm:inline">PWR</span>
+            </div>
+            {/* LED RADAR */}
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_#22d3ee]" />
+              <span className="text-zinc-400 font-bold hidden sm:inline">RADAR_X</span>
+            </div>
+            {/* LED DEFENSE / ESCUDO */}
+            <div className="flex items-center gap-1.5">
+              <span className={`w-2 h-2 rounded-full transition-colors ${
+                shieldPercent > 50
+                  ? 'bg-emerald-400 shadow-[0_0_8px_#34d399]'
+                  : shieldPercent > 0
+                  ? 'bg-amber-400 shadow-[0_0_8px_#fbbf24] animate-pulse'
+                  : 'bg-rose-500 shadow-[0_0_8px_#f43f5e] animate-ping'
+              }`} />
+              <span className={shieldPercent === 0 ? 'text-rose-400 font-black' : 'text-zinc-400 font-bold'}>
+                {shieldPercent === 0 ? 'SHIELD_BREACH' : 'SHIELD_OK'}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {/* LED THREAT / BOSS */}
+            <div className="flex items-center gap-1.5">
+              <span className={`w-2 h-2 rounded-full ${
+                isBossWave
+                  ? 'bg-rose-500 animate-ping shadow-[0_0_10px_#ef4444]'
+                  : enemiesCount > 6
+                  ? 'bg-amber-400 animate-pulse shadow-[0_0_8px_#f59e0b]'
+                  : 'bg-zinc-600'
+              }`} />
+              <span className={isBossWave ? 'text-rose-400 font-black' : 'text-zinc-400 font-bold'}>
+                {isBossWave ? 'OMEGA_BOSS' : enemiesCount > 6 ? 'SWARM_ALERT' : 'GRID_CLEAR'}
+              </span>
+            </div>
+            {scrap !== undefined && (
+              <div
+                className="px-2 py-0.5 rounded bg-amber-950/70 border border-amber-500/40 text-[8px] sm:text-[9px] text-amber-300 font-mono font-bold flex items-center gap-1 shadow-sm"
+                title="Sucata Tecnológica acumulada no Radar"
+              >
+                <span>⚙️ SUCATA:</span>
+                <span className="text-amber-400 font-mono">{scrap}</span>
+              </div>
+            )}
+            {crtFxEnabled && (
+              <span className="px-1.5 py-0.5 rounded bg-emerald-950/80 border border-emerald-500/50 text-[8px] text-emerald-300 font-bold">
+                CRT_FX
+              </span>
+            )}
+          </div>
+        </div>
+
         {/* Parafusos industriais nos cantos da moldura */}
         <div className="absolute top-2 left-2.5 w-2.5 h-2.5 rounded-full bg-zinc-700 border border-zinc-900 shadow-inner flex items-center justify-center text-[7px] text-zinc-900">+</div>
         <div className="absolute top-2 right-2.5 w-2.5 h-2.5 rounded-full bg-zinc-700 border border-zinc-900 shadow-inner flex items-center justify-center text-[7px] text-zinc-900">+</div>

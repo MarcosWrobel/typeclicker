@@ -60,6 +60,9 @@ export interface PedagogicalCsvRow {
   radarBestWave: number;
   radarHighScore: number;
   radarMaxWpm: number;
+  dashHighScore: number;
+  dashMaxDistance: number;
+  dashMaxCombo: number;
   pvpWins: number;
   pvpMatches: number;
   pvpPoints: number;
@@ -162,6 +165,9 @@ export function buildPedagogicalCsvRows(students: LeaderboardEntry[]): Pedagogic
     radarBestWave:      s.radarBestWave ?? 0,
     radarHighScore:     s.radarHighScore ?? 0,
     radarMaxWpm:        s.radarMaxWpm ?? 0,
+    dashHighScore:      s.dashHighScore ?? 0,
+    dashMaxDistance:    s.dashMaxDistance ?? 0,
+    dashMaxCombo:       s.dashMaxCombo ?? 0,
     pvpWins:            s.pvpWins ?? 0,
     pvpMatches:         s.pvpMatches ?? 0,
     pvpPoints:          s.pvpPoints ?? 0,
@@ -178,6 +184,7 @@ const CSV_HEADERS_PEDAGOGICAL: (keyof PedagogicalCsvRow)[] = [
   'turma', 'nome', 'apelido', 'rpgClass', 'level', 'totalBytes',
   'wpm', 'accuracy', 'maxCombo', 'achievements',
   'radarBestWave', 'radarHighScore', 'radarMaxWpm',
+  'dashHighScore', 'dashMaxDistance', 'dashMaxCombo',
   'pvpWins', 'pvpMatches', 'pvpPoints',
   'raceWins', 'racesParticipated', 'raceBestWpm',
   'flaggedForReview', 'flagReason', 'updatedAt'

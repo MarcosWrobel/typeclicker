@@ -31,7 +31,7 @@ export function getTextForMode(
     return getRandomSentence(trackId, categoryId, excludeText);
   }
   if (mode === 'code') {
-    return getRandomCodeSnippet(categoryId, excludeText);
+    return getRandomCodeSnippet(categoryId, excludeText, trackId);
   }
   return getRandomWord(categoryId, excludeText, trackId);
 }

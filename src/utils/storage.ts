@@ -410,7 +410,7 @@ export function sanitizeAccessibility(raw?: Partial<AccessibilitySettings> | nul
 }
 
 const ARCADE_HISTORY_MAX = 10;
-const VALID_GAME_IDS = ['typeclicker', 'type_radar', 'byte_logic', 'math_storm', 'syntax_maze'];
+const VALID_GAME_IDS = ['typeclicker', 'type_radar', 'typerdash', 'byte_logic', 'math_storm', 'syntax_maze'];
 
 /**
  * Sanitiza o histórico local de partidas arcade.

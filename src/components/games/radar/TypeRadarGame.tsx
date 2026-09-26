@@ -17,9 +17,11 @@ import {
   Activity,
   Smartphone,
   Trophy,
+  Rocket,
   X
 } from 'lucide-react';
 import { CurricularTrackId } from '../../../types';
+import { GameExitPayload } from '../../../types/gamePlugin';
 import { 
   RadarEnemy, 
   RadarLaser, 
@@ -29,6 +31,16 @@ import {
   RadarFloatingText,
   RadarShockwave,
   RadarWaveType,
+  RadarPermanentUpgrades,
+  HANGAR_UPGRADES,
+  loadRadarHangarUpgrades,
+  saveRadarHangarUpgrades,
+  loadRadarScrap,
+  saveRadarScrap,
+  loadRadarHighWave,
+  saveRadarHighWave,
+  loadRadarHighScore,
+  saveRadarHighScore,
   createInitialRadarState, 
   spawnRadarEnemy, 
   spawnBossEnemy,
@@ -42,6 +54,7 @@ import { RADAR_COMMANDS, charMatches } from '../../../data/radarWords';
 import { radarAudio } from '../../../services/radarAudio';
 import { RadarCanvas } from './RadarCanvas';
 import { RadarUpgradesModal } from './RadarUpgradesModal';
+import { RadarHangarModal } from './RadarHangarModal';
 import { RadarGameOverModal } from './RadarGameOverModal';
 import { RadarDishIcon } from './RadarIcons';
 import { CockpitFrame } from './CockpitFrame';
@@ -79,7 +92,8 @@ export interface TypeRadarGameProps {
   studentName?: string;
   activeTrack?: CurricularTrackId | null;
   equippedSkin?: BytezinhoSkinId;
-  onExitToHub: (bytesEarned: number, endStats?: RadarEndStats) => void;
+  accessibility?: import('../../../types').AccessibilitySettings;
+  onExitToHub: (payload: GameExitPayload) => void;
   onOpenLeaderboardTab?: (metric: LeaderboardMetric) => void;
 }
 
@@ -87,10 +101,17 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
   studentName = 'Operador',
   activeTrack = null,
   equippedSkin = 'classic',
+  accessibility,
   onExitToHub,
   onOpenLeaderboardTab
 }) => {
-  const [gameState, setGameState] = useState<RadarRunState>(() => createInitialRadarState());
+  // Meta-progressão Roguelite: Hangar & Sucata Tecnológica
+  const [hangarUpgrades, setHangarUpgrades] = useState<RadarPermanentUpgrades>(() => loadRadarHangarUpgrades());
+  const [scrapBalance, setScrapBalance] = useState<number>(() => loadRadarScrap());
+  const [scrapGainedRun, setScrapGainedRun] = useState<number>(0);
+  const [isHangarOpen, setIsHangarOpen] = useState<boolean>(false);
+
+  const [gameState, setGameState] = useState<RadarRunState>(() => createInitialRadarState(loadRadarHangarUpgrades()));
   const [enemies, setEnemies] = useState<RadarEnemy[]>([]);
   const [lasers, setLasers] = useState<RadarLaser[]>([]);
   const [particles, setParticles] = useState<RadarParticle[]>([]);
@@ -98,6 +119,32 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
   const [shockwaves, setShockwaves] = useState<RadarShockwave[]>([]);
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
+
+  // Acessibilidade e Efeitos Táticos CRT / Glitch
+  const isReducedMotion = !!accessibility?.reduceMotion;
+  const isHighContrast = !!accessibility?.highContrast;
+
+  const [crtFxEnabled, setCrtFxEnabled] = useState<boolean>(() => {
+    if (isReducedMotion || isHighContrast) return false;
+    try {
+      return localStorage.getItem('radar_crt_fx') !== 'false';
+    } catch {
+      return true;
+    }
+  });
+
+  const [glitchActive, setGlitchActive] = useState<boolean>(false);
+
+  const triggerGlitch = useCallback((durationMs: number = 320, playStatic: boolean = true) => {
+    if (!crtFxEnabled || isReducedMotion) return;
+    setGlitchActive(true);
+    if (playStatic && soundEnabled) {
+      radarAudio.playRadioStatic(Math.min(durationMs / 1000, 0.22));
+    }
+    setTimeout(() => {
+      setGlitchActive(false);
+    }, durationMs);
+  }, [crtFxEnabled, isReducedMotion, soundEnabled]);
 
   // Alerta móvel / touch
   const [showMobileWarning, setShowMobileWarning] = useState<boolean>(() => {
@@ -127,6 +174,52 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
   enemiesRef.current = enemies;
 
   const lastPerimeterAlarmRef = useRef<number>(0);
+
+  // Persistência de Recordes e Desempenho
+  useEffect(() => {
+    if (gameState.isGameOver) {
+      saveRadarHighWave(gameState.wave);
+      saveRadarHighScore(gameState.score);
+    }
+  }, [gameState.isGameOver, gameState.wave, gameState.score]);
+
+  // Ações do Hangar de Meta-Progressão
+  const handleBuyHangarUpgrade = useCallback((id: keyof RadarPermanentUpgrades, cost: number) => {
+    if (scrapBalance < cost) return;
+    const nextScrap = scrapBalance - cost;
+    const nextUpgrades: RadarPermanentUpgrades = {
+      ...hangarUpgrades,
+      [id]: Math.min(5, (hangarUpgrades[id] || 0) + 1)
+    };
+    setScrapBalance(nextScrap);
+    setHangarUpgrades(nextUpgrades);
+    saveRadarScrap(nextScrap);
+    saveRadarHangarUpgrades(nextUpgrades);
+  }, [scrapBalance, hangarUpgrades]);
+
+  const handleResetHangarUpgrades = useCallback(() => {
+    let refund = 0;
+    HANGAR_UPGRADES.forEach((cfg) => {
+      const lvl = hangarUpgrades[cfg.id] || 0;
+      for (let i = 0; i < lvl; i++) {
+        refund += cfg.costs[i] || 0;
+      }
+    });
+
+    const nextScrap = scrapBalance + refund;
+    const resetUpgrades: RadarPermanentUpgrades = {
+      hull_armor: 0,
+      shield_battery: 0,
+      reactor_core: 0,
+      energy_siphon: 0,
+      cold_start: 0
+    };
+    setScrapBalance(nextScrap);
+    setHangarUpgrades(resetUpgrades);
+    saveRadarScrap(nextScrap);
+    saveRadarHangarUpgrades(resetUpgrades);
+    radarAudio.playPowerDown();
+  }, [scrapBalance, hangarUpgrades]);
 
   // Feedback de XP da Onda e Transição de Energia
   const [xpFlash, setXpFlash] = useState<boolean>(false);
@@ -354,6 +447,8 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
         const bossEnemy = spawnBossEnemy(current.wave, activeTrack);
         setEnemies((prev) => [bossEnemy, ...prev]);
         enemiesRef.current = [bossEnemy, ...enemiesRef.current];
+        triggerGlitch(500, true);
+        radarAudio.playAlarmSiren();
       } else if (enemiesSpawnedThisWaveRef.current === 0) {
         // Spawna imediatamente as primeiras ameaças no início da onda
         spawnTimer = 0;
@@ -427,9 +522,13 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
       setEnemies(nextList);
       enemiesRef.current = nextList;
 
-      // Aplica dano à base, reseta combo e ativa Screen Shake
+      // Aplica dano à base, reseta combo e ativa Screen Shake com Glitch e Sirene Tática
       if (enemyReachedBase && damageTaken > 0) {
         radarAudio.playExplosion();
+        triggerGlitch(420, true);
+        if (gameStateRef.current.shield <= damageTaken) {
+          radarAudio.playAlarmSiren();
+        }
         setGameState((prev) => {
           let currentShield = prev.shield;
           let currentHealth = prev.health;
@@ -516,6 +615,14 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
       ) {
         setIsUpgradeModalOpen(true);
         setUpgradeCards(getRandomUpgradeCards(current.upgrades));
+        const waveScrapBonus = 10;
+        setScrapGainedRun((prev) => prev + waveScrapBonus);
+        setScrapBalance((prev) => {
+          const next = prev + waveScrapBonus;
+          saveRadarScrap(next);
+          return next;
+        });
+        saveRadarHighWave(current.wave + 1);
       }
     }, 16);
 
@@ -543,14 +650,25 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
     switch (cmd.keyword) {
       case '/NUKE': {
         radarAudio.playNuke();
-        const defeatedCount = enemiesRef.current.length;
+        triggerGlitch(650, true);
+
+        const currentEnemies = enemiesRef.current;
+        const minions = currentEnemies.filter((e) => e.type !== 'boss');
+        const bosses = currentEnemies.filter((e) => e.type === 'boss');
+
+        const defeatedCount = minions.length;
         const scoreGained = defeatedCount * 60;
         const bytesGained = defeatedCount * 12;
+        let scrapGained = 0;
 
-        enemiesRef.current.forEach((enemy) => {
+        // Minions são destruídos
+        minions.forEach((enemy) => {
           const ex = cx + Math.cos(enemy.angle) * enemy.distance;
           const ey = cy + Math.sin(enemy.angle) * enemy.distance;
           createExplosion(ex, ey, '#fbbf24', 22);
+
+          const sVal = enemy.scrapValue || (enemy.type === 'tank' ? 5 : enemy.type === 'glitch' ? 6 : enemy.type === 'drone' ? 3 : 1);
+          scrapGained += sVal;
 
           // Shockwave em cada inimigo
           setShockwaves((prev) => [
@@ -568,6 +686,47 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
           ]);
         });
 
+        // Chefões são imunes: defletem a ogiva com campo de força
+        if (bosses.length > 0) {
+          radarAudio.playBossShieldDeflect();
+          bosses.forEach((boss) => {
+            const bx = cx + Math.cos(boss.angle) * boss.distance;
+            const by = cy + Math.sin(boss.angle) * boss.distance;
+
+            // Shockwave de deflexão
+            setShockwaves((prev) => [
+              ...prev.slice(-12),
+              {
+                id: `sw_deflect_${Date.now()}_${Math.random()}`,
+                x: bx,
+                y: by,
+                radius: 14,
+                maxRadius: 75,
+                color: '#38bdf8',
+                life: 1.0,
+                decay: 2.2
+              }
+            ]);
+
+            // Texto flutuante no Chefe
+            setFloatingTexts((prev) => [
+              ...prev.slice(-15),
+              {
+                id: `ft_deflect_${Date.now()}_${Math.random()}`,
+                x: bx,
+                y: by - 25,
+                text: '[ DEFLETIDO! ]',
+                subText: 'CHEFÃO IMUNE AO /NUKE',
+                color: '#38bdf8',
+                life: 1.8,
+                decay: 0.8,
+                vy: -35,
+                size: 16
+              }
+            ]);
+          });
+        }
+
         // Texto flutuante central do Nuke
         setFloatingTexts((prev) => [
           ...prev.slice(-15),
@@ -576,7 +735,7 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
             x: cx,
             y: cy - 40,
             text: `+${scoreGained} PTS // NUKE`,
-            subText: `+${bytesGained} BYTES`,
+            subText: defeatedCount > 0 ? `+${bytesGained} BYTES • +${scrapGained} SUCATA` : 'CHEFÃO IMUNE AO /NUKE',
             color: '#fbbf24',
             life: 1.2,
             decay: 0.9,
@@ -586,18 +745,38 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
         ]);
 
         triggerXpFlash(500);
-        setEnemies([]);
-        setGameState((prev) => ({
-          ...prev,
-          energy: prev.energy - actualCost,
-          score: prev.score + scoreGained,
-          bytesEarned: prev.bytesEarned + bytesGained,
-          enemiesDefeated: prev.enemiesDefeated + defeatedCount,
-          waveEnemiesDefeated: prev.waveEnemiesDefeated + defeatedCount,
-          activeTargetId: null,
-          shockwaveActiveUntilMs: Date.now() + 300,
-          screenShakeIntensity: 24
+
+        // Chefões sobrevivem com efeito de deflexão ativo
+        const updatedBosses = bosses.map((b) => ({
+          ...b,
+          deflectActiveUntilMs: Date.now() + 600
         }));
+        setEnemies(updatedBosses);
+        enemiesRef.current = updatedBosses;
+
+        if (scrapGained > 0) {
+          setScrapGainedRun((prev) => prev + scrapGained);
+          setScrapBalance((prev) => {
+            const next = prev + scrapGained;
+            saveRadarScrap(next);
+            return next;
+          });
+        }
+
+        setGameState((prev) => {
+          const targetStillAlive = updatedBosses.some((b) => b.id === prev.activeTargetId);
+          return {
+            ...prev,
+            energy: prev.energy - actualCost,
+            score: prev.score + scoreGained,
+            bytesEarned: prev.bytesEarned + bytesGained,
+            enemiesDefeated: prev.enemiesDefeated + defeatedCount,
+            waveEnemiesDefeated: prev.waveEnemiesDefeated + defeatedCount,
+            activeTargetId: targetStillAlive ? prev.activeTargetId : null,
+            shockwaveActiveUntilMs: Date.now() + 300,
+            screenShakeIntensity: 24
+          };
+        });
         break;
       }
 
@@ -642,15 +821,42 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
 
   // Gerenciador de Entrada de Teclado
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (isPaused || isUpgradeModalOpen || gameStateRef.current.isGameOver) return;
+    if (isUpgradeModalOpen || gameStateRef.current.isGameOver) return;
 
     const key = e.key;
+
+    // Se o modal do Hangar estiver aberto: fechar com Escape
+    if (isHangarOpen) {
+      if (key === 'Escape') {
+        e.preventDefault();
+        setIsHangarOpen(false);
+        setIsPaused(false);
+      }
+      return;
+    }
+
+    // Se o jogo estiver pausado: teclas de atalho para despausar
+    if (isPaused) {
+      if (key === 'Escape' || key === 'Tab' || key === ' ' || key === 'Enter' || key === 'p' || key === 'P') {
+        e.preventDefault();
+        setIsPaused(false);
+        radarAudio.playTargetHit(1);
+      }
+      return;
+    }
 
     if (key === '/' || key === "'" || key === ' ' || key === 'Tab') {
       e.preventDefault();
     }
 
-    // 1. Limpeza de Mira e Cancelamento (Backspace ou Escape)
+    // Tecla dedicada de pausa instantânea: Tab ou Pause/Break
+    if (key === 'Tab' || key === 'Pause') {
+      e.preventDefault();
+      setIsPaused(true);
+      return;
+    }
+
+    // 1. Limpeza de Mira, Cancelamento e Pausa contextual com Escape/Backspace
     if (key === 'Escape' || key === 'Backspace') {
       e.preventDefault();
       const current = gameStateRef.current;
@@ -677,6 +883,12 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
           prev.map((enemy) => (enemy.id === targetId ? { ...enemy, typedLength: 0 } : enemy))
         );
         setGameState((prev) => ({ ...prev, activeTargetId: null }));
+        return;
+      }
+
+      // Se Escape foi pressionado sem comando ativo e sem alvo travado: PAUSA O JOGO
+      if (key === 'Escape') {
+        setIsPaused(true);
         return;
       }
       return;
@@ -739,6 +951,7 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
       if (candidates.length > 0) {
         candidates.sort((a, b) => a.distance - b.distance);
         target = candidates[0];
+        radarAudio.playTacticalLock();
 
         const nextTyped = 1;
         const isWordComplete = nextTyped >= target.word.length;
@@ -746,6 +959,9 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
 
         let energyGain = 4;
         if (gameStateRef.current.upgrades.kinetic_capacitor) energyGain = 6;
+        if (hangarUpgrades.energy_siphon) {
+          energyGain = Math.round(energyGain * (1 + hangarUpgrades.energy_siphon * 0.12));
+        }
         const liveWpm = calculateCurrentWpm(gameStateRef.current.correctChars + 1, gameStateRef.current.startTimeMs);
 
         const nextCombo = gameStateRef.current.combo + 1;
@@ -769,6 +985,14 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
             createExplosion(ex, ey, '#f43f5e', 36);
             triggerXpFlash(400);
 
+            const bossPhaseScrap = 15;
+            setScrapGainedRun((prev) => prev + bossPhaseScrap);
+            setScrapBalance((prev) => {
+              const next = prev + bossPhaseScrap;
+              saveRadarScrap(next);
+              return next;
+            });
+
             setShockwaves((prev) => [
               ...prev.slice(-10),
               {
@@ -790,7 +1014,7 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
                 x: ex,
                 y: ey - 15,
                 text: `FASE DESTRUÍDA! [RESTAM ${remainingHp}]`,
-                subText: `PRÓXIMO: ${nextWord}`,
+                subText: `PRÓXIMO: ${nextWord} • +15 SUCATA`,
                 color: '#f43f5e',
                 life: 1.2,
                 decay: 0.9,
@@ -853,6 +1077,14 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
 
             let scoreBonus = target.scoreValue;
             let bytesBonus = target.byteValue;
+            const enemyScrap = target.scrapValue || (target.type === 'boss' ? 20 : target.type === 'tank' ? 5 : target.type === 'glitch' ? 6 : target.type === 'drone' ? 3 : 1);
+
+            setScrapGainedRun((prev) => prev + enemyScrap);
+            setScrapBalance((prev) => {
+              const next = prev + enemyScrap;
+              saveRadarScrap(next);
+              return next;
+            });
 
             const comboMultiplier = 1 + Math.min(1.0, nextCombo * 0.02);
             scoreBonus = Math.round(scoreBonus * comboMultiplier);
@@ -873,7 +1105,7 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
                 x: ex,
                 y: ey - 10,
                 text: `+${scoreBonus} PTS` + (target.type === 'boss' ? ' // CHEFÃO DERROTADO!' : ''),
-                subText: `+${bytesBonus} BYTES` + (nextCombo >= 5 ? ` [COMBO x${nextCombo}]` : ''),
+                subText: `+${bytesBonus} BYTES • +${enemyScrap} SUCATA` + (nextCombo >= 5 ? ` [COMBO x${nextCombo}]` : ''),
                 color: target.type === 'boss' ? '#f43f5e' : nextCombo >= 10 ? '#f59e0b' : '#38bdf8',
                 life: 1.2,
                 decay: 0.9,
@@ -956,6 +1188,9 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
 
       let energyGain = 4;
       if (gameStateRef.current.upgrades.kinetic_capacitor) energyGain = 6;
+      if (hangarUpgrades.energy_siphon) {
+        energyGain = Math.round(energyGain * (1 + hangarUpgrades.energy_siphon * 0.12));
+      }
       const liveWpm = calculateCurrentWpm(gameStateRef.current.correctChars + 1, gameStateRef.current.startTimeMs);
 
       const nextCombo = gameStateRef.current.combo + 1;
@@ -972,6 +1207,14 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
           radarAudio.playBossPhaseHit();
           createExplosion(ex, ey, '#f43f5e', 36);
           triggerXpFlash(400);
+
+          const bossPhaseScrap = 15;
+          setScrapGainedRun((prev) => prev + bossPhaseScrap);
+          setScrapBalance((prev) => {
+            const next = prev + bossPhaseScrap;
+            saveRadarScrap(next);
+            return next;
+          });
 
           setShockwaves((prev) => [
             ...prev.slice(-10),
@@ -994,7 +1237,7 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
               x: ex,
               y: ey - 15,
               text: `FASE DESTRUÍDA! [RESTAM ${remainingHp}]`,
-              subText: `PRÓXIMO: ${nextWord}`,
+              subText: `PRÓXIMO: ${nextWord} • +15 SUCATA`,
               color: '#f43f5e',
               life: 1.2,
               decay: 0.9,
@@ -1057,6 +1300,14 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
 
           let scoreBonus = target.scoreValue;
           let bytesBonus = target.byteValue;
+          const enemyScrap = target.scrapValue || (target.type === 'boss' ? 20 : target.type === 'tank' ? 5 : target.type === 'glitch' ? 6 : target.type === 'drone' ? 3 : 1);
+
+          setScrapGainedRun((prev) => prev + enemyScrap);
+          setScrapBalance((prev) => {
+            const next = prev + enemyScrap;
+            saveRadarScrap(next);
+            return next;
+          });
 
           const comboMultiplier = 1 + Math.min(1.0, nextCombo * 0.02);
           scoreBonus = Math.round(scoreBonus * comboMultiplier);
@@ -1077,7 +1328,7 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
               x: ex,
               y: ey - 10,
               text: `+${scoreBonus} PTS` + (target.type === 'boss' ? ' // CHEFÃO DERROTADO!' : ''),
-              subText: `+${bytesBonus} BYTES` + (nextCombo >= 5 ? ` [COMBO x${nextCombo}]` : ''),
+              subText: `+${bytesBonus} BYTES • +${enemyScrap} SUCATA` + (nextCombo >= 5 ? ` [COMBO x${nextCombo}]` : ''),
               color: target.type === 'boss' ? '#f43f5e' : nextCombo >= 10 ? '#f59e0b' : '#38bdf8',
               life: 1.2,
               decay: 0.9,
@@ -1199,7 +1450,47 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
     setParticles([]);
     setFloatingTexts([]);
     setShockwaves([]);
-    setGameState(createInitialRadarState());
+    const currentPermanent = loadRadarHangarUpgrades();
+    setHangarUpgrades(currentPermanent);
+    setScrapGainedRun(0);
+    setGameState(createInitialRadarState(currentPermanent));
+    setIsPaused(false);
+  };
+
+  // Sair da Sessão para o Hub de Treinamento
+  const handleExitGame = () => {
+    const totalKeys = gameState.correctChars + gameState.wrongChars;
+    const acc = totalKeys > 0 ? (gameState.correctChars / totalKeys) * 100 : 100;
+    const timeSpentSeconds = Math.max(1, Math.round((Date.now() - gameState.startTimeMs) / 1000));
+    const accuracyPercentage = Math.round(acc);
+    const levelTokensEarned = accuracyPercentage >= 80 && gameState.wave >= 2 ? 1 : 0;
+    const finalWpm = calculateCurrentWpm(gameState.correctChars, gameState.startTimeMs);
+    const calculatedBytes = calculateFinalBytes(
+      gameState.score,
+      accuracyPercentage,
+      gameState.wave,
+      !!gameState.upgrades.byte_multiplier
+    );
+    const finalBytesEarned = Math.max(gameState.bytesEarned, calculatedBytes);
+
+    onExitToHub({
+      bytesEarned: finalBytesEarned,
+      levelTokensEarned,
+      sessionStats: {
+        score: gameState.score,
+        accuracyPercentage,
+        timeSpentSeconds,
+        correctAnswers: gameState.enemiesDefeated,
+        wrongAnswers: gameState.wrongChars,
+        levelReached: gameState.wave,
+        extraMetrics: {
+          bestWave: gameState.wave,
+          maxWpm: gameState.peakWpm || finalWpm,
+          enemiesDefeated: gameState.enemiesDefeated,
+          scrapEarned: scrapGainedRun
+        }
+      }
+    });
   };
 
   const currentWpm = calculateCurrentWpm(gameState.correctChars, gameState.startTimeMs);
@@ -1397,6 +1688,23 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
             </div>
           </div>
 
+          {/* Botão Destaque do Hangar de Upgrades Permanentes */}
+          <button
+            type="button"
+            onClick={() => {
+              setIsPaused(true);
+              setIsHangarOpen(true);
+            }}
+            className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/25 via-amber-400/20 to-amber-600/30 hover:from-amber-500/40 hover:to-amber-500/50 border-2 border-amber-400 hover:border-amber-300 text-amber-300 hover:text-white font-mono text-xs font-black transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-[0_0_20px_rgba(245,158,11,0.3)] animate-pulse"
+            title="Abrir Hangar de Upgrades Permanentes da Base"
+          >
+            <Rocket className="w-4 h-4 text-amber-400" />
+            <span className="tracking-wide">HANGAR</span>
+            <span className="px-1.5 py-0.5 rounded-md bg-black/60 text-[10px] text-amber-300 font-bold border border-amber-500/40">
+              ⚙️ {scrapBalance}
+            </span>
+          </button>
+
           {/* Som on/off */}
           <button
             type="button"
@@ -1411,12 +1719,13 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
           <button
             type="button"
             onClick={() => setIsPaused(!isPaused)}
-            className={`p-2 rounded-xl border text-xs font-bold transition cursor-pointer ${
-              isPaused ? 'bg-amber-500 text-black border-amber-400' : 'bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border-zinc-800'
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-bold transition cursor-pointer ${
+              isPaused ? 'bg-amber-500 text-black border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.4)]' : 'bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border-zinc-800'
             }`}
-            title="Pausar Radar"
+            title="Pausar / Despausar Radar [Atalho: ESC / TAB]"
           >
             {isPaused ? <Play className="w-4 h-4 fill-current" /> : <Pause className="w-4 h-4" />}
+            <span className="hidden sm:inline font-mono text-[10px]">{isPaused ? 'DESPAUSAR' : 'PAUSA'}</span>
           </button>
 
           {/* Voltar ao Hub */}
@@ -1433,12 +1742,26 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
               );
               const finalBytes = Math.max(gameState.bytesEarned, calculatedBytes);
               const currentWpm = calculateCurrentWpm(gameState.correctChars, gameState.startTimeMs);
-              onExitToHub(finalBytes, {
-                bestWave: gameState.wave,
-                score: gameState.score,
-                maxWpm: gameState.peakWpm || currentWpm,
+              const timeSpentSeconds = Math.max(1, Math.round((Date.now() - gameState.startTimeMs) / 1000));
+              const accuracyPercentage = Math.round(acc);
+              const levelTokensEarned = accuracyPercentage >= 80 && gameState.wave >= 2 ? 1 : 0;
+
+              onExitToHub({
                 bytesEarned: finalBytes,
-                enemiesDefeated: gameState.enemiesDefeated
+                levelTokensEarned,
+                sessionStats: {
+                  score: gameState.score,
+                  accuracyPercentage,
+                  timeSpentSeconds,
+                  correctAnswers: gameState.enemiesDefeated,
+                  wrongAnswers: gameState.wrongChars,
+                  levelReached: gameState.wave,
+                  extraMetrics: {
+                    bestWave: gameState.wave,
+                    maxWpm: gameState.peakWpm || currentWpm,
+                    enemiesDefeated: gameState.enemiesDefeated
+                  }
+                }
               });
             }}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-950/60 hover:bg-emerald-900/80 text-emerald-300 border border-emerald-500/50 text-xs font-bold transition cursor-pointer shadow-sm"
@@ -1446,6 +1769,29 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
           >
             <LayoutGrid className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Hub</span>
+          </button>
+
+          {/* Botão de Alternância de Efeitos Visuais CRT Táticos */}
+          <button
+            type="button"
+            onClick={() => {
+              setCrtFxEnabled((prev) => {
+                const next = !prev;
+                try {
+                  localStorage.setItem('radar_crt_fx', String(next));
+                } catch {}
+                return next;
+              });
+            }}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-bold transition cursor-pointer shadow-sm ${
+              crtFxEnabled
+                ? 'bg-emerald-950/70 border-emerald-500/60 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.3)]'
+                : 'bg-zinc-900/80 border-zinc-700/60 text-zinc-500 hover:text-zinc-300'
+            }`}
+            title="Alternar Efeitos Visuais CRT Táticos (Scanlines, Rastro Fosforescente e Glitch)"
+          >
+            <Sparkles className={`w-3.5 h-3.5 ${crtFxEnabled ? 'text-emerald-400 animate-pulse' : 'text-zinc-500'}`} />
+            <span className="hidden sm:inline">CRT {crtFxEnabled ? 'ON' : 'OFF'}</span>
           </button>
 
           {/* Ranking do Type: Radar */}
@@ -1467,13 +1813,63 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
 
       </header>
 
-      {/* Área Central Envolvida pelo CockpitFrame */}
-      <CockpitFrame wave={gameState.wave} enemiesCount={enemies.length}>
+      {/* Área Central Envolvida pelo CockpitFrame com LEDs de Status Táticos */}
+      <CockpitFrame
+        wave={gameState.wave}
+        enemiesCount={enemies.length}
+        shield={gameState.shield}
+        maxShield={gameState.maxShield}
+        isBossWave={currentWaveType === 'boss'}
+        glitchActive={glitchActive}
+        crtFxEnabled={crtFxEnabled}
+        scrap={scrapBalance}
+        onOpenHangar={() => {
+          setIsPaused(true);
+          setIsHangarOpen(true);
+        }}
+      >
         <div className="relative flex items-center justify-center w-full max-w-7xl mx-auto gap-3 lg:gap-5 px-1 sm:px-3">
           
-          {/* Painel Tático Lateral Esquerdo: Passivas Ativas */}
-          <div className="hidden lg:flex flex-col w-56 xl:w-64 shrink-0 z-20">
+          {/* Painel Tático Lateral Esquerdo: Hangar, Passivas e Alvo Travado */}
+          <div className="hidden lg:flex flex-col w-56 xl:w-64 shrink-0 z-20 gap-3">
+            {/* Card de Acesso Rápido ao Hangar */}
+            <div className="p-3.5 rounded-2xl bg-[#0c1017]/95 border-2 border-amber-500/40 shadow-[0_0_20px_rgba(245,158,11,0.15)] flex flex-col gap-2.5 backdrop-blur-md">
+              <div className="flex items-center justify-between">
+                <span className="font-mono text-[10px] font-black tracking-wider text-amber-400 uppercase flex items-center gap-1.5">
+                  <Rocket className="w-3.5 h-3.5 animate-pulse" />
+                  HANGAR DA BASE
+                </span>
+                <span className="px-2 py-0.5 rounded bg-black/60 border border-amber-500/30 text-[10px] font-mono font-bold text-amber-300">
+                  ⚙️ {scrapBalance}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsPaused(true);
+                  setIsHangarOpen(true);
+                }}
+                className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 font-mono text-xs font-black flex items-center justify-center gap-1.5 shadow-[0_0_12px_rgba(245,158,11,0.25)] transition-all cursor-pointer active:scale-95"
+              >
+                <span>UPGRADES DA BASE</span>
+              </button>
+            </div>
+
+            {/* Painel de Passivas da Partida */}
             <PassivesPanel upgrades={gameState.upgrades} />
+
+            {/* Indicador de Alvo Travado na Sidebar (Não obstrui o radar!) */}
+            {gameState.activeTargetId && (
+              <div className="p-3 rounded-xl bg-sky-950/80 border border-sky-500/50 text-sky-300 flex flex-col gap-1 shadow-md font-mono animate-pulse">
+                <div className="flex items-center gap-1.5 font-bold text-xs">
+                  <Crosshair className="w-3.5 h-3.5 text-sky-400" />
+                  <span>ALVO TRAVADO</span>
+                </div>
+                <span className="text-[10px] text-zinc-400 leading-tight">
+                  [ESC / BACKSPACE]: Desfocar mira
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Coluna Central de Combate */}
@@ -1533,7 +1929,39 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
               </div>
             )}
 
-            {/* 2. Container Central do Radar com Combo Arcade, Mira, Buffer e Banners */}
+            {/* Notificações em Telas Menores (Fora do ecrã do radar, entre a telemetria e o canvas) */}
+            <div className="lg:hidden w-full max-w-xl flex flex-col gap-1.5 px-2 my-1 z-20">
+              <AnimatePresence>
+                {waveAlertBanner && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    className="py-1.5 px-3 rounded-xl bg-black/95 border font-mono text-center shadow-lg text-xs"
+                    style={{ borderColor: waveAlertBanner.color, boxShadow: `0 0 15px ${waveAlertBanner.color}44` }}
+                  >
+                    <span className="font-black mr-2 uppercase" style={{ color: waveAlertBanner.color }}>{waveAlertBanner.title}</span>
+                    <span className="text-[11px] text-zinc-300 font-medium">{waveAlertBanner.subtitle}</span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              <AnimatePresence>
+                {comboBanner && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    className="py-1.5 px-3 rounded-xl bg-black/95 border font-mono text-center shadow-lg text-xs"
+                    style={{ borderColor: comboBanner.color, boxShadow: `0 0 15px ${comboBanner.color}44` }}
+                  >
+                    <span className="font-black mr-2 uppercase" style={{ color: comboBanner.color }}>{comboBanner.title}</span>
+                    <span className="text-[11px] text-zinc-300 font-medium">{comboBanner.subtitle}</span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* 2. Container Central do Radar com Canvas Limpo e Telemetria de Canto */}
             <div className="relative flex items-center justify-center">
               {/* Canvas do Radar */}
               <RadarCanvas
@@ -1551,45 +1979,20 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
                 shockwaveActive={Date.now() < gameState.shockwaveActiveUntilMs}
                 screenShakeIntensity={gameState.screenShakeIntensity}
                 isPaused={isPaused}
+                crtFxEnabled={crtFxEnabled}
+                isGlitchActive={glitchActive}
+                wave={gameState.wave}
               />
 
-              {/* Banner de Alerta de Onda Especial (Chefão / Enxame) */}
-              <AnimatePresence>
-                {waveAlertBanner && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.6, y: -25 }}
-                    animate={{ opacity: 1, scale: 1.05, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.8, y: -20 }}
-                    className="absolute top-8 z-30 pointer-events-none px-6 py-2.5 rounded-2xl bg-black/95 border-2 font-mono text-center shadow-2xl backdrop-blur-md"
-                    style={{ borderColor: waveAlertBanner.color, boxShadow: `0 0 35px ${waveAlertBanner.color}` }}
-                  >
-                    <p className="text-sm sm:text-base font-black tracking-wider animate-pulse" style={{ color: waveAlertBanner.color }}>
-                      {waveAlertBanner.title}
-                    </p>
-                    <p className="text-[11px] text-zinc-300 font-bold mt-0.5">{waveAlertBanner.subtitle}</p>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              {/* Scanlines & Vinheta CRT Sobrepostas (Hardware Accelerated) */}
+              {crtFxEnabled && (
+                <div className="absolute inset-0 pointer-events-none rounded-2xl overflow-hidden z-20">
+                  <div className="absolute inset-0 crt-scanlines opacity-75" />
+                  <div className="absolute inset-0 crt-vignette opacity-90" />
+                </div>
+              )}
 
-              {/* Banner de Marco de Combo (10, 20, 30, 50...) */}
-              <AnimatePresence>
-                {comboBanner && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.6, y: -20 }}
-                    animate={{ opacity: 1, scale: 1.1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.8, y: -15 }}
-                    className="absolute top-12 z-30 pointer-events-none px-6 py-2.5 rounded-2xl bg-black/90 border-2 font-mono text-center shadow-2xl backdrop-blur-md"
-                    style={{ borderColor: comboBanner.color, boxShadow: `0 0 35px ${comboBanner.color}` }}
-                  >
-                    <p className="text-base sm:text-lg font-black tracking-wider" style={{ color: comboBanner.color }}>
-                      {comboBanner.title}
-                    </p>
-                    <p className="text-xs text-zinc-300 font-bold">{comboBanner.subtitle}</p>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Display de Combo Arcade em Destaque Tático (Top-Right do Radar) */}
+              {/* Display de Combo Arcade em Destaque Tático (Canto Superior Direito, fora do radar circular) */}
               {gameState.combo > 0 && (
                 <motion.div
                   key={gameState.combo}
@@ -1650,24 +2053,18 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
                   </div>
                 </motion.div>
               )}
+            </div>
 
-              {/* Indicador de Mira Ativa */}
-              {gameState.activeTargetId && (
-                <div className="absolute top-3 px-3.5 py-1.5 rounded-full bg-sky-950/90 border border-sky-500/60 text-[11px] font-mono text-sky-300 flex items-center gap-2 shadow-lg backdrop-blur-sm z-30">
-                  <Crosshair className="w-4 h-4 text-sky-400" />
-                  <span>ALVO TRAVADO • [ESC / BACKSPACE: Desbloquear]</span>
-                </div>
-              )}
-
-              {/* Buffer de Comando Ativo em Digitação */}
-              {(gameState.isCommandMode || gameState.commandBuffer) && (
-                <div className="absolute bottom-20 px-4 py-2 rounded-xl bg-black/95 border-2 border-emerald-400 shadow-[0_0_25px_rgba(16,185,129,0.7)] font-mono text-base font-black text-emerald-300 flex items-center gap-2.5 animate-pulse z-30">
+            {/* Buffer de Comando Ativo em Digitação (Fora da tela do radar, posicionado acima do Deck) */}
+            {(gameState.isCommandMode || gameState.commandBuffer) && (
+              <div className="w-full max-w-xl sm:max-w-2xl px-4 py-2 my-1 rounded-xl bg-black/95 border-2 border-emerald-400 shadow-[0_0_25px_rgba(16,185,129,0.7)] font-mono text-sm sm:text-base font-black text-emerald-300 flex items-center justify-between animate-pulse z-30">
+                <div className="flex items-center gap-2.5">
                   <Terminal className="w-5 h-5 text-emerald-400" />
                   <span>COMANDO: {gameState.commandBuffer || '/'}</span>
-                  <span className="text-xs text-zinc-400 font-normal ml-2">[ESC para cancelar]</span>
                 </div>
-              )}
-            </div>
+                <span className="text-xs text-zinc-400 font-normal">[ESC para cancelar]</span>
+              </div>
+            )}
 
             {/* 3. Painel Centralizado de Gatilhos de Comandos Militares */}
             <TriggerDeck
@@ -1678,9 +2075,50 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
             />
           </div>
 
-          {/* Painel Lateral Direito: Mascote Bytezinho Co-Piloto Tático no Canto Inferior */}
-          <div className="hidden lg:flex flex-col w-56 xl:w-64 shrink-0 z-20 justify-end self-end pb-1">
-            <div className="w-full p-3.5 rounded-2xl bg-[#0a0e17]/95 border-2 border-emerald-500/40 shadow-[0_0_30px_rgba(16,185,129,0.15)] flex flex-col gap-2.5 relative overflow-hidden backdrop-blur-md">
+          {/* Painel Lateral Direito: Alertas Táticos e Mascote Bytezinho Co-Piloto */}
+          <div className="hidden lg:flex flex-col w-56 xl:w-64 shrink-0 z-20 justify-between self-stretch pb-1 gap-3">
+            {/* Topo da Sidebar Direita: Notificações Táticas (Onda Especial / Marcos de Combo) */}
+            <div className="flex flex-col gap-2.5 pt-1">
+              <AnimatePresence>
+                {waveAlertBanner && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.85, y: -10 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.85, y: -10 }}
+                    className="p-3.5 rounded-2xl bg-black/95 border-2 font-mono text-center shadow-2xl backdrop-blur-md"
+                    style={{ borderColor: waveAlertBanner.color, boxShadow: `0 0 25px ${waveAlertBanner.color}66` }}
+                  >
+                    <div className="flex items-center justify-center gap-1.5 mb-1">
+                      <AlertTriangle className="w-4 h-4 animate-pulse" style={{ color: waveAlertBanner.color }} />
+                      <p className="text-xs font-black tracking-wider uppercase animate-pulse" style={{ color: waveAlertBanner.color }}>
+                        {waveAlertBanner.title}
+                      </p>
+                    </div>
+                    <p className="text-[11px] text-zinc-300 font-bold leading-tight">{waveAlertBanner.subtitle}</p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <AnimatePresence>
+                {comboBanner && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.85, y: -10 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.85, y: -10 }}
+                    className="p-3.5 rounded-2xl bg-black/90 border-2 font-mono text-center shadow-2xl backdrop-blur-md"
+                    style={{ borderColor: comboBanner.color, boxShadow: `0 0 25px ${comboBanner.color}66` }}
+                  >
+                    <p className="text-sm font-black tracking-wider uppercase" style={{ color: comboBanner.color }}>
+                      {comboBanner.title}
+                    </p>
+                    <p className="text-[11px] text-zinc-300 font-bold mt-0.5">{comboBanner.subtitle}</p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Base da Sidebar Direita: Mascote Bytezinho Co-Piloto Tático */}
+            <div className="w-full p-3.5 rounded-2xl bg-[#0a0e17]/95 border-2 border-emerald-500/40 shadow-[0_0_30px_rgba(16,185,129,0.15)] flex flex-col gap-2.5 relative overflow-hidden backdrop-blur-md mt-auto">
               {/* Header com Tag Tática */}
               <div className="flex items-center justify-between border-b border-zinc-800/80 pb-1.5">
                 <div className="flex items-center gap-1.5">
@@ -1784,20 +2222,120 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
             wpm={finalWpm}
             peakWpm={gameState.peakWpm}
             worstKey={worstKey}
+            scrapEarned={scrapGainedRun}
+            totalScrap={scrapBalance}
+            onOpenHangar={() => setIsHangarOpen(true)}
             onRestart={handleRestart}
             onOpenLeaderboard={() => onOpenLeaderboardTab?.('radar')}
-            onExitToHub={() =>
-              onExitToHub(finalBytesEarned, {
-                bestWave: gameState.wave,
-                score: gameState.score,
-                maxWpm: gameState.peakWpm || finalWpm,
-                bytesEarned: finalBytesEarned,
-                enemiesDefeated: gameState.enemiesDefeated
-              })
-            }
+            onExitToHub={handleExitGame}
           />
         );
       })()}
+
+      {/* Modal do Hangar de Upgrades Permanentes */}
+      <RadarHangarModal
+        isOpen={isHangarOpen}
+        onClose={() => {
+          setIsHangarOpen(false);
+          setIsPaused(false);
+        }}
+        scrap={scrapBalance}
+        upgrades={hangarUpgrades}
+        onBuyUpgrade={handleBuyHangarUpgrade}
+        onResetUpgrades={handleResetHangarUpgrades}
+      />
+
+      {/* Modal de Pausa Tática */}
+      <AnimatePresence>
+        {isPaused && !isHangarOpen && !isUpgradeModalOpen && !gameState.isGameOver && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              className="w-full max-w-md bg-[#0a0e17]/95 border-2 border-emerald-500/50 rounded-3xl p-6 sm:p-8 shadow-[0_0_50px_rgba(16,185,129,0.25)] flex flex-col items-center text-center font-mono relative overflow-hidden"
+            >
+              {/* Background Glow */}
+              <div className="absolute -top-24 -left-24 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+              <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
+
+              {/* Ícone de Pausa */}
+              <div className="w-16 h-16 rounded-2xl bg-emerald-950/80 border border-emerald-500/50 flex items-center justify-center text-emerald-400 mb-4 shadow-[0_0_20px_rgba(16,185,129,0.3)]">
+                <Pause className="w-8 h-8" />
+              </div>
+
+              <h2 className="text-xl sm:text-2xl font-black text-white tracking-widest uppercase">
+                DEFESA PAUSADA
+              </h2>
+              <p className="text-xs text-zinc-400 mt-1 max-w-xs">
+                Sistemas táticos em espera. Radar orbital congelado.
+              </p>
+
+              {/* Atalhos e Telemetria Rápidos */}
+              <div className="my-5 w-full bg-zinc-950/80 border border-zinc-800 rounded-xl p-3 flex flex-col gap-2 text-xs text-zinc-300 text-left">
+                <div className="flex items-center justify-between">
+                  <span className="text-zinc-400">Retomar Defesa:</span>
+                  <span className="font-bold text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800/60">[ESC] [TAB] [ESPAÇO]</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-zinc-400">Onda Atual:</span>
+                  <span className="font-bold text-sky-400">Onda {gameState.wave}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-zinc-400">Sucata Coletada:</span>
+                  <span className="font-bold text-amber-400">⚙️ {scrapBalance} (+{scrapGainedRun})</span>
+                </div>
+              </div>
+
+              {/* Botões de Ação */}
+              <div className="flex flex-col w-full gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setIsPaused(false)}
+                  className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black font-black tracking-wider text-sm flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all cursor-pointer"
+                >
+                  <Play className="w-4 h-4 fill-black" />
+                  <span>CONTINUAR MISSÃO</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsHangarOpen(true)}
+                  className="w-full py-2.5 px-4 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/50 text-amber-300 font-bold text-xs tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer"
+                >
+                  <Rocket className="w-4 h-4 text-amber-400" />
+                  <span>ACESSAR HANGAR (OFICINA)</span>
+                </button>
+
+                <div className="flex gap-2 w-full mt-1">
+                  <button
+                    type="button"
+                    onClick={handleRestart}
+                    className="flex-1 py-2 px-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5 text-zinc-400" />
+                    <span>REINICIAR</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleExitGame}
+                    className="flex-1 py-2 px-3 rounded-xl bg-rose-950/40 hover:bg-rose-900/60 border border-rose-500/40 text-rose-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5 text-rose-400" />
+                    <span>SAIR AO HUB</span>
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

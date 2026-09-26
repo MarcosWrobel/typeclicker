@@ -359,6 +359,10 @@ export async function saveProgressToCloud(
   if (state.radarStats?.bestWave) leaderboardPayload.radarBestWave = state.radarStats.bestWave;
   if (state.radarStats?.highScore) leaderboardPayload.radarHighScore = state.radarStats.highScore;
   if (state.radarStats?.maxWpm) leaderboardPayload.radarMaxWpm = state.radarStats.maxWpm;
+  if (state.dashStats?.highScore) leaderboardPayload.dashHighScore = state.dashStats.highScore;
+  if (state.dashStats?.maxDistance) leaderboardPayload.dashMaxDistance = state.dashStats.maxDistance;
+  if (state.dashStats?.maxCombo) leaderboardPayload.dashMaxCombo = state.dashStats.maxCombo;
+  if (state.dashStats?.bestClass) leaderboardPayload.dashBestClass = state.dashStats.bestClass;
 
   try {
     const cleanSavePayload = removeUndefinedFields(savePayload);

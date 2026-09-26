@@ -16,7 +16,9 @@ export interface RadarEnemy {
   typedLength: number;
   scoreValue: number;
   byteValue: number;
+  scrapValue?: number;
   isParalyzedUntilMs?: number;
+  deflectActiveUntilMs?: number;
   // Propriedades do Chefe Multi-fases
   bossHp?: number;
   bossMaxHp?: number;
@@ -200,15 +202,182 @@ export const RADAR_UPGRADES_POOL: RadarUpgrade[] = [
   }
 ];
 
-export function createInitialRadarState(): RadarRunState {
+export interface RadarPermanentUpgrades {
+  hull_armor: number;      // +15 HP max por nível (0 a 5)
+  shield_battery: number;  // +10 Escudo max e inicial por nível (0 a 5)
+  reactor_core: number;    // +15 Energia max por nível (0 a 5)
+  energy_siphon: number;   // +12% ganho de energia por palavra por nível (0 a 5)
+  cold_start: number;      // Começa com +10 de energia pronta por nível (0 a 5)
+}
+
+export interface HangarUpgradeConfig {
+  id: keyof RadarPermanentUpgrades;
+  title: string;
+  tagline: string;
+  description: string;
+  maxLevel: number;
+  costs: number[];
+  getBonusText: (level: number) => string;
+}
+
+export const HANGAR_UPGRADES: HangarUpgradeConfig[] = [
+  {
+    id: 'hull_armor',
+    title: 'Blindagem de Casco Cibernético',
+    tagline: 'Integridade Estrutural',
+    description: 'Aumenta a integridade máxima (HP) da base central.',
+    maxLevel: 5,
+    costs: [30, 60, 110, 180, 270],
+    getBonusText: (lvl) => `+${lvl * 15} HP Máximo`
+  },
+  {
+    id: 'shield_battery',
+    title: 'Capacitor de Escudo Defletor',
+    tagline: 'Barreira Perimetral',
+    description: 'Aumenta o escudo máximo e inicial da base contra projéteis.',
+    maxLevel: 5,
+    costs: [35, 70, 125, 200, 300],
+    getBonusText: (lvl) => `+${lvl * 10} Escudo Inicial/Máx`
+  },
+  {
+    id: 'reactor_core',
+    title: 'Núcleo de Reator Expandido',
+    tagline: 'Capacidade Cibernética',
+    description: 'Expande a capacidade máxima da barra de energia para mais comandos.',
+    maxLevel: 5,
+    costs: [40, 85, 140, 220, 330],
+    getBonusText: (lvl) => `+${lvl * 15} Energia Máxima`
+  },
+  {
+    id: 'energy_siphon',
+    title: 'Sifão Cinético de Digitação',
+    tagline: 'Geração por Tecla',
+    description: 'Aumenta a energia gerada a cada palavra digitada corretamente.',
+    maxLevel: 5,
+    costs: [45, 90, 150, 230, 340],
+    getBonusText: (lvl) => `+${lvl * 12}% de Energia por Palavra`
+  },
+  {
+    id: 'cold_start',
+    title: 'Sobrecarga de Partida Fria',
+    tagline: 'Prontidão de Combate',
+    description: 'Inicia cada partida com carga de energia emergencial já pronta.',
+    maxLevel: 5,
+    costs: [25, 55, 100, 160, 250],
+    getBonusText: (lvl) => `+${lvl * 10} Energia Inicial`
+  }
+];
+
+export const RADAR_HANGAR_STORAGE_KEY = 'radar_hangar_upgrades';
+export const RADAR_SCRAP_STORAGE_KEY = 'radar_tech_scrap';
+export const RADAR_HIGH_WAVE_STORAGE_KEY = 'radar_high_wave';
+export const RADAR_HIGH_SCORE_STORAGE_KEY = 'radar_high_score';
+
+export function loadRadarHangarUpgrades(): RadarPermanentUpgrades {
+  try {
+    const raw = localStorage.getItem(RADAR_HANGAR_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return {
+        hull_armor: Math.min(5, Math.max(0, parsed.hull_armor || 0)),
+        shield_battery: Math.min(5, Math.max(0, parsed.shield_battery || 0)),
+        reactor_core: Math.min(5, Math.max(0, parsed.reactor_core || 0)),
+        energy_siphon: Math.min(5, Math.max(0, parsed.energy_siphon || 0)),
+        cold_start: Math.min(5, Math.max(0, parsed.cold_start || 0))
+      };
+    }
+  } catch {}
+  return {
+    hull_armor: 0,
+    shield_battery: 0,
+    reactor_core: 0,
+    energy_siphon: 0,
+    cold_start: 0
+  };
+}
+
+export function saveRadarHangarUpgrades(upgrades: RadarPermanentUpgrades): void {
+  try {
+    localStorage.setItem(RADAR_HANGAR_STORAGE_KEY, JSON.stringify(upgrades));
+  } catch {}
+}
+
+export function loadRadarScrap(): number {
+  try {
+    const raw = localStorage.getItem(RADAR_SCRAP_STORAGE_KEY);
+    if (raw) {
+      const val = parseInt(raw, 10);
+      if (!isNaN(val) && val >= 0) return val;
+    }
+  } catch {}
+  return 0;
+}
+
+export function saveRadarScrap(amount: number): void {
+  try {
+    localStorage.setItem(RADAR_SCRAP_STORAGE_KEY, String(Math.max(0, Math.round(amount))));
+  } catch {}
+}
+
+export function loadRadarHighWave(): number {
+  try {
+    const raw = localStorage.getItem(RADAR_HIGH_WAVE_STORAGE_KEY);
+    if (raw) {
+      const val = parseInt(raw, 10);
+      if (!isNaN(val) && val >= 1) return val;
+    }
+  } catch {}
+  return 1;
+}
+
+export function saveRadarHighWave(wave: number): void {
+  try {
+    const cur = loadRadarHighWave();
+    if (wave > cur) {
+      localStorage.setItem(RADAR_HIGH_WAVE_STORAGE_KEY, String(wave));
+    }
+  } catch {}
+}
+
+export function loadRadarHighScore(): number {
+  try {
+    const raw = localStorage.getItem(RADAR_HIGH_SCORE_STORAGE_KEY);
+    if (raw) {
+      const val = parseInt(raw, 10);
+      if (!isNaN(val) && val >= 0) return val;
+    }
+  } catch {}
+  return 0;
+}
+
+export function saveRadarHighScore(score: number): void {
+  try {
+    const cur = loadRadarHighScore();
+    if (score > cur) {
+      localStorage.setItem(RADAR_HIGH_SCORE_STORAGE_KEY, String(score));
+    }
+  } catch {}
+}
+
+export function createInitialRadarState(permanentUpgrades?: RadarPermanentUpgrades): RadarRunState {
+  const hpBonus = (permanentUpgrades?.hull_armor || 0) * 15;
+  const shieldBonus = (permanentUpgrades?.shield_battery || 0) * 10;
+  const energyMaxBonus = (permanentUpgrades?.reactor_core || 0) * 15;
+  const coldStartBonus = (permanentUpgrades?.cold_start || 0) * 10;
+
+  const maxHp = 100 + hpBonus;
+  const maxShield = 50 + shieldBonus;
+  const maxEnergy = 100 + energyMaxBonus;
+  const startingEnergy = Math.min(maxEnergy, 40 + coldStartBonus);
+
   return {
     wave: 1,
-    health: 100,
-    maxHealth: 100,
-    shield: 50,
-    maxShield: 50,
-    energy: 40,
-    maxEnergy: 100,
+    health: maxHp,
+    maxHealth: maxHp,
+    shield: maxShield,
+    maxShield: maxShield,
+    energy: startingEnergy,
+    maxEnergy,
     score: 0,
     bytesEarned: 0,
     enemiesDefeated: 0,
@@ -323,27 +492,32 @@ export function spawnRadarEnemy(
   let baseSpeed = 18;
   let scoreVal = 50;
   let byteVal = 10;
+  let scrapVal = 1;
 
   switch (tier) {
     case 'scout':
-      baseSpeed = 24 + Math.min(wave * 2.2, 28);
+      baseSpeed = 24 + Math.min(wave * 2.4, 34);
       scoreVal = 40;
       byteVal = 8;
+      scrapVal = 1;
       break;
     case 'drone':
-      baseSpeed = 16 + Math.min(wave * 1.8, 20);
+      baseSpeed = 16 + Math.min(wave * 2.0, 26);
       scoreVal = 80;
       byteVal = 18;
+      scrapVal = 3;
       break;
     case 'tank':
-      baseSpeed = 10 + Math.min(wave * 1.2, 14);
+      baseSpeed = 10 + Math.min(wave * 1.5, 18);
       scoreVal = 160;
       byteVal = 40;
+      scrapVal = 5;
       break;
     case 'glitch':
-      baseSpeed = 18 + Math.min(wave * 2, 22);
+      baseSpeed = 19 + Math.min(wave * 2.2, 28);
       scoreVal = 200;
       byteVal = 50;
+      scrapVal = 6;
       break;
   }
 
@@ -359,7 +533,8 @@ export function spawnRadarEnemy(
     word,
     typedLength: 0,
     scoreValue: scoreVal,
-    byteValue: byteVal
+    byteValue: byteVal,
+    scrapValue: scrapVal
   };
 }
 
@@ -379,12 +554,13 @@ export function spawnBossEnemy(
     angle,
     distance: maxDistance,
     maxDistance,
-    speed: 6 + Math.min(wave * 0.4, 5), // Lento e ameaçador
+    speed: 6 + Math.min(wave * 0.5, 8), // Lento e ameaçador
     type: 'boss',
     word: stages[0],
     typedLength: 0,
     scoreValue: 600 + wave * 60,
     byteValue: 150 + wave * 25,
+    scrapValue: 15 + Math.floor(wave / 5) * 5,
     bossHp: stages.length,
     bossMaxHp: stages.length,
     bossStages: stages,
