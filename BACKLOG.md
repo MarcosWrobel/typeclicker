@@ -23,6 +23,8 @@
 | **[HUB/CATÁLOGO]** Ordenação prioritária (3 principais + recém-adicionados na 4ª posição) | nenhum (lógica client-side) | `gameCatalog.ts` | P | **Concluído (`c373682`)** |
 | **[PROGPLAY/UX]** Painel de entrada com apresentação pedagógica, créditos e seleção inicial de linguagem | nenhum (lógica client-side) | `LanguageSelectModal.tsx`, `ProgPlayGame.tsx` | P | **Concluído (`c373682`)** |
 | **[JOGO/LÓGICA]** Implementar `ScratchBot: Logic Quest` (substituindo `byte_logic`) | `public.game_progress` (Supabase) | `ScratchBotGame.tsx`, `gameCatalog.ts`, `gamePlugin.ts`, `App.tsx` | G | **Concluído** |
+| **[SCRATCHBOT/OBSTÁCULOS]** Obstáculos Interativos: EMP Hazards, Warp Pads, Portões Laser com Chaves e Esteiras | nenhum (lógica pura client-side) | `ScratchBoardCanvas.tsx`, `levelsData.ts`, `proceduralGenerator.ts`, `scratchAudio.ts` | M | **Concluído** |
+| **[SCRATCHBOT/UX]** Layout de 3 colunas otimizado, suporte a aninhamento em loops e skin oficial do Bytezinho | `user_cosmetics` / `equippedSkin` | `ScratchBotGame.tsx`, `ScratchBlockItem.tsx`, `ScratchBoardCanvas.tsx` | M | **Concluído** |
 
 ---
 

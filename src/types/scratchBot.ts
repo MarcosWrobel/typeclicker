@@ -27,6 +27,21 @@ export interface GridCoord {
   y: number;
 }
 
+export interface TeleporterPair {
+  from: GridCoord;
+  to: GridCoord;
+}
+
+export interface ConveyorBelt {
+  coord: GridCoord;
+  direction: RobotDirection;
+}
+
+export interface LaserGate {
+  gateCoord: GridCoord;
+  keyCoord: GridCoord;
+}
+
 export interface LevelItem {
   id: string;
   coord: GridCoord;
@@ -45,6 +60,10 @@ export interface ScratchLevelDef {
   targetPos: GridCoord;
   obstacles: GridCoord[];
   gems?: GridCoord[];
+  hazards?: GridCoord[]; // Pisos de choque EMP
+  teleporters?: TeleporterPair[]; // Portais de salto quântico
+  conveyors?: ConveyorBelt[]; // Esteiras de aceleração
+  gates?: LaserGate[]; // Portas e chaves de segurança
   maxBlocksFor3Stars: number;
   maxBlocksFor2Stars: number;
   baseRewardBytes: number;

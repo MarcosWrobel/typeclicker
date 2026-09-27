@@ -2690,6 +2690,7 @@ export default function App() {
         <ScratchBotGame
           studentClass={state.rpgClass}
           difficultyMultiplier={1.0}
+          equippedSkin={currentCosmetics.equippedSkin || 'classic'}
           onExitToHub={(payload) => handleGamePluginExit('scratchbot', payload)}
         />
       </React.Suspense>

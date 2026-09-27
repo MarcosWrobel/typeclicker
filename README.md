@@ -107,6 +107,21 @@ Treino direcionado gerado automaticamente pela análise da telemetria do aluno.
 - **Geração de batch:** Sequências de palavras que maximizam a exposição às teclas problemáticas
 - **Relatório de fraquezas:** Exibe as 3 teclas mais problemáticas com taxa de erro e tempo médio de resposta
 
+### 9. ScratchBot: Logic Quest — Programação em Blocos e Algoritmos
+Jogo de pensamento computacional e raciocínio lógico algorítmico oficial da plataforma. O aluno programa os passos do mascote Bytezinho utilizando blocos visuais inspirados no Scratch para desviar de armadilhas, coletar dados e atingir o portal de saída.
+
+- **Montagem de Algoritmos Híbrida:** Suporte completo a Drag-and-Drop nativo HTML5 e adição por clique rápido com auto-encaixe em laços de repetição.
+- **Estruturas Lógicas:** Blocos de evento (`quando ⚑ clicado`), movimento (`mova 1 passo`), rotação (`gire ↺/↻`), controle (`repita N vezes`) e ações (`coletar gema`).
+- **Obstáculos e Mecânicas Interativas:**
+  - 🧱 **Firewalls:** Barreiras estáticas impenetráveis.
+  - ⚡ **EMP Hazards:** Pisos de sobrecarga elétrica que causam curto-circuito se a execução terminar sobre eles.
+  - 🌀 **Warp Pads:** Teletransportadores quânticos que realizam saltos espaciais conservando a rotação.
+  - 🔒/🔑 **Portões Laser & Chaves Criptográficas:** Portões intransponíveis até a coleta da respectiva chave de segurança.
+  - 💨 **Esteiras Aceleradoras:** Impulso instantâneo de +1 casa na direção indicada, otimizando o gasto de blocos.
+- **Trilha Pedagógica & Desafio Infinito:** 8 fases artesanais com curva curricular progressiva + gerador procedural infinito com semente determinística e garantia matemática de solvabilidade (BFS).
+- **Integração Visual com a Loja:** O mascote renderiza em tempo real a skin oficial equipada pelo aluno com reações contextuais de colisão e vitória.
+- **Áudio Procedural:** Sons sintetizados em tempo real via Web Audio API (snap de blocos, passos mecânicos, teleportes, choques, desbloqueios e fanfarra de vitória).
+
 ---
 
 ## 🎭 Sistema de Progressão e Gamificação

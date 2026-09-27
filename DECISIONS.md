@@ -66,9 +66,16 @@
 - **Hierarquia Visual e Ordenação no Hub**: Os 3 jogos principais da plataforma (`TyperDash`, `TypeClicker Classic`, `Type: Radar`) permanecem ancorados nas primeiras posições. Jogos novos ou de alunos recém-integrados ocupam a vaga imediata seguinte (4ª posição em diante), garantindo previsibilidade para os jogos core ao mesmo tempo em que dá visibilidade de destaque para lançamentos.
 - **Implementação do ScratchBot: Logic Quest (Substituindo `byte_logic`)**:
   - Jogo oficial de pensamento computacional e algoritmos em blocos visuais (`src/components/games/scratchbot/`).
-  - **Mecânica Híbrida de Montagem**: Suporta Drag-and-Drop nativo HTML5 e clique rápido para adição direta ao workspace ou laços de repetição, ideal para ambientes de laboratório escolar com mouse ou touchpad.
-  - **Trilha Pedagógica + Modo Procedural**: 8 fases artesanais com progressão de conceitos (linear, curvas, loops `repita N vezes`, obstáculos e coleta de gemas) combinadas com gerador procedural com verificação BFS de rota garantida.
-  - **Áudio Procedural**: Sintetizador Web Audio API puro sem assets externos `.mp3`, com sons de snap de blocos, passos mecânicos, coleta de dados e fanfarra.
+  - **Mecânica Híbrida de Montagem**: Suporta Drag-and-Drop nativo HTML5 e clique rápido com auto-encaixe em estruturas aninhadas (`children` em laços `repeat`), ideal para ambientes escolares com mouse ou touchpad.
+  - **Layout de 3 Colunas Otimizado**: Paleta compacta de blocos à esquerda (w-56), área de scripts centralizada (w-72/w-80) e palco do desafio ampliado (flex-1) com proporção equilibrada para máxima visibilidade do tabuleiro.
+  - **Mascote Bytezinho com Skin Oficial**: O personagem não utiliza emojis genéricos; renderiza o `BytezinhoAvatar` oficial com a skin comprada/equipada pelo aluno na loja (`equippedSkin`) e expressões contextuais (`normal`, `oops`, `happy`).
+  - **Ecossistema de Obstáculos Dinâmicos**: Além de firewalls estáticos, incorpora mecânicas interativas completas:
+    - *EMP Hazards (Pisos de Sobrecarga)*: passagem livre durante a caminhada, mas choque/falha se o código terminar parado sobre eles.
+    - *Warp Pads (Teletransportadores)*: saltos quânticos que preservam a rotação para transpor barreiras intransponíveis.
+    - *Portões Laser & Chaves Criptográficas*: barreiras que só se abrem após o robô passar pela chave de segurança.
+    - *Esteiras Aceleradoras*: impulso de +1 casa na direção da esteira sem custo de bloco de movimento.
+  - **Trilha Pedagógica + Modo Procedural Solúvel**: 8 fases artesanais com progressão curricular de obstáculos combinadas com gerador procedural determinístico testado com busca BFS para garantir 100% de solvabilidade.
+  - **Áudio Procedural**: Sintetizador Web Audio API puro com efeitos sonoros de snap de blocos, passos mecânicos, teleportes, choques, desbloqueios e fanfarra.
   - **Conformidade de Plug-in**: Implementa `BaseGameProps` e persistência no `game_progress` do Supabase via `onExitToHub`.
 - **Opt-in por jogo via `HubConfig.disabledGames`**: professor habilita/desabilita jogos via painel sem deploy. (Ativo).
 
