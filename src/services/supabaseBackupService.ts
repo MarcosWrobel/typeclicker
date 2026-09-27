@@ -5,6 +5,7 @@ export interface FullSupabaseBackup {
   createdAt: string;
   createdBy: string;
   label?: string;
+  warnings?: string[];
   counts: {
     profiles: number;
     game_progress: number;
@@ -31,6 +32,23 @@ export interface RestoreSummary {
     season_history: number;
   };
   errors?: string[];
+}
+
+/**
+ * Detecta se o erro retornado pelo Supabase/PostgREST é decorrente de tabela ausente
+ * ou cache de schema desatualizado (ex: PGRST205, 42P01).
+ */
+function isTableMissingError(error: any): boolean {
+  if (!error) return false;
+  const msg = (error.message || '').toLowerCase();
+  const code = error.code || '';
+  return (
+    code === 'PGRST205' ||
+    code === '42P01' ||
+    msg.includes('schema cache') ||
+    msg.includes('does not exist') ||
+    msg.includes('not found in the schema cache')
+  );
 }
 
 /**
@@ -63,26 +81,38 @@ export async function createSupabaseBackup(
   if (errProgress) throw new Error(`Falha ao exportar tabela 'game_progress': ${errProgress.message}`);
   if (errCosmetics) throw new Error(`Falha ao exportar tabela 'user_cosmetics': ${errCosmetics.message}`);
   if (errAchievements) throw new Error(`Falha ao exportar tabela 'user_achievements': ${errAchievements.message}`);
-  if (errSeasons) throw new Error(`Falha ao exportar tabela 'season_history': ${errSeasons.message}`);
+
+  const warnings: string[] = [];
+  let safeSeasonHistory = seasonHistory;
+  if (errSeasons) {
+    if (isTableMissingError(errSeasons)) {
+      console.warn("[createSupabaseBackup] Tabela 'season_history' não encontrada no schema cache:", errSeasons.message);
+      warnings.push("Tabela 'season_history' ainda não criada no banco (exportada como vazia).");
+      safeSeasonHistory = [];
+    } else {
+      throw new Error(`Falha ao exportar tabela 'season_history': ${errSeasons.message}`);
+    }
+  }
 
   const backupData: FullSupabaseBackup = {
     version: '2.0.0',
     createdAt: new Date().toISOString(),
     createdBy,
     label,
+    warnings: warnings.length > 0 ? warnings : undefined,
     counts: {
       profiles: profiles?.length || 0,
       game_progress: gameProgress?.length || 0,
       user_cosmetics: userCosmetics?.length || 0,
       user_achievements: userAchievements?.length || 0,
-      season_history: seasonHistory?.length || 0
+      season_history: safeSeasonHistory?.length || 0
     },
     tables: {
       profiles: profiles || [],
       game_progress: gameProgress || [],
       user_cosmetics: userCosmetics || [],
       user_achievements: userAchievements || [],
-      season_history: seasonHistory || []
+      season_history: safeSeasonHistory || []
     }
   };
 
@@ -178,7 +208,12 @@ export async function restoreSupabaseBackup(backup: FullSupabaseBackup): Promise
   if (Array.isArray(backup.tables.season_history) && backup.tables.season_history.length > 0) {
     const { error } = await supabase.from('season_history').upsert(backup.tables.season_history, { onConflict: 'id' });
     if (error) {
-      errors.push(`Erro ao restaurar 'season_history': ${error.message}`);
+      if (isTableMissingError(error)) {
+        console.warn("[restoreSupabaseBackup] Tabela 'season_history' não encontrada. Histórico ignorado.");
+        errors.push(`Aviso: Tabela 'season_history' não encontrada no Supabase. O histórico de temporadas foi ignorado.`);
+      } else {
+        errors.push(`Erro ao restaurar 'season_history': ${error.message}`);
+      }
     } else {
       summary.restoredCounts.season_history = backup.tables.season_history.length;
     }

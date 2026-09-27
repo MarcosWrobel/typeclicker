@@ -492,9 +492,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       setLastBackup(backupData);
 
       sound.playUpgrade();
+      const warningText = backupData.warnings && backupData.warnings.length > 0 ? ` [Aviso: ${backupData.warnings.join(' ')}]` : '';
       setBackupActionMessage({
         type: 'success',
-        text: `Backup exportado e baixado com sucesso! (${backupData.counts.profiles} perfis, ${backupData.counts.game_progress} progressos, ${backupData.counts.user_cosmetics} cosméticos, ${backupData.counts.user_achievements} conquistas, ${backupData.counts.season_history} temporadas).`
+        text: `Backup exportado e baixado com sucesso! (${backupData.counts.profiles} perfis, ${backupData.counts.game_progress} progressos, ${backupData.counts.user_cosmetics} cosméticos, ${backupData.counts.user_achievements} conquistas, ${backupData.counts.season_history} temporadas).${warningText}`
       });
     } catch (e: any) {
       setBackupActionMessage({
