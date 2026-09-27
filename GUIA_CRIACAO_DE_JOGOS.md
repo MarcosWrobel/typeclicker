@@ -17,8 +17,10 @@ Cole o conteúdo das seções **2, 3 e 4** como prompt no AI Studio junto com a 
 A plataforma TypeClicker roda em `typeclicker-leopoldina.ai.studio`. Ela tem um **Hub** central que exibe cards de jogos. Quando o aluno clica em um card, o jogo abre em tela cheia. Quando o jogo termina, ele devolve os dados para o Hub (bytes, fichas, estatísticas) e o Hub salva tudo.
 
 **Jogos já existentes na plataforma:**
-- `typeclicker` — jogo principal de digitação (não modificar)
-- `type_radar` — torre de defesa com digitação (não modificar)
+- `typerdash` — rhythm runner de digitação na Linha Guia a 130 BPM
+- `typeclicker` — jogo principal de digitação e mineração (não modificar)
+- `type_radar` — torre de defesa cibernética e roguelike (não modificar)
+- `progplay` — 1º jogo integrado criado por aluno (André Luís Borato Ferreira - 8º 2) com 100 desafios em 5 linguagens e arena 1v1
 - `byte_logic`, `math_storm`, `syntax_maze` — jogos criados pelo professor (não modificar)
 
 **Você, como aluno, cria um jogo novo com tema e nome à sua escolha.**  

@@ -62,6 +62,8 @@
   - Jogo importado em `src/plugins/progplay/` sob a categoria "Alunos" no catálogo.
   - **Duelo 1v1 Sem Dependência de IA**: O sistema original de batalha foi totalmente adaptado para não utilizar APIs de LLM externas nem custos de tokens. As perguntas utilizam a base pré-definida e curada de questões por linguagem (`quizQuestions.ts`). O modo 1v1 suporta duelo solo contra bot mascote inteligente (*Bytezinho 🐸*, simulando tempo de resposta humano e uso tático de poderes como Congelamento, Névoa e Escudo) ou duelo multiplayer local/sala via Supabase Realtime Broadcast efêmero, sem poluir o banco de dados.
   - **Totalmente desacoplado de Firebase Auth/Firestore próprio**: Utiliza a sessão e métricas do TypeClicker via `BaseGameProps` e normalização segura de saída com `onExitToHub`.
+  - **Painel de Boas-Vindas e Seleção Imediata**: Ao carregar o jogo, um modal introdutório apresenta os objetivos pedagógicos, os créditos do autor e os cards com as 5 linguagens (JavaScript, Python, CSS3, HTML5 e SQL), permitindo ao aluno direcionar o início da sua prática sem atrito cognitivo.
+- **Hierarquia Visual e Ordenação no Hub**: Os 3 jogos principais da plataforma (`TyperDash`, `TypeClicker Classic`, `Type: Radar`) permanecem ancorados nas primeiras posições. Jogos novos ou de alunos recém-integrados ocupam a vaga imediata seguinte (4ª posição em diante), garantindo previsibilidade para os jogos core ao mesmo tempo em que dá visibilidade de destaque para lançamentos.
 - **Opt-in por jogo via `HubConfig.disabledGames`**: professor habilita/desabilita jogos via painel sem deploy. (Ativo).
 
 ## Bugs / Débitos Técnicos

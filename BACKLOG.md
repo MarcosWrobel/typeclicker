@@ -19,8 +19,9 @@
 | **[ADMIN/BACKUPS]** Snapshot Relacional JSON & Restauração com Upsert Idempotente no Supabase | Tabelas `profiles`, `game_progress`, `user_cosmetics`, `user_achievements`, `season_history` | `supabaseBackupService.ts`, `AdminPanel.tsx` | M | **Concluído** |
 | **[ADMIN/BACKUPS]** Tolerância a Tabelas Ausentes no Schema Cache & Migração SQL de Temporadas | `public.profiles(season_bytes)`, `public.season_history` | `supabaseBackupService.ts`, `create_season_history.sql`, `initialize-current-trimester.sql` | P | **Concluído (`0a9521d`)** |
 | **[ADMIN/MÉTRICAS]** Diagnóstico de Conexão, Latência e Contadores Head Queries Zero-Egress | Contagens PostgreSQL via PostgREST | `supabaseMetricsService.ts`, `AdminPanel.tsx` | M | **Concluído** |
-| **[ADMIN/WIPE]** Wipe em Cascata no PostgreSQL com Higienização Sincronizada no Firestore | Banco Supabase + Coleções legadas Firestore | `supabaseAdapter.ts`, `AdminPanel.tsx` | M | **Concluído** |
-| **[ALUNOS/JOGO]** Integrar 1º jogo de aluno: `ProgPlay` (André Luís Borato Ferreira - 8º 2) | `public.game_progress` (Supabase) | `ProgPlayGame.tsx`, `gameCatalog.ts`, `gamePlugin.ts`, `App.tsx` | G | **Concluído** |
+| **[ALUNOS/JOGO]** Integrar 1º jogo de aluno: `ProgPlay` (André Luís Borato Ferreira - 8º 2) | `public.game_progress` (Supabase) | `ProgPlayGame.tsx`, `gameCatalog.ts`, `gamePlugin.ts`, `App.tsx` | G | **Concluído (`e289ff9`)** |
+| **[HUB/CATÁLOGO]** Ordenação prioritária (3 principais + recém-adicionados na 4ª posição) | nenhum (lógica client-side) | `gameCatalog.ts` | P | **Concluído (`c373682`)** |
+| **[PROGPLAY/UX]** Painel de entrada com apresentação pedagógica, créditos e seleção inicial de linguagem | nenhum (lógica client-side) | `LanguageSelectModal.tsx`, `ProgPlayGame.tsx` | P | **Concluído (`c373682`)** |
 
 ---
 
