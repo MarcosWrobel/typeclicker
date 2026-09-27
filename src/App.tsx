@@ -37,6 +37,7 @@ import { GameSelectionScreen } from './components/GameSelectionScreen';
 import { TypeRadarGame } from './components/games/radar/TypeRadarGame';
 import { TyperDashGame } from './components/games/typerdash';
 const ProgPlayGame = React.lazy(() => import('./plugins/progplay/ProgPlayGame'));
+const ScratchBotGame = React.lazy(() => import('./components/games/scratchbot/ScratchBotGame'));
 import { GameExitPayload, ArcadeMatchRecord, GameId } from './types/gamePlugin';
 import { normalizePluginBytes } from './utils/gameNormalizer';
 import { LevelUpOverlay } from './components/LevelUpOverlay';
@@ -2483,6 +2484,8 @@ export default function App() {
               setSelectedGame('typerdash');
             } else if (gameId === 'progplay') {
               setSelectedGame('progplay');
+            } else if (gameId === 'scratchbot') {
+              setSelectedGame('scratchbot');
             } else if (gameId === 'time_attack') {
               setSelectedGame('typeclicker');
               setIsTimeAttackOpen(true);
@@ -2668,6 +2671,26 @@ export default function App() {
           studentName={state.studentNickname || state.studentName || user?.displayName || 'Aluno'}
           studentAvatar={user?.photoURL || ''}
           onExitToHub={(payload) => handleGamePluginExit('progplay', payload)}
+        />
+      </React.Suspense>
+    );
+  }
+
+  // Jogo Standalone: ScratchBot: Logic Quest (Prof. Marcos Wrobel)
+  if (selectedGame === 'scratchbot') {
+    return (
+      <React.Suspense
+        fallback={
+          <div className="min-h-screen bg-[#0a0c12] flex flex-col items-center justify-center text-white gap-3">
+            <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
+            <span className="font-mono text-xs text-neutral-400">Carregando ScratchBot: Logic Quest...</span>
+          </div>
+        }
+      >
+        <ScratchBotGame
+          studentClass={state.rpgClass}
+          difficultyMultiplier={1.0}
+          onExitToHub={(payload) => handleGamePluginExit('scratchbot', payload)}
         />
       </React.Suspense>
     );

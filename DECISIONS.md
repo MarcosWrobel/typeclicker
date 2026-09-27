@@ -64,6 +64,12 @@
   - **Totalmente desacoplado de Firebase Auth/Firestore próprio**: Utiliza a sessão e métricas do TypeClicker via `BaseGameProps` e normalização segura de saída com `onExitToHub`.
   - **Painel de Boas-Vindas e Seleção Imediata**: Ao carregar o jogo, um modal introdutório apresenta os objetivos pedagógicos, os créditos do autor e os cards com as 5 linguagens (JavaScript, Python, CSS3, HTML5 e SQL), permitindo ao aluno direcionar o início da sua prática sem atrito cognitivo.
 - **Hierarquia Visual e Ordenação no Hub**: Os 3 jogos principais da plataforma (`TyperDash`, `TypeClicker Classic`, `Type: Radar`) permanecem ancorados nas primeiras posições. Jogos novos ou de alunos recém-integrados ocupam a vaga imediata seguinte (4ª posição em diante), garantindo previsibilidade para os jogos core ao mesmo tempo em que dá visibilidade de destaque para lançamentos.
+- **Implementação do ScratchBot: Logic Quest (Substituindo `byte_logic`)**:
+  - Jogo oficial de pensamento computacional e algoritmos em blocos visuais (`src/components/games/scratchbot/`).
+  - **Mecânica Híbrida de Montagem**: Suporta Drag-and-Drop nativo HTML5 e clique rápido para adição direta ao workspace ou laços de repetição, ideal para ambientes de laboratório escolar com mouse ou touchpad.
+  - **Trilha Pedagógica + Modo Procedural**: 8 fases artesanais com progressão de conceitos (linear, curvas, loops `repita N vezes`, obstáculos e coleta de gemas) combinadas com gerador procedural com verificação BFS de rota garantida.
+  - **Áudio Procedural**: Sintetizador Web Audio API puro sem assets externos `.mp3`, com sons de snap de blocos, passos mecânicos, coleta de dados e fanfarra.
+  - **Conformidade de Plug-in**: Implementa `BaseGameProps` e persistência no `game_progress` do Supabase via `onExitToHub`.
 - **Opt-in por jogo via `HubConfig.disabledGames`**: professor habilita/desabilita jogos via painel sem deploy. (Ativo).
 
 ## Bugs / Débitos Técnicos

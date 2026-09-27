@@ -175,21 +175,21 @@ export const INITIAL_GAME_CATALOG: GameMetadata[] = [
     tags: ['Dano Coletivo', 'Chefão', 'Recompensas']
   },
   {
-    id: 'byte_logic',
-    title: 'Byte Logic',
-    description: 'Desvende enigmas lógicos, portas binárias (AND, OR, XOR, NOT) e circuitos digitais para restaurar a energia do mainframe.',
+    id: 'scratchbot',
+    title: 'ScratchBot: Logic Quest',
+    description: 'Aprenda lógica de programação e algoritmos montando blocos visuais inspirados no Scratch! Guie o Bytezinho por 8 fases e desafios infinitos.',
     author: 'Prof. Marcos Wrobel',
     category: 'Oficiais',
     subject: 'Educação Digital',
     genre: 'Lógica',
-    coverGradient: 'from-indigo-500/20 via-blue-500/10 to-transparent',
-    borderColor: 'border-indigo-500/40 hover:border-indigo-400',
-    glowColor: 'bg-indigo-500/10 group-hover:bg-indigo-500/20',
-    badgeTag: 'EM BREVE',
-    icon: 'Cpu',
+    coverGradient: 'from-amber-500/20 via-orange-500/10 to-transparent',
+    borderColor: 'border-amber-500/50 hover:border-amber-400',
+    glowColor: 'bg-amber-500/10 group-hover:bg-amber-500/20',
+    badgeTag: 'NOVO • SCRATCH',
+    icon: 'Puzzle',
     isNew: true,
-    status: 'coming_soon',
-    tags: ['Portas Lógicas', 'Circuitos', 'Tabela Verdade']
+    status: 'playable',
+    tags: ['Blocos Visuais', 'Algoritmos & Loops', 'Modo Infinito', 'Desafio Pedagógico']
   },
   {
     id: 'math_storm',

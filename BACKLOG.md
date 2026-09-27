@@ -22,6 +22,7 @@
 | **[ALUNOS/JOGO]** Integrar 1º jogo de aluno: `ProgPlay` (André Luís Borato Ferreira - 8º 2) | `public.game_progress` (Supabase) | `ProgPlayGame.tsx`, `gameCatalog.ts`, `gamePlugin.ts`, `App.tsx` | G | **Concluído (`e289ff9`)** |
 | **[HUB/CATÁLOGO]** Ordenação prioritária (3 principais + recém-adicionados na 4ª posição) | nenhum (lógica client-side) | `gameCatalog.ts` | P | **Concluído (`c373682`)** |
 | **[PROGPLAY/UX]** Painel de entrada com apresentação pedagógica, créditos e seleção inicial de linguagem | nenhum (lógica client-side) | `LanguageSelectModal.tsx`, `ProgPlayGame.tsx` | P | **Concluído (`c373682`)** |
+| **[JOGO/LÓGICA]** Implementar `ScratchBot: Logic Quest` (substituindo `byte_logic`) | `public.game_progress` (Supabase) | `ScratchBotGame.tsx`, `gameCatalog.ts`, `gamePlugin.ts`, `App.tsx` | G | **Concluído** |
 
 ---
 
@@ -40,7 +41,6 @@
 ### P3 — Novos Jogos e Expansão do Hub
 | Feature | Dados DB (Supabase / Legado Firestore) | Telas afetadas | Complexidade | Status |
 |---|---|---|---|---|
-| **[PROFESSOR]** Implementar `byte_logic` | `public.game_progress` (Supabase) | `GameSelectionScreen`, `App.tsx` | M | Pendente |
 | **[PROFESSOR]** Implementar `math_storm` | `public.game_progress` (Supabase) | `GameSelectionScreen`, `App.tsx` | M | Pendente |
 | **[PROFESSOR]** Implementar `syntax_maze` | `public.game_progress` (Supabase) | `GameSelectionScreen`, `App.tsx` | M | Pendente |
 | Scheduler automático de backups | `backups/{backupId}` | Admin panel | G | Ideia |

@@ -1175,7 +1175,7 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
                       {game.badgeTag}
                     </span>
                     <span className="text-2xl">
-                      {game.icon === 'Calculator' ? '🔢' : game.icon === 'Cpu' ? '💻' : game.icon === 'Code' ? '🧩' : '🎮'}
+                      {game.icon === 'Calculator' ? '🔢' : game.icon === 'Cpu' ? '💻' : game.icon === 'Code' ? '🧩' : game.icon === 'Puzzle' ? '🤖' : '🎮'}
                     </span>
                   </div>
 
