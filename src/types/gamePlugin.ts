@@ -9,7 +9,8 @@ export type GameId =
   | 'typerdash'
   | 'byte_logic'
   | 'math_storm'
-  | 'syntax_maze';
+  | 'syntax_maze'
+  | 'progplay';
 
 export type StudentRpgClass = RpgClassType; // alias pedagógico para o guia dos alunos
 export type GamePluginProps = BaseGameProps;

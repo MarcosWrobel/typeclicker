@@ -36,6 +36,7 @@ import { SessionLockOverlay } from './components/SessionLockOverlay';
 import { GameSelectionScreen } from './components/GameSelectionScreen';
 import { TypeRadarGame } from './components/games/radar/TypeRadarGame';
 import { TyperDashGame } from './components/games/typerdash';
+const ProgPlayGame = React.lazy(() => import('./plugins/progplay/ProgPlayGame'));
 import { GameExitPayload, ArcadeMatchRecord, GameId } from './types/gamePlugin';
 import { normalizePluginBytes } from './utils/gameNormalizer';
 import { LevelUpOverlay } from './components/LevelUpOverlay';
@@ -84,7 +85,7 @@ import { Loader2 } from 'lucide-react';
 
 export default function App() {
   const suppressLevelUpRef = useRef<boolean>(true);
-  const [selectedGame, setSelectedGame] = useState<'typeclicker' | 'type_radar' | 'typerdash' | 'byte_logic' | 'math_storm' | 'syntax_maze' | null>(null);
+  const [selectedGame, setSelectedGame] = useState<GameId | null>(null);
   const [state, setState] = useState<GameState>(() => loadSavedState());
   const [typingMode, setTypingMode] = useState<TypingMode>(state.typingMode || 'words');
   const [currentWord, setCurrentWord] = useState<string>(() => getTextForMode(state.typingMode || 'words', state.selectedCategory));
@@ -2480,6 +2481,8 @@ export default function App() {
               setSelectedGame('type_radar');
             } else if (gameId === 'typerdash') {
               setSelectedGame('typerdash');
+            } else if (gameId === 'progplay') {
+              setSelectedGame('progplay');
             } else if (gameId === 'time_attack') {
               setSelectedGame('typeclicker');
               setIsTimeAttackOpen(true);
@@ -2645,6 +2648,28 @@ export default function App() {
           initialTab={leaderboardInitialTab}
         />
       </>
+    );
+  }
+
+  // Jogo Standalone: ProgPlay (André Luís Borato Ferreira - 8º 2)
+  if (selectedGame === 'progplay') {
+    return (
+      <React.Suspense
+        fallback={
+          <div className="min-h-screen bg-[#090a0f] flex flex-col items-center justify-center text-white gap-3">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+            <span className="font-mono text-xs text-neutral-400">Carregando ProgPlay...</span>
+          </div>
+        }
+      >
+        <ProgPlayGame
+          studentClass={state.rpgClass}
+          difficultyMultiplier={1.0}
+          studentName={state.studentNickname || state.studentName || user?.displayName || 'Aluno'}
+          studentAvatar={user?.photoURL || ''}
+          onExitToHub={(payload) => handleGamePluginExit('progplay', payload)}
+        />
+      </React.Suspense>
     );
   }
 

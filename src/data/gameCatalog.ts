@@ -207,6 +207,23 @@ export const INITIAL_GAME_CATALOG: GameMetadata[] = [
     isNew: true,
     status: 'coming_soon',
     tags: ['Debug', 'Python & JS', 'Monaco Editor']
+  },
+  {
+    id: 'progplay',
+    title: 'ProgPlay',
+    description: 'Plataforma interativa de programação estilo VS Code com o Enigma das Portas, 100 desafios em 5 linguagens (JS, Python, CSS, HTML, SQL) e Arena de Duelo 1x1!',
+    author: 'André Luís Borato Ferreira - 8º 2',
+    category: 'Alunos',
+    subject: 'Educação Digital',
+    genre: 'Lógica',
+    coverGradient: 'from-blue-500/20 via-indigo-500/10 to-transparent',
+    borderColor: 'border-blue-500/50 hover:border-blue-400',
+    glowColor: 'bg-blue-500/10 group-hover:bg-blue-500/20',
+    badgeTag: 'JOGO DE ALUNO',
+    icon: 'Code',
+    isNew: true,
+    status: 'playable',
+    tags: ['100 Fases', 'Enigma das Portas', 'Monaco Editor', 'Duelo 1x1', 'JS / Python / SQL / Web']
   }
 ];
 

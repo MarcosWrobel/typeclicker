@@ -58,6 +58,10 @@
 - **Hub normaliza bytes dos plug-ins**: jogos de alunos entregam métricas brutas; o Hub aplica `min(bytesEarned, timeSpentSeconds × CAP × accuracyFactor)` antes de creditar. Evita inflação. (Ativo).
 - **Contrato adotado: `BaseGameProps` + `GameExitPayload`**: contrato pedagógico do guia dos alunos foi adotado como contrato real do código (`src/types/gamePlugin.ts`). (Ativo).
 - **Fluxo de contribuição de alunos**: alunos desenvolvem usando `GUIA_CRIACAO_DE_JOGOS.md` → entregam o arquivo `index.tsx` → professor avalia → integra manualmente em `src/plugins/<nome>/`, define o `GameId` e roteamento lazy → habilita via painel admin. (Ativo).
+- **Integração do 1º Jogo de Aluno — ProgPlay (André Luís Borato Ferreira - 8º 2)**:
+  - Jogo importado em `src/plugins/progplay/` sob a categoria "Alunos" no catálogo.
+  - **Duelo 1v1 Sem Dependência de IA**: O sistema original de batalha foi totalmente adaptado para não utilizar APIs de LLM externas nem custos de tokens. As perguntas utilizam a base pré-definida e curada de questões por linguagem (`quizQuestions.ts`). O modo 1v1 suporta duelo solo contra bot mascote inteligente (*Bytezinho 🐸*, simulando tempo de resposta humano e uso tático de poderes como Congelamento, Névoa e Escudo) ou duelo multiplayer local/sala via Supabase Realtime Broadcast efêmero, sem poluir o banco de dados.
+  - **Totalmente desacoplado de Firebase Auth/Firestore próprio**: Utiliza a sessão e métricas do TypeClicker via `BaseGameProps` e normalização segura de saída com `onExitToHub`.
 - **Opt-in por jogo via `HubConfig.disabledGames`**: professor habilita/desabilita jogos via painel sem deploy. (Ativo).
 
 ## Bugs / Débitos Técnicos

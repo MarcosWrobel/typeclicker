@@ -20,7 +20,7 @@
 | **[ADMIN/BACKUPS]** Tolerância a Tabelas Ausentes no Schema Cache & Migração SQL de Temporadas | `public.profiles(season_bytes)`, `public.season_history` | `supabaseBackupService.ts`, `create_season_history.sql`, `initialize-current-trimester.sql` | P | **Concluído (`0a9521d`)** |
 | **[ADMIN/MÉTRICAS]** Diagnóstico de Conexão, Latência e Contadores Head Queries Zero-Egress | Contagens PostgreSQL via PostgREST | `supabaseMetricsService.ts`, `AdminPanel.tsx` | M | **Concluído** |
 | **[ADMIN/WIPE]** Wipe em Cascata no PostgreSQL com Higienização Sincronizada no Firestore | Banco Supabase + Coleções legadas Firestore | `supabaseAdapter.ts`, `AdminPanel.tsx` | M | **Concluído** |
-| **[ADMIN/TESTES]** Seletor de Alunos por `userId`, Atribuição Direta no PostgreSQL e Fila Offline | `profiles`, `user_cosmetics`, `game_progress` (Supabase) | `supabaseTestService.ts`, `AdminPanel.tsx`, `App.tsx` | M | **Concluído** |
+| **[ALUNOS/JOGO]** Integrar 1º jogo de aluno: `ProgPlay` (André Luís Borato Ferreira - 8º 2) | `public.game_progress` (Supabase) | `ProgPlayGame.tsx`, `gameCatalog.ts`, `gamePlugin.ts`, `App.tsx` | G | **Concluído** |
 
 ---
 
@@ -42,7 +42,6 @@
 | **[PROFESSOR]** Implementar `byte_logic` | `public.game_progress` (Supabase) | `GameSelectionScreen`, `App.tsx` | M | Pendente |
 | **[PROFESSOR]** Implementar `math_storm` | `public.game_progress` (Supabase) | `GameSelectionScreen`, `App.tsx` | M | Pendente |
 | **[PROFESSOR]** Implementar `syntax_maze` | `public.game_progress` (Supabase) | `GameSelectionScreen`, `App.tsx` | M | Pendente |
-| **[ALUNOS]** Integrar 1º jogo de aluno (ID definido pelo professor) | `public.game_progress` (Supabase) | `GameSelectionScreen`, `App.tsx` | M | Aguardando entrega |
 | Scheduler automático de backups | `backups/{backupId}` | Admin panel | G | Ideia |
 
 ---
