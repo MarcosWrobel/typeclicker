@@ -54,7 +54,8 @@ export const ProgPlayGame: React.FC<ProgPlayGameProps> = ({
   };
 
   // Modal for picking language (5 cards: JavaScript, Python, CSS, HTML, SQL)
-  const [isLanguageModalOpen, setIsLanguageModalOpen] = useState<boolean>(false);
+  // Aberto por padrão ao entrar no jogo para apresentar as opções e explicar o jogo
+  const [isLanguageModalOpen, setIsLanguageModalOpen] = useState<boolean>(true);
 
   const [selectedLanguage, setSelectedLanguage] = useState<GameLanguageId>('javascript');
 

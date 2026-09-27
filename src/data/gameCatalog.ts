@@ -44,6 +44,23 @@ export interface GameMetadata {
 
 export const INITIAL_GAME_CATALOG: GameMetadata[] = [
   {
+    id: 'typerdash',
+    title: 'TyperDash',
+    description: 'Rhythm runner no estilo Geometry Dash! Salte sobre espinhos neon no timing exato da Linha Guia (A S D F J K L) com batida a 130 BPM.',
+    author: 'Prof. Marcos Wrobel',
+    category: 'Oficiais',
+    subject: 'Educação Digital',
+    genre: 'Arcade',
+    coverGradient: 'from-amber-500/20 via-yellow-500/10 to-transparent',
+    borderColor: 'border-amber-500/50 hover:border-amber-400',
+    glowColor: 'bg-amber-500/10 group-hover:bg-amber-500/20',
+    badgeTag: 'NOVO RITMO',
+    icon: 'Zap',
+    isNew: true,
+    status: 'playable',
+    tags: ['130 BPM', 'Linha Guia (A S D F J K L)', 'Geometry Dash', 'Timing Windows']
+  },
+  {
     id: 'typeclicker',
     title: 'TypeClicker Classic',
     description: 'Modo original de digitação tática. Digite termos de programação, ganhe bytes, construa sua rig de mineração e suba até o nível 100.',
@@ -77,21 +94,21 @@ export const INITIAL_GAME_CATALOG: GameMetadata[] = [
     tags: ['Trava de Mira', 'Comandos /NUKE', 'Cartas Roguelike']
   },
   {
-    id: 'typerdash',
-    title: 'TyperDash',
-    description: 'Rhythm runner no estilo Geometry Dash! Salte sobre espinhos neon no timing exato da Linha Guia (A S D F J K L) com batida a 130 BPM.',
-    author: 'Prof. Marcos Wrobel',
-    category: 'Oficiais',
+    id: 'progplay',
+    title: 'ProgPlay',
+    description: 'Plataforma interativa de programação com o Enigma das Portas, 100 desafios práticos em 5 linguagens (JS, Python, CSS, HTML, SQL) e Arena de Duelo 1x1!',
+    author: 'André Luís Borato Ferreira - 8º 2',
+    category: 'Alunos',
     subject: 'Educação Digital',
-    genre: 'Arcade',
-    coverGradient: 'from-amber-500/20 via-yellow-500/10 to-transparent',
-    borderColor: 'border-amber-500/50 hover:border-amber-400',
-    glowColor: 'bg-amber-500/10 group-hover:bg-amber-500/20',
-    badgeTag: 'NOVO RITMO',
-    icon: 'Zap',
+    genre: 'Lógica',
+    coverGradient: 'from-blue-500/20 via-indigo-500/10 to-transparent',
+    borderColor: 'border-blue-500/50 hover:border-blue-400',
+    glowColor: 'bg-blue-500/10 group-hover:bg-blue-500/20',
+    badgeTag: 'JOGO DE ALUNO',
+    icon: 'Code',
     isNew: true,
     status: 'playable',
-    tags: ['130 BPM', 'Linha Guia (A S D F J K L)', 'Geometry Dash', 'Timing Windows']
+    tags: ['100 Fases', 'Enigma das Portas', 'Monaco Editor', 'Duelo 1x1', 'JS / Python / SQL / Web']
   },
   {
     id: 'time_attack',
@@ -207,23 +224,6 @@ export const INITIAL_GAME_CATALOG: GameMetadata[] = [
     isNew: true,
     status: 'coming_soon',
     tags: ['Debug', 'Python & JS', 'Monaco Editor']
-  },
-  {
-    id: 'progplay',
-    title: 'ProgPlay',
-    description: 'Plataforma interativa de programação estilo VS Code com o Enigma das Portas, 100 desafios em 5 linguagens (JS, Python, CSS, HTML, SQL) e Arena de Duelo 1x1!',
-    author: 'André Luís Borato Ferreira - 8º 2',
-    category: 'Alunos',
-    subject: 'Educação Digital',
-    genre: 'Lógica',
-    coverGradient: 'from-blue-500/20 via-indigo-500/10 to-transparent',
-    borderColor: 'border-blue-500/50 hover:border-blue-400',
-    glowColor: 'bg-blue-500/10 group-hover:bg-blue-500/20',
-    badgeTag: 'JOGO DE ALUNO',
-    icon: 'Code',
-    isNew: true,
-    status: 'playable',
-    tags: ['100 Fases', 'Enigma das Portas', 'Monaco Editor', 'Duelo 1x1', 'JS / Python / SQL / Web']
   }
 ];
 
