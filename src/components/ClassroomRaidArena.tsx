@@ -13,9 +13,14 @@ import {
   Sparkles,
   AlertTriangle,
   Award,
-  Crown
+  Crown,
+  Skull,
+  Lightbulb,
+  Medal,
+  Keyboard
 } from 'lucide-react';
 import { StudentAvatarRenderer } from './vectors/StudentAvatarRenderer';
+import { RpgClassIcon } from './vectors/rpg/RpgClassIcon';
 import confetti from 'canvas-confetti';
 import { ClassroomRaid, RaidParticipant } from '../types/raid';
 import { RpgClassType, RPG_CLASSES } from '../types/rpgClass';
@@ -56,7 +61,7 @@ export const ClassroomRaidArena: React.FC<ClassroomRaidArenaProps> = ({
   raid,
   studentName,
   studentNickname,
-  studentAvatar = '👾',
+  studentAvatar = 'tux',
   studentClass,
   rpgClass,
   userId,
@@ -279,10 +284,10 @@ export const ClassroomRaidArena: React.FC<ClassroomRaidArenaProps> = ({
           const currentWpm = Math.round((correctKeyCountRef.current / 5) / (activeSec / 60));
           if (activeRpgClass === 'warrior' && currentWpm >= 55) {
             wordDamage = Math.round(wordDamage * 1.30);
-            spawnDamage(wordDamage, true, '⚡ ÍMPETO MOTOR (+30%)!');
+            spawnDamage(wordDamage, true, 'ÍMPETO MOTOR (+30%)!');
           } else if (activeRpgClass === 'mage' && isWordCleanRef.current) {
             wordDamage = Math.round(wordDamage * 1.25);
-            spawnDamage(wordDamage, true, '✨ EXPLOSÃO ARCANA (+25%)!');
+            spawnDamage(wordDamage, true, 'EXPLOSÃO ARCANA (+25%)!');
           } else {
             spawnDamage(wordDamage, true);
           }
@@ -456,8 +461,8 @@ export const ClassroomRaidArena: React.FC<ClassroomRaidArenaProps> = ({
         <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-4">
           {/* Dados do Chefe */}
           <div className="flex items-center gap-3.5">
-            <div className="w-14 h-14 rounded-2xl bg-zinc-900 border-2 border-rose-500/50 flex items-center justify-center text-3xl shadow-[0_0_20px_rgba(244,63,94,0.3)] animate-pulse">
-              {raid.bossIcon || '👹'}
+            <div className="w-14 h-14 rounded-2xl bg-zinc-900 border-2 border-rose-500/50 flex items-center justify-center shadow-[0_0_20px_rgba(244,63,94,0.3)] animate-pulse p-2.5">
+              <Skull className="w-full h-full text-rose-500" />
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -557,12 +562,13 @@ export const ClassroomRaidArena: React.FC<ClassroomRaidArenaProps> = ({
             <span
               className={`px-2.5 py-1 rounded-lg border text-xs font-mono font-bold flex items-center gap-1.5 ${RPG_CLASSES[activeRpgClass].badgeBg} ${RPG_CLASSES[activeRpgClass].badgeBorder} ${RPG_CLASSES[activeRpgClass].badgeText}`}
             >
-              <span>{RPG_CLASSES[activeRpgClass].icon}</span>
+              <RpgClassIcon rpgClass={activeRpgClass} className="w-3.5 h-3.5 inline shrink-0" />
               <span>{RPG_CLASSES[activeRpgClass].name}</span>
             </span>
             {comboStreak >= 5 && (
-              <span className="px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-mono font-bold animate-pulse">
-                🔥 Combo: {comboStreak}
+              <span className="px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-mono font-bold animate-pulse flex items-center gap-1">
+                <Flame className="w-3.5 h-3.5 text-amber-400" />
+                <span>Combo: {comboStreak}</span>
               </span>
             )}
           </div>
@@ -606,7 +612,7 @@ export const ClassroomRaidArena: React.FC<ClassroomRaidArenaProps> = ({
 
             {pendingAccent && (
               <div className="mt-2 text-xs font-mono text-amber-300 bg-amber-500/20 border border-amber-500/40 px-3 py-1 rounded-lg inline-flex items-center gap-1.5 animate-pulse shadow-[0_0_12px_rgba(245,158,11,0.25)]">
-                <span>⌨️</span>
+                <Keyboard className="w-3.5 h-3.5 text-amber-400" />
                 <span>{getAccentDisplayName(pendingAccent)} (digite a vogal)</span>
               </div>
             )}
@@ -667,8 +673,16 @@ export const ClassroomRaidArena: React.FC<ClassroomRaidArenaProps> = ({
                   >
                     <div className="flex items-center justify-between gap-2 text-xs">
                       <div className="flex items-center gap-2 min-w-0">
-                        <span className="font-bold text-zinc-500 w-4 text-center">
-                          {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}º`}
+                        <span className="font-bold text-zinc-500 w-5 flex items-center justify-center shrink-0">
+                          {index === 0 ? (
+                            <Medal className="w-3.5 h-3.5 text-amber-400" />
+                          ) : index === 1 ? (
+                            <Medal className="w-3.5 h-3.5 text-slate-300" />
+                          ) : index === 2 ? (
+                            <Medal className="w-3.5 h-3.5 text-amber-600" />
+                          ) : (
+                            `${index + 1}º`
+                          )}
                         </span>
                         <div className="w-5 h-5 flex-shrink-0 select-none">
                           <StudentAvatarRenderer avatar={p.avatar} className="w-full h-full" />
@@ -709,8 +723,9 @@ export const ClassroomRaidArena: React.FC<ClassroomRaidArenaProps> = ({
       </div>
 
       {/* FOOTER: Dicas de Cooperação */}
-      <div className="w-full max-w-5xl text-center text-[11px] font-mono text-zinc-500">
-        💡 O HP do Chefe é compartilhado em tempo real por todos os alunos da sala. Unam a velocidade dos Guerreiros, a precisão dos Arqueiros e o poder dos Magos!
+      <div className="w-full max-w-5xl text-center text-[11px] font-mono text-zinc-500 flex items-center justify-center gap-1.5">
+        <Lightbulb className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+        <span>O HP do Chefe é compartilhado em tempo real por todos os alunos da sala. Unam a velocidade dos Guerreiros, a precisão dos Arqueiros e o poder dos Magos!</span>
       </div>
 
       {/* TELA DE VITÓRIA: BOSS DERROTADO */}
@@ -824,8 +839,8 @@ export const ClassroomRaidArena: React.FC<ClassroomRaidArenaProps> = ({
             className="fixed inset-0 z-60 bg-black/95 flex items-center justify-center p-4"
           >
             <div className="w-full max-w-md bg-zinc-950 border-2 border-rose-600/60 rounded-3xl p-6 sm:p-8 text-center shadow-[0_0_50px_rgba(225,29,72,0.3)]">
-              <div className="w-20 h-20 mx-auto rounded-full bg-rose-500/20 border-2 border-rose-500/60 flex items-center justify-center text-4xl mb-4">
-                ☠️
+              <div className="w-20 h-20 mx-auto rounded-full bg-rose-500/20 border-2 border-rose-500/60 flex items-center justify-center mb-4">
+                <Skull className="w-10 h-10 text-rose-400" />
               </div>
 
               <span className="px-3 py-1 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40 text-xs font-mono font-bold tracking-widest uppercase">

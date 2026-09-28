@@ -8,6 +8,10 @@ import { formatBytes, calculatePlayerRank } from '../utils/formatting';
 import { RPG_CLASSES } from '../types/rpgClass';
 import { getSerieLabelFromTurma } from '../constants/school';
 import { StudentAvatarRenderer } from './vectors/StudentAvatarRenderer';
+import { RpgClassIcon } from './vectors/rpg/RpgClassIcon';
+import { CardFrameIcon } from './vectors/CardFrameIcon';
+import { AchievementIconRenderer } from './vectors/AchievementIconRenderer';
+import { LevelBadgeRenderer } from './vectors/LevelBadgeRenderer';
 
 import { PlayerCosmetics } from '../types/cosmetics';
 
@@ -55,7 +59,7 @@ export const StudentProfileCard: React.FC<StudentProfileCardProps> = ({
     : le?.apelido || le?.nome || 'Digitador';
 
   const fullRealName = isGameState ? gs?.studentName : le?.nome;
-  const avatar = isGameState ? gs?.studentAvatar || '🐧' : le?.avatar || '👩‍💻';
+  const avatar = isGameState ? gs?.studentAvatar || 'tux' : le?.avatar || 'devgirl';
   const turma = isGameState ? gs?.studentClass || 'Sem Turma' : le?.turma || 'Geral';
   const serieLabel = getSerieLabelFromTurma(turma);
 
@@ -113,7 +117,7 @@ export const StudentProfileCard: React.FC<StudentProfileCardProps> = ({
         {/* TOPO: Selo da Moldura & Identificação da Turma */}
         <div className="flex items-center justify-between gap-2 border-b border-white/10 pb-3 relative z-10">
           <div className="flex items-center gap-1.5 min-w-0">
-            <span className="text-base select-none">{frameConfig.icon}</span>
+            <CardFrameIcon frameId={frameConfig.id} className="w-3.5 h-3.5 shrink-0" />
             <span className={`text-[10px] font-mono font-black uppercase tracking-wider truncate ${frameConfig.accentText}`}>
               {frameConfig.sealLabel}
             </span>
@@ -178,7 +182,7 @@ export const StudentProfileCard: React.FC<StudentProfileCardProps> = ({
                 <span
                   className={`px-2 py-0.5 rounded-full text-[10px] font-bold border flex items-center gap-1 ${rpgClassDef.badgeBg} ${rpgClassDef.badgeBorder} ${rpgClassDef.badgeText}`}
                 >
-                  <span>{rpgClassDef.icon}</span>
+                  <RpgClassIcon rpgClass={rpgClassDef.id || rpgClassKey} className="w-3.5 h-3.5 shrink-0" />
                   <span>{rpgClassDef.name}</span>
                 </span>
               )}
@@ -194,7 +198,7 @@ export const StudentProfileCard: React.FC<StudentProfileCardProps> = ({
         {/* FAIXA DE NÍVEL & PROGRESSO */}
         <div className="p-2.5 rounded-xl bg-black/40 border border-white/10 mb-3 relative z-10 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <span className="text-xl select-none">{playerRank.badge}</span>
+            <LevelBadgeRenderer level={playerRank.level} badge={playerRank.badge} size={22} />
             <div className="flex flex-col">
               <span className="text-xs font-black text-white flex items-center gap-1">
                 <Trophy className="w-3.5 h-3.5 text-amber-400" />
@@ -300,7 +304,9 @@ export const StudentProfileCard: React.FC<StudentProfileCardProps> = ({
                   } transition-transform hover:scale-[1.02] cursor-default`}
                   title={`${badge.title}: ${badge.description}`}
                 >
-                  <span className="text-lg select-none shrink-0">{badge.icon}</span>
+                  <div className="w-4 h-4 select-none shrink-0 flex items-center justify-center">
+                    <AchievementIconRenderer icon={badge.icon} className="w-full h-full" />
+                  </div>
                   <div className="flex flex-col min-w-0">
                     <span className={`text-[10px] font-bold font-mono truncate leading-tight ${badge.textClass}`}>
                       {badge.title}

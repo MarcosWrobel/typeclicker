@@ -1,5 +1,5 @@
 import React from 'react';
-import { Volume2, VolumeX, BarChart3, RefreshCw, Trophy, Cloud, Pause, Play, Shield, Eye, Timer, LayoutGrid, GraduationCap } from 'lucide-react';
+import { Volume2, VolumeX, BarChart3, RefreshCw, Trophy, Cloud, Pause, Play, Shield, Eye, Timer, LayoutGrid, GraduationCap, Keyboard } from 'lucide-react';
 import { GameState } from '../types';
 import { calculatePlayerRank } from '../utils/formatting';
 
@@ -64,7 +64,7 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Identidade Institucional & Nível Mobile */}
         <div className="flex items-center gap-2.5 sm:gap-3 flex-shrink-0 min-w-0">
           <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-emerald-500/20 via-teal-500/15 to-sky-500/10 border border-emerald-500/40 flex items-center justify-center text-emerald-400 font-mono font-black text-base sm:text-lg shadow-[0_0_15px_rgba(16,185,129,0.25)] flex-shrink-0 select-none">
-            ⌨️
+            <Keyboard className="w-5 h-5 text-emerald-400" />
           </div>
           <div className="min-w-0">
             <h1 className="font-black text-base sm:text-lg tracking-tight text-white whitespace-nowrap flex items-center">

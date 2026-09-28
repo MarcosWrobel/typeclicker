@@ -11,6 +11,7 @@ import {
   User,
   School
 } from 'lucide-react';
+import { StudentAvatarRenderer } from './vectors/StudentAvatarRenderer';
 import { GameState } from '../types';
 import {
   calculatePPM,
@@ -67,7 +68,7 @@ Colégio Estadual Leopoldina Bittencourt Pedroso
 Professor Responsável: Marcos Wrobel
 Data/Hora: ${new Date().toLocaleString('pt-BR')}
 
-Aluno: ${state.studentAvatar || '🐧'} ${state.studentName || 'Aluno'} ${state.studentNickname ? `(Apelido: "${state.studentNickname}")` : ''}
+Aluno: ${state.studentName || 'Aluno'} ${state.studentNickname ? `(Apelido: "${state.studentNickname}")` : ''}
 Turma: ${state.studentClass || 'Não informada'}
 
 Nível do Aluno: Nv. ${playerRank.level} de 100 • "${playerRank.title}" (${playerRank.progressPercent}% XP)
@@ -87,7 +88,7 @@ ${weakKeys.length > 0
   : '• Nenhuma deficiência motora crítica detectada. Telemetria equilibrada.'}
 
 --- PROGRESSO NO JOGO INCREMENTAL ---
-• Nível Atual: Nv. ${playerRank.level} / 100 (${playerRank.badge} ${playerRank.title})
+• Nível Atual: Nv. ${playerRank.level} / 100 (${playerRank.title})
 • Total Histórico de Bytes: ${formatBytes(state.totalBytesEarned)}
 • Núcleos de Overclock Quântico: ${state.prestigeCores}
 ==========================================`;
@@ -134,8 +135,10 @@ ${weakKeys.length > 0
               Perfil do Aluno
             </h3>
             <div className="flex items-center gap-3 text-sm font-medium text-white">
-               <span className="text-2xl">{state.studentAvatar || '🐧'}</span>
-               <span>{state.studentName || 'Aluno'}</span>
+              <div className="w-8 h-8 rounded-lg bg-zinc-800/80 border border-zinc-700/60 p-1 flex items-center justify-center shrink-0">
+                <StudentAvatarRenderer avatar={state.studentAvatar} className="w-full h-full" />
+              </div>
+              <span className="font-bold">{state.studentName || 'Aluno'}</span>
             </div>
           </div>
 
@@ -270,8 +273,8 @@ ${weakKeys.length > 0
                 </>
               ) : (
                 <div className="text-xs text-zinc-400 flex items-center gap-2.5 py-1">
-                  <div className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 flex-shrink-0 font-bold">
-                    ✓
+                  <div className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 flex-shrink-0">
+                    <Check className="w-4 h-4" />
                   </div>
                   <div>
                     <span className="text-emerald-300 font-bold">Telemetria Balanceada: </span>

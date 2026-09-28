@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Trophy, RefreshCw, LayoutGrid, Zap, Target, Award, AlertTriangle } from 'lucide-react';
+import { Trophy, RefreshCw, LayoutGrid, Zap, Target, Award, AlertTriangle, Rocket, Settings } from 'lucide-react';
 import { formatBytes } from '../../../utils/formatting';
 import { NukeIcon } from './RadarIcons';
 
@@ -90,9 +90,9 @@ export const RadarGameOverModal: React.FC<RadarGameOverModalProps> = ({
 
             <div>
               <div className="text-[10px] sm:text-[11px] text-zinc-400 font-mono font-semibold">SUCATA RADAR</div>
-              <div className="text-xl sm:text-2xl font-black text-amber-300 font-mono flex items-center justify-center gap-1">
+              <div className="text-xl sm:text-2xl font-black text-amber-300 font-mono flex items-center justify-center gap-1.5">
                 <span>+{scrapEarned}</span>
-                <span className="text-sm">⚙️</span>
+                <Settings className="w-4 h-4 text-amber-300" />
               </div>
             </div>
           </div>
@@ -166,7 +166,8 @@ export const RadarGameOverModal: React.FC<RadarGameOverModalProps> = ({
                 className="w-full sm:w-auto py-3.5 px-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black text-xs font-mono uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-[0_0_15px_rgba(245,158,11,0.25)] transition cursor-pointer active:scale-95"
                 title="Acessar o Hangar para comprar melhorias permanentes"
               >
-                <span>🚀 Hangar</span>
+                <Rocket className="w-4 h-4" />
+                <span>Hangar</span>
                 <span className="px-1.5 py-0.5 rounded bg-black/20 text-[10px]">({totalScrap})</span>
               </button>
             )}

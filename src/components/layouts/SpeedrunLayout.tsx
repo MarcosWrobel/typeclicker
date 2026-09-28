@@ -89,8 +89,9 @@ export const SpeedrunLayout: React.FC<BaseLayoutProps> = ({
             <span className="text-red-400 font-bold">RTA: ACTIVE</span>
             <span className="hidden sm:inline">| ANY% RUN</span>
           </div>
-          <div className="text-yellow-400 font-bold truncate">
-            🏆 Torneio Interclasses Leopoldina
+          <div className="text-yellow-400 font-bold truncate flex items-center gap-1.5">
+            <Trophy className="w-3.5 h-3.5 text-yellow-400" />
+            <span>Torneio Interclasses Leopoldina</span>
           </div>
         </footer>
       </div>

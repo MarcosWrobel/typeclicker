@@ -68,7 +68,7 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
               <span>2. Salvamento no Laboratório (Computadores da Escola)</span>
             </h4>
             <p className="text-xs text-zinc-300 leading-relaxed">
-              Antes do sinal do recreio ou do final da aula, clique no botão <strong>"💾 SALVAR PROGRESSO"</strong>. O arquivo será guardado na pasta <strong>Documentos &gt; TypeClicker</strong>. Na próxima aula, basta clicar em <strong>"📂 Carregar Salvo"</strong> para continuar seus Bytes!
+              Antes do sinal do recreio ou do final da aula, clique no botão <strong>"SALVAR PROGRESSO"</strong>. O arquivo será guardado na pasta <strong>Documentos &gt; TypeClicker</strong>. Na próxima aula, basta clicar em <strong>"Carregar Salvo"</strong> para continuar seus Bytes!
             </p>
           </div>
 
@@ -88,7 +88,7 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
           onClick={onClose}
           className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black font-mono text-sm transition cursor-pointer shadow-md"
         >
-          Entendido! Voltar ao Jogo 👍
+          Entendido! Voltar ao Jogo
         </button>
       </div>
     </div>

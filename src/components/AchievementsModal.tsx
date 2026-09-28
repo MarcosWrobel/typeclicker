@@ -1,10 +1,26 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Trophy, X, CheckCircle2, Lock, Sparkles, Search, Coins, Layers, HelpCircle } from 'lucide-react';
+import {
+  Trophy,
+  X,
+  CheckCircle2,
+  Lock,
+  Sparkles,
+  Search,
+  Coins,
+  Layers,
+  HelpCircle,
+  Flame,
+  Zap,
+  BookOpen,
+  Target,
+  Palette
+} from 'lucide-react';
 import { GameState } from '../types';
 import { AchievementCategory, AchievementDef } from '../types/achievements';
 import { ACHIEVEMENTS_CATALOG } from '../constants/achievementsCatalog';
 import { getAchievementProgress, getOverallAchievementsStats } from '../services/achievementEngine';
 import { formatBytes } from '../utils/formatting';
+import { AchievementIconRenderer } from './vectors/AchievementIconRenderer';
 
 interface AchievementsModalProps {
   isOpen: boolean;
@@ -12,15 +28,15 @@ interface AchievementsModalProps {
   state: GameState;
 }
 
-const CATEGORY_TABS: { id: 'all' | 'hardcore' | AchievementCategory; label: string; icon: string }[] = [
-  { id: 'all', label: 'Todas', icon: '🏆' },
-  { id: 'hardcore', label: 'Desafios Épicos', icon: '🔥' },
-  { id: 'speed', label: 'Velocidade & Combo', icon: '⚡' },
-  { id: 'volume', label: 'Volume & Dedicação', icon: '📚' },
-  { id: 'economy', label: 'Economia & Upgrades', icon: '💰' },
-  { id: 'pedagogy', label: 'Pedagógico & Foco', icon: '🎯' },
-  { id: 'collection', label: 'Cosméticos & Duelos', icon: '🎨' },
-  { id: 'secret', label: 'Secretas', icon: '🔮' }
+const CATEGORY_TABS: { id: 'all' | 'hardcore' | AchievementCategory; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { id: 'all', label: 'Todas', icon: Trophy },
+  { id: 'hardcore', label: 'Desafios Épicos', icon: Flame },
+  { id: 'speed', label: 'Velocidade & Combo', icon: Zap },
+  { id: 'volume', label: 'Volume & Dedicação', icon: BookOpen },
+  { id: 'economy', label: 'Economia & Upgrades', icon: Coins },
+  { id: 'pedagogy', label: 'Pedagógico & Foco', icon: Target },
+  { id: 'collection', label: 'Cosméticos & Duelos', icon: Palette },
+  { id: 'secret', label: 'Secretas', icon: HelpCircle }
 ];
 
 export const AchievementsModal: React.FC<AchievementsModalProps> = ({
@@ -80,8 +96,8 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({
         {/* Modal Header */}
         <div className="p-4 sm:p-6 border-b border-zinc-800/80 bg-gradient-to-r from-amber-950/40 via-zinc-900 to-emerald-950/30 flex items-center justify-between gap-3 flex-shrink-0">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500/20 to-amber-600/10 border border-amber-400/50 flex items-center justify-center text-amber-400 text-2xl shadow-[0_0_20px_rgba(245,158,11,0.3)] flex-shrink-0">
-              🏆
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500/20 to-amber-600/10 border border-amber-400/50 flex items-center justify-center shadow-[0_0_20px_rgba(245,158,11,0.3)] flex-shrink-0">
+              <Trophy className="w-6 h-6 text-amber-400" />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
@@ -156,7 +172,7 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({
                       : 'bg-zinc-900/80 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 border-zinc-800'
                   }`}
                 >
-                  <span>{tab.icon}</span>
+                  <tab.icon className="w-3.5 h-3.5 flex-shrink-0" />
                   <span>{tab.label}</span>
                   <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
                     isSelected ? 'bg-black/20 text-black' : 'bg-zinc-800 text-zinc-400'
@@ -212,19 +228,19 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({
                     {/* Linha Superior: Ícone, Título e Categoria */}
                     <div className="flex items-start gap-3.5">
                       <div
-                        className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl select-none flex-shrink-0 border ${
+                        className={`w-12 h-12 rounded-xl flex items-center justify-center p-2.5 select-none flex-shrink-0 border ${
                           prog.isUnlocked
                             ? def.isHardcore
-                              ? 'bg-gradient-to-br from-cyan-500/30 to-indigo-600/20 border-cyan-400/70 shadow-[0_0_20px_rgba(6,182,212,0.4)] text-3xl'
-                              : 'bg-gradient-to-br from-amber-500/25 to-amber-600/10 border-amber-400/60 shadow-[0_0_15px_rgba(245,158,11,0.3)] text-3xl'
+                              ? 'bg-gradient-to-br from-cyan-500/30 to-indigo-600/20 border-cyan-400/70 shadow-[0_0_20px_rgba(6,182,212,0.4)]'
+                              : 'bg-gradient-to-br from-amber-500/25 to-amber-600/10 border-amber-400/60 shadow-[0_0_15px_rgba(245,158,11,0.3)]'
                             : isSecretLocked
-                            ? 'bg-purple-950/30 border-purple-800/40 text-purple-400 text-xl'
+                            ? 'bg-purple-950/30 border-purple-800/40 text-purple-400'
                             : def.isHardcore
-                            ? 'bg-cyan-950/30 border-cyan-800/40 text-cyan-400 text-2xl opacity-80'
+                            ? 'bg-cyan-950/30 border-cyan-800/40 text-cyan-400 opacity-80'
                             : 'bg-zinc-800/50 border-zinc-700/50 grayscale opacity-70'
                         }`}
                       >
-                        {isSecretLocked ? '🔮' : def.icon}
+                        <AchievementIconRenderer icon={isSecretLocked ? 'secret' : def.icon} className="w-full h-full" />
                       </div>
 
                       <div className="flex-1 min-w-0">
@@ -266,7 +282,7 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({
 
                         <p className="text-xs text-zinc-400 mt-0.5 leading-relaxed">
                           {isSecretLocked
-                            ? (def.hint ? `💡 Dica: ${def.hint}` : 'Continue praticando para desvendar este segredo.')
+                            ? (def.hint ? `Dica: ${def.hint}` : 'Continue praticando para desvendar este segredo.')
                             : def.description}
                         </p>
                       </div>

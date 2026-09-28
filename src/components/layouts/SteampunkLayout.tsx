@@ -1,6 +1,6 @@
 import React from 'react';
 import { BaseLayoutProps } from './TerminalLayout';
-import { Cog, Flame, Gauge, Wrench } from 'lucide-react';
+import { Cog, Flame, Gauge, Wrench, Zap } from 'lucide-react';
 
 export const SteampunkLayout: React.FC<BaseLayoutProps> = ({
   header,
@@ -65,7 +65,9 @@ export const SteampunkLayout: React.FC<BaseLayoutProps> = ({
           {/* Manômetros & Engrenagens / Sidebar */}
           <div className="w-full lg:w-64 xl:w-72 flex-shrink-0 flex flex-col min-w-0 bg-[#160d07]">
             <div className="bg-amber-950/40 px-3 py-1.5 border-b border-amber-700/40 text-[10px] font-bold font-mono text-amber-300 tracking-wider flex items-center justify-between flex-shrink-0">
-              <span>⚙ ENGRENAGENS</span>
+              <span className="flex items-center gap-1.5">
+                <Cog className="w-3.5 h-3.5 text-amber-400" /> ENGRENAGENS
+              </span>
               <span className="text-amber-400">180 RPM</span>
             </div>
             <div className="flex-1 min-h-0 overflow-y-auto">{sidebar}</div>
@@ -74,7 +76,9 @@ export const SteampunkLayout: React.FC<BaseLayoutProps> = ({
           {/* Câmara Principal: Pistões de Digitação / Arena */}
           <div className="flex-1 min-w-0 flex flex-col bg-[#1d120a] overflow-y-auto">
             <div className="bg-amber-950/40 px-4 py-1.5 border-b border-amber-700/40 text-[10px] font-bold font-mono text-amber-200 tracking-wider flex items-center justify-between flex-shrink-0">
-              <span>⚡ CÂMARA DE TIPOGRAFIA A VAPOR</span>
+              <span className="flex items-center gap-1.5">
+                <Zap className="w-3.5 h-3.5 text-amber-400" /> CÂMARA DE TIPOGRAFIA A VAPOR
+              </span>
               <span className="text-amber-400 flex items-center gap-1">
                 <Wrench className="w-3 h-3 text-amber-400" /> AJUSTE FINO
               </span>
@@ -85,7 +89,9 @@ export const SteampunkLayout: React.FC<BaseLayoutProps> = ({
           {/* Depósito de Peças / Loja */}
           <div className="w-full lg:w-72 xl:w-80 flex-shrink-0 flex flex-col min-w-0 bg-[#160d07]">
             <div className="bg-amber-950/40 px-3 py-1.5 border-b border-amber-700/40 text-[10px] font-bold font-mono text-amber-300 tracking-wider flex items-center justify-between flex-shrink-0">
-              <span>🔧 OFICINA DE VÁLVULAS</span>
+              <span className="flex items-center gap-1.5">
+                <Wrench className="w-3.5 h-3.5 text-amber-400" /> OFICINA DE VÁLVULAS
+              </span>
               <span className="text-amber-400">OK</span>
             </div>
             <div className="flex-1 min-h-0 overflow-y-auto">{shop}</div>

@@ -37,20 +37,20 @@ export const PauseOverlay: React.FC<PauseOverlayProps> = ({
             className="fixed inset-0 z-30 pointer-events-none border-4 border-amber-500/85 shadow-[inset_0_0_100px_rgba(245,158,11,0.25)]"
           >
             {/* Badges de Canto Estilo Arcade */}
-            <div className="absolute top-2 left-2 px-2.5 py-0.5 rounded-md bg-amber-500 text-black text-[11px] font-black font-mono tracking-widest shadow-lg flex items-center gap-1">
-              <span>⏸️</span>
+            <div className="absolute top-2 left-2 px-2.5 py-0.5 rounded-md bg-amber-500 text-black text-[11px] font-black font-mono tracking-widest shadow-lg flex items-center gap-1.5">
+              <Pause className="w-3.5 h-3.5 fill-current" />
               <span>PAUSA ATIVA</span>
             </div>
-            <div className="absolute top-2 right-2 px-2.5 py-0.5 rounded-md bg-amber-500 text-black text-[11px] font-black font-mono tracking-widest shadow-lg flex items-center gap-1">
-              <span>🛒</span>
+            <div className="absolute top-2 right-2 px-2.5 py-0.5 rounded-md bg-amber-500 text-black text-[11px] font-black font-mono tracking-widest shadow-lg flex items-center gap-1.5">
+              <ShoppingBag className="w-3.5 h-3.5" />
               <span>LOJA LIBERADA</span>
             </div>
-            <div className="absolute bottom-2 left-2 px-2.5 py-0.5 rounded-md bg-amber-500 text-black text-[11px] font-black font-mono tracking-widest shadow-lg hidden sm:flex items-center gap-1">
-              <span>⏱️</span>
+            <div className="absolute bottom-2 left-2 px-2.5 py-0.5 rounded-md bg-amber-500 text-black text-[11px] font-black font-mono tracking-widest shadow-lg hidden sm:flex items-center gap-1.5">
+              <Timer className="w-3.5 h-3.5" />
               <span>CADÊNCIA CONGELADA</span>
             </div>
-            <div className="absolute bottom-2 right-2 px-2.5 py-0.5 rounded-md bg-amber-500 text-black text-[11px] font-black font-mono tracking-widest shadow-lg hidden sm:flex items-center gap-1">
-              <span>🛡️</span>
+            <div className="absolute bottom-2 right-2 px-2.5 py-0.5 rounded-md bg-amber-500 text-black text-[11px] font-black font-mono tracking-widest shadow-lg hidden sm:flex items-center gap-1.5">
+              <Shield className="w-3.5 h-3.5" />
               <span>COMBO PROTEGIDO</span>
             </div>
           </motion.div>
@@ -90,7 +90,7 @@ export const PauseOverlay: React.FC<PauseOverlayProps> = ({
                       )}
                     </div>
                     <p className="text-[11px] sm:text-xs text-zinc-300 font-mono leading-tight">
-                      Cronômetro congelado • Teclado suspenso • <strong className="text-amber-300">🛒 Loja e Dificuldade liberadas para ajuste!</strong>
+                      Cronômetro congelado • Teclado suspenso • <strong className="text-amber-300">Loja e Dificuldade liberadas para ajuste!</strong>
                     </p>
                   </div>
                 </div>

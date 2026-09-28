@@ -10,7 +10,8 @@ import {
   Flame, 
   Check, 
   Sparkles,
-  RotateCcw
+  RotateCcw,
+  Settings
 } from 'lucide-react';
 import { 
   HANGAR_UPGRADES, 
@@ -100,7 +101,7 @@ export const RadarHangarModal: React.FC<RadarHangarModalProps> = ({
             {/* Saldo de Sucata & Fechar */}
             <div className="flex items-center gap-3">
               <div className="px-3.5 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/40 flex items-center gap-2 shadow-[0_0_15px_rgba(245,158,11,0.15)]">
-                <span className="text-base">⚙️</span>
+                <Settings className="w-5 h-5 text-amber-400" />
                 <div className="flex flex-col items-end font-mono">
                   <span className="text-[9px] text-amber-300 font-bold uppercase tracking-wider">Sucata Total</span>
                   <span className="text-sm font-black text-amber-400">{scrap.toLocaleString()}</span>
@@ -196,8 +197,9 @@ export const RadarHangarModal: React.FC<RadarHangarModalProps> = ({
                         }`}
                       >
                         <span>APRIMORAR</span>
-                        <span className="px-1.5 py-0.5 rounded bg-black/30 text-[11px]">
-                          ⚙️ {nextCost}
+                        <span className="px-1.5 py-0.5 rounded bg-black/30 text-[11px] flex items-center gap-1">
+                          <Settings className="w-3 h-3 text-amber-300" />
+                          <span>{nextCost}</span>
                         </span>
                       </button>
                     )}

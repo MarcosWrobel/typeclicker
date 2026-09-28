@@ -20,7 +20,10 @@ import {
   Radio,
   Globe,
   Landmark,
-  Sparkles
+  Sparkles,
+  Calendar,
+  Crown,
+  TrendingUp
 } from 'lucide-react';
 import { LeaderboardEntry, SeasonHistoryEntry } from '../types/leaderboard';
 import { isStaffMember, extractLevel100Pioneers } from '../utils/leaderboardUtils';
@@ -75,7 +78,7 @@ export const METRIC_TABS: MetricTabDef[] = [
     activeBorder: 'border-emerald-500/50',
     activeGlow: 'shadow-[0_0_50px_rgba(16,185,129,0.2)]',
     title: 'RANKING ESCOLAR DE NÍVEL',
-    badgeTag: '🏆 Progressão Geral',
+    badgeTag: 'Progressão Geral',
     description: 'Classificação por nível da conta e experiência acumulada'
   },
   {
@@ -90,7 +93,7 @@ export const METRIC_TABS: MetricTabDef[] = [
     activeBorder: 'border-sky-500/50',
     activeGlow: 'shadow-[0_0_50px_rgba(14,165,233,0.2)]',
     title: 'RANKING DE VELOCIDADE (PPM)',
-    badgeTag: '⚡ Palavras / Minuto',
+    badgeTag: 'Palavras / Minuto',
     description: 'Alunos com maior taxa de velocidade e agilidade na digitação'
   },
   {
@@ -105,7 +108,7 @@ export const METRIC_TABS: MetricTabDef[] = [
     activeBorder: 'border-orange-500/50',
     activeGlow: 'shadow-[0_0_50px_rgba(249,115,22,0.2)]',
     title: 'RANKING DE MAIOR COMBO',
-    badgeTag: '🔥 Teclas Sem Erro',
+    badgeTag: 'Teclas Sem Erro',
     description: 'Maior sequência ininterrupta de acertos consecutivos sem falhas'
   },
   {
@@ -120,7 +123,7 @@ export const METRIC_TABS: MetricTabDef[] = [
     activeBorder: 'border-purple-500/50',
     activeGlow: 'shadow-[0_0_50px_rgba(168,85,247,0.2)]',
     title: 'RANKING TOTAL DE BYTES',
-    badgeTag: '💾 Bytes Vitalícios',
+    badgeTag: 'Bytes Vitalícios',
     description: 'Classificação pelo total histórico acumulado de bytes digitados'
   },
   {
@@ -135,7 +138,7 @@ export const METRIC_TABS: MetricTabDef[] = [
     activeBorder: 'border-rose-500/50',
     activeGlow: 'shadow-[0_0_50px_rgba(244,63,94,0.2)]',
     title: 'RANKING DO COLISEU (PVP 1x1)',
-    badgeTag: '⚔️ Duelos em Tempo Real',
+    badgeTag: 'Duelos em Tempo Real',
     description: 'Classificação por vitórias em batalhas 1x1 e pontos de glória'
   },
   {
@@ -150,7 +153,7 @@ export const METRIC_TABS: MetricTabDef[] = [
     activeBorder: 'border-amber-500/50',
     activeGlow: 'shadow-[0_0_50px_rgba(245,158,11,0.2)]',
     title: 'RANKING DE CORRIDAS',
-    badgeTag: '🏁 Corridas em Sala',
+    badgeTag: 'Corridas em Sala',
     description: 'Classificação por vitórias nas corridas ao vivo disparadas pelo professor'
   },
   {
@@ -165,7 +168,7 @@ export const METRIC_TABS: MetricTabDef[] = [
     activeBorder: 'border-cyan-500/50',
     activeGlow: 'shadow-[0_0_50px_rgba(6,182,212,0.2)]',
     title: 'RANKING TYPE: RADAR',
-    badgeTag: '🛰️ Maior Onda & Score',
+    badgeTag: 'Maior Onda & Score',
     description: 'Classificação por maior onda alcançada e pontuação no Type: Radar'
   },
   {
@@ -180,7 +183,7 @@ export const METRIC_TABS: MetricTabDef[] = [
     activeBorder: 'border-amber-500/50',
     activeGlow: 'shadow-[0_0_50px_rgba(245,158,11,0.25)]',
     title: 'RANKING TYPERDASH (CEL-SHADED MANGA)',
-    badgeTag: '⚡ High Score & Distância',
+    badgeTag: 'High Score & Distância',
     description: 'Classificação por maior pontuação e metros percorridos no TyperDash'
   }
 ];
@@ -621,9 +624,9 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                       }`}
                     >
                       {seasonScope === 'hall_of_fame'
-                        ? '🏛️ Temporadas Concluídas'
+                        ? 'Temporadas Concluídas'
                         : viewMode === 'guerra_turmas'
-                        ? '🛡️ Disputa Coletiva'
+                        ? 'Disputa Coletiva'
                         : currentMetric.badgeTag}
                     </span>
                   </h2>
@@ -663,7 +666,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                       }`}
                     >
                       <Shield className="w-3.5 h-3.5" />
-                      <span>Guerra de Turmas 🛡️</span>
+                      <span>Guerra de Turmas</span>
                     </button>
                   </div>
                 )}
@@ -724,7 +727,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                   }`}
                 >
                   <Landmark className="w-3.5 h-3.5 text-yellow-400" />
-                  <span>Hall da Fama 🏛️</span>
+                  <span>Hall da Fama</span>
                   {archivedSeasons.length > 0 && (
                     <span className="text-[10px] bg-yellow-500/20 text-yellow-300 border border-yellow-500/40 px-1.5 py-0.2 rounded-full font-mono">
                       {archivedSeasons.length}
@@ -735,18 +738,21 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
 
               <div className="text-[11px] font-mono text-zinc-400 hidden md:flex items-center gap-1.5">
                 {seasonScope === 'trimester' && (
-                  <span className="text-amber-400/90 font-semibold">
-                    📅 Ciclo Letivo Atual • SEED-PR
+                  <span className="text-amber-400/90 font-semibold flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Ciclo Letivo Atual • SEED-PR</span>
                   </span>
                 )}
                 {seasonScope === 'all_time' && (
-                  <span className="text-purple-400/90 font-semibold">
-                    💾 Histórico acumulado desde o início
+                  <span className="text-purple-400/90 font-semibold flex items-center gap-1.5">
+                    <Database className="w-3.5 h-3.5 text-purple-400" />
+                    <span>Histórico acumulado desde o início</span>
                   </span>
                 )}
                 {seasonScope === 'hall_of_fame' && (
-                  <span className="text-yellow-400/90 font-semibold">
-                    👑 Pódio memorial dos campeões de trimestres encerrados
+                  <span className="text-yellow-400/90 font-semibold flex items-center gap-1.5">
+                    <Crown className="w-3.5 h-3.5 text-yellow-400" />
+                    <span>Pódio memorial dos campeões de trimestres encerrados</span>
                   </span>
                 )}
               </div>
@@ -780,13 +786,14 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                   ) : (
                     <>
                       {[
-                        { id: 'score' as ClassRankingSortMetric, label: '🏆 Rendimento Geral', desc: 'Pontuação ponderada de engajamento, nível e velocidade' },
-                        { id: 'avgLevel' as ClassRankingSortMetric, label: '📈 Média de Nível', desc: 'Média aritmética do nível dos alunos da sala' },
-                        { id: 'avgWpm' as ClassRankingSortMetric, label: '⚡ Velocidade Coletiva (PPM)', desc: 'Média de palavras por minuto de toda a turma' },
-                        { id: 'totalBytes' as ClassRankingSortMetric, label: '💾 Volume de Bytes', desc: 'Total acumulado de bytes digitados pela turma' },
-                        { id: 'raceWins' as ClassRankingSortMetric, label: '🏁 Vitórias em Corridas', desc: 'Total de vitórias em corridas escolares ao vivo' }
+                        { id: 'score' as ClassRankingSortMetric, label: 'Rendimento Geral', icon: Trophy, desc: 'Pontuação ponderada de engajamento, nível e velocidade' },
+                        { id: 'avgLevel' as ClassRankingSortMetric, label: 'Média de Nível', icon: TrendingUp, desc: 'Média aritmética do nível dos alunos da sala' },
+                        { id: 'avgWpm' as ClassRankingSortMetric, label: 'Velocidade Coletiva (PPM)', icon: Zap, desc: 'Média de palavras por minuto de toda a turma' },
+                        { id: 'totalBytes' as ClassRankingSortMetric, label: 'Volume de Bytes', icon: Database, desc: 'Total acumulado de bytes digitados pela turma' },
+                        { id: 'raceWins' as ClassRankingSortMetric, label: 'Vitórias em Corridas', icon: Flag, desc: 'Total de vitórias em corridas escolares ao vivo' }
                       ].map((metric) => {
                         const isSelected = classSortMetric === metric.id;
+                        const MetricIcon = metric.icon;
                         return (
                           <button
                             key={metric.id}
@@ -799,6 +806,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                             }`}
                             title={metric.desc}
                           >
+                            <MetricIcon className="w-3.5 h-3.5" />
                             <span>{metric.label}</span>
                           </button>
                         );
@@ -961,9 +969,9 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setSearchQuery('')}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white text-xs"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white"
                   >
-                    ✕
+                    <X className="w-3.5 h-3.5" />
                   </button>
                 )}
               </div>
@@ -997,8 +1005,8 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                   </div>
                 ) : archivedSeasons.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-16 text-center max-w-lg mx-auto gap-4 p-8 rounded-2xl bg-gradient-to-b from-yellow-500/10 via-zinc-900/60 to-[#10131a] border border-yellow-500/20 shadow-2xl">
-                    <div className="w-20 h-20 rounded-2xl bg-yellow-500/20 border border-yellow-500/40 flex items-center justify-center text-4xl shadow-[0_0_30px_rgba(234,179,8,0.25)]">
-                      🏛️
+                    <div className="w-20 h-20 rounded-2xl bg-yellow-500/20 border border-yellow-500/40 flex items-center justify-center shadow-[0_0_30px_rgba(234,179,8,0.25)]">
+                      <Landmark className="w-10 h-10 text-yellow-400" />
                     </div>
                     <div>
                       <h3 className="text-xl font-black text-white">O Hall da Fama Aguarda Seus Primeiros Campeões!</h3>
@@ -1024,7 +1032,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                         {archivedSeasonHistory[1] ? (
                           <div className="order-2 sm:order-1 p-4 rounded-2xl bg-gradient-to-b from-slate-400/15 via-zinc-900/60 to-zinc-950 border border-slate-400/30 flex flex-col items-center text-center justify-between shadow-lg">
                             <div className="flex flex-col items-center gap-1.5">
-                              <span className="text-3xl">🥈</span>
+                              <Medal className="w-8 h-8 text-slate-300" />
                               <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-slate-400/20 text-slate-200 border border-slate-400/30">
                                 2º Lugar • Vice-Campeão
                               </span>
@@ -1055,9 +1063,9 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                         {archivedSeasonHistory[0] && (
                           <div className="order-1 sm:order-2 p-5 rounded-2xl bg-gradient-to-b from-yellow-500/25 via-amber-950/40 to-zinc-950 border-2 border-yellow-500/70 shadow-[0_0_30px_rgba(234,179,8,0.25)] flex flex-col items-center text-center justify-between scale-105 z-10">
                             <div className="flex flex-col items-center gap-1.5">
-                              <span className="text-4xl animate-bounce">👑</span>
+                              <Crown className="w-10 h-10 text-amber-400 animate-bounce" />
                               <span className="px-3 py-0.5 rounded-full text-[10px] font-mono font-black uppercase tracking-wider bg-yellow-500/30 text-yellow-300 border border-yellow-500/50 shadow-sm flex items-center gap-1">
-                                <span>🥇</span>
+                                <Medal className="w-3.5 h-3.5 text-yellow-400" />
                                 <span>CAMPEÃO DO TRIMESTRE</span>
                               </span>
                               <div className="w-14 h-14 rounded-2xl bg-zinc-900 border-2 border-yellow-500/60 flex items-center justify-center p-2 mt-1 shadow-lg shadow-yellow-500/20">
@@ -1085,7 +1093,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                         {archivedSeasonHistory[2] ? (
                           <div className="order-3 p-4 rounded-2xl bg-gradient-to-b from-orange-600/15 via-zinc-900/60 to-zinc-950 border border-orange-600/30 flex flex-col items-center text-center justify-between shadow-lg">
                             <div className="flex flex-col items-center gap-1.5">
-                              <span className="text-3xl">🥉</span>
+                              <Medal className="w-8 h-8 text-orange-400" />
                               <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-orange-600/20 text-orange-300 border border-orange-600/30">
                                 3º Lugar • Bronze
                               </span>
@@ -1146,7 +1154,15 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                                 ? 'bg-orange-600/20 border-orange-600/60 text-orange-300'
                                 : 'bg-zinc-800/60 border-zinc-700/60 text-zinc-400'
                             }`}>
-                              {rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `${rank}º`}
+                              {rank === 1 ? (
+                                <Medal className="w-5 h-5 text-yellow-300" />
+                              ) : rank === 2 ? (
+                                <Medal className="w-5 h-5 text-slate-200" />
+                              ) : rank === 3 ? (
+                                <Medal className="w-5 h-5 text-orange-300" />
+                              ) : (
+                                `${rank}º`
+                              )}
                             </div>
 
                             {/* Avatar & Identificação */}
@@ -1217,7 +1233,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                         {/* 2º Lugar (Prata) */}
                         <div className="order-2 sm:order-1 p-4 rounded-2xl bg-gradient-to-b from-slate-400/10 via-zinc-900/60 to-zinc-950 border border-slate-400/30 flex flex-col items-center text-center justify-between">
                           <div className="flex flex-col items-center gap-1.5">
-                            <span className="text-2xl">🥈</span>
+                            <Medal className="w-7 h-7 text-slate-300" />
                             <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-slate-400/20 text-slate-200 border border-slate-400/30">
                               2º Lugar • {classStatsList[1].serieLabel}
                             </span>
@@ -1243,9 +1259,10 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                         {/* 1º Lugar (Ouro - Campeã) */}
                         <div className="order-1 sm:order-2 p-5 rounded-2xl bg-gradient-to-b from-yellow-500/20 via-amber-950/40 to-zinc-950 border-2 border-yellow-500/60 shadow-[0_0_25px_rgba(234,179,8,0.2)] flex flex-col items-center text-center justify-between scale-105 z-10">
                           <div className="flex flex-col items-center gap-1.5">
-                            <span className="text-3xl animate-bounce">🥇</span>
-                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-black uppercase tracking-wider bg-yellow-500/30 text-yellow-300 border border-yellow-500/50 shadow-sm">
-                              🏆 Turma Campeã • {classStatsList[0].serieLabel}
+                            <Medal className="w-8 h-8 text-amber-400 animate-bounce" />
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-black uppercase tracking-wider bg-yellow-500/30 text-yellow-300 border border-yellow-500/50 shadow-sm flex items-center gap-1.5">
+                              <Trophy className="w-3.5 h-3.5 text-yellow-400" />
+                              <span>Turma Campeã • {classStatsList[0].serieLabel}</span>
                             </span>
                             <h4 className="text-lg font-black text-white mt-1">{classStatsList[0].turma}</h4>
                             <span className="text-xs text-zinc-300 font-semibold">{classStatsList[0].studentCount} alunos ativos</span>
@@ -1270,7 +1287,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                         {classStatsList[2] ? (
                           <div className="order-3 p-4 rounded-2xl bg-gradient-to-b from-orange-600/10 via-zinc-900/60 to-zinc-950 border border-orange-600/30 flex flex-col items-center text-center justify-between">
                             <div className="flex flex-col items-center gap-1.5">
-                              <span className="text-2xl">🥉</span>
+                              <Medal className="w-7 h-7 text-orange-400" />
                               <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-orange-600/20 text-orange-300 border border-orange-600/30">
                                 3º Lugar • {classStatsList[2].serieLabel}
                               </span>
@@ -1331,7 +1348,15 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                                   ? 'bg-orange-600/20 border-orange-600/60 text-orange-300'
                                   : 'bg-zinc-800/60 border-zinc-700/60 text-zinc-400'
                               }`}>
-                                {rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `${rank}º`}
+                                {rank === 1 ? (
+                                  <Medal className="w-4 h-4 text-yellow-300" />
+                                ) : rank === 2 ? (
+                                  <Medal className="w-4 h-4 text-slate-200" />
+                                ) : rank === 3 ? (
+                                  <Medal className="w-4 h-4 text-orange-300" />
+                                ) : (
+                                  `${rank}º`
+                                )}
                               </div>
 
                               <div className="min-w-0">
@@ -1348,8 +1373,9 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                                   )}
                                 </div>
                                 {cls.bestPlayer && (
-                                  <p className="text-[11px] text-zinc-400 font-mono mt-0.5">
-                                    ⭐ Líder: <span className="text-zinc-200 font-bold">{cls.bestPlayer.apelido || cls.bestPlayer.nome}</span> (Nív. {cls.bestPlayer.level} • {cls.bestPlayer.wpm} PPM)
+                                  <p className="text-[11px] text-zinc-400 font-mono mt-0.5 flex items-center gap-1">
+                                    <Star className="w-3 h-3 text-amber-400 fill-amber-400 shrink-0" />
+                                    <span>Líder: <span className="text-zinc-200 font-bold">{cls.bestPlayer.apelido || cls.bestPlayer.nome}</span> (Nív. {cls.bestPlayer.level} • {cls.bestPlayer.wpm} PPM)</span>
                                   </p>
                                 )}
                               </div>
@@ -1452,7 +1478,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                           className="w-10 h-10 shrink-0 rounded-xl flex flex-col items-center justify-center font-black text-xs border border-yellow-500/70 bg-gradient-to-br from-yellow-500/25 via-amber-500/15 to-transparent text-yellow-300 shadow-[0_0_18px_rgba(245,158,11,0.35)]"
                           title="1º Lugar - Medalha de Ouro"
                         >
-                          <span className="text-base leading-none">🥇</span>
+                          <Medal className="w-4 h-4 text-yellow-300" />
                           <span className="text-[9px] font-mono leading-none mt-0.5">1º</span>
                         </div>
                       );
@@ -1462,7 +1488,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                           className="w-10 h-10 shrink-0 rounded-xl flex flex-col items-center justify-center font-black text-xs border border-slate-400/70 bg-gradient-to-br from-slate-400/25 via-zinc-400/15 to-transparent text-slate-200 shadow-[0_0_15px_rgba(203,213,225,0.25)]"
                           title="2º Lugar - Medalha de Prata"
                         >
-                          <span className="text-base leading-none">🥈</span>
+                          <Medal className="w-4 h-4 text-slate-200" />
                           <span className="text-[9px] font-mono leading-none mt-0.5">2º</span>
                         </div>
                       );
@@ -1472,7 +1498,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                           className="w-10 h-10 shrink-0 rounded-xl flex flex-col items-center justify-center font-black text-xs border border-amber-600/70 bg-gradient-to-br from-amber-600/25 via-orange-600/15 to-transparent text-amber-300 shadow-[0_0_15px_rgba(217,119,6,0.25)]"
                           title="3º Lugar - Medalha de Bronze"
                         >
-                          <span className="text-base leading-none">🥉</span>
+                          <Medal className="w-4 h-4 text-amber-500" />
                           <span className="text-[9px] font-mono leading-none mt-0.5">3º</span>
                         </div>
                       );
@@ -1508,7 +1534,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                                   className="px-2 py-0.5 rounded-full text-[10px] font-mono font-black border shadow-sm flex items-center gap-1 bg-amber-500/20 text-amber-300 border-amber-400/60"
                                   title={`Pioneiro do Nível 100 - #${pioneerInfo.rank} da história do colégio!`}
                                 >
-                                  <span>{pioneerInfo.rank === 1 ? '🥇' : pioneerInfo.rank === 2 ? '🥈' : '🥉'}</span>
+                                  <Medal className="w-3 h-3 text-amber-400" />
                                   <span>Pioneiro #{pioneerInfo.rank}</span>
                                 </span>
                               )}
@@ -1531,38 +1557,38 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                                 </span>
                               )}
                               {activeRankTab === 'races' && (
-                                <span className="text-[11px] text-amber-300/90 font-mono">
-                                  🏁 {player.raceWins || 0} vitórias
+                                <span className="text-[11px] text-amber-300/90 font-mono inline-flex items-center gap-1">
+                                  <Flag className="w-3 h-3 text-amber-400" /> {player.raceWins || 0} vitórias
                                 </span>
                               )}
                               {activeRankTab === 'pvp' && (
-                                <span className="text-[11px] text-rose-300/90 font-mono">
-                                  ⚔️ {player.pvpWins || 0} vitórias PvP
+                                <span className="text-[11px] text-rose-300/90 font-mono inline-flex items-center gap-1">
+                                  <Swords className="w-3 h-3 text-rose-400" /> {player.pvpWins || 0} vitórias PvP
                                 </span>
                               )}
                               {activeRankTab === 'wpm' && (
-                                <span className="text-[11px] text-sky-300/90 font-mono">
-                                  ⚡ {Math.round(player.bestWpm || player.wpm || 0)} PPM
+                                <span className="text-[11px] text-sky-300/90 font-mono inline-flex items-center gap-1">
+                                  <Zap className="w-3 h-3 text-sky-400" /> {Math.round(player.bestWpm || player.wpm || 0)} PPM
                                 </span>
                               )}
                               {activeRankTab === 'combo' && (
-                                <span className="text-[11px] text-orange-300/90 font-mono">
-                                  🔥 {player.maxCombo || 0}x combo
+                                <span className="text-[11px] text-orange-300/90 font-mono inline-flex items-center gap-1">
+                                  <Flame className="w-3 h-3 text-orange-400" /> {player.maxCombo || 0}x combo
                                 </span>
                               )}
                               {activeRankTab === 'bytes' && (
-                                <span className="text-[11px] text-purple-300/90 font-mono">
-                                  💾 {formatBytes(seasonScope === 'trimester' ? (player.seasonBytes ?? player.points) : player.points)}
+                                <span className="text-[11px] text-purple-300/90 font-mono inline-flex items-center gap-1">
+                                  <Database className="w-3 h-3 text-purple-400" /> {formatBytes(seasonScope === 'trimester' ? (player.seasonBytes ?? player.points) : player.points)}
                                 </span>
                               )}
                               {activeRankTab === 'radar' && (
-                                <span className="text-[11px] text-cyan-300/90 font-mono">
-                                  🛰️ Onda {player.radarBestWave || 1} • {(player.radarHighScore || 0).toLocaleString()} pts
+                                <span className="text-[11px] text-cyan-300/90 font-mono inline-flex items-center gap-1">
+                                  <Radio className="w-3 h-3 text-cyan-400" /> Onda {player.radarBestWave || 1} • {(player.radarHighScore || 0).toLocaleString()} pts
                                 </span>
                               )}
                               {activeRankTab === 'dash' && (
-                                <span className="text-[11px] text-amber-300/90 font-mono">
-                                  ⚡ {(player.dashHighScore || 0).toLocaleString()} pts • {player.dashMaxDistance || 0}m
+                                <span className="text-[11px] text-amber-300/90 font-mono inline-flex items-center gap-1">
+                                  <Zap className="w-3 h-3 text-amber-400" /> {(player.dashHighScore || 0).toLocaleString()} pts • {player.dashMaxDistance || 0}m
                                 </span>
                               )}
                               {activeRankTab === 'level' && (
@@ -1580,7 +1606,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                             <div className="flex flex-col items-end">
                               <span className="text-[10px] text-amber-400 uppercase font-bold tracking-wider">Vitórias</span>
                               <span className="font-mono font-black text-amber-300 text-sm flex items-center gap-1">
-                                🏁 {player.raceWins || 0}
+                                <Flag className="w-3.5 h-3.5 text-amber-400" /> {player.raceWins || 0}
                               </span>
                             </div>
                             <div className="flex flex-col items-end">
@@ -1601,7 +1627,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                             <div className="flex flex-col items-end">
                               <span className="text-[10px] text-rose-400 uppercase font-bold tracking-wider">Vitórias</span>
                               <span className="font-mono font-black text-rose-300 text-sm flex items-center gap-1">
-                                ⚔️ {player.pvpWins || 0}
+                                <Swords className="w-3.5 h-3.5 text-rose-400" /> {player.pvpWins || 0}
                               </span>
                             </div>
                             <div className="flex flex-col items-end">
@@ -1622,7 +1648,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                             <div className="flex flex-col items-end">
                               <span className="text-[10px] text-sky-400 uppercase font-bold tracking-wider">Velocidade</span>
                               <span className="font-mono font-black text-sky-300 text-sm flex items-center gap-1">
-                                ⚡ {Math.round(player.bestWpm || player.wpm || 0)} PPM
+                                <Zap className="w-3.5 h-3.5 text-sky-400" /> {Math.round(player.bestWpm || player.wpm || 0)} PPM
                               </span>
                             </div>
                             <div className="flex flex-col items-end">
@@ -1643,7 +1669,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                             <div className="flex flex-col items-end">
                               <span className="text-[10px] text-orange-400 uppercase font-bold tracking-wider">Maior Combo</span>
                               <span className="font-mono font-black text-orange-300 text-sm flex items-center gap-1">
-                                🔥 {player.maxCombo || 0}x
+                                <Flame className="w-3.5 h-3.5 text-orange-400" /> {player.maxCombo || 0}x
                               </span>
                             </div>
                             <div className="flex flex-col items-end">
@@ -1666,7 +1692,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                                 {seasonScope === 'trimester' ? 'Bytes (3º Trimestre)' : 'Total Bytes'}
                               </span>
                               <span className="font-mono font-black text-purple-300 text-sm flex items-center gap-1">
-                                💾 {formatBytes(seasonScope === 'trimester' ? (player.seasonBytes ?? player.points) : player.points)}
+                                <Database className="w-3.5 h-3.5 text-purple-400" /> {formatBytes(seasonScope === 'trimester' ? (player.seasonBytes ?? player.points) : player.points)}
                               </span>
                             </div>
                             <div className="flex flex-col items-end">
@@ -1687,7 +1713,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                             <div className="flex flex-col items-end">
                               <span className="text-[10px] text-cyan-400 uppercase font-bold tracking-wider">Maior Onda</span>
                               <span className="font-mono font-black text-cyan-300 text-sm flex items-center gap-1">
-                                🛰️ Onda {player.radarBestWave || 1}
+                                <Radio className="w-3.5 h-3.5 text-cyan-400" /> Onda {player.radarBestWave || 1}
                               </span>
                             </div>
                             <div className="flex flex-col items-end">
@@ -1708,7 +1734,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                             <div className="flex flex-col items-end">
                               <span className="text-[10px] text-amber-400 uppercase font-bold tracking-wider">High Score</span>
                               <span className="font-mono font-black text-amber-300 text-sm flex items-center gap-1">
-                                ⚡ {(player.dashHighScore || 0).toLocaleString()} pts
+                                <Zap className="w-3.5 h-3.5 text-amber-400" /> {(player.dashHighScore || 0).toLocaleString()} pts
                               </span>
                             </div>
                             <div className="flex flex-col items-end">
@@ -1751,8 +1777,8 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                         {/* Estatísticas no Mobile */}
                         {activeRankTab === 'races' ? (
                           <div className="sm:hidden flex flex-col items-end shrink-0 text-right">
-                            <span className="font-mono font-black text-amber-400 text-xs">
-                              🏁 {player.raceWins || 0} vit.
+                            <span className="font-mono font-black text-amber-400 text-xs inline-flex items-center gap-1 justify-end">
+                              <Flag className="w-3 h-3 text-amber-400" /> {player.raceWins || 0} vit.
                             </span>
                             <span className="font-mono font-bold text-emerald-400 text-[11px]">
                               {player.bestRaceWpm ? `${Math.round(player.bestRaceWpm)} PPM` : '-'}
@@ -1760,8 +1786,8 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                           </div>
                         ) : activeRankTab === 'pvp' ? (
                           <div className="sm:hidden flex flex-col items-end shrink-0 text-right">
-                            <span className="font-mono font-black text-rose-400 text-xs">
-                              ⚔️ {player.pvpWins || 0} vit.
+                            <span className="font-mono font-black text-rose-400 text-xs inline-flex items-center gap-1 justify-end">
+                              <Swords className="w-3 h-3 text-rose-400" /> {player.pvpWins || 0} vit.
                             </span>
                             <span className="font-mono font-bold text-amber-400 text-[11px]">
                               {player.pvpPoints || 0} pts
@@ -1769,8 +1795,8 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                           </div>
                         ) : activeRankTab === 'wpm' ? (
                           <div className="sm:hidden flex flex-col items-end shrink-0 text-right">
-                            <span className="font-mono font-black text-sky-400 text-xs">
-                              ⚡ {Math.round(player.bestWpm || player.wpm || 0)} PPM
+                            <span className="font-mono font-black text-sky-400 text-xs inline-flex items-center gap-1 justify-end">
+                              <Zap className="w-3 h-3 text-sky-400" /> {Math.round(player.bestWpm || player.wpm || 0)} PPM
                             </span>
                             <span className="font-mono font-bold text-emerald-400 text-[11px]">
                               {Math.round(player.accuracy || 0)}% prec.
@@ -1778,8 +1804,8 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                           </div>
                         ) : activeRankTab === 'combo' ? (
                           <div className="sm:hidden flex flex-col items-end shrink-0 text-right">
-                            <span className="font-mono font-black text-orange-400 text-xs">
-                              🔥 {player.maxCombo || 0}x
+                            <span className="font-mono font-black text-orange-400 text-xs inline-flex items-center gap-1 justify-end">
+                              <Flame className="w-3 h-3 text-orange-400" /> {player.maxCombo || 0}x
                             </span>
                             <span className="font-mono font-bold text-emerald-400 text-[11px]">
                               {Math.round(player.accuracy || 0)}% prec.
@@ -1787,8 +1813,8 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                           </div>
                         ) : activeRankTab === 'bytes' ? (
                           <div className="sm:hidden flex flex-col items-end shrink-0 text-right">
-                            <span className="font-mono font-black text-purple-400 text-xs">
-                              💾 {formatBytes(player.points)}
+                            <span className="font-mono font-black text-purple-400 text-xs inline-flex items-center gap-1 justify-end">
+                              <Database className="w-3 h-3 text-purple-400" /> {formatBytes(player.points)}
                             </span>
                             <span className="font-mono font-bold text-amber-300 text-[11px]">
                               Nv. {player.level}
@@ -1796,8 +1822,8 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                           </div>
                         ) : activeRankTab === 'radar' ? (
                           <div className="sm:hidden flex flex-col items-end shrink-0 text-right">
-                            <span className="font-mono font-black text-cyan-400 text-xs">
-                              🛰️ Onda {player.radarBestWave || 1}
+                            <span className="font-mono font-black text-cyan-400 text-xs inline-flex items-center gap-1 justify-end">
+                              <Radio className="w-3 h-3 text-cyan-400" /> Onda {player.radarBestWave || 1}
                             </span>
                             <span className="font-mono font-bold text-amber-300 text-[11px]">
                               {(player.radarHighScore || 0).toLocaleString()} pts
@@ -1805,8 +1831,8 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                           </div>
                         ) : activeRankTab === 'dash' ? (
                           <div className="sm:hidden flex flex-col items-end shrink-0 text-right">
-                            <span className="font-mono font-black text-amber-400 text-xs">
-                              ⚡ {(player.dashHighScore || 0).toLocaleString()} pts
+                            <span className="font-mono font-black text-amber-400 text-xs inline-flex items-center gap-1 justify-end">
+                              <Zap className="w-3 h-3 text-amber-400" /> {(player.dashHighScore || 0).toLocaleString()} pts
                             </span>
                             <span className="font-mono font-bold text-cyan-300 text-[11px]">
                               {player.dashMaxDistance ? `${player.dashMaxDistance}m` : '-'}
@@ -1826,7 +1852,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                         {/* Indicador Visual do Card Colecionável */}
                         <div className="hidden md:flex items-center gap-1 text-[11px] font-mono text-amber-400/80 group-hover:text-amber-300 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 px-2 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 shadow-sm">
                           <span>Card</span>
-                          <span>🎴</span>
+                          <Sparkles className="w-3 h-3 text-amber-400" />
                         </div>
                       </div>
                     );
@@ -1850,8 +1876,8 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                     </span>
                   </div>
 
-                  <span className="text-zinc-500 text-[11px] font-mono">
-                    🏛️ Registro histórico oficial e imutável do colégio
+                  <span className="text-zinc-500 text-[11px] font-mono inline-flex items-center gap-1">
+                    <Landmark className="w-3 h-3 text-yellow-500/70" /> Registro histórico oficial e imutável do colégio
                   </span>
                 </>
               ) : viewMode === 'guerra_turmas' ? (

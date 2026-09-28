@@ -18,7 +18,13 @@ import {
   CheckCircle2,
   AlertTriangle,
   Flame,
-  Award
+  Award,
+  Bot,
+  ArrowUp,
+  RotateCw,
+  Repeat,
+  Diamond,
+  ArrowRight
 } from 'lucide-react';
 import { BaseGameProps, GameExitPayload } from '../../../types/gamePlugin';
 import { BytezinhoSkinId } from '../../../types/cosmetics';
@@ -293,7 +299,7 @@ export const ScratchBotGame: React.FC<ScratchBotGameProps> = ({
           ) {
             scratchAudio.playCollision();
             setHasCollided(true);
-            setFeedbackMessage('💥 O Bytezinho tentou sair do circuito!');
+            setFeedbackMessage('O Bytezinho tentou sair do circuito!');
             setTotalErrors((prev) => prev + 1);
             return false;
           }
@@ -302,7 +308,7 @@ export const ScratchBotGame: React.FC<ScratchBotGameProps> = ({
           if (activeLevel.obstacles.some((o) => o.x === next.x && o.y === next.y)) {
             scratchAudio.playCollision();
             setHasCollided(true);
-            setFeedbackMessage('🧱 Colisão com uma parede de firewall!');
+            setFeedbackMessage('Colisão com uma parede de firewall!');
             setTotalErrors((prev) => prev + 1);
             return false;
           }
@@ -312,7 +318,7 @@ export const ScratchBotGame: React.FC<ScratchBotGameProps> = ({
           if (hitGate && !localUnlockedGates.has(`${hitGate.gateCoord.x},${hitGate.gateCoord.y}`)) {
             scratchAudio.playCollision();
             setHasCollided(true);
-            setFeedbackMessage('🔒 O portão a laser está trancado! Encontre a chave primeiro.');
+            setFeedbackMessage('O portão a laser está trancado! Encontre a chave primeiro.');
             setTotalErrors((prev) => prev + 1);
             return false;
           }
@@ -331,7 +337,7 @@ export const ScratchBotGame: React.FC<ScratchBotGameProps> = ({
               localUnlockedGates.add(gateKeyStr);
               setUnlockedGates(new Set(localUnlockedGates));
               scratchAudio.playUnlockGate();
-              setFeedbackMessage('🔓 Chave de acesso criptográfica ativada! O portão a laser abriu.');
+              setFeedbackMessage('Chave de acesso criptográfica ativada! O portão a laser abriu.');
               await sleep(150);
             }
           }
@@ -343,7 +349,7 @@ export const ScratchBotGame: React.FC<ScratchBotGameProps> = ({
             curPos = { ...hitTeleport.to };
             setRobotPos({ ...curPos });
             setPathHistory((prev) => [...prev, { ...curPos }]);
-            setFeedbackMessage('🌀 Salto quântico realizado com sucesso!');
+            setFeedbackMessage('Salto quântico realizado com sucesso!');
             await sleep(execSpeed);
           }
 
@@ -360,7 +366,7 @@ export const ScratchBotGame: React.FC<ScratchBotGameProps> = ({
               curPos = pushedNext;
               setRobotPos({ ...curPos });
               setPathHistory((prev) => [...prev, { ...curPos }]);
-              setFeedbackMessage('💨 A esteira de aceleração impulsionou o Bytezinho!');
+              setFeedbackMessage('A esteira de aceleração impulsionou o Bytezinho!');
               await sleep(execSpeed);
             }
           }
@@ -383,7 +389,7 @@ export const ScratchBotGame: React.FC<ScratchBotGameProps> = ({
             setCollectedGems(new Set(localCollected));
             scratchAudio.playCollect();
           } else {
-            setFeedbackMessage('⚠️ Não há gema nesta posição para coletar.');
+            setFeedbackMessage('Não há gema nesta posição para coletar.');
           }
           await sleep(execSpeed);
         } else if (block.type === 'repeat') {
@@ -412,7 +418,7 @@ export const ScratchBotGame: React.FC<ScratchBotGameProps> = ({
       if (isOverHazard) {
         scratchAudio.playShock();
         setHasCollided(true);
-        setFeedbackMessage('⚡ Sobrecarga elétrica! O Bytezinho parou sobre um piso EMP energizado.');
+        setFeedbackMessage('Sobrecarga elétrica! O Bytezinho parou sobre um piso EMP energizado.');
         setTotalErrors((prev) => prev + 1);
         return;
       }
@@ -473,13 +479,13 @@ export const ScratchBotGame: React.FC<ScratchBotGameProps> = ({
           });
         }
 
-        setFeedbackMessage('🎉 Parabéns! Algoritmo executado com perfeição!');
+        setFeedbackMessage('Parabéns! Algoritmo executado com perfeição!');
         setVictoryModalOpen(true);
       } else if (isAtTarget && !allGemsGathered) {
-        setFeedbackMessage('⚠️ Você alcançou o portal, mas esqueceu de coletar todas as gemas!');
+        setFeedbackMessage('Você alcançou o portal, mas esqueceu de coletar todas as gemas!');
         setTotalErrors((prev) => prev + 1);
       } else {
-        setFeedbackMessage('🏁 A execução terminou antes do Bytezinho alcançar o portal.');
+        setFeedbackMessage('A execução terminou antes do Bytezinho alcançar o portal.');
       }
     }
   };
@@ -544,7 +550,7 @@ export const ScratchBotGame: React.FC<ScratchBotGameProps> = ({
           <div className="h-4 w-px bg-zinc-800 hidden sm:block" />
 
           <div className="flex items-center gap-2">
-            <span className="text-xl">🤖</span>
+            <Bot className="w-5 h-5 text-blue-400" />
             <div>
               <h1 className="text-sm font-black text-white tracking-tight flex items-center gap-1.5">
                 <span>ScratchBot: Logic Quest</span>
@@ -612,13 +618,13 @@ export const ScratchBotGame: React.FC<ScratchBotGameProps> = ({
 
           <div className="space-y-1.5">
             {activeLevel.availableBlockTypes.map((type) => {
-              const labelMap: Record<BlockType, { title: string; color: string; icon: string }> = {
-                when_flag_clicked: { title: 'Quando ⚑ clicado', color: 'bg-amber-500', icon: '⚑' },
-                move_forward: { title: 'Mova 1 passo', color: 'bg-sky-500', icon: '⬆' },
-                turn_left: { title: 'Gire ↺ esquerda', color: 'bg-sky-500', icon: '↺' },
-                turn_right: { title: 'Gire ↻ direita', color: 'bg-sky-500', icon: '↻' },
-                repeat: { title: 'Repita N vezes', color: 'bg-orange-500', icon: '🔁' },
-                collect_gem: { title: 'Coletar Gema', color: 'bg-purple-500', icon: '💎' },
+              const labelMap: Record<BlockType, { title: string; color: string; icon: React.ReactNode }> = {
+                when_flag_clicked: { title: 'Quando bandeira', color: 'bg-amber-500', icon: <Flag className="w-3 h-3 fill-current" /> },
+                move_forward: { title: 'Mova 1 passo', color: 'bg-sky-500', icon: <ArrowUp className="w-3 h-3" /> },
+                turn_left: { title: 'Gire esquerda', color: 'bg-sky-500', icon: <RotateCcw className="w-3 h-3" /> },
+                turn_right: { title: 'Gire direita', color: 'bg-sky-500', icon: <RotateCw className="w-3 h-3" /> },
+                repeat: { title: 'Repita N vezes', color: 'bg-orange-500', icon: <Repeat className="w-3 h-3" /> },
+                collect_gem: { title: 'Coletar Gema', color: 'bg-purple-500', icon: <Diamond className="w-3 h-3" /> },
               };
               const item = labelMap[type];
 
@@ -695,7 +701,9 @@ export const ScratchBotGame: React.FC<ScratchBotGameProps> = ({
                 }`}>
                   {totalUsedBlocks}
                 </span>
-                <span className="text-zinc-500">/ 3★: ≤{activeLevel.maxBlocksFor3Stars}</span>
+                <span className="text-zinc-500 flex items-center gap-0.5">
+                  / 3 <Sparkles className="w-2.5 h-2.5 text-amber-400 inline" />: ≤{activeLevel.maxBlocksFor3Stars}
+                </span>
               </div>
             </div>
           </div>
@@ -795,8 +803,14 @@ export const ScratchBotGame: React.FC<ScratchBotGameProps> = ({
                       }`}
                     >
                       <span>{lvl.id}</span>
-                      <span className="text-[9px] text-amber-300">
-                        {stars > 0 ? '★'.repeat(stars) : '•'}
+                      <span className="text-[9px] text-amber-300 flex items-center justify-center gap-0.5">
+                        {stars > 0 ? (
+                          Array.from({ length: stars }).map((_, i) => (
+                            <Star key={i} className="w-2 h-2 fill-amber-400 text-amber-400" />
+                          ))
+                        ) : (
+                          '•'
+                        )}
                       </span>
                     </button>
                   );
@@ -812,8 +826,8 @@ export const ScratchBotGame: React.FC<ScratchBotGameProps> = ({
       {victoryModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
           <div className="w-full max-w-md bg-[#131622] border-2 border-emerald-500/60 rounded-3xl p-6 shadow-2xl text-center flex flex-col items-center gap-4">
-            <div className="w-16 h-16 rounded-full bg-emerald-500/20 border-2 border-emerald-500 flex items-center justify-center text-3xl shadow-[0_0_30px_rgba(16,185,129,0.3)] animate-bounce">
-              🏆
+            <div className="w-16 h-16 rounded-full bg-emerald-500/20 border-2 border-emerald-500 flex items-center justify-center shadow-[0_0_30px_rgba(16,185,129,0.3)] animate-bounce">
+              <Trophy className="w-8 h-8 text-emerald-400" />
             </div>
 
             <div>
@@ -826,14 +840,12 @@ export const ScratchBotGame: React.FC<ScratchBotGameProps> = ({
             </div>
 
             {/* Estrelas */}
-            <div className="flex items-center gap-2 text-3xl">
+            <div className="flex items-center gap-2">
               {[1, 2, 3].map((s) => (
-                <span
+                <Star
                   key={s}
-                  className={s <= earnedStarsThisLevel ? 'text-amber-400 drop-shadow' : 'text-zinc-700'}
-                >
-                  ★
-                </span>
+                  className={`w-7 h-7 ${s <= earnedStarsThisLevel ? 'fill-amber-400 text-amber-400 drop-shadow' : 'text-zinc-700'}`}
+                />
               ))}
             </div>
 
@@ -870,9 +882,10 @@ export const ScratchBotGame: React.FC<ScratchBotGameProps> = ({
                     setInfiniteSeed((prev) => prev + 1);
                   }
                 }}
-                className="flex-1 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-mono text-xs font-black transition cursor-pointer shadow-lg"
+                className="flex-1 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-mono text-xs font-black transition cursor-pointer shadow-lg flex items-center justify-center gap-1.5"
               >
-                Próxima Fase ➔
+                <span>Próxima Fase</span>
+                <ArrowRight className="w-4 h-4" />
               </button>
             </div>
           </div>

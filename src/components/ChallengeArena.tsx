@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Terminal, ShieldAlert, CheckCircle2, Zap, Keyboard, X, Shield, Flame, RotateCcw, Award, Star, Sparkles } from 'lucide-react';
+import { Terminal, ShieldAlert, CheckCircle2, Zap, Keyboard, X, Shield, Flame, RotateCcw, Award, Star, Sparkles, AlertTriangle, Trophy } from 'lucide-react';
 import { sound } from '../utils/audio';
 import { formatBytes } from '../utils/formatting';
 import { getLevelBoss, LevelBossDef } from '../data/levelBosses';
@@ -441,7 +441,7 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
         if (bossDef.mechanicType === 'cast_bar') {
           setCastProgress(0);
           setIsBossStunned(true);
-          addFloatingText('⚡ ATORDISSO!', 'stun');
+          addFloatingText('ATORDOADO!', 'stun');
           setTimeout(() => setIsBossStunned(false), 1500);
         }
 
@@ -565,7 +565,7 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
           // Contra-ataque do Boss: consome 2s do jogador e causa glitch
           sound.playGlitch();
           setTimeLeft((t) => Math.max(1, t - 2));
-          addFloatingText('⚠️ CONTRA-ATAQUE! -2s', 'damage');
+          addFloatingText('CONTRA-ATAQUE! -2s', 'damage');
           setIsErrorShaking(true);
           setTimeout(() => setIsErrorShaking(false), 300);
           return 0;
@@ -773,7 +773,10 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
                     {bossDef.mechanicType === 'cast_bar' && (
                       <div className="w-full flex flex-col gap-0.5 mt-1 pt-1 border-t border-zinc-800/60">
                         <div className="flex justify-between text-[10px] font-mono text-amber-300">
-                          <span>⚡ INVASÃO DA I.A. EM CARGA:</span>
+                          <span className="flex items-center gap-1">
+                            <Zap className="w-3.5 h-3.5 text-amber-400" />
+                            INVASÃO DA I.A. EM CARGA:
+                          </span>
                           <span>{isBossStunned ? 'ATORDOADO!' : `${Math.round(castProgress)}%`}</span>
                         </div>
                         <div className="w-full h-1.5 bg-black rounded-full overflow-hidden border border-amber-500/30">
@@ -847,7 +850,10 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
                     {isFocused ? (
                       <span className="font-bold">TECLADO ATIVO • DIGITE A LETRA DESTACADA</span>
                     ) : (
-                      <span className="font-bold underline">⚠️ CLIQUE AQUI PARA ATIVAR O TECLADO</span>
+                      <span className="font-bold underline flex items-center gap-1.5">
+                        <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+                        CLIQUE AQUI PARA ATIVAR O TECLADO
+                      </span>
                     )}
                   </div>
                 </motion.div>
@@ -861,8 +867,8 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
                   className="flex flex-col items-center gap-4 py-6 w-full max-w-md"
                 >
                   <div className="relative">
-                    <div className="p-4 rounded-3xl bg-emerald-500/20 border-2 border-emerald-500/50 text-6xl shadow-[0_0_50px_rgba(16,185,129,0.4)]">
-                      <span>🏆</span>
+                    <div className="p-5 rounded-3xl bg-emerald-500/20 border-2 border-emerald-500/50 text-emerald-400 shadow-[0_0_50px_rgba(16,185,129,0.4)] flex items-center justify-center">
+                      <Trophy className="w-14 h-14" />
                     </div>
                     <Sparkles className="w-6 h-6 text-amber-300 absolute -top-1 -right-1 animate-spin" />
                   </div>

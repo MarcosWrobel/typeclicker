@@ -86,8 +86,8 @@ export const QuestsModal: React.FC<QuestsModalProps> = ({
           {/* Header */}
           <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800/80 bg-[#121622]/80 backdrop-blur-sm">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500/25 to-indigo-600/20 border border-cyan-400/50 flex items-center justify-center text-xl shadow-[0_0_15px_rgba(6,182,212,0.25)]">
-                📜
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500/25 to-indigo-600/20 border border-cyan-400/50 flex items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.25)]">
+                <Scroll className="w-5 h-5 text-cyan-400" />
               </div>
               <div>
                 <h3 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
@@ -180,8 +180,9 @@ export const QuestsModal: React.FC<QuestsModalProps> = ({
                               <span>Resgatado</span>
                             </span>
                           ) : item.completed ? (
-                            <span className="text-[11px] font-mono text-amber-400 font-bold animate-pulse">
-                              ✨ Concluída!
+                            <span className="inline-flex items-center gap-1 text-[11px] font-mono text-amber-400 font-bold animate-pulse">
+                              <Sparkles className="w-3.5 h-3.5" />
+                              <span>Concluída!</span>
                             </span>
                           ) : (
                             <span className="text-[11px] font-mono text-zinc-400">
@@ -239,7 +240,10 @@ export const QuestsModal: React.FC<QuestsModalProps> = ({
                       </div>
 
                       {item.claimed ? (
-                        <span className="text-xs font-mono text-zinc-500 font-bold px-2 py-1">✓ Concluída</span>
+                        <span className="inline-flex items-center gap-1 text-xs font-mono text-zinc-500 font-bold px-2 py-1">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Concluída</span>
+                        </span>
                       ) : item.completed ? (
                         <button
                           onClick={() => {
@@ -264,7 +268,9 @@ export const QuestsModal: React.FC<QuestsModalProps> = ({
             {onOpenDungeon && (
               <div className="mt-4 p-3.5 rounded-xl bg-gradient-to-r from-rose-950/40 via-[#121622] to-amber-950/40 border border-rose-500/30 flex items-center justify-between gap-3 flex-wrap">
                 <div className="flex items-center gap-2.5">
-                  <span className="text-xl">⚔️</span>
+                  <div className="w-8 h-8 rounded-lg bg-rose-500/20 border border-rose-500/40 flex items-center justify-center shrink-0">
+                    <Swords className="w-4 h-4 text-rose-400" />
+                  </div>
                   <div>
                     <span className="text-xs font-bold text-white block">Quer encarar a Masmorra de Digitação?</span>
                     <span className="text-[11px] text-zinc-400 block">

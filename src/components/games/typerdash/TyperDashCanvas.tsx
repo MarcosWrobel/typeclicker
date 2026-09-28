@@ -567,7 +567,7 @@ export function renderTyperDash(
       ctx.font = '900 11px "JetBrains Mono", monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('⚡ 2X SPEED', obs.x + obs.width / 2, portalTop - 19);
+      ctx.fillText('SPEED BOOST [2X]', obs.x + obs.width / 2, portalTop - 19);
 
       ctx.restore();
       continue;
@@ -1014,7 +1014,7 @@ export function renderTyperDash(
     if (activeGrind.inSweetSpot) {
       const pulse = Math.sin(Date.now() / 60) * 0.3 + 0.7;
       ctx.fillStyle = `rgba(254, 240, 138, ${pulse})`;
-      ctx.fillText('⚡ RELEASE NOW! ⚡', cx, cy - 15);
+      ctx.fillText('RELEASE NOW! // SWEET SPOT', cx, cy - 15);
     } else {
       ctx.fillStyle = '#67e8f9';
       ctx.fillText(`HOLDING [${activeGrind.key}]...`, cx, cy - 15);
@@ -1067,11 +1067,23 @@ export function renderTyperDash(
       ctx.fill();
       ctx.stroke();
 
-      ctx.font = '900 12px "JetBrains Mono", monospace';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillStyle = isDone ? '#ffffff' : isNext ? '#0f172a' : '#94a3b8';
-      ctx.fillText(isDone ? '✓' : seq[s].toUpperCase(), kx, ky);
+      if (isDone) {
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2.2;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.moveTo(kx - 5, ky);
+        ctx.lineTo(kx - 1, ky + 4);
+        ctx.lineTo(kx + 5, ky - 4);
+        ctx.stroke();
+      } else {
+        ctx.font = '900 12px "JetBrains Mono", monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = isNext ? '#0f172a' : '#94a3b8';
+        ctx.fillText(seq[s].toUpperCase(), kx, ky);
+      }
 
       // Seta indicativa entre as teclas
       if (s < seq.length - 1) {

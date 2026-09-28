@@ -8,7 +8,7 @@ export interface BytezinhoAvatarProps {
   skin?: BytezinhoSkinId;
   mood?: 'normal' | 'happy' | 'fire' | 'oops' | 'upgrade' | 'glitch' | 'warning' | 'leak';
   state?: BytezinhoState;
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
   className?: string;
   isOverloaded?: boolean;
   isOverheating?: boolean;
@@ -59,6 +59,7 @@ export const BytezinhoAvatar: React.FC<BytezinhoAvatarProps> = ({
   }, []);
 
   const sizeDimensions = {
+    xs: 'w-4 h-4',
     sm: 'w-10 h-10',
     md: 'w-16 h-16 sm:w-20 sm:h-20',
     lg: 'w-24 h-24 sm:w-28 sm:h-28',

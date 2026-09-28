@@ -11,7 +11,8 @@ import {
   Pause,
   Play,
   RefreshCw,
-  ExternalLink
+  ExternalLink,
+  Medal
 } from 'lucide-react';
 import { LeaderboardMetric, METRIC_TABS } from './LeaderboardModal';
 import { useLeaderboardPodium } from '../hooks/useLeaderboardPodium';
@@ -152,7 +153,6 @@ export const TopPodiumWidget: React.FC<TopPodiumWidgetProps> = ({
         ) : (
           top3.map((player, idx) => {
             const isUser = player.userId === currentUserId;
-            const medals = ['🥇', '🥈', '🥉'];
             const medalGradients = [
               'border-amber-500/50 bg-amber-500/10 text-amber-300',
               'border-slate-400/50 bg-slate-400/10 text-slate-200',
@@ -182,8 +182,8 @@ export const TopPodiumWidget: React.FC<TopPodiumWidgetProps> = ({
                 }
               >
                 <div className="flex items-center gap-2 min-w-0">
-                  <div className={`w-5 h-5 rounded-md border flex items-center justify-center text-xs font-bold shrink-0 ${medalGradients[idx] || ''}`}>
-                    {medals[idx] || `${idx + 1}º`}
+                  <div className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 ${medalGradients[idx] || ''}`}>
+                    <Medal className="w-3.5 h-3.5" />
                   </div>
 
                   <div className="w-5 h-5 shrink-0 select-none">

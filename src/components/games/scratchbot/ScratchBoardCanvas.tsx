@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
+import { Zap, ArrowRight, Lock } from 'lucide-react';
 import { GridCoord, RobotDirection, TeleporterPair, ConveyorBelt, LaserGate } from '../../../types/scratchBot';
 import { BytezinhoAvatar } from '../../BytezinhoAvatar';
 import { BytezinhoSkinId } from '../../../types/cosmetics';
@@ -82,7 +83,7 @@ const EmpHazardSprite: React.FC = () => (
         <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
       </svg>
       <span className="text-[7px] font-black font-mono text-amber-300 uppercase tracking-wider relative z-10">
-        EMP⚡
+        EMP
       </span>
     </div>
   </div>
@@ -426,7 +427,9 @@ export const ScratchBoardCanvas: React.FC<ScratchBoardCanvasProps> = ({
         </div>
         {hazards.length > 0 && (
           <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded bg-amber-500/80 text-black text-[8px] flex items-center justify-center font-bold">⚡</span>
+            <span className="w-2.5 h-2.5 rounded bg-amber-500/80 text-black flex items-center justify-center">
+              <Zap className="w-2 h-2 fill-current" />
+            </span>
             <span>EMP</span>
           </div>
         )}
@@ -438,13 +441,17 @@ export const ScratchBoardCanvas: React.FC<ScratchBoardCanvasProps> = ({
         )}
         {conveyors.length > 0 && (
           <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded bg-sky-950 border border-sky-400 text-[8px] text-sky-300 flex items-center justify-center">➔</span>
+            <span className="w-2.5 h-2.5 rounded bg-sky-950 border border-sky-400 text-sky-300 flex items-center justify-center">
+              <ArrowRight className="w-2 h-2" />
+            </span>
             <span>Esteira</span>
           </div>
         )}
         {gates.length > 0 && (
           <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded border border-rose-500 text-[8px] text-rose-300 flex items-center justify-center">🔒</span>
+            <span className="w-2.5 h-2.5 rounded border border-rose-500 text-rose-300 flex items-center justify-center">
+              <Lock className="w-2 h-2" />
+            </span>
             <span>Portão/Chave</span>
           </div>
         )}

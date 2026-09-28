@@ -22,18 +22,18 @@ interface BytezinhoMascotProps {
 
 const IDLE_MESSAGES = [
   "Bora digitar! Seus dedos estão na fileira guia?",
-  "Aqui no Colégio Leopoldina Pedroso nossos teclados voam! 🚀",
-  "Clique no seu Nível no topo para ver todos os 100 níveis que você pode alcançar! 🏆",
-  "Dúvidas ou dificuldades? Chame o Prof. Marcos Wrobel! 👨‍🏫",
-  "Dica de ouro: Use os dois polegares para a barra de espaço! 👍",
-  "Você está digitando no laboratório do colégio! Que demais! 🚀",
+  "Aqui no Colégio Leopoldina Pedroso nossos teclados voam a mil!",
+  "Clique no seu Nível no topo para ver todos os 100 níveis que você pode alcançar!",
+  "Dúvidas ou dificuldades? Chame o Prof. Marcos Wrobel!",
+  "Dica de ouro: Use os dois polegares para a barra de espaço!",
+  "Você está digitando no laboratório do colégio! Que demais!",
   "Lembre de salvar em Documentos/TypeClicker como ensinou o Prof. Marcos!",
   "Mantenha a postura reta! Menos cansaço, mais velocidade!",
-  "Qual nível você quer alcançar hoje? Dá pra chegar até o Nível 100! 🎯",
+  "Qual nível você quer alcançar hoje? Dá pra chegar até o Nível 100!",
   "Sabia que cada acerto aumenta seu multiplicador de Bytes?",
   "Compre upgrades na loja para turbinar seu teclado!",
-  "Já conferiu as Missões Semanais no botão [MISSÕES]? Recompensas incríveis te esperam! 📜",
-  "Desbrave a Masmorra RPG! Digite histórias completas para derrotar os monstros de dados! ⚔️",
+  "Já conferiu as Missões Semanais no botão [MISSÕES]? Recompensas incríveis te esperam!",
+  "Desbrave a Masmorra RPG! Digite histórias completas para derrotar os monstros de dados!",
   "Pratique com calma para virar um Mestre da Digitação no Leopoldina!"
 ];
 
@@ -61,9 +61,9 @@ export const BytezinhoMascot: React.FC<BytezinhoMascotProps> = ({
     if (isOverloaded || consecutiveErrors >= 3) {
       setMood('glitch');
       if (weakKeys.length > 0) {
-        setCurrentMessage(`⚡ SOBRECARGA! A tecla [${weakKeys[0].toUpperCase()}] travou o circuito! Clique em Calibrar para reabilitar!`);
+        setCurrentMessage(`[SOBRECARGA] A tecla [${weakKeys[0].toUpperCase()}] travou o circuito! Clique em Calibrar para reabilitar!`);
       } else {
-        setCurrentMessage("⚡ SOBRECARGA DE ERROS! Pare, respire e posicione os dedos na fileira base!");
+        setCurrentMessage("[SOBRECARGA DE ERROS] Pare, respire e posicione os dedos na fileira base!");
       }
       return;
     }
@@ -71,42 +71,42 @@ export const BytezinhoMascot: React.FC<BytezinhoMascotProps> = ({
     if (consecutiveErrors === 2) {
       setMood('warning');
       if (weakKeys.length > 0) {
-        setCurrentMessage(`⚠️ A tecla [${weakKeys[0].toUpperCase()}] escorregou de novo! Que tal fazer um treino rápido de reabilitação?`);
+        setCurrentMessage(`[ATENÇÃO] A tecla [${weakKeys[0].toUpperCase()}] escorregou de novo! Que tal fazer um treino rápido de reabilitação?`);
       } else {
-        setCurrentMessage("⚠️ 2 erros seguidos! Cuidado, errar em sequência consome seus Bytes!");
+        setCurrentMessage("[ATENÇÃO] 2 erros seguidos! Cuidado, errar em sequência consome seus Bytes!");
       }
       return;
     }
 
     if (isDraining) {
       setMood('leak');
-      setCurrentMessage("⏱️ Vazamento de Bytes ativo! Digite a próxima letra para conter o dreno!");
+      setCurrentMessage("[DRENO] Vazamento de Bytes ativo! Digite a próxima letra para conter o dreno!");
       return;
     }
 
     if (recentUpgradeBought) {
       setMood('upgrade');
-      setCurrentMessage(`Upgrade ${recentUpgradeBought} ativado! Máquina turbinada! 🚀`);
+      setCurrentMessage(`Upgrade ${recentUpgradeBought} ativado! Máquina turbinada!`);
       const timer = setTimeout(() => setMood('normal'), 2500);
       return () => clearTimeout(timer);
     }
 
     if (isError) {
       setMood('oops');
-      setCurrentMessage("Sem estresse! Respira fundo e tenta de novo! 💪");
+      setCurrentMessage("Sem estresse! Respira fundo e tenta de novo!");
       const timer = setTimeout(() => setMood('normal'), 1800);
       return () => clearTimeout(timer);
     }
 
     if (comboStreak >= 15) {
       setMood('fire');
-      setCurrentMessage(`COMBO DE ${comboStreak}! SEUS DEDOS ESTÃO VOANDO! 🔥⚡`);
+      setCurrentMessage(`COMBO DE ${comboStreak}! SEUS DEDOS ESTÃO VOANDO!`);
     } else if (comboStreak >= 8) {
       setMood('happy');
-      setCurrentMessage(`Ótimo ritmo! Multiplicador ${multiplier.toFixed(1)}x ativo! ⭐`);
+      setCurrentMessage(`Ótimo ritmo! Multiplicador ${multiplier.toFixed(1)}x ativo!`);
     } else if (recentWordComplete) {
       setMood('happy');
-      setCurrentMessage("Palavra perfeita! Mandou super bem! ✨");
+      setCurrentMessage("Palavra perfeita! Mandou super bem!");
       const timer = setTimeout(() => setMood('normal'), 1600);
       return () => clearTimeout(timer);
     } else {
@@ -119,7 +119,7 @@ export const BytezinhoMascot: React.FC<BytezinhoMascotProps> = ({
     const interval = setInterval(() => {
       if (mood === 'normal') {
         if (weakKeys.length > 0 && Math.random() > 0.5) {
-          setCurrentMessage(`🎯 Dica do Bytezinho: Notei hesitação na tecla [${weakKeys[0].toUpperCase()}]. O Treino Corretivo tá pronto pra calibrar!`);
+          setCurrentMessage(`Dica do Bytezinho: Notei hesitação na tecla [${weakKeys[0].toUpperCase()}]. O Treino Corretivo tá pronto pra calibrar!`);
         } else {
           const next = IDLE_MESSAGES[Math.floor(Math.random() * IDLE_MESSAGES.length)];
           setCurrentMessage(next);
@@ -134,9 +134,9 @@ export const BytezinhoMascot: React.FC<BytezinhoMascotProps> = ({
     onMascotClick?.();
     setMood('happy');
     const funResponses = [
-      "Bip-bup! Hehe, você clicou em mim! 🤖",
+      "Bip-bup! Hehe, você clicou em mim!",
       "Estou aqui torcendo por você! Bora bater o recorde!",
-      "Sabia que o mascote oficial do Linux é um pinguim chamado Tux? 🐧",
+      "Sabia que o mascote oficial do Linux é um pinguim chamado Tux?",
       "Energia máxima! Vamos digitar a próxima palavra!"
     ];
     setCurrentMessage(funResponses[clickCount % funResponses.length]);

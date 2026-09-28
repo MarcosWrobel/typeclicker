@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Trophy, Sparkles, X, Coins, Layers } from 'lucide-react';
 import { AchievementDef } from '../types/achievements';
 import { formatBytes } from '../utils/formatting';
+import { AchievementIconRenderer } from './vectors/AchievementIconRenderer';
 
 interface AchievementToastProps {
   achievement: AchievementDef | null;
@@ -56,13 +57,17 @@ export const AchievementToast: React.FC<AchievementToastProps> = ({
               <motion.div
                 animate={{ rotate: [-5, 5, -5], scale: [1, 1.1, 1] }}
                 transition={{ repeat: Infinity, duration: 2.2, ease: 'easeInOut' }}
-                className={`w-13 h-13 rounded-2xl border flex items-center justify-center text-3xl select-none flex-shrink-0 ${
+                className={`w-13 h-13 rounded-2xl border flex items-center justify-center select-none flex-shrink-0 p-2 ${
                   achievement.isHardcore
                     ? 'bg-gradient-to-br from-cyan-500/35 to-indigo-600/30 border-cyan-300/80 shadow-[0_0_25px_rgba(6,182,212,0.5)]'
                     : 'bg-gradient-to-br from-amber-500/30 to-amber-700/20 border-amber-400/60 shadow-[0_0_20px_rgba(245,158,11,0.4)]'
                 }`}
               >
-                {achievement.icon}
+                <AchievementIconRenderer
+                  icon={achievement.icon}
+                  achievementId={achievement.id}
+                  className={`w-7 h-7 ${achievement.isHardcore ? 'text-cyan-300' : 'text-amber-400'}`}
+                />
               </motion.div>
 
               {/* Detalhes da Conquista */}
@@ -75,7 +80,7 @@ export const AchievementToast: React.FC<AchievementToastProps> = ({
                   {achievement.isHardcore ? (
                     <>
                       <Sparkles className="w-3.5 h-3.5 text-cyan-400 animate-spin" />
-                      <span>🔥 Desafio Épico Conquistado!</span>
+                      <span>Desafio Épico Conquistado!</span>
                     </>
                   ) : (
                     <>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Terminal, CheckCircle2, Zap, Keyboard, X, Target, Sparkles, ShieldCheck } from 'lucide-react';
+import { Terminal, CheckCircle2, Zap, Keyboard, X, Target, Sparkles, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { sound } from '../utils/audio';
 import { audioSynthesizer } from '../services/audioSynthesizer';
 import { formatBytes } from '../utils/formatting';
@@ -445,7 +445,7 @@ export const FocusDrillModal: React.FC<FocusDrillModalProps> = ({
                     {isFocused ? (
                       <span className="font-bold">TECLADO PRONTO • DIGITE AS LETRAS DESTACADAS</span>
                     ) : (
-                      <span className="font-bold underline">⚠️ CLIQUE AQUI PARA ATIVAR O TECLADO</span>
+                      <span className="font-bold underline flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5 text-amber-300" /> CLIQUE AQUI PARA ATIVAR O TECLADO</span>
                     )}
                   </div>
                 </motion.div>

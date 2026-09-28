@@ -1,8 +1,9 @@
 import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Crown, Sparkles, Trophy, Award, CheckCircle2 } from 'lucide-react';
+import { Crown, Sparkles, Trophy, Award, CheckCircle2, Medal } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { sound } from '../utils/audio';
+import { StudentAvatarRenderer } from './vectors/StudentAvatarRenderer';
 
 interface Level100CelebrationModalProps {
   isOpen: boolean;
@@ -18,7 +19,7 @@ export const Level100CelebrationModal: React.FC<Level100CelebrationModalProps> =
   onClose,
   rank,
   studentName,
-  studentAvatar = '🐧',
+  studentAvatar = 'tux',
   studentClass
 }) => {
   useEffect(() => {
@@ -67,9 +68,9 @@ export const Level100CelebrationModal: React.FC<Level100CelebrationModalProps> =
   };
 
   const rankMedals = {
-    1: '🥇 COROA DE OURO PURO',
-    2: '🥈 COROA DE PRATA CÓSMICA',
-    3: '🥉 COROA DE BRONZE FORJADO'
+    1: 'COROA DE OURO PURO',
+    2: 'COROA DE PRATA CÓSMICA',
+    3: 'COROA DE BRONZE FORJADO'
   };
 
   return (
@@ -92,8 +93,8 @@ export const Level100CelebrationModal: React.FC<Level100CelebrationModalProps> =
 
             {/* Ícone Mestre */}
             <div className="relative my-2">
-              <div className="w-24 h-24 rounded-3xl bg-amber-500/20 border-2 border-amber-400/60 flex items-center justify-center text-5xl shadow-[0_0_40px_rgba(251,191,36,0.5)] animate-bounce">
-                {studentAvatar}
+              <div className="w-24 h-24 rounded-3xl bg-amber-500/20 border-2 border-amber-400/60 flex items-center justify-center shadow-[0_0_40px_rgba(251,191,36,0.5)] animate-bounce p-3">
+                <StudentAvatarRenderer avatar={studentAvatar} className="w-full h-full" />
               </div>
               <Crown className="w-10 h-10 text-amber-400 absolute -top-4 -right-3 drop-shadow-[0_0_12px_rgba(251,191,36,0.9)] animate-pulse" />
             </div>
@@ -115,7 +116,10 @@ export const Level100CelebrationModal: React.FC<Level100CelebrationModalProps> =
             <div className="w-full bg-black/60 border border-amber-500/30 rounded-2xl p-3 my-4 flex items-center justify-around text-xs font-mono">
               <div className="flex flex-col items-center">
                 <span className="text-[10px] text-zinc-400 uppercase">Classificação</span>
-                <span className="font-bold text-amber-300">{rankMedals[rank]}</span>
+                <span className="font-bold text-amber-300 flex items-center gap-1 mt-0.5">
+                  <Medal className={`w-3.5 h-3.5 ${rank === 1 ? 'text-amber-400' : rank === 2 ? 'text-slate-300' : 'text-amber-600'}`} />
+                  {rankMedals[rank]}
+                </span>
               </div>
               <div className="h-6 w-px bg-zinc-800" />
               <div className="flex flex-col items-center">

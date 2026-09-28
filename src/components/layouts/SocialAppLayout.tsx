@@ -20,8 +20,17 @@ import {
   Music,
   Disc,
   Boxes,
+  Box,
   Sliders,
-  Sparkles
+  Sparkles,
+  Flame,
+  Zap,
+  Trophy,
+  Gem,
+  Crown,
+  ShoppingBag,
+  Paperclip,
+  Coins
 } from 'lucide-react';
 
 export interface SocialAppLayoutProps extends BaseLayoutProps {
@@ -50,7 +59,7 @@ export const SocialAppLayout: React.FC<SocialAppLayoutProps> = ({
             <div className="flex items-center gap-3 min-w-0">
               <div className="relative">
                 <div className="w-10 h-10 rounded-full bg-[#00a884] flex items-center justify-center text-white text-lg font-bold shadow">
-                  💬
+                  <MessageSquare className="w-5 h-5 text-white" />
                 </div>
                 <span className="absolute bottom-0 right-0 w-3 h-3 bg-[#25d366] border-2 border-[#202c33] rounded-full" />
               </div>
@@ -112,7 +121,10 @@ export const SocialAppLayout: React.FC<SocialAppLayoutProps> = ({
               </div>
               <div className="flex-1 min-h-0 flex flex-col justify-center overflow-y-auto">{arena}</div>
               <div className="bg-[#202c33] px-4 py-2 border-t border-[#2a3942] flex items-center justify-between text-xs text-[#8696a0]">
-                <span>💬 Digite a palavra acima para enviar...</span>
+                <span className="flex items-center gap-1.5">
+                  <MessageSquare className="w-3.5 h-3.5 text-[#25d366]" />
+                  <span>Digite a palavra acima para enviar...</span>
+                </span>
                 <span className="text-[#25d366] font-mono text-[10px]">Pressione ENTER</span>
               </div>
             </div>
@@ -120,7 +132,10 @@ export const SocialAppLayout: React.FC<SocialAppLayoutProps> = ({
             {/* Loja: Anexos e Upgrades */}
             <div className="w-full lg:w-76 xl:w-84 flex-shrink-0 flex flex-col min-w-0 bg-[#111b21]">
               <div className="bg-[#202c33]/70 px-3.5 py-2 border-b border-[#2a3942] text-[11px] font-bold text-[#53bdeb] uppercase tracking-wider flex items-center justify-between">
-                <span>📎 Anexos & Upgrades</span>
+                <span className="flex items-center gap-1.5">
+                  <Paperclip className="w-3.5 h-3.5 text-[#53bdeb]" />
+                  <span>Anexos & Upgrades</span>
+                </span>
                 <span className="text-zinc-400 text-[10px]">Loja Zap</span>
               </div>
               <div className="flex-1 min-h-0 overflow-y-auto">{shop}</div>
@@ -151,9 +166,15 @@ export const SocialAppLayout: React.FC<SocialAppLayoutProps> = ({
 
             {/* Stories Avatares no Topo */}
             <div className="hidden md:flex items-center gap-3 overflow-x-auto py-0.5 px-2">
-              {['🔥 Alta', '⚡ Turbo', '🏆 Ranking', '💎 Upgrades', '👑 MVP'].map((label, i) => (
+              {[
+                { label: 'Alta', Icon: Flame },
+                { label: 'Turbo', Icon: Zap },
+                { label: 'Ranking', Icon: Trophy },
+                { label: 'Upgrades', Icon: Gem },
+                { label: 'MVP', Icon: Crown }
+              ].map(({ label, Icon }, i) => (
                 <div key={label} className="flex items-center gap-1.5 bg-[#25123d] px-2.5 py-1 rounded-full border border-pink-500/30 text-[11px] text-pink-200">
-                  <div className="w-3.5 h-3.5 rounded-full bg-gradient-to-tr from-[#feda75] to-[#d62976] animate-spin" style={{ animationDuration: `${4 + i}s` }} />
+                  <Icon className="w-3 h-3 text-pink-400" />
                   <span>{label}</span>
                 </div>
               ))}
@@ -171,7 +192,9 @@ export const SocialAppLayout: React.FC<SocialAppLayoutProps> = ({
           <main className="flex-1 min-h-0 flex flex-col lg:flex-row w-full items-stretch divide-y lg:divide-y-0 lg:divide-x divide-[#301646] bg-[#0f0718]">
             <div className="w-full lg:w-68 xl:w-76 flex-shrink-0 flex flex-col min-w-0 bg-[#170d24]/90">
               <div className="bg-[#24123a] px-3.5 py-2 border-b border-[#301646] text-[11px] font-bold text-pink-300 uppercase tracking-wider flex items-center justify-between">
-                <span>✦ Perfil & Seguidos</span>
+                <span className="flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5" /> Perfil & Seguidos
+                </span>
                 <span className="text-[10px] text-pink-400 font-mono">Stories Ativos</span>
               </div>
               <div className="flex-1 min-h-0 overflow-y-auto">{sidebar}</div>
@@ -182,7 +205,10 @@ export const SocialAppLayout: React.FC<SocialAppLayoutProps> = ({
                 <span className="flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-[#e1306c]" /> Publicação Principal do Feed
                 </span>
-                <span className="text-[10px] text-[#f77737] font-bold">❤️ 2.4k Curtidas</span>
+                <span className="text-[10px] text-[#f77737] font-bold flex items-center gap-1">
+                  <Heart className="w-2.5 h-2.5 fill-current" />
+                  <span>2.4k Curtidas</span>
+                </span>
               </div>
               <div className="flex-1 min-h-0 flex flex-col justify-center overflow-y-auto">{arena}</div>
               <div className="bg-[#170d24] px-4 py-2 border-t border-[#301646] flex items-center justify-between text-xs text-pink-200/70">
@@ -197,7 +223,10 @@ export const SocialAppLayout: React.FC<SocialAppLayoutProps> = ({
 
             <div className="w-full lg:w-76 xl:w-84 flex-shrink-0 flex flex-col min-w-0 bg-[#170d24]/90">
               <div className="bg-[#24123a] px-3.5 py-2 border-b border-[#301646] text-[11px] font-bold text-orange-300 uppercase tracking-wider flex items-center justify-between">
-                <span>🛍️ Loja de Cosméticos</span>
+                <span className="flex items-center gap-1.5">
+                  <ShoppingBag className="w-3.5 h-3.5 text-orange-400" />
+                  <span>Loja de Cosméticos</span>
+                </span>
                 <span className="text-[10px] text-pink-400">Destaques</span>
               </div>
               <div className="flex-1 min-h-0 overflow-y-auto">{shop}</div>
@@ -249,7 +278,9 @@ export const SocialAppLayout: React.FC<SocialAppLayoutProps> = ({
           <main className="flex-1 min-h-0 flex flex-col lg:flex-row w-full items-stretch divide-y lg:divide-y-0 lg:divide-x divide-[#2b2b2b] bg-[#0f0f0f]">
             <div className="w-full lg:w-68 xl:w-76 flex-shrink-0 flex flex-col min-w-0 bg-[#181818]">
               <div className="bg-[#212121] px-3.5 py-2 border-b border-[#2b2b2b] text-[11px] font-bold text-zinc-300 uppercase tracking-wider flex items-center justify-between">
-                <span>▶ Painel do Canal</span>
+                <span className="flex items-center gap-1.5">
+                  <Play className="w-3 h-3 fill-red-500 text-red-500" /> Painel do Canal
+                </span>
                 <span className="text-[10px] text-red-400 font-mono">AO VIVO</span>
               </div>
               <div className="flex-1 min-h-0 overflow-y-auto">{sidebar}</div>
@@ -272,7 +303,10 @@ export const SocialAppLayout: React.FC<SocialAppLayoutProps> = ({
                   <div className="bg-[#ff0000] h-full w-2/3 shadow-[0_0_8px_#ff0000]" />
                 </div>
                 <div className="flex items-center justify-between text-[11px] text-zinc-400">
-                  <span className="font-mono">🔴 AO VIVO // 24:15</span>
+                  <span className="font-mono flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-red-600 animate-ping" />
+                    <span>AO VIVO // 24:15</span>
+                  </span>
                   <div className="flex items-center gap-3">
                     <span className="hover:text-white cursor-pointer"><Volume2 className="w-3.5 h-3.5" /></span>
                     <span className="hover:text-white cursor-pointer text-[10px] font-bold">TEATRO</span>
@@ -283,7 +317,10 @@ export const SocialAppLayout: React.FC<SocialAppLayoutProps> = ({
 
             <div className="w-full lg:w-76 xl:w-84 flex-shrink-0 flex flex-col min-w-0 bg-[#181818]">
               <div className="bg-[#212121] px-3.5 py-2 border-b border-[#2b2b2b] text-[11px] font-bold text-red-400 uppercase tracking-wider flex items-center justify-between">
-                <span>🛒 Upgrades & Patrocínios</span>
+                <span className="flex items-center gap-1.5">
+                  <ShoppingBag className="w-3.5 h-3.5 text-red-400" />
+                  <span>Upgrades & Patrocínios</span>
+                </span>
                 <span className="text-[10px] text-zinc-400">Loja Tube</span>
               </div>
               <div className="flex-1 min-h-0 overflow-y-auto">{shop}</div>
@@ -338,7 +375,10 @@ export const SocialAppLayout: React.FC<SocialAppLayoutProps> = ({
           <main className="flex-1 min-h-0 flex flex-col lg:flex-row w-full items-stretch divide-y lg:divide-y-0 lg:divide-x divide-[#222222] bg-[#050505]">
             <div className="w-full lg:w-68 xl:w-76 flex-shrink-0 flex flex-col min-w-0 bg-[#0d0d0d]">
               <div className="bg-[#141414] px-3.5 py-2 border-b border-[#222222] text-[11px] font-bold text-[#00f2fe] uppercase tracking-wider flex items-center justify-between">
-                <span>🔥 Criadores & Ranking</span>
+                <span className="flex items-center gap-1.5">
+                  <Flame className="w-3.5 h-3.5 text-[#00f2fe]" />
+                  <span>Criadores & Ranking</span>
+                </span>
                 <span className="text-[10px] text-[#fe2c55] font-mono">Trending</span>
               </div>
               <div className="flex-1 min-h-0 overflow-y-auto">{sidebar}</div>
@@ -347,11 +387,17 @@ export const SocialAppLayout: React.FC<SocialAppLayoutProps> = ({
             <div className="flex-1 min-w-0 flex flex-col bg-black overflow-hidden relative border-x border-[#fe2c55]/20">
               <div className="bg-[#0f0f0f] px-4 py-1.5 border-b border-[#222222] text-[11px] text-zinc-300 flex items-center justify-between">
                 <span className="text-[#00f2fe] font-mono text-[10px]">#teclado #gameplay #desafio</span>
-                <span className="text-[#fe2c55] font-bold text-[10px]">❤️ 98.4K</span>
+                <span className="text-[#fe2c55] font-bold text-[10px] flex items-center gap-1">
+                  <Heart className="w-2.5 h-2.5 fill-current" />
+                  <span>98.4K</span>
+                </span>
               </div>
               <div className="flex-1 min-h-0 flex flex-col justify-center overflow-y-auto">{arena}</div>
               <div className="bg-[#0a0a0a] px-4 py-2 border-t border-[#222222] flex items-center justify-between text-xs">
-                <span className="text-zinc-400 text-[11px]">🎵 Digite em ritmo para manter o combo</span>
+                <span className="text-zinc-400 text-[11px] flex items-center gap-1">
+                  <Music className="w-3 h-3 text-zinc-500" />
+                  <span>Digite em ritmo para manter o combo</span>
+                </span>
                 <div className="flex items-center gap-2 text-[10px] font-mono text-[#00f2fe]">
                   <span className="w-2 h-2 rounded-full bg-[#00f2fe] animate-ping" />
                   <span>BEAT SYNCHRONIZED</span>
@@ -361,7 +407,10 @@ export const SocialAppLayout: React.FC<SocialAppLayoutProps> = ({
 
             <div className="w-full lg:w-76 xl:w-84 flex-shrink-0 flex flex-col min-w-0 bg-[#0d0d0d]">
               <div className="bg-[#141414] px-3.5 py-2 border-b border-[#222222] text-[11px] font-bold text-[#fe2c55] uppercase tracking-wider flex items-center justify-between">
-                <span>💎 Live Shop & Upgrades</span>
+                <span className="flex items-center gap-1.5">
+                  <Gem className="w-3.5 h-3.5 text-[#fe2c55]" />
+                  <span>Live Shop & Upgrades</span>
+                </span>
                 <span className="text-[10px] text-[#00f2fe]">Tok Store</span>
               </div>
               <div className="flex-1 min-h-0 overflow-y-auto">{shop}</div>
@@ -383,7 +432,7 @@ export const SocialAppLayout: React.FC<SocialAppLayoutProps> = ({
           <div className="bg-[#171920] px-4 sm:px-6 py-2.5 flex items-center justify-between border-b-2 border-[#292c37] flex-shrink-0 min-w-0">
             <div className="flex items-center gap-3">
               <div className="w-7 h-7 bg-[#e2231a] rounded-sm flex items-center justify-center text-white font-black text-sm rotate-6 shadow-md border border-white/20">
-                ⛶
+                <Box className="w-4 h-4 text-white" />
               </div>
               <div className="min-w-0">
                 <span className="text-sm font-black tracking-wide text-white uppercase">
@@ -395,7 +444,10 @@ export const SocialAppLayout: React.FC<SocialAppLayoutProps> = ({
 
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1.5 bg-[#111216] px-3 py-1 rounded-md border border-[#2e323f] text-xs font-mono">
-                <span className="text-amber-400 font-bold">🪙 R$</span>
+                <span className="text-amber-400 font-bold flex items-center gap-1">
+                  <Coins className="w-3.5 h-3.5 text-amber-400" />
+                  <span>R$</span>
+                </span>
                 <span className="text-white font-black">999.999</span>
               </div>
               <button
@@ -428,7 +480,7 @@ export const SocialAppLayout: React.FC<SocialAppLayoutProps> = ({
               </div>
               <div className="flex-1 min-h-0 flex flex-col justify-center overflow-y-auto">{arena}</div>
               <div className="bg-[#171920] px-4 py-1.5 border-t border-[#292c37] flex items-center justify-between text-[10px] font-mono text-zinc-400">
-                <span>[ 🧱 MODEL // TYPE_CORE ]</span>
+                <span>[ MODEL // TYPE_CORE ]</span>
                 <span className="text-emerald-400">READY TO BUILD</span>
               </div>
             </div>

@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Trophy, X, CheckCircle2, Lock, Sparkles, Search, ArrowRight, Target, ChevronRight, Award, GraduationCap, Crown } from 'lucide-react';
+import { Trophy, X, CheckCircle2, Lock, Sparkles, Search, ArrowRight, Target, ChevronRight, Award, GraduationCap, Crown, Medal } from 'lucide-react';
 import { ALL_LEVELS, LEVEL_TIERS, LevelDef, PlayerRank } from '../data/levels';
 import { formatBytes } from '../utils/formatting';
-import { StudentAvatarRenderer } from './vectors/StudentAvatarRenderer';
+import { StudentAvatarRenderer, LevelBadgeRenderer } from './vectors';
 import { Level100PioneerSlot } from '../types/leaderboard';
 
 interface LevelsModalProps {
@@ -21,7 +21,7 @@ export const LevelsModal: React.FC<LevelsModalProps> = ({
   currentRank,
   totalBytesEarned,
   studentName,
-  studentAvatar = '🐧',
+  studentAvatar = 'default',
   pioneers
 }) => {
   const [selectedTier, setSelectedTier] = useState<string>('all');
@@ -93,8 +93,8 @@ export const LevelsModal: React.FC<LevelsModalProps> = ({
         {/* Modal Header */}
         <div className="p-4 sm:p-6 border-b border-zinc-800/80 bg-gradient-to-r from-amber-950/40 via-zinc-900 to-emerald-950/30 flex items-center justify-between gap-3 flex-shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500/20 to-amber-600/10 border border-amber-400/50 flex items-center justify-center text-amber-400 text-2xl shadow-[0_0_20px_rgba(245,158,11,0.3)]">
-              🏆
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500/20 to-amber-600/10 border border-amber-400/50 flex items-center justify-center text-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.3)]">
+              <Trophy className="w-6 h-6 text-amber-400" />
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
@@ -131,8 +131,8 @@ export const LevelsModal: React.FC<LevelsModalProps> = ({
             {/* Student & Rank info */}
             <div className="flex items-center gap-3.5">
               <div className="relative">
-                <div className="w-14 h-14 rounded-2xl bg-zinc-800 border-2 border-amber-400 flex items-center justify-center text-2xl shadow-md">
-                  {currentRank.badge}
+                <div className="w-14 h-14 rounded-2xl bg-zinc-800 border-2 border-amber-400 flex items-center justify-center shadow-md">
+                  <LevelBadgeRenderer level={currentRank.level} badge={currentRank.badge} size={28} />
                 </div>
                 <div className="absolute -bottom-1 -right-1 text-xs bg-emerald-500 text-emerald-950 font-black rounded-full px-1.5 py-0.2 border border-emerald-200">
                   Nv.{currentRank.level}
@@ -229,9 +229,9 @@ export const LevelsModal: React.FC<LevelsModalProps> = ({
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white text-xs"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
               >
-                ✕
+                <X className="w-3.5 h-3.5" />
               </button>
             )}
           </div>
@@ -276,14 +276,14 @@ export const LevelsModal: React.FC<LevelsModalProps> = ({
                     <div className="flex items-center gap-3.5">
                       {/* Level Number & Badge */}
                       <div className="flex items-center gap-2">
-                        <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center text-xl sm:text-2xl border ${
+                        <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center border ${
                           isCurrent
                             ? 'bg-amber-500/20 border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.4)]'
                             : isUnlocked
                             ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
                             : 'bg-zinc-800/60 border-zinc-700/60 text-zinc-500'
                         }`}>
-                          {lvl.badge}
+                          <LevelBadgeRenderer level={lvl.level} badge={lvl.badge} size={20} />
                         </div>
 
                         <div className="text-left">
@@ -301,8 +301,8 @@ export const LevelsModal: React.FC<LevelsModalProps> = ({
                               {lvl.tier}
                             </span>
                             {lvl.isMilestone && (
-                              <span className="text-[9px] font-mono font-bold bg-purple-950/80 text-purple-300 border border-purple-500/40 px-1.5 py-0.2 rounded">
-                                ★ Marco
+                              <span className="text-[9px] font-mono font-bold bg-purple-950/80 text-purple-300 border border-purple-500/40 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                <Sparkles className="w-2.5 h-2.5 text-purple-400" /> Marco
                               </span>
                             )}
                           </div>
@@ -385,7 +385,7 @@ export const LevelsModal: React.FC<LevelsModalProps> = ({
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                         {pioneers.map((slot) => {
                           if (slot.isFilled && slot.player) {
-                            const medal = slot.rank === 1 ? '🥇 1º' : slot.rank === 2 ? '🥈 2º' : '🥉 3º';
+                            const medalColor = slot.rank === 1 ? 'text-amber-400' : slot.rank === 2 ? 'text-slate-300' : 'text-amber-700';
                             const borderCol =
                               slot.rank === 1
                                 ? 'border-amber-400/70 bg-amber-500/10'
@@ -401,8 +401,9 @@ export const LevelsModal: React.FC<LevelsModalProps> = ({
                                   <StudentAvatarRenderer avatar={slot.player.avatar} className="w-full h-full" />
                                 </div>
                                 <div className="flex flex-col min-w-0 text-left font-mono">
-                                  <span className="text-xs font-bold text-white truncate">
-                                    {medal} {slot.player.apelido || slot.player.nome}
+                                  <span className="text-xs font-bold text-white truncate flex items-center gap-1">
+                                    <Medal className={`w-3.5 h-3.5 shrink-0 ${medalColor}`} />
+                                    <span>{slot.rank}º {slot.player.apelido || slot.player.nome}</span>
                                   </span>
                                   <span className="text-[10px] text-zinc-400 truncate">
                                     Turma {slot.player.turma || 'Geral'}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Sparkles, Zap, Lock, ArrowRight, ShieldCheck, RefreshCw, Cpu, Award } from 'lucide-react';
+import { X, Sparkles, Zap, Lock, ArrowRight, ShieldCheck, RefreshCw, Cpu, Award, Atom, Gem, Shield } from 'lucide-react';
 import { formatBytes, formatNumber } from '../utils/formatting';
 import { audioSynthesizer } from '../services/audioSynthesizer';
 import { triggerLevelUpCelebrationVfx } from '../services/fxEngine';
@@ -33,10 +33,10 @@ export const QuantumConverterModal: React.FC<QuantumConverterModalProps> = ({
 
   // Opções pré-definidas de conversão
   const packageOptions = [
-    { count: 1, label: '1 Fragmento', bytesCost: QUANTUM_FRAGMENT_BASE_COST, icon: '🌌' },
-    { count: 5, label: '5 Fragmentos', bytesCost: 5 * QUANTUM_FRAGMENT_BASE_COST, icon: '✨' },
-    { count: 10, label: '10 Fragmentos', bytesCost: 10 * QUANTUM_FRAGMENT_BASE_COST, icon: '🔮' },
-    { count: 25, label: '25 Fragmentos', bytesCost: 25 * QUANTUM_FRAGMENT_BASE_COST, icon: '💎' },
+    { count: 1, label: '1 Fragmento', bytesCost: QUANTUM_FRAGMENT_BASE_COST, Icon: Atom },
+    { count: 5, label: '5 Fragmentos', bytesCost: 5 * QUANTUM_FRAGMENT_BASE_COST, Icon: Sparkles },
+    { count: 10, label: '10 Fragmentos', bytesCost: 10 * QUANTUM_FRAGMENT_BASE_COST, Icon: Zap },
+    { count: 25, label: '25 Fragmentos', bytesCost: 25 * QUANTUM_FRAGMENT_BASE_COST, Icon: Gem },
   ];
 
   const [selectedCount, setSelectedCount] = useState<number>(1);
@@ -100,8 +100,8 @@ export const QuantumConverterModal: React.FC<QuantumConverterModalProps> = ({
             <div className="flex items-center gap-3">
               <div className="relative">
                 <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-cyan-500 via-indigo-500 to-purple-600 p-0.5 flex items-center justify-center shadow-[0_0_20px_rgba(6,182,212,0.6)]">
-                  <div className="w-full h-full bg-[#0d0f1a] rounded-[14px] flex items-center justify-center text-xl">
-                    🌌
+                  <div className="w-full h-full bg-[#0d0f1a] rounded-[14px] flex items-center justify-center">
+                    <Atom className="w-5 h-5 text-cyan-400" />
                   </div>
                 </div>
                 <span className="absolute -bottom-1 -right-1 flex h-3 w-3">
@@ -148,8 +148,8 @@ export const QuantumConverterModal: React.FC<QuantumConverterModalProps> = ({
             {/* Saldo de Fragmentos Quânticos */}
             <div className="flex items-center gap-2">
               <span className="text-zinc-400">Fragmentos Quânticos:</span>
-              <span className="flex items-center gap-1 text-cyan-300 font-black bg-cyan-950/60 px-2.5 py-0.5 rounded-lg border border-cyan-500/40 shadow-[0_0_12px_rgba(6,182,212,0.3)]">
-                <span>🌌</span>
+              <span className="flex items-center gap-1.5 text-cyan-300 font-black bg-cyan-950/60 px-2.5 py-0.5 rounded-lg border border-cyan-500/40 shadow-[0_0_12px_rgba(6,182,212,0.3)]">
+                <Atom className="w-3.5 h-3.5 text-cyan-400" />
                 <span>{formatNumber(quantumFragments)}</span>
               </span>
             </div>
@@ -181,7 +181,7 @@ export const QuantumConverterModal: React.FC<QuantumConverterModalProps> = ({
                 <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-cyan-950/30 via-indigo-950/30 to-purple-950/30 border border-cyan-500/30 space-y-2">
                   <div className="flex items-center gap-2 text-cyan-300 font-bold font-mono text-xs sm:text-sm">
                     <Sparkles className="w-4 h-4 text-cyan-400 animate-spin" />
-                    <span>O que são Fragmentos Quânticos (🌌)?</span>
+                    <span>O que são Fragmentos Quânticos?</span>
                   </div>
                   <p className="text-xs text-zinc-300 leading-relaxed">
                     Ao atingir a maestria máxima da digitação (Nível 100), seus Bytes adicionais podem ser condensados em 
@@ -189,7 +189,7 @@ export const QuantumConverterModal: React.FC<QuantumConverterModalProps> = ({
                   </p>
                   <div className="flex items-center gap-3 pt-1 text-[11px] font-mono text-cyan-200/90">
                     <span className="flex items-center gap-1">
-                      <Zap className="w-3.5 h-3.5 text-cyan-400" /> Taxa de Conversão: <strong>100 GB = 1 🌌</strong>
+                      <Zap className="w-3.5 h-3.5 text-cyan-400" /> Taxa de Conversão: <strong>100 GB = 1 Fragmento</strong>
                     </span>
                     <span className="text-zinc-500">•</span>
                     <span className="text-emerald-300">Sem limite de forja</span>
@@ -220,7 +220,7 @@ export const QuantumConverterModal: React.FC<QuantumConverterModalProps> = ({
                         onClick={handleConvertMax}
                         className="text-[11px] font-mono text-cyan-400 hover:text-cyan-300 underline cursor-pointer"
                       >
-                        Converter Máximo Possível ({maxAffordableFragments} 🌌)
+                        Converter Máximo Possível ({maxAffordableFragments} Fragmentos)
                       </button>
                     )}
                   </div>
@@ -241,9 +241,9 @@ export const QuantumConverterModal: React.FC<QuantumConverterModalProps> = ({
                               : 'bg-zinc-900/50 border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900'
                           } ${!hasFunds ? 'opacity-60' : ''}`}
                         >
-                          <div className="text-2xl mb-1.5">{pkg.icon}</div>
+                          <pkg.Icon className="w-6 h-6 text-cyan-400 mb-1.5" />
                           <div className="font-mono font-black text-sm text-white">
-                            +{pkg.count} 🌌
+                            +{pkg.count} {pkg.count > 1 ? 'Fragmentos' : 'Fragmento'}
                           </div>
                           <div className="text-[10px] font-mono text-zinc-400 mt-1">
                             {formatBytes(pkg.bytesCost)}
@@ -270,8 +270,9 @@ export const QuantumConverterModal: React.FC<QuantumConverterModalProps> = ({
                   <div className="flex items-center justify-center gap-3 py-1 text-cyan-400">
                     <Cpu className="w-5 h-5 text-cyan-400 animate-pulse" />
                     <ArrowRight className="w-4 h-4 text-zinc-500" />
-                    <span className="text-base font-black text-cyan-300">
-                      +{selectedCount} Fragmento{selectedCount > 1 ? 's' : ''} Quântico{selectedCount > 1 ? 's' : ''} 🌌
+                    <span className="text-base font-black text-cyan-300 flex items-center gap-1.5">
+                      <Atom className="w-4 h-4 text-cyan-400" />
+                      +{selectedCount} Fragmento{selectedCount > 1 ? 's' : ''} Quântico{selectedCount > 1 ? 's' : ''}
                     </span>
                   </div>
 
@@ -299,9 +300,10 @@ export const QuantumConverterModal: React.FC<QuantumConverterModalProps> = ({
                         <span>FORJANDO MATÉRIA QUÂNTICA...</span>
                       </>
                     ) : canAfford ? (
-                      <>
-                        <span>🌌 FORJAR {selectedCount} FRAGMENTO{selectedCount > 1 ? 'S' : ''} QUÂNTICO{selectedCount > 1 ? 'S' : ''}</span>
-                      </>
+                      <span className="flex items-center gap-1.5">
+                        <Atom className="w-4 h-4 text-cyan-300" />
+                        FORJAR {selectedCount} FRAGMENTO{selectedCount > 1 ? 'S' : ''} QUÂNTICO{selectedCount > 1 ? 'S' : ''}
+                      </span>
                     ) : (
                       <>
                         <Lock className="w-4 h-4" />
@@ -316,7 +318,10 @@ export const QuantumConverterModal: React.FC<QuantumConverterModalProps> = ({
 
           {/* Footer Informativo */}
           <div className="p-3 sm:p-4 border-t border-zinc-800/80 bg-[#090b14] text-center text-[11px] font-mono text-zinc-500">
-            <span>🛡️ Laboratório de Informática • Colégio Estadual Leopoldina Bittencourt Pedroso</span>
+            <span className="inline-flex items-center gap-1.5">
+              <Shield className="w-3.5 h-3.5 text-zinc-500" />
+              Laboratório de Informática • Colégio Estadual Leopoldina Bittencourt Pedroso
+            </span>
           </div>
         </motion.div>
       </div>

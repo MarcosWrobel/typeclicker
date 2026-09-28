@@ -17,13 +17,16 @@ import {
   Settings,
   Sword,
   Lock,
-  AlertCircle
+  AlertCircle,
+  Crown,
+  Clock
 } from 'lucide-react';
 import { sound } from '../utils/audio';
 import { GameState } from '../types';
 import { RPG_CLASSES, RpgClassType } from '../types/rpgClass';
 import { logoutUser, loginWithGoogle, isDevAdminModeActive, toggleDevAdminMode } from '../services/firebaseService';
-import { StudentAvatarRenderer } from './vectors/StudentAvatarRenderer';
+import { StudentAvatarRenderer, CANONICAL_AVATAR_LIST } from './vectors/StudentAvatarRenderer';
+import { RpgClassIcon, RpgPassiveIcon } from './vectors/rpg/RpgClassIcon';
 
 export interface AvatarOption {
   id: string;
@@ -31,24 +34,11 @@ export interface AvatarOption {
   name: string;
 }
 
-export const AVATAR_OPTIONS: AvatarOption[] = [
-  { id: 'tux', emoji: '🐧', name: 'Tux Linux' },
-  { id: 'robot', emoji: '🤖', name: 'Robô Byte' },
-  { id: 'ninja', emoji: '🥷', name: 'Ninja' },
-  { id: 'gamer', emoji: '🎮', name: 'Gamer Pro' },
-  { id: 'lightning', emoji: '⚡', name: 'Raio Turbo' },
-  { id: 'cat', emoji: '🐱', name: 'Gato Coder' },
-  { id: 'fox', emoji: '🦊', name: 'Raposa' },
-  { id: 'rocket', emoji: '🚀', name: 'Foguete' },
-  { id: 'wizard', emoji: '🧙', name: 'Mago Geek' },
-  { id: 'lion', emoji: '🦁', name: 'Leão Tech' },
-  { id: 'pixel', emoji: '👾', name: 'Pixel Alien' },
-  { id: 'dragon', emoji: '🐉', name: 'Dragão' },
-  { id: 'panda', emoji: '🐼', name: 'Panda' },
-  { id: 'tiger', emoji: '🐯', name: 'Tigre' },
-  { id: 'trex', emoji: '🦖', name: 'T-Rex' },
-  { id: 'unicorn', emoji: '🦄', name: 'Unicórnio' }
-];
+export const AVATAR_OPTIONS: AvatarOption[] = CANONICAL_AVATAR_LIST.map((a) => ({
+  id: a.id,
+  emoji: a.legacyEmoji,
+  name: a.name
+}));
 
 import { SchoolGradeGroup, SCHOOL_CLASSES_CONFIG, ALL_STANDARD_CLASSES } from '../constants/school';
 export type { SchoolGradeGroup };
@@ -76,7 +66,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
   isOpen,
   user,
   isAdmin,
-  currentAvatar = '🐧',
+  currentAvatar = 'tux',
   currentNickname = '',
   currentClass = '',
   currentRpgClass,
@@ -88,7 +78,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
   onLogout
 }) => {
   const [activeTab, setActiveTab] = useState<StudentModalTab>('identity');
-  const [selectedAvatar, setSelectedAvatar] = useState<string>(currentAvatar || '🐧');
+  const [selectedAvatar, setSelectedAvatar] = useState<string>(currentAvatar || 'tux');
   const [nickname, setNickname] = useState<string>(currentNickname || state.studentNickname || '');
   
   const isTeacher = Boolean(
@@ -113,7 +103,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
   // Sincroniza estado quando modal abre
   useEffect(() => {
     if (isOpen) {
-      setSelectedAvatar(state.studentAvatar || '🐧');
+      setSelectedAvatar(state.studentAvatar || 'tux');
       setNickname(state.studentNickname || '');
       setSelectedInitialRpg(state.rpgClass || 'warrior');
       setSwitchConfirmClass(null);
@@ -133,7 +123,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
     try {
       const ok = await onSwitchRpgClass(switchConfirmClass);
       if (ok) {
-        showToast('Especialização alterada com sucesso! ⚔️', 'success');
+        showToast('Especialização alterada com sucesso!', 'success');
         setSwitchConfirmClass(null);
       } else {
         showToast('Fragmentos Quânticos insuficientes (10 necessários)!', 'error');
@@ -270,7 +260,13 @@ export const StudentModal: React.FC<StudentModalProps> = ({
 
               {/* Badge de Classe RPG no Topo */}
               <div className="hidden sm:flex items-center gap-2 bg-[#0d1017] px-3 py-1.5 rounded-xl border border-zinc-700/60 flex-shrink-0">
-                <span className="text-xl">{currentRpgObj ? currentRpgObj.icon : '⏳'}</span>
+                <div className="flex items-center justify-center">
+                  {state.rpgClass ? (
+                    <RpgClassIcon rpgClass={state.rpgClass} size={20} />
+                  ) : (
+                    <Clock className="w-5 h-5 text-amber-400" />
+                  )}
+                </div>
                 <div className="text-left">
                   <span className="block text-[10px] text-zinc-400 uppercase font-mono font-bold">Classe</span>
                   <span className="block text-xs font-black text-amber-300">{currentRpgObj ? currentRpgObj.name : 'Aguardando Prof.'}</span>
@@ -503,14 +499,14 @@ export const StudentModal: React.FC<StudentModalProps> = ({
                       <div className="flex items-center gap-2">
                         <span className="text-[11px] font-mono font-bold text-amber-300 bg-amber-950/80 px-2.5 py-0.5 rounded-full border border-amber-500/40 flex items-center gap-1">
                           <Sparkles className="w-3 h-3 text-amber-400" />
-                          <span>{fragmentsBalance} Fragmentos ✨</span>
+                          <span>{fragmentsBalance} Fragmentos</span>
                         </span>
                       </div>
                     </div>
                     <p className="text-[11px] text-zinc-400 leading-relaxed">
                       {!hasAssignedClass
                         ? 'Escolha sua especialização inicial gratuita para a Raid Coletiva. Cada classe possui bônus passivos e estilo único de combate!'
-                        : 'Sua especialização de combate está ativa. Você pode trocar de classe na Forja Quântica gastando 10 Fragmentos Quânticos ✨.'}
+                        : 'Sua especialização de combate está ativa. Você pode trocar de classe na Forja Quântica gastando 10 Fragmentos Quânticos.'}
                     </p>
                   </div>
 
@@ -540,7 +536,9 @@ export const StudentModal: React.FC<StudentModalProps> = ({
                             >
                               <div>
                                 <div className="flex items-center justify-between gap-1 mb-1">
-                                  <span className="text-2xl">{rpg.icon}</span>
+                                  <div className="w-7 h-7 flex items-center justify-center select-none">
+                                    <RpgClassIcon rpgClass={rpg.id} className="w-full h-full" />
+                                  </div>
                                   <span className={`text-[10px] font-mono font-black uppercase px-2 py-0.5 rounded-full border ${
                                     isSelected ? `${rpg.badgeBorder} ${rpg.badgeText} bg-black/50` : 'text-zinc-500 border-zinc-800'
                                   }`}>
@@ -554,7 +552,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
                               <div className="mt-2.5 pt-2 border-t border-white/10 space-y-1">
                                 {rpg.passives.map((p) => (
                                   <div key={p.title} className="text-[10px] text-zinc-300 flex items-start gap-1">
-                                    <span className="flex-shrink-0">{p.icon}</span>
+                                    <RpgPassiveIcon icon={p.icon} className="w-3.5 h-3.5 flex-shrink-0" />
                                     <span className="font-semibold text-white leading-tight">{p.title}</span>
                                   </div>
                                 ))}
@@ -587,11 +585,14 @@ export const StudentModal: React.FC<StudentModalProps> = ({
                           >
                             <div>
                               <div className="flex items-center justify-between gap-1 mb-1">
-                                <span className="text-2xl">{rpg.icon}</span>
+                                <div className="w-7 h-7 flex items-center justify-center select-none">
+                                  <RpgClassIcon rpgClass={rpg.id} className="w-full h-full" />
+                                </div>
                                 <span className={`text-[10px] font-mono font-black uppercase px-2 py-0.5 rounded-full border ${
-                                  isAssigned ? `${rpg.badgeBorder} ${rpg.badgeText} bg-black/50 shadow-sm` : 'text-zinc-500 border-zinc-800'
+                                  isAssigned ? `${rpg.badgeBorder} ${rpg.badgeText} bg-black/50 shadow-sm flex items-center gap-1` : 'text-zinc-500 border-zinc-800'
                                 }`}>
-                                  {isAssigned ? '🛡️ Sua Classe' : rpg.title}
+                                  {isAssigned && <Shield className="w-2.5 h-2.5 inline" />}
+                                  <span>{isAssigned ? 'Sua Classe' : rpg.title}</span>
                                 </span>
                               </div>
                               <h4 className={`text-sm font-black ${isAssigned ? 'text-white' : 'text-zinc-300'}`}>{rpg.name}</h4>
@@ -601,7 +602,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
                             <div className="mt-2.5 pt-2 border-t border-white/10 space-y-1">
                               {rpg.passives.map((p) => (
                                 <div key={p.title} className="text-[10px] text-zinc-300 flex items-start gap-1">
-                                  <span className="flex-shrink-0">{p.icon}</span>
+                                  <RpgPassiveIcon icon={p.icon} className="w-3.5 h-3.5 flex-shrink-0" />
                                   <span className="font-semibold text-white leading-tight">{p.title}</span>
                                 </div>
                               ))}
@@ -626,7 +627,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
                                   }`}
                                 >
                                   <Sparkles className="w-3 h-3 text-amber-900" />
-                                  <span>{canAfford ? `Trocar (10 ✨)` : `Faltam ${10 - fragmentsBalance} ✨`}</span>
+                                  <span>{canAfford ? 'Trocar (10 Frag.)' : `Faltam ${10 - fragmentsBalance} Frag.`}</span>
                                 </button>
                               )}
                             </div>
@@ -759,7 +760,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
                       <span>Salvo com segurança na nuvem do Google vinculado ao seu e-mail escolar.</span>
                     </div>
                     <div className="flex items-center gap-2 text-amber-300/90 font-medium">
-                      <span className="text-sm">👨‍🏫</span>
+                      <GraduationCap className="w-4 h-4 text-amber-400 shrink-0" />
                       <span>Dúvidas ou dificuldades? Chame o <strong>Professor Marcos Wrobel</strong>!</span>
                     </div>
                   </div>
@@ -768,8 +769,11 @@ export const StudentModal: React.FC<StudentModalProps> = ({
                   {!user && (
                     <div className="bg-purple-950/20 border border-purple-500/30 p-2.5 rounded-xl flex items-center justify-between gap-2 text-xs font-mono">
                       <div className="text-zinc-300">
-                        <span className="font-bold text-amber-300">👑 Administrador: </span>
-                        <span className="text-zinc-400">Conecte com <strong className="text-white">wrobel.marcos@gmail.com</strong></span>
+                        <span className="font-bold text-amber-300 inline-flex items-center gap-1">
+                          <Crown className="w-3.5 h-3.5 text-amber-400" />
+                          Administrador: 
+                        </span>
+                        <span className="text-zinc-400 ml-1">Conecte com <strong className="text-white">wrobel.marcos@gmail.com</strong></span>
                       </div>
                       <button
                         type="button"
@@ -837,15 +841,15 @@ export const StudentModal: React.FC<StudentModalProps> = ({
                   className="bg-[#151922] border-2 border-amber-500/60 rounded-2xl p-5 max-w-md w-full shadow-[0_0_30px_rgba(245,158,11,0.3)] space-y-4"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-2xl flex-shrink-0">
-                      {RPG_CLASSES[switchConfirmClass]?.icon}
+                    <div className="w-12 h-12 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center p-2 flex-shrink-0">
+                      <RpgClassIcon rpgClass={switchConfirmClass} className="w-full h-full" />
                     </div>
                     <div>
                       <h3 className="text-base font-black text-white">
                         Trocar para {RPG_CLASSES[switchConfirmClass]?.name}?
                       </h3>
                       <p className="text-xs text-zinc-400">
-                        Esta alteração consome <strong>10 Fragmentos Quânticos ✨</strong>.
+                        Esta alteração consome <strong>10 Fragmentos Quânticos</strong>.
                       </p>
                     </div>
                   </div>
@@ -853,15 +857,15 @@ export const StudentModal: React.FC<StudentModalProps> = ({
                   <div className="bg-[#090b10] p-3 rounded-xl border border-zinc-800 text-xs space-y-1.5 font-mono">
                     <div className="flex justify-between text-zinc-400">
                       <span>Saldo Atual:</span>
-                      <span className="text-amber-300 font-bold">{fragmentsBalance} ✨</span>
+                      <span className="text-amber-300 font-bold">{fragmentsBalance} Frag.</span>
                     </div>
                     <div className="flex justify-between text-red-400">
                       <span>Custo da Troca:</span>
-                      <span className="font-bold">-10 ✨</span>
+                      <span className="font-bold">-10 Frag.</span>
                     </div>
                     <div className="flex justify-between text-emerald-400 border-t border-zinc-800 pt-1.5">
                       <span>Saldo Restante:</span>
-                      <span className="font-bold">{fragmentsBalance - 10} ✨</span>
+                      <span className="font-bold">{fragmentsBalance - 10} Frag.</span>
                     </div>
                   </div>
 
@@ -885,7 +889,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
                       ) : (
                         <>
                           <Sparkles className="w-3.5 h-3.5" />
-                          <span>Confirmar (10 ✨)</span>
+                          <span>Confirmar (10 Frag.)</span>
                         </>
                       )}
                     </button>

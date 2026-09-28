@@ -119,7 +119,7 @@ class ScratchAudioSynthesizer {
   }
 
   /**
-   * Coleta de gema de dados 💎
+   * Coleta de gema de dados
    */
   public playCollect() {
     if (this.isMuted) return;

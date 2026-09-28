@@ -15,7 +15,11 @@ import {
   Flame,
   Award,
   Check,
-  Sparkles
+  Sparkles,
+  Flag,
+  Target,
+  Gamepad2,
+  Timer
 } from 'lucide-react';
 import { GamePluginProps, GameExitPayload } from '../../../types/gamePlugin';
 import { BytezinhoSkinId } from '../../../types/cosmetics';
@@ -1358,7 +1362,7 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
             typerDashAudio.playPortalSound();
             screenShakeRef.current = 14;
             spawnSparks(obs.x, GROUND_Y - 70, '#facc15', 25);
-            addFloatingText('⚡ 2X SPEED BOOST!', '#facc15', 1.3);
+            addFloatingText('SPEED BOOST [2X]!', '#facc15', 1.3);
           }
         }
 
@@ -1674,8 +1678,8 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
 
           <div className="flex items-center gap-2">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 via-yellow-300 to-amber-500 p-0.5 shadow-[0_3px_0_#b45309] flex items-center justify-center">
-              <div className="w-full h-full bg-zinc-950 rounded-[10px] flex items-center justify-center text-amber-400 font-black text-lg">
-                ⚡
+              <div className="w-full h-full bg-zinc-950 rounded-[10px] flex items-center justify-center text-amber-400 font-black">
+                <Zap className="w-5 h-5 text-amber-400" />
               </div>
             </div>
             <div>
@@ -1699,8 +1703,8 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           {/* Painel PONTOS (Dourado / Âmbar) */}
           <div className="relative rounded-xl px-3 py-1 bg-zinc-950/90 border-2 border-amber-500/80 shadow-[0_3px_0_rgba(245,158,11,0.35)] flex flex-col items-center min-w-[105px] sm:min-w-[120px]">
-            <span className="text-[9px] font-mono font-black tracking-widest text-amber-400 uppercase">
-              ★ PONTOS ★
+            <span className="text-[9px] font-mono font-black tracking-widest text-amber-400 uppercase flex items-center gap-1">
+              <Sparkles className="w-2.5 h-2.5" /> PONTOS <Sparkles className="w-2.5 h-2.5" />
             </span>
             <span className="font-mono text-lg sm:text-xl font-black text-amber-300 tracking-wider">
               {formatArcadeScore(score)}
@@ -1712,8 +1716,8 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
 
           {/* Painel TEMPO (Ciano Elétrico) */}
           <div className="relative rounded-xl px-3 py-1 bg-zinc-950/90 border-2 border-cyan-500/80 shadow-[0_3px_0_rgba(6,182,212,0.35)] flex flex-col items-center min-w-[90px] sm:min-w-[100px]">
-            <span className="text-[9px] font-mono font-black tracking-widest text-cyan-400 uppercase">
-              ⏱️ TEMPO
+            <span className="text-[9px] font-mono font-black tracking-widest text-cyan-400 uppercase flex items-center gap-1">
+              <Timer className="w-2.5 h-2.5" /> TEMPO
             </span>
             <span className="font-mono text-lg sm:text-xl font-black text-cyan-300 tracking-wider">
               {formatArcadeTime(elapsedSeconds)}
@@ -1725,8 +1729,8 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
 
           {/* Painel COMBO (Fúcsia Neon) */}
           <div className="relative rounded-xl px-3 py-1 bg-zinc-950/90 border-2 border-fuchsia-500/80 shadow-[0_3px_0_rgba(217,70,239,0.35)] flex flex-col items-center min-w-[90px] sm:min-w-[100px]">
-            <span className="text-[9px] font-mono font-black tracking-widest text-fuchsia-400 uppercase">
-              ⚡ COMBO
+            <span className="text-[9px] font-mono font-black tracking-widest text-fuchsia-400 uppercase flex items-center gap-1">
+              <Zap className="w-2.5 h-2.5" /> COMBO
             </span>
             <span className={`font-mono text-lg sm:text-xl font-black tracking-wider ${
               combo >= 20 ? 'text-rose-400 animate-pulse' : combo >= 10 ? 'text-fuchsia-300' : 'text-fuchsia-400'
@@ -1735,9 +1739,13 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
             </span>
             <div className="text-[8px] font-mono font-bold uppercase tracking-widest">
               {combo >= 20 ? (
-                <span className="text-rose-400 font-black animate-pulse">🔥 OVERDRIVE</span>
+                <span className="text-rose-400 font-black animate-pulse flex items-center gap-1">
+                  <Flame className="w-2.5 h-2.5 inline" /> OVERDRIVE
+                </span>
               ) : combo >= 10 ? (
-                <span className="text-fuchsia-300 font-bold">★ FRENZY</span>
+                <span className="text-fuchsia-300 font-bold flex items-center gap-1">
+                  <Sparkles className="w-2.5 h-2.5 inline" /> FRENZY
+                </span>
               ) : (
                 <span className="text-zinc-500">MAX: x{maxCombo}</span>
               )}
@@ -1746,8 +1754,8 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
 
           {/* Painel DISTÂNCIA (Esmeralda) */}
           <div className="hidden sm:flex relative rounded-xl px-3 py-1 bg-zinc-950/90 border-2 border-emerald-500/80 shadow-[0_3px_0_rgba(16,185,129,0.35)] flex flex-col items-center min-w-[95px]">
-            <span className="text-[9px] font-mono font-black tracking-widest text-emerald-400 uppercase">
-              🏁 SETOR
+            <span className="text-[9px] font-mono font-black tracking-widest text-emerald-400 uppercase flex items-center gap-1">
+              <Flag className="w-2.5 h-2.5" /> SETOR
             </span>
             <span className="font-mono text-lg sm:text-xl font-black text-emerald-300 tracking-wider">
               {distanceMeters}m
@@ -1759,8 +1767,8 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
 
           {/* Painel PRECISÃO (Azul Elétrico) */}
           <div className="hidden md:flex relative rounded-xl px-3 py-1 bg-zinc-950/90 border-2 border-sky-500/80 shadow-[0_3px_0_rgba(14,165,233,0.35)] flex flex-col items-center min-w-[90px]">
-            <span className="text-[9px] font-mono font-black tracking-widest text-sky-400 uppercase">
-              🎯 MIRA
+            <span className="text-[9px] font-mono font-black tracking-widest text-sky-400 uppercase flex items-center gap-1">
+              <Target className="w-2.5 h-2.5" /> MIRA
             </span>
             <span className="font-mono text-lg sm:text-xl font-black text-sky-300 tracking-wider">
               {accuracyPercentage}%
@@ -1801,7 +1809,7 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
                 {isWarrior ? 'Guerreiro' : isArcher ? 'Arqueiro' : isMage ? 'Mago' : 'Ladino'}
               </span>
               <span className="text-[9px] text-zinc-400 leading-tight">
-                {isWarrior ? (hasShield ? '🛡️ Escudo [1/1]' : '❌ Escudo Quebrado') : isArcher ? '🎯 Mira +28%' : isMage ? '⚡ 130 BPM' : '🔥 Overdrive'}
+                {isWarrior ? (hasShield ? 'Escudo [1/1]' : 'Escudo Quebrado') : isArcher ? 'Mira +28%' : isMage ? '130 BPM' : 'Overdrive'}
               </span>
             </div>
           </button>
@@ -1920,7 +1928,9 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
                             }`}
                             title={skinConf?.name || sId}
                           >
-                            <span>{skinConf?.icon || '🎮'}</span>
+                            <div className="w-4 h-4 flex-shrink-0 flex items-center justify-center">
+                              <BytezinhoAvatar skin={sId as any} size="xs" />
+                            </div>
                             <span className="text-[11px]">{skinConf?.name || sId}</span>
                           </button>
                         );
@@ -1983,10 +1993,17 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
                         <span className="w-7 h-7 rounded-lg bg-black border-2 border-zinc-700 flex items-center justify-center font-mono font-black text-xs text-white shadow-xs">
                           {cls.keyNumber}
                         </span>
-                        <div className={`px-2 py-0.5 rounded text-[10px] font-mono font-black uppercase tracking-wider border ${
+                        <div className={`px-2 py-0.5 rounded text-[10px] font-mono font-black uppercase tracking-wider border flex items-center gap-1 ${
                           isSelected ? cls.badgeBg : 'bg-zinc-900 border-zinc-700 text-zinc-400'
                         }`}>
-                          {isSelected ? '✓ ATIVA' : 'SELECIONAR'}
+                          {isSelected ? (
+                            <>
+                              <Check className="w-2.5 h-2.5" />
+                              <span>ATIVA</span>
+                            </>
+                          ) : (
+                            'SELECIONAR'
+                          )}
                         </div>
                       </div>
 
@@ -2126,12 +2143,14 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
           ) : activeGrindRef.current ? (
             <span className={`flex items-center gap-1.5 font-bold ${activeGrindRef.current.inSweetSpot ? 'text-amber-300 animate-pulse' : 'text-cyan-300'}`}>
               <span className={`w-2 h-2 rounded-full ${activeGrindRef.current.inSweetSpot ? 'bg-amber-400 animate-ping' : 'bg-cyan-400'}`} />
-              ⚡ SEGURE [{activeGrindRef.current.key}] // {activeGrindRef.current.inSweetSpot ? 'SOLTE AGORA! (SWEET SPOT)' : 'GRINDING...'}
+              <Zap className="w-3.5 h-3.5 text-amber-400 inline" />
+              <span>SEGURE [{activeGrindRef.current.key}] // {activeGrindRef.current.inSweetSpot ? 'SOLTE AGORA! (SWEET SPOT)' : 'GRINDING...'}</span>
             </span>
           ) : activeTrickRef.current ? (
             <span className="flex items-center gap-1.5 text-fuchsia-300 font-bold animate-pulse">
               <span className="w-2 h-2 rounded-full bg-fuchsia-400 animate-ping" />
-              🔥 MANOBRA: {activeTrickRef.current.name} [{activeTrickRef.current.sequence.join(' ')}]
+              <Flame className="w-3.5 h-3.5 text-fuchsia-400 inline" />
+              <span>MANOBRA: {activeTrickRef.current.name} [{activeTrickRef.current.sequence.join(' ')}]</span>
             </span>
           ) : (
             <span className="flex items-center gap-1.5 text-amber-300 font-bold">
@@ -2168,7 +2187,7 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
             })}
           </div>
           <span className="text-[10px] font-black text-fuchsia-400 uppercase tracking-wider bg-fuchsia-950/70 px-2 py-0.5 rounded border border-fuchsia-500/50">
-            ORBS / AR (DIR) ►
+            ORBS / AR (DIR)
           </span>
         </div>
       </footer>
@@ -2203,9 +2222,11 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
                   <motion.div
                     initial={{ y: -10, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
-                    className="mb-3 px-3.5 py-1 rounded-full bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-black text-xs uppercase tracking-widest shadow-[0_0_15px_rgba(251,191,36,0.8)] animate-pulse"
+                    className="mb-3 px-3.5 py-1 rounded-full bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-black text-xs uppercase tracking-widest shadow-[0_0_15px_rgba(251,191,36,0.8)] animate-pulse flex items-center gap-1.5"
                   >
-                    ★ NOVO RECORDE PESSOAL! ★
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>NOVO RECORDE PESSOAL!</span>
+                    <Sparkles className="w-3.5 h-3.5" />
                   </motion.div>
                 )}
 

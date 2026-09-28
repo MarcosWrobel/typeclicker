@@ -6,7 +6,7 @@ interface IconProps {
   color?: string;
 }
 
-// 📡 Radar Dish / Antena Militar
+// Radar Dish / Antena Militar
 export const RadarDishIcon: React.FC<IconProps> = ({ className = 'w-5 h-5', size = 20, color = 'currentColor' }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="M12 19a7 7 0 1 0-7-7" />
@@ -18,7 +18,7 @@ export const RadarDishIcon: React.FC<IconProps> = ({ className = 'w-5 h-5', size
   </svg>
 );
 
-// 💥 /NUKE - Ogiva Atômica / Detonação de Fogo
+// /NUKE - Ogiva Atômica / Detonação de Fogo
 export const NukeIcon: React.FC<IconProps> = ({ className = 'w-5 h-5', size = 20, color = 'currentColor' }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <circle cx="12" cy="12" r="3" fill={color} />
@@ -34,7 +34,7 @@ export const NukeIcon: React.FC<IconProps> = ({ className = 'w-5 h-5', size = 20
   </svg>
 );
 
-// ❄️ /FREEZE - Cristal Criogênico / Dilatação Temporal
+// /FREEZE - Cristal Criogênico / Dilatação Temporal
 export const FreezeIcon: React.FC<IconProps> = ({ className = 'w-5 h-5', size = 20, color = 'currentColor' }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="M12 2v20" />
@@ -49,7 +49,7 @@ export const FreezeIcon: React.FC<IconProps> = ({ className = 'w-5 h-5', size = 
   </svg>
 );
 
-// 🛡️ /SHIELD - Barreira com Prisma Defensivo
+// /SHIELD - Barreira com Prisma Defensivo
 export const ShieldIcon: React.FC<IconProps> = ({ className = 'w-5 h-5', size = 20, color = 'currentColor' }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="M12 2l8 4v6c0 5.25-3.5 10-8 11-4.5-1-8-5.75-8-11V6l8-4z" />
@@ -58,7 +58,7 @@ export const ShieldIcon: React.FC<IconProps> = ({ className = 'w-5 h-5', size = 
   </svg>
 );
 
-// ⚡ /EMP - Pulso Eletromagnético de Alta Tensão
+// /EMP - Pulso Eletromagnético de Alta Tensão
 export const EmpIcon: React.FC<IconProps> = ({ className = 'w-5 h-5', size = 20, color = 'currentColor' }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
@@ -66,7 +66,7 @@ export const EmpIcon: React.FC<IconProps> = ({ className = 'w-5 h-5', size = 20,
   </svg>
 );
 
-// ⚡ Laser de Alta Potência
+// Laser de Alta Potência
 export const LaserIcon: React.FC<IconProps> = ({ className = 'w-5 h-5', size = 20, color = 'currentColor' }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="M4 12h16" />
@@ -76,7 +76,7 @@ export const LaserIcon: React.FC<IconProps> = ({ className = 'w-5 h-5', size = 2
   </svg>
 );
 
-// 🔋 Capacitor Cinético
+// Capacitor Cinético
 export const CapacitorIcon: React.FC<IconProps> = ({ className = 'w-5 h-5', size = 20, color = 'currentColor' }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <rect x="2" y="7" width="16" height="10" rx="2" />
@@ -87,7 +87,7 @@ export const CapacitorIcon: React.FC<IconProps> = ({ className = 'w-5 h-5', size
   </svg>
 );
 
-// 🎯 Scanner Quântico
+// Scanner Quântico
 export const ScannerIcon: React.FC<IconProps> = ({ className = 'w-5 h-5', size = 20, color = 'currentColor' }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <circle cx="12" cy="12" r="8" />
@@ -99,7 +99,7 @@ export const ScannerIcon: React.FC<IconProps> = ({ className = 'w-5 h-5', size =
   </svg>
 );
 
-// 🧪 Nanorobôs de Reparo
+// Nanorobôs de Reparo
 export const NanoRepairIcon: React.FC<IconProps> = ({ className = 'w-5 h-5', size = 20, color = 'currentColor' }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="M12 2l3 5h5l-4 4 1.5 5.5L12 14l-5.5 2.5L8 11 4 7h5l3-5z" />
@@ -108,7 +108,7 @@ export const NanoRepairIcon: React.FC<IconProps> = ({ className = 'w-5 h-5', siz
   </svg>
 );
 
-// 👑 Overclock de Terminal
+// Overclock de Terminal
 export const OverclockIcon: React.FC<IconProps> = ({ className = 'w-5 h-5', size = 20, color = 'currentColor' }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <rect x="4" y="4" width="16" height="16" rx="2" />
@@ -118,7 +118,7 @@ export const OverclockIcon: React.FC<IconProps> = ({ className = 'w-5 h-5', size
   </svg>
 );
 
-// 💰 Mineração Criptográfica em Massa
+// Mineração Criptográfica em Massa
 export const CryptoNodeIcon: React.FC<IconProps> = ({ className = 'w-5 h-5', size = 20, color = 'currentColor' }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <polygon points="12 2 2 7 12 12 22 7 12 2" />
@@ -128,7 +128,7 @@ export const CryptoNodeIcon: React.FC<IconProps> = ({ className = 'w-5 h-5', siz
   </svg>
 );
 
-// 🔰 Barreira Reativa
+// Barreira Reativa
 export const BarrierIcon: React.FC<IconProps> = ({ className = 'w-5 h-5', size = 20, color = 'currentColor' }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <polygon points="12 2 20 7 20 17 12 22 4 17 4 7 12 2" />
@@ -137,7 +137,7 @@ export const BarrierIcon: React.FC<IconProps> = ({ className = 'w-5 h-5', size =
   </svg>
 );
 
-// 🏆 Troféu / Conquista
+// Troféu / Conquista
 export const TrophyIcon: React.FC<IconProps> = ({ className = 'w-5 h-5', size = 20, color = 'currentColor' }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />

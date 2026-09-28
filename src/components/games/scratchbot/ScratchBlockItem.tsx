@@ -7,7 +7,8 @@ import {
   Repeat, 
   Diamond, 
   Trash2,
-  Plus
+  Plus,
+  X
 } from 'lucide-react';
 import { ScratchBlock, BlockType } from '../../../types/scratchBot';
 
@@ -93,8 +94,9 @@ export const ScratchBlockItem: React.FC<ScratchBlockItemProps> = ({
                 <Flag className="w-3.5 h-3.5 fill-current" />
               </div>
               <span>quando</span>
-              <span className="px-1.5 py-0.5 rounded bg-amber-600 text-white text-[10px] font-black">
-                ⚑ bandeira verde
+              <span className="px-1.5 py-0.5 rounded bg-amber-600 text-white text-[10px] font-black flex items-center gap-1">
+                <Flag className="w-2.5 h-2.5 fill-current" />
+                <span>bandeira verde</span>
               </span>
               <span>for clicada</span>
             </>
@@ -277,17 +279,19 @@ export const ScratchBlockItem: React.FC<ScratchBlockItemProps> = ({
                         onAddChild(block.id, 'collect_gem');
                         setShowChildPicker(false);
                       }}
-                      className="px-2 py-1 rounded bg-purple-600 hover:bg-purple-500 text-white text-[10px] font-bold transition cursor-pointer"
+                      className="px-2 py-1 rounded bg-purple-600 hover:bg-purple-500 text-white text-[10px] font-bold transition cursor-pointer flex items-center gap-1"
                     >
-                      💎 Gema
+                      <Diamond className="w-2.5 h-2.5" />
+                      <span>Gema</span>
                     </button>
                   )}
                   <button
                     type="button"
                     onClick={() => setShowChildPicker(false)}
-                    className="px-1.5 py-1 rounded bg-zinc-700 hover:bg-zinc-600 text-zinc-300 text-[10px] transition cursor-pointer"
+                    className="px-1.5 py-1 rounded bg-zinc-700 hover:bg-zinc-600 text-zinc-300 text-[10px] transition cursor-pointer flex items-center justify-center"
+                    title="Fechar"
                   >
-                    ✕
+                    <X className="w-2.5 h-2.5" />
                   </button>
                 </div>
               )}

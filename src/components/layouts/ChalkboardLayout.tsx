@@ -46,7 +46,9 @@ export const ChalkboardLayout: React.FC<BaseLayoutProps> = ({
           {/* Seção 1: Caderno do Aluno / Sidebar */}
           <div className="w-full lg:w-64 xl:w-72 flex-shrink-0 flex flex-col min-w-0 bg-[#0f221a]/80">
             <div className="bg-emerald-950/60 px-3 py-1.5 border-b border-dashed border-emerald-500/30 text-[10px] font-bold text-yellow-200 tracking-wider flex items-center justify-between flex-shrink-0">
-              <span>[ ✎ CADERNO DE NOTAS ]</span>
+              <span className="flex items-center gap-1.5">
+                <Pencil className="w-3 h-3 text-yellow-300" /> CADERNO DE NOTAS
+              </span>
               <span className="text-emerald-400">PÁG. 1</span>
             </div>
             <div className="flex-1 min-h-0 overflow-y-auto">{sidebar}</div>
@@ -55,7 +57,9 @@ export const ChalkboardLayout: React.FC<BaseLayoutProps> = ({
           {/* Seção 2: Lousa Principal de Exercícios / Arena */}
           <div className="flex-1 min-w-0 flex flex-col bg-[#142920] overflow-y-auto">
             <div className="bg-emerald-950/60 px-4 py-1.5 border-b border-dashed border-emerald-500/30 text-[10px] font-bold text-emerald-200 tracking-wider flex items-center justify-between flex-shrink-0">
-              <span>[ ✎ EXERCÍCIO DE DIGITAÇÃO PRÁTICA ]</span>
+              <span className="flex items-center gap-1.5">
+                <Pencil className="w-3 h-3 text-emerald-300" /> EXERCÍCIO DE DIGITAÇÃO PRÁTICA
+              </span>
               <span className="text-yellow-300 flex items-center gap-1">
                 <Pencil className="w-3 h-3 text-yellow-300" /> ESCREVA NO TECLADO
               </span>
@@ -66,7 +70,9 @@ export const ChalkboardLayout: React.FC<BaseLayoutProps> = ({
           {/* Seção 3: Materiais e Trocas da Escola / Loja */}
           <div className="w-full lg:w-72 xl:w-80 flex-shrink-0 flex flex-col min-w-0 bg-[#0f221a]/80">
             <div className="bg-emerald-950/60 px-3 py-1.5 border-b border-dashed border-emerald-500/30 text-[10px] font-bold text-yellow-200 tracking-wider flex items-center justify-between flex-shrink-0">
-              <span>[ ✎ MATERIAIS & MERENDA ]</span>
+              <span className="flex items-center gap-1.5">
+                <Pencil className="w-3 h-3 text-yellow-300" /> MATERIAIS & MERENDA
+              </span>
               <span className="text-emerald-400">DISPONÍVEL</span>
             </div>
             <div className="flex-1 min-h-0 overflow-y-auto">{shop}</div>

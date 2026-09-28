@@ -24,7 +24,15 @@ import {
   GraduationCap,
   Eye,
   Trash2,
-  Plus
+  Plus,
+  Gamepad2,
+  Keyboard,
+  Radio,
+  Timer,
+  Trophy,
+  Rocket,
+  Medal,
+  School
 } from 'lucide-react';
 import { dbService } from '../services/dbFactory';
 import { LeaderboardEntry } from '../types/leaderboard';
@@ -44,6 +52,7 @@ import {
 import { exportToCsv, downloadCsv } from '../services/turmasAggregator';
 import { CurricularTrackId, CustomCurricularText } from '../types';
 import { CURRICULAR_TRACKS, getCurricularTrack, suggestTrackForTurma } from '../data/tracks';
+import { TrackIconRenderer } from './vectors';
 import { RpgClassType } from '../types/rpgClass';
 import {
   launchClassroomRace,
@@ -324,7 +333,7 @@ export const PedagogicalPanel: React.FC<PedagogicalPanelProps> = ({
         currentUser
       );
       sound.playPrestige();
-      setRaceActionFeedback('🚀 Corrida disparada com sucesso para a sessão escolar!');
+      setRaceActionFeedback('Corrida disparada com sucesso para a sessão escolar!');
       setTimeout(() => setRaceActionFeedback(null), 5000);
     } catch (err: any) {
       sound.playChallengeFail();
@@ -382,7 +391,7 @@ export const PedagogicalPanel: React.FC<PedagogicalPanelProps> = ({
         currentUser
       );
       sound.playChallengeSuccess();
-      setRaidActionFeedback(`🔥 Raid contra "${boss.name}" iniciada com sucesso!`);
+      setRaidActionFeedback(`Raid contra "${boss.name}" iniciada com sucesso!`);
       setTimeout(() => setRaidActionFeedback(null), 5000);
     } catch (err: any) {
       sound.playError();
@@ -527,7 +536,7 @@ export const PedagogicalPanel: React.FC<PedagogicalPanelProps> = ({
       await loadStudents(selectedClassFilter);
       sound.playPrestige();
       alert(
-        `Balanceamento concluído para ${res.updatedCount} alunos da turma ${selectedClassFilter}!\n⚔️ Guerreiros: ${res.distribution.warrior} | 🏹 Arqueiros: ${res.distribution.archer} | 🔮 Magos: ${res.distribution.mage}`
+        `Balanceamento concluído para ${res.updatedCount} alunos da turma ${selectedClassFilter}!\nGuerreiros: ${res.distribution.warrior} | Arqueiros: ${res.distribution.archer} | Magos: ${res.distribution.mage}`
       );
     } catch (err: any) {
       alert(`Erro ao balancear classes: ${err.message || err}`);
@@ -637,8 +646,8 @@ export const PedagogicalPanel: React.FC<PedagogicalPanelProps> = ({
                         Professor
                       </span>
                       {activeClass && (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-sky-500/20 text-sky-300 border border-sky-500/40">
-                          🎒 {activeClass}
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-sky-500/20 text-sky-300 border border-sky-500/40 inline-flex items-center gap-1">
+                          <School className="w-3 h-3" /> {activeClass}
                         </span>
                       )}
                     </div>
@@ -752,13 +761,13 @@ export const PedagogicalPanel: React.FC<PedagogicalPanelProps> = ({
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span className="text-3xl font-black text-emerald-400 tracking-widest">{settings?.activeCode}</span>
                                 {settings?.activeTurma && (
-                                  <span className="text-xs px-2.5 py-1 rounded-full font-mono font-bold bg-sky-950 text-sky-300 border border-sky-500/40">
-                                    🎒 Turma: {settings.activeTurma}
+                                  <span className="text-xs px-2.5 py-1 rounded-full font-mono font-bold bg-sky-950 text-sky-300 border border-sky-500/40 inline-flex items-center gap-1.5">
+                                    <School className="w-3.5 h-3.5 text-sky-400" /> Turma: {settings.activeTurma}
                                   </span>
                                 )}
                                 {settings?.activeTrack && (
                                   <span className="text-xs px-2.5 py-1 rounded-full font-mono font-bold bg-purple-950 text-purple-300 border border-purple-500/40 flex items-center gap-1.5 shadow-sm">
-                                    <span>{getCurricularTrack(settings.activeTrack).icon}</span>
+                                    <TrackIconRenderer trackId={settings.activeTrack} className="w-3.5 h-3.5 text-purple-400" />
                                     <span>{getCurricularTrack(settings.activeTrack).name}</span>
                                   </span>
                                 )}
@@ -874,8 +883,9 @@ export const PedagogicalPanel: React.FC<PedagogicalPanelProps> = ({
                           <BookOpen className="w-4 h-4 text-emerald-400" />
                           <span>Trilha Curricular da Aula:</span>
                         </label>
-                        <span className="text-[10px] font-mono font-bold text-emerald-300 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-500/40">
-                          {getCurricularTrack(selectedTrackForCode).icon} {getCurricularTrack(selectedTrackForCode).name}
+                        <span className="text-[10px] font-mono font-bold text-emerald-300 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-500/40 flex items-center gap-1.5">
+                          <TrackIconRenderer trackId={selectedTrackForCode} className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>{getCurricularTrack(selectedTrackForCode).name}</span>
                         </span>
                       </div>
 
@@ -894,8 +904,8 @@ export const PedagogicalPanel: React.FC<PedagogicalPanelProps> = ({
                               }`}
                             >
                               <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-1.5 font-bold text-xs">
-                                  <span className="text-base">{track.icon}</span>
+                                <div className="flex items-center gap-2 font-bold text-xs">
+                                  <TrackIconRenderer trackId={track.id} className={`w-4 h-4 ${isSelected ? 'text-emerald-300' : 'text-zinc-400'}`} />
                                   <span className={isSelected ? 'text-emerald-200' : 'text-zinc-200'}>{track.name}</span>
                                 </div>
                                 {isSelected && (
@@ -1010,7 +1020,7 @@ export const PedagogicalPanel: React.FC<PedagogicalPanelProps> = ({
                   {/* Controlo do Hub de Jogos */}
                   <section className="bg-zinc-900/60 border border-zinc-700/60 rounded-xl p-4 space-y-3 max-w-xl mx-auto">
                     <div className="flex items-center gap-2 text-zinc-200 font-bold text-sm mb-1">
-                      <span>🎮</span>
+                      <Gamepad2 className="w-4 h-4 text-emerald-400" />
                       <span>Controlo do Hub de Jogos</span>
                       <span className="text-[10px] font-mono text-zinc-500 ml-auto">0 leituras Firestore</span>
                     </div>
@@ -1024,11 +1034,11 @@ export const PedagogicalPanel: React.FC<PedagogicalPanelProps> = ({
                     )}
                     <div className="grid grid-cols-2 gap-2">
                       {([
-                        { id: 'typeclicker', label: 'TypeClicker', icon: '⌨️' },
-                        { id: 'type_radar', label: 'Type: Radar', icon: '📡' },
-                        { id: 'time_attack', label: 'Time Attack', icon: '⏱️' },
-                        { id: 'dungeon', label: 'Masmorra RPG', icon: '🗡️' }
-                      ] as const).map(({ id, label, icon }) => {
+                        { id: 'typeclicker', label: 'TypeClicker', icon: Keyboard },
+                        { id: 'type_radar', label: 'Type: Radar', icon: Radio },
+                        { id: 'time_attack', label: 'Time Attack', icon: Timer },
+                        { id: 'dungeon', label: 'Masmorra RPG', icon: Swords }
+                      ] as const).map(({ id, label, icon: IconComponent }) => {
                         const disabled = Array.isArray(hubConfig.disabledGames) && hubConfig.disabledGames.includes(id);
                         return (
                           <button
@@ -1043,9 +1053,15 @@ export const PedagogicalPanel: React.FC<PedagogicalPanelProps> = ({
                             }`}
                             title={disabled ? `Reativar ${label} para alunos` : `Desativar ${label} para alunos`}
                           >
-                            <span>{icon}</span>
+                            <IconComponent className="w-3.5 h-3.5" />
                             <span>{label}</span>
-                            <span className="ml-auto text-[10px]">{disabled ? '🔴' : '🟢'}</span>
+                            <span className="ml-auto flex items-center">
+                              {disabled ? (
+                                <span className="w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.6)]" />
+                              ) : (
+                                <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]" />
+                              )}
+                            </span>
                           </button>
                         );
                       })}
@@ -1261,9 +1277,9 @@ export const PedagogicalPanel: React.FC<PedagogicalPanelProps> = ({
                                   title="Alterar Classe RPG do Aluno"
                                 >
                                   <option value="">Sem Classe</option>
-                                  <option value="warrior">⚔️ Guerreiro</option>
-                                  <option value="archer">🏹 Arqueiro</option>
-                                  <option value="mage">🔮 Mago</option>
+                                  <option value="warrior">Guerreiro</option>
+                                  <option value="archer">Arqueiro</option>
+                                  <option value="mage">Mago</option>
                                 </select>
                               </td>
 
@@ -1352,7 +1368,7 @@ export const PedagogicalPanel: React.FC<PedagogicalPanelProps> = ({
                     <div className="p-5 rounded-2xl bg-gradient-to-r from-amber-950/40 via-[#181308] to-black border-2 border-amber-500/60 shadow-xl space-y-4">
                       <div className="flex items-center justify-between flex-wrap gap-2">
                         <div className="flex items-center gap-2">
-                          <span className="text-xl">🏁</span>
+                          <Flag className="w-5 h-5 text-amber-400" />
                           <h4 className="text-base font-bold text-white">{activeRace.title}</h4>
                           <span className="text-xs text-zinc-400 font-mono">({activeRace.source})</span>
                         </div>
@@ -1366,11 +1382,13 @@ export const PedagogicalPanel: React.FC<PedagogicalPanelProps> = ({
                               : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
                           }`}
                         >
-                          {activeRace.status === 'countdown'
-                            ? '⏳ Em Contagem Regressiva...'
-                            : activeRace.status === 'in_progress'
-                            ? '🏎️ Corrida em Andamento!'
-                            : '🏆 Corrida Concluída!'}
+                          {activeRace.status === 'countdown' ? (
+                            <span className="inline-flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> Em Contagem Regressiva...</span>
+                          ) : activeRace.status === 'in_progress' ? (
+                            <span className="inline-flex items-center gap-1.5"><Flag className="w-3.5 h-3.5" /> Corrida em Andamento!</span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5"><Trophy className="w-3.5 h-3.5" /> Corrida Concluída!</span>
+                          )}
                         </span>
                       </div>
 
@@ -1378,8 +1396,8 @@ export const PedagogicalPanel: React.FC<PedagogicalPanelProps> = ({
                       {activeRace.winner && (
                         <div className="p-4 rounded-xl bg-amber-500/15 border border-amber-500/40 flex items-center justify-between flex-wrap gap-3">
                           <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 rounded-xl bg-amber-500/30 border border-amber-400 flex items-center justify-center text-3xl shadow-md">
-                              🏆
+                            <div className="w-12 h-12 rounded-xl bg-amber-500/30 border border-amber-400 flex items-center justify-center shadow-md">
+                              <Trophy className="w-6 h-6 text-amber-300" />
                             </div>
                             <div>
                               <span className="text-xs font-black uppercase text-amber-400 tracking-wider font-mono block">
@@ -1421,8 +1439,8 @@ export const PedagogicalPanel: React.FC<PedagogicalPanelProps> = ({
                                 }`}
                               >
                                 <div className="flex items-center gap-2">
-                                  <span className="font-bold text-sm">
-                                    {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}º`}
+                                  <span className="font-bold text-sm flex items-center">
+                                    {idx === 0 ? <Medal className="w-4 h-4 text-amber-400" /> : idx === 1 ? <Medal className="w-4 h-4 text-slate-300" /> : idx === 2 ? <Medal className="w-4 h-4 text-amber-600" /> : `${idx + 1}º`}
                                   </span>
                                   <div>
                                     <span className="font-bold text-white block">{f.apelido}</span>
@@ -1643,8 +1661,8 @@ export const PedagogicalPanel: React.FC<PedagogicalPanelProps> = ({
                         disabled={isLaunchingRace || !customRaceText.trim()}
                         className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 disabled:opacity-50 text-black font-black text-sm uppercase tracking-wider transition shadow-lg shadow-amber-500/30 flex items-center justify-center gap-2 cursor-pointer"
                       >
-                        <Flag className="w-5 h-5 text-black" />
-                        <span>{isLaunchingRace ? 'Lançando Corrida...' : '🚀 LANÇAR CORRIDA PARA OS ALUNOS AGORA'}</span>
+                        <Rocket className="w-5 h-5 text-black" />
+                        <span>{isLaunchingRace ? 'Lançando Corrida...' : 'LANÇAR CORRIDA PARA OS ALUNOS AGORA'}</span>
                       </button>
                       <p className="text-[11px] text-zinc-500 font-mono text-center mt-2">
                         * Ao clicar, todos os alunos conectados receberão o aviso de largada imediatamente em tela cheia.
@@ -1794,7 +1812,7 @@ export const PedagogicalPanel: React.FC<PedagogicalPanelProps> = ({
                             </div>
 
                             <div className="mt-3 pt-2 border-t border-zinc-800/80 flex items-center justify-between text-[10px] font-mono text-zinc-400">
-                              <span>⏱️ {Math.floor(boss.timeLimitSeconds / 60)} min</span>
+                              <span className="inline-flex items-center gap-1"><Clock className="w-3 h-3 text-zinc-400" /> {Math.floor(boss.timeLimitSeconds / 60)} min</span>
                               <span className="text-amber-400 font-bold">+{formatBytes(boss.prizeBytes)}</span>
                             </div>
                           </div>
@@ -1871,8 +1889,8 @@ export const PedagogicalPanel: React.FC<PedagogicalPanelProps> = ({
                         disabled={isLaunchingRaid}
                         className="w-full py-3.5 rounded-xl bg-gradient-to-r from-rose-600 via-red-500 to-rose-600 hover:from-rose-500 hover:to-red-400 disabled:opacity-50 text-white font-black text-sm uppercase tracking-wider transition shadow-lg shadow-rose-600/30 flex items-center justify-center gap-2 cursor-pointer"
                       >
-                        <Swords className="w-5 h-5 text-white" />
-                        <span>{isLaunchingRaid ? 'Iniciando Batalha...' : '🚀 LANÇAR RAID COLETIVA PARA A SALA AGORA'}</span>
+                        <Rocket className="w-5 h-5 text-white" />
+                        <span>{isLaunchingRaid ? 'Iniciando Batalha...' : 'LANÇAR RAID COLETIVA PARA A SALA AGORA'}</span>
                       </button>
                       <p className="text-[11px] text-zinc-500 font-mono text-center mt-2">
                         * Ao clicar, todos os alunos conectados receberão o alerta de batalha com o Chefe Coletivo em tempo real.

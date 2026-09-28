@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Settings } from 'lucide-react';
 
 interface CockpitFrameProps {
   children: React.ReactNode;
@@ -207,7 +208,8 @@ export const CockpitFrame: React.FC<CockpitFrameProps> = ({
                 className="px-2 py-0.5 rounded bg-amber-950/70 border border-amber-500/40 text-[8px] sm:text-[9px] text-amber-300 font-mono font-bold flex items-center gap-1 shadow-sm"
                 title="Sucata Tecnológica acumulada no Radar"
               >
-                <span>⚙️ SUCATA:</span>
+                <Settings className="w-2.5 h-2.5 text-amber-400" />
+                <span>SUCATA:</span>
                 <span className="text-amber-400 font-mono">{scrap}</span>
               </div>
             )}

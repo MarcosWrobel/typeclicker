@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ArrowUp, Sparkles } from 'lucide-react';
 import { AnimationEffectId } from '../types/cosmetics';
 import { ANIMATION_CONFIGS } from '../constants/cosmeticsCatalog';
+import { LevelBadgeRenderer } from './vectors/LevelBadgeRenderer';
 import { triggerLevelUpCelebrationVfx } from '../services/fxEngine';
 
 interface LevelUpOverlayProps {
@@ -44,9 +45,9 @@ export const LevelUpOverlay: React.FC<LevelUpOverlayProps> = ({
               <motion.div
                 animate={{ rotate: [-4, 4, -4], scale: [1, 1.08, 1] }}
                 transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }}
-                className="w-12 h-12 rounded-xl bg-amber-500/20 border border-amber-400/50 flex items-center justify-center text-3xl select-none flex-shrink-0 shadow-[0_0_15px_rgba(245,158,11,0.3)]"
+                className="w-12 h-12 rounded-xl bg-amber-500/20 border border-amber-400/50 flex items-center justify-center select-none flex-shrink-0 shadow-[0_0_15px_rgba(245,158,11,0.3)]"
               >
-                {data.badge}
+                <LevelBadgeRenderer level={data.level} badge={data.badge} size={28} />
               </motion.div>
 
               {/* Informações do Nível */}

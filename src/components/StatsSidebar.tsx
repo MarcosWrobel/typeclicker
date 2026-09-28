@@ -1,6 +1,8 @@
 import React, { useMemo } from 'react';
 import { Cpu, Trophy, ChevronRight, Users, Shield, Crown, GraduationCap, Medal, Sparkles, Coins } from 'lucide-react';
 import { StudentAvatarRenderer } from './vectors/StudentAvatarRenderer';
+import { RpgClassIcon } from './vectors/rpg/RpgClassIcon';
+import { LevelBadgeRenderer } from './vectors/LevelBadgeRenderer';
 import { GameState } from '../types';
 import { RPG_CLASSES } from '../types/rpgClass';
 import { formatBytes, formatRate, calculatePlayerRank } from '../utils/formatting';
@@ -89,8 +91,8 @@ export const StatsSidebar: React.FC<StatsSidebarProps> = ({
                   </span>
                 ) : null}
                 {state.rpgClass && RPG_CLASSES[state.rpgClass] && (
-                  <span className={`px-1.5 py-0.2 rounded-full ${RPG_CLASSES[state.rpgClass].badgeBg} border ${RPG_CLASSES[state.rpgClass].badgeBorder} text-[9px] font-bold ${RPG_CLASSES[state.rpgClass].badgeText} whitespace-nowrap flex items-center gap-0.5`}>
-                    <span>{RPG_CLASSES[state.rpgClass].icon}</span>
+                  <span className={`px-1.5 py-0.2 rounded-full ${RPG_CLASSES[state.rpgClass].badgeBg} border ${RPG_CLASSES[state.rpgClass].badgeBorder} text-[9px] font-bold ${RPG_CLASSES[state.rpgClass].badgeText} whitespace-nowrap flex items-center gap-1`}>
+                    <RpgClassIcon rpgClass={state.rpgClass} className="w-2.5 h-2.5 inline shrink-0" />
                     <span>{RPG_CLASSES[state.rpgClass].name}</span>
                   </span>
                 )}
@@ -172,9 +174,9 @@ export const StatsSidebar: React.FC<StatsSidebarProps> = ({
         title="Clique para ver todos os Níveis do 1 ao 100!"
       >
         <div className="flex items-center gap-3">
-          <span className="text-3xl select-none group-hover:scale-110 transition-transform" title={`Rank: ${playerRank.title}`}>
-            {playerRank.badge}
-          </span>
+          <div className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-700/60 flex items-center justify-center group-hover:scale-110 transition-transform shrink-0" title={`Rank: ${playerRank.title}`}>
+            <LevelBadgeRenderer level={playerRank.level} badge={playerRank.badge} size={24} />
+          </div>
           <div className="flex flex-col">
             <span className="font-bold text-zinc-200 group-hover:text-amber-300 transition-colors flex items-center gap-1 text-sm">
               <Trophy className="w-3.5 h-3.5 text-amber-400" />
@@ -287,11 +289,11 @@ export const StatsSidebar: React.FC<StatsSidebarProps> = ({
           <div className="space-y-1">
             {[...state.arcadeHistory].reverse().slice(0, 5).map((match, i) => {
               const gameLabel: Record<string, string> = {
-                type_radar:  '📡 Radar',
-                typeclicker: '⌨️ Clicker',
-                byte_logic:  '🔌 ByteLogic',
-                math_storm:  '⚡ MathStorm',
-                syntax_maze: '🌀 SyntaxMaze'
+                type_radar:  'Radar',
+                typeclicker: 'Clicker',
+                byte_logic:  'ByteLogic',
+                math_storm:  'MathStorm',
+                syntax_maze: 'SyntaxMaze'
               };
               return (
                 <div key={i} className="flex items-center justify-between bg-zinc-900/70 border border-zinc-800/60 rounded-lg px-2.5 py-1.5 gap-2">

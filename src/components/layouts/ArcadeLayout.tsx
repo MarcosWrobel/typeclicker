@@ -1,4 +1,5 @@
 import React from 'react';
+import { Sparkles, Coins } from 'lucide-react';
 import { BaseLayoutProps } from './TerminalLayout';
 
 export const ArcadeLayout: React.FC<BaseLayoutProps> = ({
@@ -21,7 +22,9 @@ export const ArcadeLayout: React.FC<BaseLayoutProps> = ({
             <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping flex-shrink-0" />
             <div className="flex flex-col min-w-0">
               <h1 className="text-sm sm:text-base md:text-lg font-black tracking-widest text-amber-300 drop-shadow-[0_0_10px_rgba(251,191,36,0.8)] flex items-center gap-2 truncate">
-                <span>★ TYPECLICKER ARCADE 1984 ★</span>
+                <Sparkles className="w-4 h-4 text-amber-400" />
+                <span>TYPECLICKER ARCADE 1984</span>
+                <Sparkles className="w-4 h-4 text-amber-400" />
               </h1>
               <span className="text-[10px] text-amber-400/80 font-bold uppercase tracking-wider truncate">
                 Colégio Leopoldina Pedroso • Edição de Gabinete
@@ -31,7 +34,7 @@ export const ArcadeLayout: React.FC<BaseLayoutProps> = ({
 
           <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
             <div className="px-2 sm:px-2.5 py-1 rounded bg-black/60 border border-amber-500/50 text-[10px] sm:text-[11px] text-amber-300 font-bold flex items-center gap-1.5 shadow-[0_0_10px_rgba(245,158,11,0.3)]">
-              <span className="animate-pulse">🪙</span>
+              <Coins className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
               <span className="hidden sm:inline">INSERT TOKEN:</span>
               <span className="text-emerald-400">1P READY</span>
             </div>

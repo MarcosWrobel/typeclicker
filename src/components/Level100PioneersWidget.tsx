@@ -1,5 +1,4 @@
-import React from 'react';
-import { Trophy, Crown, Sparkles, Lock, ExternalLink, Calendar, Users, ShieldCheck, Star } from 'lucide-react';
+import { Trophy, Crown, Sparkles, Lock, ExternalLink, Calendar, Users, ShieldCheck, Star, Medal } from 'lucide-react';
 import { StudentAvatarRenderer } from './vectors/StudentAvatarRenderer';
 import { Level100PioneerSlot } from '../types/leaderboard';
 
@@ -13,31 +12,28 @@ interface Level100PioneersWidgetProps {
 
 const RANK_BADGES = {
   1: {
-    icon: '👑',
     title: '1º Pioneiro da História',
     border: 'border-amber-400/80',
     bg: 'bg-gradient-to-b from-amber-500/20 via-amber-950/40 to-black',
     glow: 'shadow-[0_0_25px_rgba(251,191,36,0.35)]',
     text: 'text-amber-300',
-    medal: '🥇 Ouro'
+    medal: 'Ouro'
   },
   2: {
-    icon: '🥈',
     title: '2º Pioneiro da História',
     border: 'border-slate-300/80',
     bg: 'bg-gradient-to-b from-slate-400/20 via-slate-900/40 to-black',
     glow: 'shadow-[0_0_20px_rgba(203,213,225,0.25)]',
     text: 'text-slate-200',
-    medal: '🥈 Prata'
+    medal: 'Prata'
   },
   3: {
-    icon: '🥉',
     title: '3º Pioneiro da História',
     border: 'border-amber-600/80',
     bg: 'bg-gradient-to-b from-amber-700/20 via-amber-950/30 to-black',
     glow: 'shadow-[0_0_20px_rgba(217,119,6,0.25)]',
     text: 'text-amber-500',
-    medal: '🥉 Bronze'
+    medal: 'Bronze'
   }
 };
 
@@ -169,8 +165,8 @@ export const Level100PioneersWidget: React.FC<Level100PioneersWidgetProps> = ({
       {/* Topo do Banner */}
       <div className="flex items-center justify-between border-b border-amber-500/20 pb-3 flex-wrap gap-2">
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-400/50 flex items-center justify-center text-xl shadow-[0_0_15px_rgba(251,191,36,0.3)]">
-            👑
+          <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-400/50 flex items-center justify-center shadow-[0_0_15px_rgba(251,191,36,0.3)]">
+            <Crown className="w-5 h-5 text-amber-400" />
           </div>
           <div>
             <h3 className="text-sm sm:text-base font-black font-mono text-white tracking-wider flex items-center gap-1.5">
@@ -208,8 +204,9 @@ export const Level100PioneersWidget: React.FC<Level100PioneersWidgetProps> = ({
                 title={onSelectPlayer ? `Clique para ver o Card Colecionável de ${displayName}` : undefined}
               >
                 {/* Badge de Posição */}
-                <div className={`absolute -top-2.5 px-3 py-0.5 rounded-full text-[10px] font-black font-mono tracking-wider border shadow-md ${badge.text} bg-black/90 ${badge.border}`}>
-                  {badge.medal.toUpperCase()}
+                <div className={`absolute -top-2.5 px-3 py-0.5 rounded-full text-[10px] font-black font-mono tracking-wider border shadow-md ${badge.text} bg-black/90 ${badge.border} flex items-center gap-1`}>
+                  <Medal className="w-3 h-3" />
+                  <span>{badge.medal.toUpperCase()}</span>
                 </div>
 
                 <div className="w-12 h-12 rounded-2xl bg-black/60 border border-white/10 flex items-center justify-center p-1.5 my-2 shadow-inner">

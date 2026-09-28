@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Lock, LogOut, Key, ArrowLeft } from 'lucide-react';
+import { Lock, LogOut, Key, ArrowLeft, School, Target } from 'lucide-react';
 import { getSystemSettings, logoutUser } from '../services/firebaseService';
 import { CurricularTrackId } from '../types';
 import { getCurricularTrack } from '../data/tracks';
+import { TrackIconRenderer } from './vectors';
 
 interface SessionLockOverlayProps {
   isLocked: boolean;
@@ -78,15 +79,19 @@ export const SessionLockOverlay: React.FC<SessionLockOverlayProps> = ({ isLocked
                   <div className="mb-3.5 flex flex-wrap items-center justify-center gap-2">
                     {activeTurma && (
                       <div className="px-3 py-1.5 rounded-xl bg-purple-950/60 border border-purple-500/40 text-purple-300 text-xs font-mono font-bold flex items-center justify-center gap-1.5 shadow-sm">
-                        <span>🎒 Aula da Turma</span>
+                        <span className="flex items-center gap-1.5">
+                          <School className="w-3.5 h-3.5 text-purple-400" /> Aula da Turma
+                        </span>
                         <span className="text-white bg-purple-800/80 px-2 py-0.5 rounded-md">{activeTurma}</span>
                       </div>
                     )}
                     {activeTrack && (
                       <div className="px-3 py-1.5 rounded-xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 text-xs font-mono font-bold flex items-center justify-center gap-1.5 shadow-sm">
-                        <span>🎯 Trilha</span>
-                        <span className="text-white bg-emerald-800/80 px-2 py-0.5 rounded-md flex items-center gap-1">
-                          <span>{getCurricularTrack(activeTrack).icon}</span>
+                        <span className="flex items-center gap-1.5">
+                          <Target className="w-3.5 h-3.5 text-emerald-400" /> Trilha
+                        </span>
+                        <span className="text-white bg-emerald-800/80 px-2 py-0.5 rounded-md flex items-center gap-1.5">
+                          <TrackIconRenderer trackId={activeTrack} className="w-3.5 h-3.5 text-emerald-300" />
                           <span>{getCurricularTrack(activeTrack).name.split('(')[0].trim()}</span>
                         </span>
                       </div>

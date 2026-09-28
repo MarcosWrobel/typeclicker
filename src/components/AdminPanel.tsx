@@ -27,7 +27,10 @@ import {
   Calendar,
   Timer,
   Swords,
-  Crown
+  Crown,
+  Medal,
+  GraduationCap,
+  Clock
 } from 'lucide-react';
 import { StudentAvatarRenderer } from './vectors/StudentAvatarRenderer';
 import { fetchSupabaseMetrics, SupabaseMetricsData } from '../services/supabaseMetricsService';
@@ -950,7 +953,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                 : 'bg-orange-600/10 border-orange-500/30 text-orange-200'
                             }`}
                           >
-                            <span className="text-2xl font-black">{idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'}</span>
+                            <Medal className={`w-7 h-7 shrink-0 ${idx === 0 ? 'text-amber-400' : idx === 1 ? 'text-slate-300' : 'text-amber-600'}`} />
                             <div className="min-w-0 flex-1">
                               <div className="font-bold text-white text-xs truncate">{st.apelido || st.nome}</div>
                               <div className="text-[10px] text-zinc-400 font-mono">Turma {st.turma}</div>
@@ -1060,19 +1063,28 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             <div className="space-y-1.5 text-xs font-mono">
                               {seasonStudents[0] && (
                                 <div className="text-yellow-300 flex items-center justify-between">
-                                  <span>🥇 1º {seasonStudents[0].apelido || seasonStudents[0].nome} (Turma {seasonStudents[0].turma})</span>
+                                  <span className="flex items-center gap-1.5">
+                                    <Medal className="w-4 h-4 text-amber-400 shrink-0" />
+                                    <span>1º {seasonStudents[0].apelido || seasonStudents[0].nome} (Turma {seasonStudents[0].turma})</span>
+                                  </span>
                                   <span className="font-bold">{formatBytes(seasonStudents[0].seasonBytes || 0)}</span>
                                 </div>
                               )}
                               {seasonStudents[1] && (
                                 <div className="text-slate-300 flex items-center justify-between">
-                                  <span>🥈 2º {seasonStudents[1].apelido || seasonStudents[1].nome} (Turma {seasonStudents[1].turma})</span>
+                                  <span className="flex items-center gap-1.5">
+                                    <Medal className="w-4 h-4 text-slate-300 shrink-0" />
+                                    <span>2º {seasonStudents[1].apelido || seasonStudents[1].nome} (Turma {seasonStudents[1].turma})</span>
+                                  </span>
                                   <span className="font-bold">{formatBytes(seasonStudents[1].seasonBytes || 0)}</span>
                                 </div>
                               )}
                               {seasonStudents[2] && (
                                 <div className="text-orange-300 flex items-center justify-between">
-                                  <span>🥉 3º {seasonStudents[2].apelido || seasonStudents[2].nome} (Turma {seasonStudents[2].turma})</span>
+                                  <span className="flex items-center gap-1.5">
+                                    <Medal className="w-4 h-4 text-amber-600 shrink-0" />
+                                    <span>3º {seasonStudents[2].apelido || seasonStudents[2].nome} (Turma {seasonStudents[2].turma})</span>
+                                  </span>
                                   <span className="font-bold">{formatBytes(seasonStudents[2].seasonBytes || 0)}</span>
                                 </div>
                               )}
@@ -1593,8 +1605,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         <div>
                           <div className="flex items-center gap-2">
                             <h3 className="text-base font-black text-white">Painel de Recursos de Teste & Contas Indicadas</h3>
-                            <span className="px-2 py-0.5 rounded-full bg-red-500/20 border border-red-500/40 text-red-400 font-mono font-bold text-[10px]">
-                              👑 SUPER ADMIN
+                            <span className="px-2 py-0.5 rounded-full bg-red-500/20 border border-red-500/40 text-red-400 font-mono font-bold text-[10px] flex items-center gap-1">
+                              <Crown className="w-3 h-3" />
+                              <span>SUPER ADMIN</span>
                             </span>
                           </div>
                           <p className="text-xs text-zinc-400">
@@ -1750,7 +1763,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                               : 'bg-zinc-800 text-zinc-300 border-zinc-700 hover:bg-zinc-750'
                           }`}
                         >
-                          <span>👑</span>
+                          <Crown className="w-3.5 h-3.5 text-amber-300" />
                           <span>Meu Perfil ({userEmail || 'Admin'})</span>
                         </button>
 
@@ -1874,12 +1887,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         </div>
                         <div>
                           {targetAccountInfo?.exists ? (
-                            <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold">
-                              ✅ Perfil Sincronizado no Supabase {targetAccountInfo.userId ? `(${targetAccountInfo.userId.slice(0, 8)}...)` : ''}
+                            <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3" />
+                              <span>Perfil Sincronizado no Supabase {targetAccountInfo.userId ? `(${targetAccountInfo.userId.slice(0, 8)}...)` : ''}</span>
                             </span>
                           ) : (
-                            <span className="px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-400 border border-sky-500/30 text-[10px] font-bold">
-                              ⏳ Nova Conta (Será aplicada ao entrar/vincular)
+                            <span className="px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-400 border border-sky-500/30 text-[10px] font-bold flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              <span>Nova Conta (Será aplicada ao entrar/vincular)</span>
                             </span>
                           )}
                         </div>
@@ -1896,8 +1911,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                               {targetAccountInfo?.turma || 'Sem turma'}
                             </span>
                             {ADMIN_EMAILS.some((adm) => adm.toLowerCase() === targetEmail.toLowerCase()) && (
-                              <span className="text-[9px] font-bold text-purple-300 bg-purple-950/90 px-1.5 py-0.2 rounded border border-purple-500/40">
-                                👨‍🏫 Docente
+                              <span className="text-[9px] font-bold text-purple-300 bg-purple-950/90 px-1.5 py-0.2 rounded border border-purple-500/40 flex items-center gap-1">
+                                <GraduationCap className="w-2.5 h-2.5" />
+                                <span>Docente</span>
                               </span>
                             )}
                           </div>
@@ -1913,14 +1929,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         </div>
                         <div className="p-2 rounded bg-zinc-900 border border-white/5">
                           <span className="text-zinc-500 block text-[10px]">Level Tokens:</span>
-                          <span className="font-bold text-amber-400 text-sm">
-                            {targetAccountInfo?.levelTokens ?? 0} 🪙
+                          <span className="font-bold text-amber-400 text-sm flex items-center gap-1">
+                            <span>{targetAccountInfo?.levelTokens ?? 0}</span>
+                            <Coins className="w-3 h-3 text-amber-400" />
                           </span>
                         </div>
                         <div className="p-2 rounded bg-zinc-900 border border-white/5">
                           <span className="text-zinc-500 block text-[10px]">Moedas de Duelo:</span>
-                          <span className="font-bold text-rose-400 text-sm">
-                            {targetAccountInfo?.duelTokens ?? 0} ⚔️
+                          <span className="font-bold text-rose-400 text-sm flex items-center gap-1">
+                            <span>{targetAccountInfo?.duelTokens ?? 0}</span>
+                            <Swords className="w-3 h-3 text-rose-400" />
                           </span>
                         </div>
                       </div>
@@ -2087,11 +2105,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         </div>
 
                         <div className="space-y-1.5">
-                          <div className="flex justify-between text-xs">
-                            <span className="text-zinc-300 font-semibold flex items-center gap-1">
-                              <span>🪙</span> Level Tokens (Loja de Cosméticos):
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="text-zinc-300 font-semibold flex items-center gap-1.5">
+                              <Coins className="w-3.5 h-3.5 text-amber-400" /> Level Tokens (Loja de Cosméticos):
                             </span>
-                            <span className="text-amber-400 font-mono font-bold">+{levelTokensToAdd.toLocaleString('pt-BR')} 🪙</span>
+                            <span className="text-amber-400 font-mono font-bold flex items-center gap-1">
+                              +{levelTokensToAdd.toLocaleString('pt-BR')} <Coins className="w-3 h-3 text-amber-400" />
+                            </span>
                           </div>
                           <div className="grid grid-cols-5 gap-1">
                             {[500, 1000, 5000, 10000, 50000].map((amount) => (
@@ -2124,9 +2144,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         <div className="space-y-1.5 pt-2 border-t border-zinc-800">
                           <div className="flex justify-between text-xs">
                             <span className="text-zinc-300 font-semibold flex items-center gap-1">
-                              <span>⚔️</span> Moedas de Duelo (Arena de Combate):
+                              <Swords className="w-3.5 h-3.5 text-rose-400" />
+                              <span>Moedas de Duelo (Arena de Combate):</span>
                             </span>
-                            <span className="text-rose-400 font-mono font-bold">+{duelTokensToAdd.toLocaleString('pt-BR')} ⚔️</span>
+                            <span className="text-rose-400 font-mono font-bold flex items-center gap-1">
+                              <span>+{duelTokensToAdd.toLocaleString('pt-BR')}</span>
+                              <Swords className="w-3 h-3" />
+                            </span>
                           </div>
                           <div className="grid grid-cols-5 gap-1">
                             {[500, 1000, 5000, 10000, 50000].map((amount) => (
@@ -2222,10 +2246,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   <div className="p-4 rounded-xl bg-gradient-to-r from-amber-950/40 via-emerald-950/40 to-black border border-amber-500/40 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
                     <div>
                       <h4 className="font-black text-sm text-white flex items-center gap-2">
-                        <span>🎁</span> Conceder Recursos Pedagógicos
+                        <Gift className="w-4 h-4 text-amber-400" />
+                        <span>Conceder Recursos Pedagógicos</span>
                       </h4>
                       <p className="text-xs text-zinc-400 mt-0.5 font-mono">
-                        Alvo: <strong className="text-amber-300">{targetEmail}</strong> • Nível: <strong className="text-emerald-300">{levelGrantMode === 'add_levels' ? `+${levelAmount} Nível(is)` : `Nv. ${levelAmount}`}</strong> • Moedas: <strong className="text-amber-300">+{levelTokensToAdd} 🪙</strong> / <strong className="text-rose-300">+{duelTokensToAdd} ⚔️</strong>
+                        Alvo: <strong className="text-amber-300">{targetEmail}</strong> • Nível: <strong className="text-emerald-300">{levelGrantMode === 'add_levels' ? `+${levelAmount} Nível(is)` : `Nv. ${levelAmount}`}</strong> • Moedas: <strong className="text-amber-300">+{levelTokensToAdd} Fichas</strong> / <strong className="text-rose-300">+{duelTokensToAdd} Duelos</strong>
                       </p>
                     </div>
 
@@ -2316,8 +2341,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                               </div>
                               <p className="text-[11px] text-zinc-400">
                                 {h.levelAction === 'add_levels' ? `+${h.levelAmount} nível(is)` : `Nv. ${h.levelAmount}`}
-                                {' • '}+{h.addLevelTokens || 0} 🪙 Tokens
-                                {' • '}+{h.addDuelTokens || 0} ⚔️ Duelo
+                                {' • '}+{h.addLevelTokens || 0} Fichas
+                                {' • '}+{h.addDuelTokens || 0} Duelos
                                 {h.unlockAllCosmetics && ' • Cosméticos 100%'}
                                 {h.maxUpgrades && ' • Upgrades Máximos'}
                                 {h.resetToLevel1 && ' • Reset Nv. 1'}

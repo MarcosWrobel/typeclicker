@@ -1,5 +1,36 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Flame, Sparkles, Award, Keyboard, HelpCircle, AlertCircle, Zap, Gauge, Trophy, AlertTriangle, Timer, Activity, Pause, Play, Lock, Palette, Coins, Users, Swords, Target, Scroll } from 'lucide-react';
+import {
+  Flame,
+  Sparkles,
+  Award,
+  Keyboard,
+  HelpCircle,
+  AlertCircle,
+  Zap,
+  Gauge,
+  Trophy,
+  AlertTriangle,
+  Timer,
+  Activity,
+  Pause,
+  Play,
+  Lock,
+  Palette,
+  Coins,
+  Users,
+  Swords,
+  Target,
+  Scroll,
+  Type,
+  MessageSquare,
+  Code2,
+  Rocket,
+  ShoppingBag,
+  Lightbulb,
+  Key,
+  Atom,
+  X
+} from 'lucide-react';
 import { CategoryId, FloatingText, DrillSession, KeyTelemetry, AccessibilitySettings, CurricularTrackId, TypingMode } from '../types';
 import { BytezinhoSkinId, TerminalThemeId, AnimationEffectId } from '../types/cosmetics';
 import { TERMINAL_THEMES } from '../constants/themes';
@@ -668,7 +699,7 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
                   }`}
                   title="Palavras isoladas por dificuldade"
                 >
-                  <span>🔤</span>
+                  <Type className="w-3.5 h-3.5" />
                   <span>Palavras</span>
                 </button>
                 <button
@@ -684,7 +715,7 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
                   }`}
                   title="Frases completas com pontuação real ABNT2"
                 >
-                  <span>💬</span>
+                  <MessageSquare className="w-3.5 h-3.5" />
                   <span>Frases</span>
                 </button>
                 <button
@@ -700,7 +731,7 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
                   }`}
                   title="Código & Símbolos especiais: {}, [], (), <>, ;, ===, =>"
                 >
-                  <span>💻</span>
+                  <Code2 className="w-3.5 h-3.5" />
                   <span>Código</span>
                 </button>
               </div>
@@ -809,7 +840,7 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
 
                 {isPaused && (
                   <span className="text-[10px] text-amber-300 bg-amber-500/20 border border-amber-500/40 px-2 py-0.5 rounded-md flex items-center gap-1 font-bold animate-pulse">
-                    <span>⏸️</span>
+                    <Pause className="w-3 h-3 text-amber-400" />
                     <span>Pausa</span>
                   </span>
                 )}
@@ -919,12 +950,12 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
                   {isOverloaded ? (
                     <>
                       <AlertTriangle className="w-3.5 h-3.5 text-rose-400 animate-ping flex-shrink-0" />
-                      <span className="text-rose-300 truncate">⚡ SOBRECARGA! (0.5x) — Acerte 3 teclas p/ estabilizar</span>
+                      <span className="text-rose-300 truncate">SOBRECARGA! (0.5x) — Acerte 3 teclas p/ estabilizar</span>
                     </>
                   ) : consecutiveErrors === 2 ? (
                     <>
                       <AlertCircle className="w-3.5 h-3.5 text-amber-400 animate-bounce flex-shrink-0" />
-                      <span className="text-amber-300 truncate">⚠️ 2 Erros Seguidos! Cuidado com a Sobrecarga!</span>
+                      <span className="text-amber-300 truncate">2 Erros Seguidos! Cuidado com a Sobrecarga!</span>
                     </>
                   ) : maxFocusBuffer === 0 ? (
                     <>
@@ -1011,7 +1042,7 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
                 : 'bg-zinc-800/70 border-zinc-700/80 text-zinc-300'
             }`}>
               {comboStreak >= 15 ? (
-                <span className="text-sm select-none">🚀</span>
+                <Rocket className="w-4 h-4 text-rose-400 animate-pulse" />
               ) : comboStreak >= 5 ? (
                 <Flame className="w-4 h-4 text-amber-400 animate-bounce" />
               ) : (
@@ -1074,8 +1105,8 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
 
               {/* Caixa de destaque sobre a Loja de Upgrades */}
               <div className="w-full max-w-md bg-amber-500/10 border border-amber-500/40 rounded-xl p-3 sm:p-3.5 mb-5 text-xs font-mono text-amber-200 flex items-center gap-3 text-left shadow-inner">
-                <div className="p-2 rounded-lg bg-amber-500/20 border border-amber-400/40 text-amber-300 text-xl flex-shrink-0">
-                  🛒
+                <div className="p-2 rounded-lg bg-amber-500/20 border border-amber-400/40 text-amber-300 flex-shrink-0">
+                  <ShoppingBag className="w-5 h-5" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <span className="font-bold text-white text-xs sm:text-sm block">A Loja de Upgrades está liberada!</span>
@@ -1122,10 +1153,11 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
               <button
                 type="button"
                 onClick={onCancelDrill}
-                className="text-[10px] font-bold text-zinc-400 hover:text-white px-2 py-0.5 rounded bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-700/60 transition cursor-pointer flex-shrink-0"
+                className="text-[10px] font-bold text-zinc-400 hover:text-white px-2 py-0.5 rounded bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-700/60 transition cursor-pointer flex-shrink-0 flex items-center gap-1"
                 title="Encerrar treino e retornar ao vocabulário regular"
               >
-                Encerrar ✕
+                <span>Encerrar</span>
+                <X className="w-3 h-3" />
               </button>
             )}
           </div>
@@ -1136,8 +1168,9 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
           <div className={`w-full ${cardMaxWidthClass} mt-1.5 px-3 py-1 bg-gradient-to-r from-amber-950/95 via-purple-950/90 to-indigo-950/95 border border-amber-500/60 rounded-xl flex items-center justify-between gap-2 shadow-sm font-mono text-xs animate-in fade-in transition-[max-width] duration-300`}>
             <div className="flex items-center gap-2 min-w-0 truncate">
               <Target className="w-3.5 h-3.5 text-amber-400 animate-bounce flex-shrink-0" />
-              <span className="text-[11px] text-zinc-300 truncate font-medium">
-                💡 Calibrar teclas:
+              <span className="text-[11px] text-zinc-300 truncate font-medium flex items-center gap-1">
+                <Lightbulb className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span>Calibrar teclas:</span>
               </span>
               <div className="flex gap-1 flex-shrink-0">
                 {suggestedDrillPrompt.keys.map((k) => (
@@ -1163,10 +1196,10 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
               <button
                 type="button"
                 onClick={handleDismissSuggestion}
-                className="px-1.5 py-0.5 rounded-md text-zinc-500 hover:text-zinc-300 font-mono text-[10px] transition cursor-pointer"
+                className="p-1 rounded-md text-zinc-500 hover:text-zinc-300 font-mono transition cursor-pointer"
                 title="Dispensar sugestão temporariamente"
               >
-                ✕
+                <X className="w-3 h-3" />
               </button>
             </div>
           </div>
@@ -1240,7 +1273,7 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
                   ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
                   : 'bg-zinc-800 text-zinc-500 border-zinc-700'
               }`}>
-                <span>🔑</span>
+                <Key className="w-3 h-3 text-amber-400" />
                 <span>{dungeonKeys}/{maxDungeonKeys}</span>
               </span>
             </div>
@@ -1300,10 +1333,10 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
               }`}
               title={
                 isAdmin
-                  ? '⚔️ Arena 1x1 (Acesso Liberado para ADM: wrobel.marcos@gmail.com)'
+                  ? 'Arena 1x1 (Acesso Liberado para Administrador)'
                   : playerRankLevel >= 100
-                  ? '⚔️ Arena 1x1 Multiplayer (Liberado para Lendas Leopoldina!)'
-                  : `🔒 Arena 1x1 (Requer Nível 100 • Seu Nível: ${playerRankLevel}/100)`
+                  ? 'Arena 1x1 Multiplayer (Liberado para Lendas Leopoldina!)'
+                  : `Arena 1x1 (Requer Nível 100 • Seu Nível: ${playerRankLevel}/100)`
               }
             >
               {isArenaUnlocked ? (
@@ -1339,13 +1372,13 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
               }`}
               title={
                 isAdmin
-                  ? '🌌 Forja Quântica (Acesso Liberado para ADM: Converter Bytes em Fragmentos Quânticos)'
+                  ? 'Forja Quântica (Acesso Liberado para Administrador: Converter Bytes em Fragmentos Quânticos)'
                   : playerRankLevel >= 100
-                  ? '🌌 Forja Quântica (Desbloqueado para Lendas Leopoldina: Converta Bytes em Fragmentos Quânticos!)'
-                  : `🔒 Forja Quântica (Requer Nível 100 • Seu Nível: ${playerRankLevel}/100)`
+                  ? 'Forja Quântica (Desbloqueado para Lendas Leopoldina: Converta Bytes em Fragmentos Quânticos!)'
+                  : `Forja Quântica (Requer Nível 100 • Seu Nível: ${playerRankLevel}/100)`
               }
             >
-              <span className={`text-sm ${isConverterUnlocked ? 'animate-pulse' : 'opacity-60'}`}>🌌</span>
+              <Atom className={`w-4 h-4 text-cyan-400 ${isConverterUnlocked ? 'animate-spin' : 'opacity-60'}`} />
               <span className="tracking-wide">FORJA</span>
               {quantumFragments > 0 ? (
                 <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-cyan-500/25 text-cyan-300 border border-cyan-500/40 text-[10px] font-mono font-bold">

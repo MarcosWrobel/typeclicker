@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
+import { MessageSquare, CheckCheck, Play } from 'lucide-react';
 import { TerminalThemeId } from '../types/cosmetics';
 
 interface TerminalThemeEffectsProps {
@@ -496,8 +497,10 @@ export const TerminalThemeEffects: React.FC<TerminalThemeEffectsProps> = ({
                 ease: 'easeInOut'
               }}
             >
-              <span>💬</span>
-              <span className="text-[#25d366] font-bold">✓✓</span>
+              <div className="flex items-center gap-1">
+                <MessageSquare className="w-4 h-4 text-emerald-400" />
+                <CheckCheck className="w-3.5 h-3.5 text-[#25d366]" />
+              </div>
             </motion.div>
           ))}
         </div>
@@ -565,7 +568,7 @@ export const TerminalThemeEffects: React.FC<TerminalThemeEffectsProps> = ({
               }}
               transition={{ duration: 3 + i * 0.8, repeat: Infinity, ease: 'easeInOut' }}
             >
-              ▶
+              <Play className="w-5 h-5 fill-red-500/20 text-red-500/30" />
             </motion.div>
           ))}
         </div>

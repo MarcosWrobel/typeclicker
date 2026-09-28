@@ -6,7 +6,11 @@ import {
   Zap,
   CheckCircle2,
   X,
-  Sparkles
+  Sparkles,
+  Flag,
+  Rocket,
+  Medal,
+  Keyboard
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { sound } from '../utils/audio';
@@ -37,7 +41,7 @@ export const ClassroomRaceArena: React.FC<ClassroomRaceArenaProps> = ({
   race,
   studentName,
   studentNickname,
-  studentAvatar = '🏎️',
+  studentAvatar = 'tux',
   studentClass,
   userId,
   isAdmin = false,
@@ -423,8 +427,8 @@ export const ClassroomRaceArena: React.FC<ClassroomRaceArenaProps> = ({
         {/* Top Header da Corrida */}
         <div className="px-6 py-4 bg-black/60 border-b border-zinc-800 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-amber-500/20 border border-amber-500/50 flex items-center justify-center text-2xl shadow-inner text-amber-400">
-              🏁
+            <div className="w-11 h-11 rounded-2xl bg-amber-500/20 border border-amber-500/50 flex items-center justify-center shadow-inner text-amber-400">
+              <Flag className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -474,13 +478,13 @@ export const ClassroomRaceArena: React.FC<ClassroomRaceArenaProps> = ({
         {race.winner && race.winner.userId !== userId && !isFinished && (
           <div className="px-6 py-2.5 bg-gradient-to-r from-amber-950/80 via-purple-950/80 to-amber-950/80 border-b border-amber-500/40 flex items-center justify-between text-xs font-mono animate-pulse">
             <span className="flex items-center gap-2 text-amber-300 font-bold">
-              <span>🏆</span>
+              <Trophy className="w-4 h-4 text-amber-400 shrink-0" />
               <span>
                 <strong>{race.winner.apelido}</strong> ({race.winner.turma}) cruzou a linha de chegada em 1º lugar! ({race.winner.wpm} PPM)
               </span>
             </span>
             <span className="text-zinc-300 hidden sm:inline">
-              Continue digitando para concluir e registrar seu tempo! 🚀
+              Continue digitando para concluir e registrar seu tempo!
             </span>
           </div>
         )}
@@ -526,8 +530,9 @@ export const ClassroomRaceArena: React.FC<ClassroomRaceArenaProps> = ({
                 exit={{ opacity: 0, scale: 1.2 }}
                 className="absolute inset-0 z-40 bg-black/90 flex flex-col items-center justify-center p-6 text-center select-none"
               >
-                <span className="text-amber-400 text-xs sm:text-sm font-black tracking-widest uppercase font-mono mb-3 animate-pulse">
-                  ⚡ O PROFESSOR DISPAROU A CORRIDA DA TURMA!
+                <span className="text-amber-400 text-xs sm:text-sm font-black tracking-widest uppercase font-mono mb-3 animate-pulse flex items-center gap-1.5">
+                  <Zap className="w-4 h-4 text-amber-400" />
+                  O PROFESSOR DISPAROU A CORRIDA DA TURMA!
                 </span>
 
                 <motion.div
@@ -537,11 +542,11 @@ export const ClassroomRaceArena: React.FC<ClassroomRaceArenaProps> = ({
                   transition={{ duration: 0.5 }}
                   className="w-28 h-28 sm:w-36 sm:h-36 rounded-3xl bg-amber-500/20 border-4 border-amber-400 flex items-center justify-center text-6xl sm:text-7xl font-black text-amber-300 shadow-[0_0_80px_rgba(245,158,11,0.6)] font-mono mb-4"
                 >
-                  {countdown > 0 ? countdown : '🚀'}
+                  {countdown > 0 ? countdown : <Rocket className="w-16 h-16 text-amber-300 animate-bounce" />}
                 </motion.div>
 
                 <h3 className="text-xl sm:text-2xl font-black text-white uppercase tracking-wide">
-                  {countdown > 0 ? 'Prepare as mãos no teclado!' : 'ACELERAR! 🏁'}
+                  {countdown > 0 ? 'Prepare as mãos no teclado!' : 'ACELERAR!'}
                 </h3>
                 <p className="text-xs sm:text-sm text-zinc-400 mt-2 max-w-md font-mono">
                   Todos os alunos estão prontos para digitar o mesmo texto. O primeiro a completar 100% vence a corrida!
@@ -567,8 +572,9 @@ export const ClassroomRaceArena: React.FC<ClassroomRaceArenaProps> = ({
             }`}
           >
             {pendingAccent && (
-              <div className="inline-block px-3 py-1 mb-3 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/50 text-xs font-bold font-mono animate-pulse shadow-[0_0_12px_rgba(245,158,11,0.25)]">
-                ⌨️ {getAccentDisplayName(pendingAccent)} (digite a vogal correspondente)
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 mb-3 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/50 text-xs font-bold font-mono animate-pulse shadow-[0_0_12px_rgba(245,158,11,0.25)]">
+                <Keyboard className="w-3.5 h-3.5 text-amber-400" />
+                <span>{getAccentDisplayName(pendingAccent)} (digite a vogal correspondente)</span>
               </div>
             )}
 
@@ -617,8 +623,8 @@ export const ClassroomRaceArena: React.FC<ClassroomRaceArenaProps> = ({
             >
               {isWinner ? (
                 <div className="space-y-3 max-w-lg">
-                  <div className="w-16 h-16 rounded-2xl bg-amber-500/20 border-2 border-amber-400 flex items-center justify-center text-4xl mx-auto shadow-[0_0_40px_rgba(245,158,11,0.8)] animate-bounce">
-                    🏆
+                  <div className="w-16 h-16 rounded-2xl bg-amber-500/20 border-2 border-amber-400 flex items-center justify-center mx-auto shadow-[0_0_40px_rgba(245,158,11,0.8)] animate-bounce text-amber-400">
+                    <Trophy className="w-10 h-10" />
                   </div>
                   <h3 className="text-2xl sm:text-3xl font-black text-amber-300 uppercase tracking-wide">
                     VOCÊ FOI O VENCEDOR DA CORRIDA!
@@ -635,15 +641,21 @@ export const ClassroomRaceArena: React.FC<ClassroomRaceArenaProps> = ({
                 </div>
               ) : (
                 <div className="space-y-3 max-w-lg">
-                  <div className="w-14 h-14 rounded-2xl bg-zinc-800 border-2 border-zinc-600 flex items-center justify-center text-3xl mx-auto shadow-inner">
-                    {finishedPosition === 2 ? '🥈' : finishedPosition === 3 ? '🥉' : '🏁'}
+                  <div className="w-14 h-14 rounded-2xl bg-zinc-800 border-2 border-zinc-600 flex items-center justify-center mx-auto shadow-inner">
+                    {finishedPosition === 2 ? (
+                      <Medal className="w-8 h-8 text-slate-300" />
+                    ) : finishedPosition === 3 ? (
+                      <Medal className="w-8 h-8 text-amber-600" />
+                    ) : (
+                      <Flag className="w-8 h-8 text-amber-400" />
+                    )}
                   </div>
                   <h3 className="text-xl sm:text-2xl font-black text-white uppercase tracking-wide">
                     {finishedPosition === 2
-                      ? '🥈 2º LUGAR NA CORRIDA!'
+                      ? '2º LUGAR NA CORRIDA!'
                       : finishedPosition === 3
-                      ? '🥉 3º LUGAR NA CORRIDA!'
-                      : `🏁 ${finishedPosition || 'Concluído'}º LUGAR NA CORRIDA!`}
+                      ? '3º LUGAR NA CORRIDA!'
+                      : `${finishedPosition || 'Concluído'}º LUGAR NA CORRIDA!`}
                   </h3>
                   <p className="text-sm text-zinc-400 font-mono">
                     Excelente desempenho! Você completou o texto com <strong className="text-white">{currentWpm} PPM</strong> e precisão de <strong className="text-white">{currentAccuracy}%</strong> em <strong className="text-cyan-400">{secondsDisplay}s</strong>.

@@ -28,7 +28,18 @@ import {
   RotateCcw,
   Code,
   Calculator,
-  GraduationCap
+  GraduationCap,
+  Briefcase,
+  Palette,
+  Award,
+  Target,
+  Radio,
+  KeyRound,
+  Gauge,
+  Skull,
+  Puzzle,
+  X,
+  Coins,
 } from 'lucide-react';
 import { GameState, CurricularTrackId } from '../types';
 import { RPG_CLASSES } from '../types/rpgClass';
@@ -39,6 +50,8 @@ import { calculatePlayerRank, formatBytes } from '../utils/formatting';
 import { getCurricularTrack } from '../data/tracks';
 import { getOverallAchievementsStats } from '../services/achievementEngine';
 import { StudentAvatarRenderer } from './vectors/StudentAvatarRenderer';
+import { RpgClassIcon } from './vectors/rpg/RpgClassIcon';
+import { TrackIconRenderer } from './vectors';
 import { sound } from '../utils/audio';
 import { LeaderboardMetric } from './LeaderboardModal';
 import { useGameCatalog, GameMetadata, GameSubject, GameGenre } from '../data/gameCatalog';
@@ -216,8 +229,8 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
           
           {/* Logo & Escola */}
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500/20 via-teal-500/10 to-sky-500/10 border border-emerald-500/40 flex items-center justify-center text-emerald-400 font-mono text-xl shadow-[0_0_20px_rgba(16,185,129,0.2)]">
-              🎮
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500/20 via-teal-500/10 to-sky-500/10 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.2)]">
+              <Gamepad2 className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -251,8 +264,8 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
                     {studentNickname}
                   </span>
                   {currentRpgClass && (
-                    <span title={currentRpgClass.name} className="text-xs">
-                      {currentRpgClass.icon}
+                    <span title={currentRpgClass.name} className="w-3.5 h-3.5 inline-block">
+                      <RpgClassIcon rpgClass={currentRpgClass.id} className="w-full h-full" />
                     </span>
                   )}
                 </div>
@@ -274,8 +287,9 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
               >
                 <Sparkles className="w-4 h-4 text-purple-400 group-hover:rotate-12 transition-transform" />
                 <span className="hidden sm:inline">Customização</span>
-                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-purple-500/25 text-purple-300 font-extrabold">
-                  {state.cosmetics?.levelTokens ?? 0}🪙
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-purple-500/25 text-purple-300 font-extrabold flex items-center gap-1">
+                  {state.cosmetics?.levelTokens ?? 0}
+                  <Coins className="w-3 h-3 text-amber-400" />
                 </span>
               </button>
             )}
@@ -343,7 +357,7 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
             className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-purple-950/40 via-zinc-900/60 to-emerald-950/40 border border-purple-500/30 flex items-center justify-between gap-3 flex-wrap shadow-lg"
           >
             <div className="flex items-center gap-2.5 flex-wrap">
-              <span className="text-xl">🎒</span>
+              <Briefcase className="w-5 h-5 text-purple-400 shrink-0" />
               <span className="text-xs sm:text-sm font-medium text-zinc-300">
                 Sessão em Andamento no Laboratório:
               </span>
@@ -353,8 +367,8 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
                 </span>
               )}
               {activeTrack && (
-                <span className="px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-mono font-bold flex items-center gap-1">
-                  <span>{getCurricularTrack(activeTrack).icon}</span>
+                <span className="px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-mono font-bold flex items-center gap-1.5">
+                  <TrackIconRenderer trackId={activeTrack} className="w-3.5 h-3.5 text-emerald-400" />
                   <span>{getCurricularTrack(activeTrack).name.split('(')[0].trim()}</span>
                 </span>
               )}
@@ -375,8 +389,8 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
             className="p-4 rounded-2xl bg-gradient-to-r from-amber-950/80 via-orange-950/80 to-amber-950/80 border-2 border-amber-500/70 shadow-[0_0_30px_rgba(245,158,11,0.35)] flex items-center justify-between gap-4 flex-wrap animate-pulse"
           >
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-amber-500 text-black flex items-center justify-center font-black text-2xl shadow-lg">
-                🏁
+              <div className="w-12 h-12 rounded-xl bg-amber-500 text-black flex items-center justify-center shadow-lg">
+                <Flag className="w-6 h-6 text-black fill-current" />
               </div>
               <div>
                 <div className="flex items-center gap-2">
@@ -412,7 +426,9 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
             className="p-4 rounded-2xl bg-gradient-to-r from-rose-950/90 via-red-900/80 to-rose-950/90 border-2 border-rose-500/70 shadow-[0_0_30px_rgba(244,63,94,0.35)] flex items-center justify-between gap-4 flex-wrap animate-pulse"
           >
             <div className="flex items-center gap-3">
-              <span className="text-4xl">{activeRaid?.bossIcon || '👹'}</span>
+              <div className="w-12 h-12 rounded-2xl bg-rose-500/20 border border-rose-500/50 flex items-center justify-center shrink-0">
+                <Skull className="w-7 h-7 text-rose-500" />
+              </div>
               <div>
                 <div className="flex items-center gap-2">
                   <span className="px-2 py-0.5 rounded bg-rose-500 text-white font-mono text-[10px] font-black uppercase">
@@ -484,8 +500,8 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
             className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-purple-950/70 via-[#141624] to-indigo-950/60 border border-purple-500/40 shadow-[0_0_30px_rgba(168,85,247,0.15)] flex items-center justify-between gap-4 flex-wrap"
           >
             <div className="flex items-center gap-3.5 min-w-0">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500/30 via-indigo-500/20 to-pink-500/20 border border-purple-500/50 flex items-center justify-center text-2xl shadow-inner shrink-0">
-                🎨
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500/30 via-indigo-500/20 to-pink-500/20 border border-purple-500/50 flex items-center justify-center shadow-inner shrink-0">
+                <Palette className="w-6 h-6 text-purple-400" />
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -500,7 +516,7 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
                   Central de Customização do Aluno
                 </h3>
                 <p className="text-xs text-zinc-300 mt-0.5 line-clamp-1">
-                  Converta seus Bytes dos jogos em Fichas 🪙 e desbloqueie temas retrô, skins do mascote Bytezinho, sons mecânicos e molduras de perfil!
+                  Converta seus Bytes dos jogos em Fichas e desbloqueie temas retrô, skins do mascote Bytezinho, sons mecânicos e molduras de perfil!
                 </p>
               </div>
             </div>
@@ -510,7 +526,7 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
                 <span className="text-zinc-400">Saldo:</span>
                 <span className="text-emerald-400 font-bold">{formatBytes(state.bytes)}</span>
                 <span className="text-zinc-500">•</span>
-                <span className="text-amber-300 font-bold">{state.cosmetics?.levelTokens ?? 0} Fichas 🪙</span>
+                <span className="text-amber-300 font-bold">{state.cosmetics?.levelTokens ?? 0} Fichas</span>
               </div>
 
               <button
@@ -545,7 +561,29 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
                         : 'bg-[#12151c] text-zinc-400 hover:text-white hover:bg-zinc-800/80 border border-zinc-800'
                     }`}
                   >
-                    <span>{cat === 'Todos' ? '🎮 Todos os Jogos' : cat === 'Oficiais' ? '👨‍🏫 Oficiais' : cat === 'Alunos' ? '🎓 Feitos por Alunos' : '✨ Novidades'}</span>
+                    <span className="flex items-center gap-1.5">
+                      {cat === 'Todos' ? (
+                        <>
+                          <Gamepad2 className="w-3.5 h-3.5" />
+                          <span>Todos os Jogos</span>
+                        </>
+                      ) : cat === 'Oficiais' ? (
+                        <>
+                          <Award className="w-3.5 h-3.5" />
+                          <span>Oficiais</span>
+                        </>
+                      ) : cat === 'Alunos' ? (
+                        <>
+                          <GraduationCap className="w-3.5 h-3.5" />
+                          <span>Feitos por Alunos</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-3.5 h-3.5" />
+                          <span>Novidades</span>
+                        </>
+                      )}
+                    </span>
                     <span className={`px-2 py-0.5 rounded-full text-[10px] ${
                       isActive ? 'bg-black/20 text-black font-black' : 'bg-zinc-800 text-zinc-400'
                     }`}>
@@ -586,9 +624,10 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
                 <button
                   type="button"
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white text-xs cursor-pointer"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white cursor-pointer p-0.5"
+                  title="Limpar busca"
                 >
-                  ✕
+                  <X className="w-3.5 h-3.5" />
                 </button>
               )}
             </div>
@@ -603,7 +642,7 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
                 >
                   {subjects.map((sub) => (
                     <option key={sub} value={sub} className="bg-[#12151c] text-white">
-                      {sub === 'Todas' ? '📚 Todas as Matérias' : `📖 ${sub}`}
+                      {sub === 'Todas' ? 'Todas as Matérias' : sub}
                     </option>
                   ))}
                 </select>
@@ -619,7 +658,7 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
                 >
                   {genres.map((gen) => (
                     <option key={gen} value={gen} className="bg-[#12151c] text-white">
-                      {gen === 'Todos' ? '🎲 Todos os Gêneros' : `🎯 ${gen}`}
+                      {gen === 'Todos' ? 'Todos os Gêneros' : gen}
                     </option>
                   ))}
                 </select>
@@ -637,8 +676,8 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
           {/* Estado Vazio caso nenhum jogo bata com os filtros */}
           {filteredGames.length === 0 && (
             <div className="col-span-full py-16 px-6 text-center rounded-3xl bg-[#12151c]/60 border border-zinc-800 flex flex-col items-center justify-center">
-              <div className="w-16 h-16 rounded-2xl bg-zinc-800/80 flex items-center justify-center text-3xl mb-4">
-                🔍
+              <div className="w-16 h-16 rounded-2xl bg-zinc-800/80 flex items-center justify-center mb-4">
+                <Search className="w-8 h-8 text-zinc-400" />
               </div>
               <h3 className="text-xl font-bold text-white mb-2">Nenhum jogo encontrado</h3>
               <p className="text-sm text-zinc-400 max-w-md mb-6">
@@ -673,15 +712,15 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
                         <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                         {game.badgeTag}
                       </span>
-                      <span className="text-2xl">⌨️</span>
+                      <Keyboard className="w-6 h-6 text-emerald-400" />
                     </div>
 
                     <div className="flex items-center gap-1.5 mb-2">
-                      <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-emerald-400">
-                        📚 {game.subject}
+                      <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-emerald-400 flex items-center gap-1">
+                        <BookOpen className="w-3 h-3 text-sky-400" /> {game.subject}
                       </span>
-                      <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-zinc-400">
-                        🎯 {game.genre}
+                      <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-zinc-400 flex items-center gap-1">
+                        <Target className="w-3 h-3 text-purple-400" /> {game.genre}
                       </span>
                     </div>
 
@@ -734,15 +773,15 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
                         <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
                         {game.badgeTag}
                       </span>
-                      <span className="text-2xl">📡</span>
+                      <Radio className="w-6 h-6 text-cyan-400" />
                     </div>
 
                     <div className="flex items-center gap-1.5 mb-2">
-                      <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-cyan-400">
-                        📚 {game.subject}
+                      <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-cyan-400 flex items-center gap-1">
+                        <BookOpen className="w-3 h-3 text-sky-400" /> {game.subject}
                       </span>
-                      <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-zinc-400">
-                        🎯 {game.genre}
+                      <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-zinc-400 flex items-center gap-1">
+                        <Target className="w-3 h-3 text-purple-400" /> {game.genre}
                       </span>
                     </div>
 
@@ -806,15 +845,15 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
                         <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
                         {game.badgeTag}
                       </span>
-                      <span className="text-2xl">⚡</span>
+                      <Gauge className="w-6 h-6 text-amber-400" />
                     </div>
 
                     <div className="flex items-center gap-1.5 mb-2">
-                      <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-amber-400">
-                        📚 {game.subject}
+                      <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-amber-400 flex items-center gap-1">
+                        <BookOpen className="w-3 h-3 text-sky-400" /> {game.subject}
                       </span>
-                      <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-zinc-400">
-                        🎯 {game.genre}
+                      <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-zinc-400 flex items-center gap-1">
+                        <Target className="w-3 h-3 text-purple-400" /> {game.genre}
                       </span>
                     </div>
 
@@ -878,15 +917,15 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
                         <Timer className="w-3.5 h-3.5 text-amber-400" />
                         {game.badgeTag}
                       </span>
-                      <span className="text-2xl">⚡</span>
+                      <Timer className="w-6 h-6 text-amber-400" />
                     </div>
 
                     <div className="flex items-center gap-1.5 mb-2">
-                      <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-amber-400">
-                        📚 {game.subject}
+                      <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-amber-400 flex items-center gap-1">
+                        <BookOpen className="w-3 h-3 text-sky-400" /> {game.subject}
                       </span>
-                      <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-zinc-400">
-                        🎯 {game.genre}
+                      <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-zinc-400 flex items-center gap-1">
+                        <Target className="w-3 h-3 text-purple-400" /> {game.genre}
                       </span>
                     </div>
 
@@ -939,15 +978,15 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
                         <Swords className="w-3.5 h-3.5 text-purple-400" />
                         {game.badgeTag}
                       </span>
-                      <span className="text-2xl">🗝️</span>
+                      <KeyRound className="w-6 h-6 text-purple-400" />
                     </div>
 
                     <div className="flex items-center gap-1.5 mb-2">
-                      <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-purple-400">
-                        📚 {game.subject}
+                      <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-purple-400 flex items-center gap-1">
+                        <BookOpen className="w-3 h-3 text-sky-400" /> {game.subject}
                       </span>
-                      <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-zinc-400">
-                        🎯 {game.genre}
+                      <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-zinc-400 flex items-center gap-1">
+                        <Target className="w-3 h-3 text-purple-400" /> {game.genre}
                       </span>
                     </div>
 
@@ -962,14 +1001,17 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
                     </p>
 
                     <div className="flex flex-wrap gap-1.5 mb-6">
-                      <span className="px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] font-mono text-zinc-300">
-                        ⚔️ Andar {state.quests?.rpgDungeonFloor ?? 1}
+                      <span className="px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] font-mono text-zinc-300 flex items-center gap-1">
+                        <Swords className="w-3 h-3 text-rose-400" />
+                        <span>Andar {state.quests?.rpgDungeonFloor ?? 1}</span>
                       </span>
-                      <span className="px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] font-mono text-zinc-300">
-                        🗝️ {state.quests?.dungeon?.keys ?? 3} Chaves
+                      <span className="px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] font-mono text-zinc-300 flex items-center gap-1">
+                        <KeyRound className="w-3 h-3 text-amber-400" />
+                        <span>{state.quests?.dungeon?.keys ?? 3} Chaves</span>
                       </span>
-                      <span className="px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] font-mono text-zinc-300">
-                        🛡️ Equipamentos
+                      <span className="px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] font-mono text-zinc-300 flex items-center gap-1">
+                        <Shield className="w-3 h-3 text-indigo-400" />
+                        <span>Equipamentos</span>
                       </span>
                     </div>
                   </div>
@@ -1010,15 +1052,15 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
                         <Flag className="w-3.5 h-3.5" />
                         {isRaceActive ? 'AO VIVO NA TURMA' : game.badgeTag}
                       </span>
-                      <span className="text-2xl">🏎️</span>
+                      <Flag className="w-6 h-6 text-amber-400" />
                     </div>
 
                     <div className="flex items-center gap-1.5 mb-2">
-                      <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-amber-400">
-                        📚 {game.subject}
+                      <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-amber-400 flex items-center gap-1">
+                        <BookOpen className="w-3 h-3 text-sky-400" /> {game.subject}
                       </span>
-                      <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-zinc-400">
-                        🎯 {game.genre}
+                      <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-zinc-400 flex items-center gap-1">
+                        <Target className="w-3 h-3 text-purple-400" /> {game.genre}
                       </span>
                     </div>
 
@@ -1109,15 +1151,15 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
                         <Swords className="w-3.5 h-3.5" />
                         {isRaidActive ? 'CHEFE INVASOR ATIVO' : game.badgeTag}
                       </span>
-                      <span className="text-2xl">👹</span>
+                      <Skull className="w-6 h-6 text-rose-500" />
                     </div>
 
                     <div className="flex items-center gap-1.5 mb-2">
-                      <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-rose-400">
-                        📚 {game.subject}
+                      <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-rose-400 flex items-center gap-1">
+                        <BookOpen className="w-3 h-3 text-sky-400" /> {game.subject}
                       </span>
-                      <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-zinc-400">
-                        🎯 {game.genre}
+                      <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-zinc-400 flex items-center gap-1">
+                        <Target className="w-3 h-3 text-purple-400" /> {game.genre}
                       </span>
                     </div>
 
@@ -1175,17 +1217,27 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
                       {game.isNew && <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />}
                       {game.badgeTag}
                     </span>
-                    <span className="text-2xl">
-                      {game.icon === 'Calculator' ? '🔢' : game.icon === 'Cpu' ? '💻' : game.icon === 'Code' ? '🧩' : game.icon === 'Puzzle' ? '🤖' : '🎮'}
-                    </span>
+                    <div className="shrink-0">
+                      {game.icon === 'Calculator' ? (
+                        <Calculator className="w-6 h-6 text-emerald-400" />
+                      ) : game.icon === 'Cpu' ? (
+                        <Cpu className="w-6 h-6 text-cyan-400" />
+                      ) : game.icon === 'Code' ? (
+                        <Code className="w-6 h-6 text-purple-400" />
+                      ) : game.icon === 'Puzzle' ? (
+                        <Puzzle className="w-6 h-6 text-amber-400" />
+                      ) : (
+                        <Gamepad2 className="w-6 h-6 text-indigo-400" />
+                      )}
+                    </div>
                   </div>
 
                   <div className="flex items-center gap-1.5 mb-2">
-                    <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-indigo-400">
-                      📚 {game.subject}
+                    <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-indigo-400 flex items-center gap-1">
+                      <BookOpen className="w-3 h-3 text-sky-400" /> {game.subject}
                     </span>
-                    <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-zinc-400">
-                      🎯 {game.genre}
+                    <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-zinc-400 flex items-center gap-1">
+                      <Target className="w-3 h-3 text-purple-400" /> {game.genre}
                     </span>
                   </div>
 

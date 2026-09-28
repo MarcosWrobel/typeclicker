@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Sparkles, Check, Lock, Volume2, Palette, Bot, Coins, LayoutGrid, Flame, Swords, Play, Award, Database } from 'lucide-react';
+import { X, Sparkles, Check, CheckCheck, Lock, Volume2, Palette, Bot, Coins, LayoutGrid, Flame, Swords, Play, Award, Database, Crown, Skull, MessageSquare, Paperclip, Disc, Film, Atom, Settings, PenTool, Heart, Moon, ShoppingBag, Music, ShoppingCart, Keyboard, Trophy, ArrowRight } from 'lucide-react';
 import { PlayerCosmetics, TerminalThemeId, BytezinhoSkinId, KeySoundThemeId, LayoutSkinId, AnimationEffectId, CosmeticCurrency } from '../types/cosmetics';
 import { TERMINAL_THEMES, BYTEZINHO_SKINS, KEY_SOUNDS } from '../constants/themes';
 import { LAYOUT_CONFIGS, ANIMATION_CONFIGS, getAllUnlockedCosmetics } from '../constants/cosmeticsCatalog';
 import { CARD_FRAME_CONFIGS, CardFrameId } from '../types/cardFrames';
+import { CardFrameIcon } from './vectors/CardFrameIcon';
 import { StudentProfileCard } from './StudentProfileCard';
 import { GameState } from '../types';
 import { audioSynthesizer } from '../services/audioSynthesizer';
@@ -453,21 +454,21 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
               <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 font-mono font-bold text-xs sm:text-sm shadow-[0_0_12px_rgba(245,158,11,0.2)]">
                 <Coins className="w-4 h-4 text-amber-400 animate-pulse" />
                 <span>{currentTokens}</span>
-                <span className="text-[10px] text-amber-400/80 hidden sm:inline">Fichas 🪙</span>
+                <span className="text-[10px] text-amber-400/80 hidden sm:inline">Fichas</span>
               </div>
 
               {/* Saldo de Moedas de Duelo */}
               <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-rose-500/15 border border-rose-500/40 text-rose-300 font-mono font-bold text-xs sm:text-sm shadow-[0_0_12px_rgba(244,63,94,0.2)]">
                 <Swords className="w-4 h-4 text-rose-400 animate-pulse" />
                 <span>{currentDuelTokens}</span>
-                <span className="text-[10px] text-rose-400/80 hidden sm:inline">Duelo ⚔️</span>
+                <span className="text-[10px] text-rose-400/80 hidden sm:inline">Duelo</span>
               </div>
 
               {/* Saldo de Fragmentos Quânticos */}
               <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-cyan-500/15 border border-cyan-500/40 text-cyan-300 font-mono font-bold text-xs sm:text-sm shadow-[0_0_12px_rgba(6,182,212,0.25)]">
                 <Sparkles className="w-4 h-4 text-cyan-400 animate-spin" style={{ animationDuration: '8s' }} />
                 <span>{currentQuantumFragments}</span>
-                <span className="text-[10px] text-cyan-300/80 hidden sm:inline">Quânticos 🌌</span>
+                <span className="text-[10px] text-cyan-300/80 hidden sm:inline">Quânticos</span>
               </div>
 
               <button
@@ -485,8 +486,8 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
           {onConvertBytesToTokens && state && (
             <div className="flex-shrink-0 px-4 sm:px-6 py-2.5 bg-gradient-to-r from-emerald-950/50 via-zinc-900/80 to-amber-950/50 border-b border-zinc-800 flex items-center justify-between gap-3 flex-wrap">
               <div className="flex items-center gap-2 text-xs font-mono">
-                <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/40 flex items-center gap-1">
-                  🪙 CÂMBIO ESCOLAR
+                <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/40 flex items-center gap-1.5">
+                  <Coins className="w-3.5 h-3.5 text-amber-400" /> CÂMBIO ESCOLAR
                 </span>
                 <span className="text-zinc-300 hidden xl:inline">
                   Troca de excedente de Bytes por Fichas (Cota diária: 1 resgate/dia por pacote):
@@ -513,10 +514,10 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                           : `Converter ${tier.labelBytes} em ${tier.tokens} Fichas (${tier.minLevelTip})`
                       }
                     >
-                      <span>{tier.labelBytes} ➔ {tier.tokens} 🪙</span>
+                      <span className="flex items-center gap-1.5">{tier.labelBytes} <ArrowRight className="w-3 h-3 text-zinc-400" /> {tier.tokens} <Coins className="w-3 h-3 text-amber-400 inline" /></span>
                       {redeemed ? (
-                        <span className="text-[9px] px-1 py-0.5 rounded bg-zinc-800 text-zinc-400 font-bold">
-                          ✓ Resgatado
+                        <span className="text-[9px] px-1 py-0.5 rounded bg-zinc-800 text-zinc-400 font-bold flex items-center gap-1">
+                          <Check className="w-2.5 h-2.5 text-emerald-400" /> Resgatado
                         </span>
                       ) : (
                         <span className="text-[9px] px-1 py-0.2 rounded bg-zinc-800/80 text-zinc-300 font-black">
@@ -534,8 +535,8 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
           {isAdmin && (
             <div className="flex-shrink-0 px-4 sm:px-6 py-2 bg-gradient-to-r from-amber-950/60 via-purple-950/70 to-amber-950/60 border-b border-amber-500/40 flex items-center justify-between gap-2.5 flex-wrap">
               <div className="flex items-center gap-2 text-xs font-mono text-amber-300">
-                <span className="px-2 py-0.5 rounded-full bg-amber-500/25 border border-amber-500/50 font-bold flex items-center gap-1">
-                  👑 ADM: wrobel.marcos@gmail.com
+                <span className="px-2 py-0.5 rounded-full bg-amber-500/25 border border-amber-500/50 font-bold flex items-center gap-1.5">
+                  <Crown className="w-3.5 h-3.5 text-amber-400" /> ADM: wrobel.marcos@gmail.com
                 </span>
                 <span className="hidden md:inline text-zinc-300 text-[11px]">
                   Modo de Testes irrestrito: desbloqueio livre de cosméticos.
@@ -558,7 +559,7 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                   title="Adicionar +5.000 Tokens, +5.000 Moedas e +500 Fragmentos Quânticos"
                 >
                   <Coins className="w-3.5 h-3.5 text-amber-400" />
-                  <span>+5k Moedas / +500 🌌</span>
+                  <span className="flex items-center gap-1">+5k Moedas / +500 <Atom className="w-3 h-3 text-cyan-400 inline" /></span>
                 </button>
               </div>
             </div>
@@ -566,10 +567,14 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
 
           {/* Dica Pedagógica e Filtro de Moedas */}
           <div className="flex-shrink-0 px-4 sm:px-6 py-2 bg-purple-950/30 border-b border-purple-900/30 flex flex-wrap items-center justify-between gap-2 text-[11px] text-purple-200/90 font-mono">
-            <span className="flex items-center gap-1.5 min-w-0 truncate">
-              <span>💡</span>
-              <span className="truncate">
-                <strong>🪙 Tokens:</strong> nível escolar | <strong>⚔️ Moedas:</strong> Arena 1x1 | <strong>🌌 Fragmentos:</strong> Endgame Quântico
+            <span className="flex items-center gap-2 min-w-0 truncate">
+              <Sparkles className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+              <span className="truncate flex items-center gap-2">
+                <span className="inline-flex items-center gap-1 font-bold text-amber-300"><Coins className="w-3 h-3 text-amber-400" /> Tokens: nível escolar</span>
+                <span>|</span>
+                <span className="inline-flex items-center gap-1 font-bold text-rose-300"><Swords className="w-3 h-3 text-rose-400" /> Moedas: Arena 1x1</span>
+                <span>|</span>
+                <span className="inline-flex items-center gap-1 font-bold text-cyan-300"><Atom className="w-3 h-3 text-cyan-400" /> Fragmentos: Endgame</span>
               </span>
             </span>
 
@@ -595,7 +600,7 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                     : 'bg-zinc-800 text-zinc-400 hover:text-white'
                 }`}
               >
-                🪙 Nível Escolar
+                <Coins className="w-3 h-3" /> Nível Escolar
               </button>
               <button
                 type="button"
@@ -606,7 +611,7 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                     : 'bg-zinc-800 text-zinc-400 hover:text-white'
                 }`}
               >
-                ⚔️ Arena 1x1
+                <Swords className="w-3 h-3" /> Arena 1x1
               </button>
               <button
                 type="button"
@@ -617,7 +622,7 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                     : 'bg-zinc-800 text-zinc-400 hover:text-white'
                 }`}
               >
-                🌌 Quântico
+                <Atom className="w-3 h-3" /> Quântico
               </button>
             </div>
           </div>
@@ -806,8 +811,10 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
 
                           {layout.id === 'arcade_cabinet' && (
                             <div className="w-full h-full bg-[#181312] rounded-lg border-2 border-[#b45309] p-1 flex flex-col justify-between shadow-[inset_0_0_15px_rgba(0,0,0,0.8)] relative">
-                              <div className="h-3 bg-red-950/80 rounded flex items-center justify-center text-[8px] font-mono font-bold text-amber-300">
-                                ★ ARCADE ★
+                              <div className="h-3 bg-red-950/80 rounded flex items-center justify-center gap-1 text-[8px] font-mono font-bold text-amber-300">
+                                <Sparkles className="w-2.5 h-2.5 text-amber-400" />
+                                <span>ARCADE</span>
+                                <Sparkles className="w-2.5 h-2.5 text-amber-400" />
                               </div>
                               <div className="flex-1 my-0.5 bg-black/60 rounded border border-amber-500/30 flex items-center justify-center">
                                 <span className="text-[9px] font-mono text-amber-400 font-bold">CRT SCREEN</span>
@@ -899,7 +906,7 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                           {layout.id === 'steampunk_lab' && (
                             <div className="w-full h-full bg-[#150e0a] rounded border-2 border-amber-700/70 p-1 flex flex-col justify-between text-amber-200 font-serif text-[8px]">
                               <div className="bg-[#24150b] px-1 py-0.5 rounded border border-amber-700/50 flex items-center justify-between text-[7px] font-mono">
-                                <span className="text-amber-300 font-bold">⚙ PATENTE 1889</span>
+                                <span className="text-amber-300 font-bold flex items-center gap-1"><Settings className="w-2.5 h-2.5 inline" /> PATENTE 1889</span>
                                 <span className="text-orange-400">142 PSI</span>
                               </div>
                               <div className="flex gap-1 flex-1 my-0.5 items-stretch font-mono">
@@ -953,7 +960,7 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                               <div className="flex gap-1 flex-1 my-0.5 items-stretch">
                                 <div className="w-1/4 bg-[#0f221a]/80 border-r border-dashed border-emerald-500/20" />
                                 <div className="w-2/4 bg-[#142920] flex items-center justify-center">
-                                  <span className="text-[8px] text-yellow-100 font-bold">✎ LIÇÃO</span>
+                                  <span className="text-[8px] text-yellow-100 font-bold flex items-center gap-1"><PenTool className="w-2.5 h-2.5 inline" /> LIÇÃO</span>
                                 </div>
                                 <div className="w-1/4 bg-[#0f221a]/80 border-l border-dashed border-emerald-500/20" />
                               </div>
@@ -988,7 +995,13 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                             <div className="w-full h-full bg-[#181412] rounded border-2 border-[#4a423a] p-1 flex flex-col justify-between text-stone-300 font-mono text-[8px]">
                               <div className="bg-[#1b1815] px-1 py-0.5 border border-[#332c26] flex items-center justify-between text-[7px]">
                                 <span className="text-emerald-400 font-bold">MINECRAFT GUI</span>
-                                <span className="text-red-400">❤❤❤❤❤</span>
+                                <span className="text-red-400 flex items-center gap-0.5">
+                                  <Heart className="w-2 h-2 fill-red-500 text-red-500" />
+                                  <Heart className="w-2 h-2 fill-red-500 text-red-500" />
+                                  <Heart className="w-2 h-2 fill-red-500 text-red-500" />
+                                  <Heart className="w-2 h-2 fill-red-500 text-red-500" />
+                                  <Heart className="w-2 h-2 fill-red-500 text-red-500" />
+                                </span>
                               </div>
                               <div className="flex gap-1 flex-1 my-0.5 items-stretch">
                                 <div className="w-1/4 bg-[#24201c] border border-[#332c26]" />
@@ -1022,7 +1035,9 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                             <div className="w-full h-full bg-[#100d1c] rounded border border-emerald-500/50 p-1 flex flex-col justify-between text-yellow-200 font-mono text-[8px]">
                               <div className="bg-[#1b152b] px-1 py-0.5 rounded border border-emerald-500/40 flex items-center justify-between text-[7px]">
                                 <span className="text-yellow-400 font-bold">WORLD 8-4</span>
-                                <span className="text-emerald-400 font-bold">🪙 999</span>
+                                <span className="text-emerald-400 font-bold flex items-center gap-0.5">
+                                  <Coins className="w-2.5 h-2.5 text-amber-400 inline" /> 999
+                                </span>
                               </div>
                               <div className="flex gap-1 flex-1 my-0.5 items-stretch">
                                 <div className="w-1/4 bg-purple-950/40 rounded border border-purple-500/20" />
@@ -1077,8 +1092,8 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                               </div>
                               <div className="flex gap-1 flex-1 my-0.5 items-stretch">
                                 <div className="w-1/4 bg-cyan-950/40 rounded border border-cyan-500/30" />
-                                <div className="w-2/4 bg-black rounded border border-cyan-400/60 flex items-center justify-center text-cyan-300 text-[8px] font-bold shadow-[0_0_10px_rgba(6,182,212,0.4)]">
-                                  💀 GASTER BLASTER
+                                <div className="w-2/4 bg-black rounded border border-cyan-400/60 flex items-center justify-center text-cyan-300 text-[8px] font-bold shadow-[0_0_10px_rgba(6,182,212,0.4)] gap-1">
+                                  <Skull className="w-2.5 h-2.5 inline" /> GASTER BLASTER
                                 </div>
                                 <div className="w-1/4 bg-cyan-950/40 rounded border border-cyan-500/30" />
                               </div>
@@ -1178,7 +1193,9 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                             <div className="w-full h-full bg-[#030e1c] rounded border border-sky-400/70 p-1 flex flex-col justify-between text-sky-200 font-mono text-[8px] relative overflow-hidden shadow-[0_0_10px_rgba(56,189,248,0.2)]">
                               <div className="bg-[#04152a] px-1 py-0.5 rounded border border-sky-400/40 flex items-center justify-between text-[7px]">
                                 <span className="text-emerald-400 font-bold truncate">COLINAS TROPICAIS</span>
-                                <span className="text-yellow-300 font-bold">🪙 999</span>
+                                <span className="text-yellow-300 font-bold flex items-center gap-0.5">
+                                  <Coins className="w-2.5 h-2.5 text-amber-400 inline" /> 999
+                                </span>
                               </div>
                               <div className="flex gap-1 flex-1 my-0.5 items-stretch">
                                 <div className="w-1/4 bg-emerald-950/40 rounded border border-emerald-500/30" />
@@ -1199,8 +1216,8 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                               </div>
                               <div className="flex gap-1 flex-1 my-0.5 items-stretch">
                                 <div className="w-1/4 bg-amber-950/40 rounded border border-amber-500/30" />
-                                <div className="w-2/4 bg-black/90 rounded border border-amber-500/50 flex items-center justify-center text-amber-300 text-[8px] font-bold">
-                                  🦇 TÁTICO NOTURNO
+                                <div className="w-2/4 bg-black/90 rounded border border-amber-500/50 flex items-center justify-center text-amber-300 text-[8px] font-bold gap-1">
+                                  <Moon className="w-2.5 h-2.5 inline" /> TÁTICO NOTURNO
                                 </div>
                                 <div className="w-1/4 bg-amber-950/40 rounded border border-amber-500/30" />
                               </div>
@@ -1215,16 +1232,16 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                                   <span className="w-1.5 h-1.5 rounded-full bg-[#25d366] flex-shrink-0" />
                                   <span className="text-white font-bold truncate text-[7px]">WhatsApp Web</span>
                                 </div>
-                                <span className="text-[#25d366] font-mono text-[6px]">🔒 Seguro</span>
+                                <span className="text-[#25d366] font-mono text-[6px] flex items-center gap-0.5"><Lock className="w-2 h-2 inline" /> Seguro</span>
                               </div>
                               <div className="flex gap-1 flex-1 my-0.5 items-stretch">
-                                <div className="w-1/4 bg-[#111b21] rounded border border-[#202c33] flex items-center justify-center text-[7px]">💬</div>
+                                <div className="w-1/4 bg-[#111b21] rounded border border-[#202c33] flex items-center justify-center text-[7px] text-[#25d366]"><MessageSquare className="w-2.5 h-2.5" /></div>
                                 <div className="w-2/4 bg-[#0b141a] rounded border border-[#25d366]/30 flex flex-col justify-center items-center px-1">
-                                  <div className="bg-[#005c4b] text-[#25d366] rounded px-1.5 py-0.5 text-[6px] font-bold flex items-center gap-0.5 shadow">
-                                    <span>✓✓</span> <span>Mensagem</span>
+                                  <div className="bg-[#005c4b] text-[#25d366] rounded px-1.5 py-0.5 text-[6px] font-bold flex items-center gap-1 shadow">
+                                    <CheckCheck className="w-2.5 h-2.5" /> <span>Mensagem</span>
                                   </div>
                                 </div>
-                                <div className="w-1/4 bg-[#111b21] rounded border border-[#202c33] flex items-center justify-center text-[7px]">📎</div>
+                                <div className="w-1/4 bg-[#111b21] rounded border border-[#202c33] flex items-center justify-center text-[7px] text-zinc-400"><Paperclip className="w-2.5 h-2.5" /></div>
                               </div>
                               <div className="text-[6px] text-[#25d366] text-center font-mono">STATUS ONLINE // CHAT ZAP</div>
                             </div>
@@ -1240,12 +1257,14 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                                 </div>
                               </div>
                               <div className="flex gap-1 flex-1 my-0.5 items-stretch">
-                                <div className="w-1/4 bg-[#170d24] rounded border border-pink-500/20 flex items-center justify-center text-[7px]">✦ Perfil</div>
+                                <div className="w-1/4 bg-[#170d24] rounded border border-pink-500/20 flex items-center justify-center text-[7px] gap-0.5">
+                                  <Sparkles className="w-2 h-2 text-pink-400" /> Perfil
+                                </div>
                                 <div className="w-2/4 bg-[#12071f] rounded border border-[#e1306c]/40 flex flex-col justify-center items-center">
-                                  <span className="text-[#e1306c] font-black text-[7px]">❤️ STORIES</span>
+                                  <span className="text-[#e1306c] font-black text-[7px] flex items-center gap-0.5"><Heart className="w-2 h-2 fill-[#e1306c] inline" /> STORIES</span>
                                   <span className="text-[6px] text-zinc-400">@typeclicker</span>
                                 </div>
-                                <div className="w-1/4 bg-[#170d24] rounded border border-pink-500/20 flex items-center justify-center text-[7px]">🛍️ Loja</div>
+                                <div className="w-1/4 bg-[#170d24] rounded border border-pink-500/20 flex items-center justify-center text-[7px] gap-0.5"><ShoppingBag className="w-2 h-2 inline" /> Loja</div>
                               </div>
                               <div className="text-[6px] text-pink-400 text-center font-bold">REELS & STORIES // SUNSET</div>
                             </div>
@@ -1255,7 +1274,9 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                             <div className="w-full h-full bg-[#0f0f0f] rounded border border-red-500/40 p-1 flex flex-col justify-between text-zinc-300 font-sans text-[8px] relative overflow-hidden shadow-[0_0_10px_rgba(255,0,0,0.2)]">
                               <div className="bg-[#181818] px-1.5 py-0.5 rounded flex items-center justify-between text-[7px] border-b border-[#2b2b2b]">
                                 <div className="flex items-center gap-1">
-                                  <span className="bg-[#ff0000] text-white px-1 rounded text-[5px] font-black">▶ PLAY</span>
+                                  <span className="bg-[#ff0000] text-white px-1 rounded text-[5px] font-black flex items-center gap-0.5">
+                                    <Play className="w-2 h-2 fill-white inline" /> PLAY
+                                  </span>
                                   <span className="text-white font-bold text-[7px]">YouTube</span>
                                 </div>
                                 <span className="bg-[#ff0000] text-white px-1 rounded text-[5px] font-bold">INSCREVER</span>
@@ -1279,13 +1300,13 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                               <div className="bg-[#080808] px-1.5 py-0.5 rounded flex items-center justify-between text-[7px] border-b border-[#222]">
                                 <span className="font-black text-[#fe2c55] text-[7px]">Tok<span className="text-[#00f2fe]">Type</span></span>
                                 <span className="text-white font-bold border-b border-[#fe2c55] text-[6px]">Para Você</span>
-                                <span className="text-[7px]">💿</span>
+                                <Disc className="w-2 h-2 inline text-zinc-400" />
                               </div>
                               <div className="flex gap-1 flex-1 my-0.5 items-stretch">
-                                <div className="w-1/4 bg-[#0d0d0d] rounded border border-[#222] flex items-center justify-center text-[6px]">🔥 FYP</div>
+                                <div className="w-1/4 bg-[#0d0d0d] rounded border border-[#222] flex items-center justify-center text-[6px] gap-0.5"><Flame className="w-2 h-2 text-rose-500 inline" /> FYP</div>
                                 <div className="w-2/4 bg-black rounded border border-[#00f2fe]/40 flex flex-col justify-center items-center">
-                                  <span className="text-[#00f2fe] font-mono text-[7px] font-bold">🎵 BEAT SYNC</span>
-                                  <span className="text-[#fe2c55] text-[5px]">❤️ 98.4K</span>
+                                  <span className="text-[#00f2fe] font-mono text-[7px] font-bold flex items-center gap-0.5"><Music className="w-2 h-2 text-[#00f2fe] inline" /> BEAT SYNC</span>
+                                  <span className="text-[#fe2c55] text-[5px] flex items-center gap-0.5"><Heart className="w-1.5 h-1.5 fill-[#fe2c55] inline" /> 98.4K</span>
                                 </div>
                                 <div className="w-1/4 bg-[#0d0d0d] rounded border border-[#222] flex items-center justify-center text-[6px]">Loja</div>
                               </div>
@@ -1300,7 +1321,9 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                                   <span className="w-1.5 h-1.5 bg-[#e2231a] rounded-sm" />
                                   <span className="text-white font-black text-[6px]">ROBLOX STUDIO</span>
                                 </div>
-                                <span className="text-amber-400 font-bold text-[5px]">🪙 R$ 999K</span>
+                                <span className="text-amber-400 font-bold text-[5px] flex items-center gap-0.5">
+                                  <Coins className="w-2 h-2 text-amber-400 inline" /> R$ 999K
+                                </span>
                               </div>
                               <div className="flex gap-1 flex-1 my-0.5 items-stretch">
                                 <div className="w-1/4 bg-[#1b1d24] rounded border border-[#292c37] flex items-center justify-center text-[6px]">Explorer</div>
@@ -1354,9 +1377,10 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                           {layout.features.map((feat, i) => (
                             <span
                               key={i}
-                              className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-800/80 text-zinc-300 border border-zinc-700/50"
+                              className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-800/80 text-zinc-300 border border-zinc-700/50 flex items-center gap-1"
                             >
-                              ✓ {feat}
+                              <Check className="w-2.5 h-2.5 text-emerald-400" />
+                              <span>{feat}</span>
                             </span>
                           ))}
                         </div>
@@ -1486,9 +1510,9 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                                 </span>
                               )}
                               {isQuantumCurrency && (
-                                <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 flex items-center gap-1 shadow-[0_0_8px_rgba(6,182,212,0.25)]">
-                                  <Sparkles className="w-3 h-3 text-cyan-400" /> Quântico 🌌
-                                </span>
+                                  <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 flex items-center gap-1 shadow-[0_0_8px_rgba(6,182,212,0.25)]">
+                                    <Sparkles className="w-3 h-3 text-cyan-400" /> Quântico
+                                  </span>
                               )}
                               {isDuelCurrency && (
                                 <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40 flex items-center gap-1">
@@ -1660,7 +1684,7 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
 
                           {/* Animação Específica da Skin */}
                           <div className="mt-2 flex items-center gap-1.5 text-[11px] font-mono text-emerald-300/90 bg-emerald-950/30 px-2.5 py-1 rounded-lg border border-emerald-900/30">
-                            <span className="text-xs select-none">🎬</span>
+                            <Film className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                             <span className="truncate">{skin.animationDescription}</span>
                           </div>
                         </div>
@@ -1790,7 +1814,7 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                               )}
                               {isQuantumCurrency && (
                                 <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 flex items-center gap-1 shadow-[0_0_8px_rgba(6,182,212,0.25)]">
-                                  <Sparkles className="w-3 h-3 text-cyan-400" /> Quântico 🌌
+                                  <Sparkles className="w-3 h-3 text-cyan-400" /> Quântico
                                 </span>
                               )}
                               {isDuelCurrency && (
@@ -1954,7 +1978,7 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                               )}
                               {isQuantumCurrency && (
                                 <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 flex items-center gap-1 shadow-[0_0_8px_rgba(6,182,212,0.25)]">
-                                  <Sparkles className="w-3 h-3 text-cyan-400" /> Quântico 🌌
+                                  <Sparkles className="w-3 h-3 text-cyan-400" /> Quântico
                                 </span>
                               )}
                               {isDuelCurrency && (
@@ -1979,15 +2003,15 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                         {/* As 3 Áreas de Aplicação */}
                         <div className="space-y-1.5 bg-black/40 p-2.5 rounded-lg border border-zinc-800 text-[11px] font-mono">
                           <div className="flex items-center gap-1.5 text-zinc-300">
-                            <span className="text-amber-400 font-bold">🛒 Compra:</span>
+                            <span className="text-amber-400 font-bold flex items-center gap-1"><ShoppingCart className="w-3 h-3 inline" /> Compra:</span>
                             <span className="text-zinc-400 truncate">{anim.previewSummary.purchase}</span>
                           </div>
                           <div className="flex items-center gap-1.5 text-zinc-300">
-                            <span className="text-sky-400 font-bold">⌨️ Teclas:</span>
+                            <span className="text-sky-400 font-bold flex items-center gap-1"><Keyboard className="w-3 h-3 inline" /> Teclas:</span>
                             <span className="text-zinc-400 truncate">{anim.previewSummary.terminal}</span>
                           </div>
                           <div className="flex items-center gap-1.5 text-zinc-300">
-                            <span className="text-purple-400 font-bold">🏆 Level Up:</span>
+                            <span className="text-purple-400 font-bold flex items-center gap-1"><Trophy className="w-3 h-3 inline" /> Level Up:</span>
                             <span className="text-zinc-400 truncate">{anim.previewSummary.levelUp}</span>
                           </div>
                         </div>
@@ -2170,7 +2194,7 @@ export const CosmeticsShopModal: React.FC<CosmeticsShopModalProps> = ({
                           <div>
                             <div className="flex items-start justify-between gap-2">
                               <div className="flex items-center gap-2">
-                                <span className="text-2xl select-none">{frame.icon}</span>
+                                <CardFrameIcon frameId={frame.id} size={28} />
                                 <div>
                                   <h4 className="text-sm font-bold text-white flex items-center gap-1.5">
                                     <span>{frame.name}</span>

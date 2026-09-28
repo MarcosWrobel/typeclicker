@@ -16,7 +16,8 @@ import {
   ArrowUpCircle,
   Zap,
   Heart,
-  Gift
+  Gift,
+  Lightbulb
 } from 'lucide-react';
 import { GameState } from '../types';
 import { DungeonPerks } from '../types/quests';
@@ -128,8 +129,8 @@ export const RpgDungeonModal: React.FC<RpgDungeonModalProps> = ({
           {/* Header */}
           <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800/80 bg-[#161220]/90 backdrop-blur-sm">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-500/30 via-red-600/25 to-amber-500/20 border border-rose-400/60 flex items-center justify-center text-xl shadow-[0_0_20px_rgba(244,63,94,0.3)]">
-                ⚔️
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-500/30 via-red-600/25 to-amber-500/20 border border-rose-400/60 flex items-center justify-center shadow-[0_0_20px_rgba(244,63,94,0.3)]">
+                <Swords className="w-5 h-5 text-rose-400" />
               </div>
               <div>
                 <h3 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
@@ -147,7 +148,7 @@ export const RpgDungeonModal: React.FC<RpgDungeonModalProps> = ({
             {/* Painel Superior de Chaves & Fechar */}
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 font-mono text-xs font-bold shadow-sm">
-                <span>🔑</span>
+                <Key className="w-3.5 h-3.5 text-amber-400" />
                 <span>{dungeon.keys}/{dungeon.maxKeys} Chaves</span>
               </div>
 
@@ -205,7 +206,7 @@ export const RpgDungeonModal: React.FC<RpgDungeonModalProps> = ({
                 }}
                 className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/50 text-xs font-bold transition-all animate-bounce cursor-pointer"
               >
-                <span>🔐</span>
+                <Lock className="w-3.5 h-3.5 text-amber-300" />
                 <span>BAÚ DISPONÍVEL!</span>
               </button>
             )}
@@ -322,8 +323,11 @@ export const RpgDungeonModal: React.FC<RpgDungeonModalProps> = ({
                       </div>
                     </div>
 
-                    <p className="text-xs text-zinc-300 max-w-lg mx-auto leading-relaxed">
-                      💡 <strong>Como recarregar:</strong> Digite mais {dungeon.wordsTarget - dungeon.wordsProgress} palavras no Terminal Principal ou conclua um <strong>Treino Corretivo Adaptativo</strong> para forjar novas chaves imediatamente!
+                    <p className="text-xs text-zinc-300 max-w-lg mx-auto leading-relaxed flex items-center justify-center gap-1.5">
+                      <Lightbulb className="w-4 h-4 text-amber-400 shrink-0" />
+                      <span>
+                        <strong>Como recarregar:</strong> Digite mais {dungeon.wordsTarget - dungeon.wordsProgress} palavras no Terminal Principal ou conclua um <strong>Treino Corretivo Adaptativo</strong> para forjar novas chaves imediatamente!
+                      </span>
                     </p>
 
                     <button
@@ -348,10 +352,10 @@ export const RpgDungeonModal: React.FC<RpgDungeonModalProps> = ({
                       className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white font-black text-base font-mono tracking-wider transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-[0_0_35px_rgba(244,63,94,0.5)] cursor-pointer flex items-center justify-center gap-3 border border-rose-400/50"
                     >
                       <Swords className="w-5 h-5 animate-pulse" />
-                      <span>
+                      <span className="flex items-center gap-1.5">
                         {floorData.isProcedural
-                          ? `DESAFIAR ANDAR INFINITO ${floorData.floor} (CUSTO: 1 🔑)`
-                          : `ENTRAR NO COMBATE DO ANDAR ${floorData.floor} (CUSTO: 1 🔑)`}
+                          ? `DESAFIAR ANDAR INFINITO ${floorData.floor} (CUSTO: 1 CHAVE)`
+                          : `ENTRAR NO COMBATE DO ANDAR ${floorData.floor} (CUSTO: 1 CHAVE)`}
                       </span>
                     </button>
                     <div className="flex items-center gap-3 text-xs font-mono text-zinc-400 mt-1">
@@ -404,8 +408,8 @@ export const RpgDungeonModal: React.FC<RpgDungeonModalProps> = ({
                 {/* Banner de XP Disponível */}
                 <div className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-purple-950/50 via-[#131622] to-indigo-950/50 border border-purple-500/40">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-500/50 flex items-center justify-center text-xl">
-                      🔮
+                    <div className="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-500/50 flex items-center justify-center">
+                      <Sparkles className="w-5 h-5 text-purple-400" />
                     </div>
                     <div>
                       <h4 className="text-sm font-bold text-white">Laboratório & Arsenal do Aventureiro</h4>

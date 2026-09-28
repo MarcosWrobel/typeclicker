@@ -18,7 +18,9 @@ import {
   Smartphone,
   Trophy,
   Rocket,
-  X
+  X,
+  Cog,
+  Flame
 } from 'lucide-react';
 import { CurricularTrackId } from '../../../types';
 import { GameExitPayload } from '../../../types/gamePlugin';
@@ -68,16 +70,16 @@ import { BytezinhoSkinId } from '../../../types/cosmetics';
 import { LeaderboardMetric } from '../../LeaderboardModal';
 
 const RADAR_BYTEZINHO_TIPS = [
-  "Bora operador! Digite a 1ª letra de uma nave para travar a mira nela! 🎯",
-  "Pressione / para abrir o console e disparar comandos militares! ⚡",
-  "Destrua alvos longe do núcleo para ganhar bônus de pontuação! 🚀",
-  "Aperte ESC ou Backspace para destravar a mira se quiser trocar de alvo! 🔄",
-  "O comando /freeze congela temporariamente todos os mísseis da tela! ❄️",
-  "O comando /nuke detona todas as naves da tela instantaneamente! 💥",
-  "O comando /shockwave gera um pulso de empuxo que afasta as naves! 🌊",
-  "Não deixe os mísseis tocarem o núcleo para poupar o escudo! 🛡️",
-  "Acerte palavras completas sem errar para manter seu combo crescendo! 🔥",
-  "Mantenha os dedos na fileira guia A S D F / J K L Ç para máxima velocidade! ⌨️"
+  "Bora operador! Digite a 1ª letra de uma nave para travar a mira nela!",
+  "Pressione / para abrir o console e disparar comandos militares!",
+  "Destrua alvos longe do núcleo para ganhar bônus de pontuação!",
+  "Aperte ESC ou Backspace para destravar a mira se quiser trocar de alvo!",
+  "O comando /freeze congela temporariamente todos os mísseis da tela!",
+  "O comando /nuke detona todas as naves da tela instantaneamente!",
+  "O comando /shockwave gera um pulso de empuxo que afasta as naves!",
+  "Não deixe os mísseis tocarem o núcleo para poupar o escudo!",
+  "Acerte palavras completas sem errar para manter seu combo crescendo!",
+  "Mantenha os dedos na fileira guia A S D F / J K L Ç para máxima velocidade!"
 ];
 
 export interface RadarEndStats {
@@ -244,11 +246,11 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
   const handleBytezinhoClick = useCallback(() => {
     radarAudio.playComboMilestone();
     const clickResponses = [
-      "Bip-bup! Sistemas táticos em 100%! Cobrindo seus flancos, operador! 🤖",
-      "Colégio Leopoldina: Defesa Cibernética de ponta nos laboratórios! 🏫✨",
-      "Dica de ouro: use as duas mãos com os dedos na fileira guia A S D F / J K L Ç! ⌨️",
-      "Bora quebrar o recorde da turma no ranking do Type: Radar! 🏆",
-      "Mira laser calibrada! Vamos defender esse núcleo juntos! 🎯"
+      "Bip-bup! Sistemas táticos em 100%! Cobrindo seus flancos, operador!",
+      "Colégio Leopoldina: Defesa Cibernética de ponta nos laboratórios!",
+      "Dica de ouro: use as duas mãos com os dedos na fileira guia A S D F / J K L Ç!",
+      "Bora quebrar o recorde da turma no ranking do Type: Radar!",
+      "Mira laser calibrada! Vamos defender esse núcleo juntos!"
     ];
     const chosen = clickResponses[Math.floor(Math.random() * clickResponses.length)];
     setBytezinhoCustomMessage(chosen);
@@ -257,21 +259,21 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
 
   const bytezinhoMessage = bytezinhoCustomMessage || (
     wrongCharAlert
-      ? "Opa! Letra errada! Respira e foca na palavra do míssil! 💪"
+      ? "Opa! Letra errada! Respira e foca na palavra do míssil!"
       : gameState.health < 35
-      ? "🚨 ALERTA VERMELHO! Casco crítico! Destrua as naves próximas! 🛡️"
+      ? "[ALERTA VERMELHO] Casco crítico! Destrua as naves próximas!"
       : gameState.energy >= 100
-      ? "⚡ ENERGIA 100%! Digite / para acionar o poder militar! 🚀"
+      ? "[ENERGIA 100%] Digite / para acionar o poder militar!"
       : currentWaveType === 'boss'
-      ? "🚨 ALERTA DE CHEFÃO! Concentre todos os disparos no líder inimigo! 👑"
+      ? "[ALERTA DE CHEFÃO] Concentre todos os disparos no líder inimigo!"
       : currentWaveType === 'swarm'
-      ? "⚠️ HORDA DE DRONES! Digite rápido ou use /freeze se apertar! 🐝"
+      ? "[HORDA DE DRONES] Digite rápido ou use /freeze se apertar!"
       : gameState.combo >= 25
-      ? `🔥 RITMO LENDÁRIO x${gameState.combo}! Você tá voando no radar! ⚡`
+      ? `[RITMO LENDÁRIO x${gameState.combo}] Você tá voando no radar!`
       : gameState.combo >= 10
-      ? `✨ Super combo x${gameState.combo}! Mantenha o ritmo de digitação! 🎯`
+      ? `[SUPER COMBO x${gameState.combo}] Mantenha o ritmo de digitação!`
       : gameState.activeTargetId
-      ? "🎯 Alvo travado! Complete as letras restantes para pulverizar!"
+      ? "Alvo travado! Complete as letras restantes para pulverizar!"
       : RADAR_BYTEZINHO_TIPS[bytezinhoTipIndex]
   );
 
@@ -306,7 +308,7 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
     if (wType === 'boss') {
       radarAudio.playBossAlarm();
       setWaveAlertBanner({
-        title: '🚨 ALERTA DE CHEFÃO // CLASSE ÔMEGA 🚨',
+        title: '[ALERTA DE CHEFÃO // CLASSE ÔMEGA]',
         subtitle: 'DREADNOUGHT COLOSSAL DETECTADO EM ROTA DE COLISÃO',
         color: '#f43f5e'
       });
@@ -315,7 +317,7 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
     } else if (wType === 'swarm') {
       radarAudio.playSwarmAlert();
       setWaveAlertBanner({
-        title: '⚠️ ALERTA DE ENXAME // INVASÃO MASSIVA ⚠️',
+        title: '[ALERTA DE ENXAME // INVASÃO MASSIVA]',
         subtitle: 'RAJADA DE DRONES EM ALTA VELOCIDADE (+25% VELOCIDADE)',
         color: '#f59e0b'
       });
@@ -351,19 +353,19 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
   const handleComboMilestone = useCallback((comboVal: number) => {
     if (comboVal === 10) {
       radarAudio.playComboMilestone();
-      setComboBanner({ title: 'COMBO x10!', subtitle: 'RITMO ACELERADO ✨', color: '#34d399' });
+      setComboBanner({ title: 'COMBO x10!', subtitle: 'RITMO ACELERADO', color: '#34d399' });
       setTimeout(() => setComboBanner(null), 1500);
     } else if (comboVal === 20) {
       radarAudio.playComboMilestone();
-      setComboBanner({ title: 'COMBO x20!', subtitle: 'CADÊNCIA FURIOSA 🔥', color: '#fbbf24' });
+      setComboBanner({ title: 'COMBO x20!', subtitle: 'CADÊNCIA FURIOSA', color: '#fbbf24' });
       setTimeout(() => setComboBanner(null), 1500);
     } else if (comboVal === 30) {
       radarAudio.playComboMilestone();
-      setComboBanner({ title: 'COMBO x30!', subtitle: 'HIPER VELOCIDADE ⚡', color: '#f43f5e' });
+      setComboBanner({ title: 'COMBO x30!', subtitle: 'HIPER VELOCIDADE', color: '#f43f5e' });
       setTimeout(() => setComboBanner(null), 1500);
     } else if (comboVal === 50) {
       radarAudio.playComboMilestone();
-      setComboBanner({ title: 'COMBO x50!', subtitle: 'DEUS DA DIGITAÇÃO 👑', color: '#ec4899' });
+      setComboBanner({ title: 'COMBO x50!', subtitle: 'MESTRE DA DIGITAÇÃO', color: '#ec4899' });
       setTimeout(() => setComboBanner(null), 1800);
     }
   }, []);
@@ -1588,7 +1590,7 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
               }`} />
               <div className="flex flex-col">
                 <span className="text-[9px] font-mono text-zinc-400 uppercase font-bold leading-none">
-                  {gameState.energy >= 100 ? '⚡ SOBRECARGA' : 'ENERGIA'}
+                  {gameState.energy >= 100 ? 'SOBRECARGA' : 'ENERGIA'}
                 </span>
                 <div className="w-16 sm:w-20 h-2 bg-zinc-800 rounded-full overflow-hidden mt-1">
                   <div
@@ -1700,8 +1702,9 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
           >
             <Rocket className="w-4 h-4 text-amber-400" />
             <span className="tracking-wide">HANGAR</span>
-            <span className="px-1.5 py-0.5 rounded-md bg-black/60 text-[10px] text-amber-300 font-bold border border-amber-500/40">
-              ⚙️ {scrapBalance}
+            <span className="px-1.5 py-0.5 rounded-md bg-black/60 text-[10px] text-amber-300 font-bold border border-amber-500/40 flex items-center gap-1">
+              <Cog className="w-3 h-3 text-amber-400" />
+              <span>{scrapBalance}</span>
             </span>
           </button>
 
@@ -1839,8 +1842,9 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
                   <Rocket className="w-3.5 h-3.5 animate-pulse" />
                   HANGAR DA BASE
                 </span>
-                <span className="px-2 py-0.5 rounded bg-black/60 border border-amber-500/30 text-[10px] font-mono font-bold text-amber-300">
-                  ⚙️ {scrapBalance}
+                <span className="px-2 py-0.5 rounded bg-black/60 border border-amber-500/30 text-[10px] font-mono font-bold text-amber-300 flex items-center gap-1">
+                  <Cog className="w-3 h-3 text-amber-400" />
+                  <span>{scrapBalance}</span>
                 </span>
               </div>
               <button
@@ -1883,7 +1887,7 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
                     currentWaveType === 'boss' ? 'bg-rose-500' : currentWaveType === 'swarm' ? 'bg-amber-400' : 'bg-emerald-400'
                   }`} />
                   <span className="font-bold text-zinc-200">
-                    {currentWaveType === 'boss' ? '🚨 ONDA DE CHEFÃO' : currentWaveType === 'swarm' ? '⚠️ ONDA DE ENXAME' : `ONDA ${gameState.wave}`}
+                    {currentWaveType === 'boss' ? 'ONDA DE CHEFÃO' : currentWaveType === 'swarm' ? 'ONDA DE ENXAME' : `ONDA ${gameState.wave}`}
                   </span>
                   <span className="text-[10px] text-zinc-400 uppercase tracking-wider font-semibold">
                     [XP DA ONDA]
@@ -2039,13 +2043,15 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
                           : 'bg-sky-500/20 text-sky-300 border border-sky-500/40'
                       }`}
                     >
-                      {gameState.combo >= 30
-                        ? '⚡ OVERDRIVE'
-                        : gameState.combo >= 20
-                        ? '🔥 FÚRIA PURA'
-                        : gameState.combo >= 10
-                        ? '✨ HIPER RITMO'
-                        : 'EMBALO'}
+                      {gameState.combo >= 30 ? (
+                        <span className="flex items-center gap-1"><Zap className="w-2.5 h-2.5 text-rose-400" /> OVERDRIVE</span>
+                      ) : gameState.combo >= 20 ? (
+                        <span className="flex items-center gap-1"><Flame className="w-2.5 h-2.5 text-amber-400" /> FÚRIA PURA</span>
+                      ) : gameState.combo >= 10 ? (
+                        <span className="flex items-center gap-1"><Sparkles className="w-2.5 h-2.5 text-emerald-400" /> HIPER RITMO</span>
+                      ) : (
+                        'EMBALO'
+                      )}
                     </span>
                     <span className="text-[9px] font-mono text-zinc-400 font-bold">
                       +{Math.min(100, Math.round(gameState.combo * 2))}% PTS
@@ -2288,7 +2294,10 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-zinc-400">Sucata Coletada:</span>
-                  <span className="font-bold text-amber-400">⚙️ {scrapBalance} (+{scrapGainedRun})</span>
+                  <span className="font-bold text-amber-400 flex items-center gap-1">
+                    <Cog className="w-3.5 h-3.5 text-amber-400" />
+                    <span>{scrapBalance} (+{scrapGainedRun})</span>
+                  </span>
                 </div>
               </div>
 

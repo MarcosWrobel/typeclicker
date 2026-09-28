@@ -19,12 +19,16 @@ import {
   EyeOff,
   Snowflake,
   Skull,
-  Activity,
   Lock,
-  Clock
+  Clock,
+  ArrowUp,
+  AlertTriangle,
+  Key,
+  Keyboard
 } from 'lucide-react';
 import { RpgFloorData, DungeonState, RpgActiveStatusEffect } from '../types/quests';
 import { RpgClassType, RPG_CLASSES } from '../types/rpgClass';
+import { RpgClassIcon } from './vectors/rpg/RpgClassIcon';
 import { sound } from '../utils/audio';
 import { formatBytes } from '../utils/formatting';
 import { combineAccent, isAccentKey, resolveDeadKey, getAccentDisplayName } from '../utils/keyboardAccents';
@@ -43,6 +47,18 @@ interface RpgChronicleArenaProps {
   onConsumeKey?: () => boolean;
   isAdmin?: boolean;
 }
+
+const renderDebuffIcon = (type: string, className?: string) => {
+  switch (type) {
+    case 'hold':
+      return <Snowflake className={className || 'w-10 h-10 text-cyan-300'} />;
+    case 'fear':
+      return <AlertTriangle className={className || 'w-10 h-10 text-purple-300'} />;
+    case 'blind':
+    default:
+      return <EyeOff className={className || 'w-10 h-10 text-amber-300'} />;
+  }
+};
 
 interface DamagePopup {
   id: number;
@@ -181,7 +197,7 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
     const id = Date.now() + Math.random();
     const x = 50 + (Math.random() * 20 - 10);
     const y = 35 + (Math.random() * 15 - 7);
-    const text = label ? label : isCrit ? `💥 -${amount} CRÍTICO!` : `-${amount}`;
+    const text = label ? label : isCrit ? `-${amount} CRÍTICO!` : `-${amount}`;
     setDamagePopups((prev) => [...prev.slice(-6), { id, text, x, y, isCrit }]);
 
     setTimeout(() => {
@@ -231,7 +247,7 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
           sound.playChallengeFail();
           setIsErrorShaking(true);
           setTimeout(() => setIsErrorShaking(false), 400);
-          spawnDamage(directDmg, false, `💥 TEMPO ESGOTADO! -${directDmg} DIRETO!`);
+          spawnDamage(directDmg, false, `TEMPO ESGOTADO! -${directDmg} DIRETO!`);
 
           setPlayerShield((shieldPrev) => {
             const nextShield = Math.max(0, shieldPrev - directDmg);
@@ -287,7 +303,7 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
         sound.playChallengeFail();
         setIsErrorShaking(true);
         setTimeout(() => setIsErrorShaking(false), 400);
-        spawnDamage(actualStrikeDmg, false, `💥 GOLPE DO CHEFE! -${actualStrikeDmg} DIRETO!`);
+        spawnDamage(actualStrikeDmg, false, `GOLPE DO CHEFE! -${actualStrikeDmg} DIRETO!`);
 
         setPlayerShield((prevShield) => {
           const nextShield = Math.max(0, prevShield - actualStrikeDmg);
@@ -396,13 +412,13 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
           if (nextProgress >= activeStatusEffectRef.current.maxProgress) {
             // Gelo quebrado!
             sound.playChallengeSuccess();
-            spawnDamage(0, false, '❄️ GELO ESTILHAÇADO!');
+            spawnDamage(0, false, 'GELO ESTILHAÇADO!');
             clearDebuff();
           } else {
             const updated = { ...activeStatusEffectRef.current, progress: nextProgress };
             activeStatusEffectRef.current = updated;
             setActiveStatusEffect(updated);
-            spawnDamage(0, false, `❄️ GELO TRINCANDO! (${nextProgress}/3)`);
+            spawnDamage(0, false, `GELO TRINCANDO! (${nextProgress}/3)`);
           }
         } else {
           // Bloqueado pelo gelo!
@@ -426,7 +442,7 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
           if (nextQteIdx >= seq.length) {
             sound.playChallengeSuccess();
             const burstDmg = Math.max(25, Math.round(floorData.boss.maxHp * 0.25));
-            spawnDamage(burstDmg, true, `⚡ SOBRECARGA! -${burstDmg}`);
+            spawnDamage(burstDmg, true, `SOBRECARGA! -${burstDmg}`);
             const nextHp = Math.max(0, bossHpRef.current - burstDmg);
             bossHpRef.current = nextHp;
             setBossHp(nextHp);
@@ -437,7 +453,7 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
               isEnragedRef.current = true;
               setIsEnraged(true);
               sound.playChallengeFail();
-              spawnDamage(0, true, '🔥 PROTOCOLO DE FÚRIA ATIVADO!');
+              spawnDamage(0, true, 'PROTOCOLO DE FÚRIA ATIVADO!');
             }
 
             overloadActiveRef.current = false;
@@ -488,7 +504,7 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
           const nextProg = (activeStatusEffectRef.current.progress || 0) + 1;
           if (nextProg >= activeStatusEffectRef.current.maxProgress) {
             sound.playUpgrade();
-            spawnDamage(0, false, '👁️ VISÃO RESTAURADA!');
+            spawnDamage(0, false, 'VISÃO RESTAURADA!');
             clearDebuff();
           } else {
             const updated = { ...activeStatusEffectRef.current, progress: nextProg };
@@ -510,7 +526,7 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
           // Atordoamento Crítico: Empurra a Carga de Ataque do Boss (-25%)!
           bossChargeProgressRef.current = Math.max(0, bossChargeProgressRef.current - 25);
           setBossChargeProgress(bossChargeProgressRef.current);
-          spawnDamage(0, false, '⚡ INTERRUPÇÃO! (-25% Carga)');
+          spawnDamage(0, false, 'INTERRUPÇÃO! (-25% Carga)');
 
           // Perk: Vampirismo de Fraqueza
           const vampLevel = dungeon?.perks?.weaknessVampirism ?? 0;
@@ -555,14 +571,14 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
             // Se sob efeito de Pavor (Fear), concluir uma palavra limpa restaura a coragem
             if (activeStatusEffectRef.current?.type === 'fear') {
               sound.playUpgrade();
-              spawnDamage(0, false, '✨ CORAGEM RESTAURADA!');
+              spawnDamage(0, false, 'CORAGEM RESTAURADA!');
               clearDebuff();
             }
 
             // Passiva de Classe: Mago dos Bytes restaura +10 de Escudo em palavra limpa
             if (rpgClass === 'mage') {
               setPlayerShield((prev) => Math.min(maxShield, prev + 10));
-              spawnDamage(0, false, '✨ Barreira Arcana (+10 Escudo)!');
+              spawnDamage(0, false, 'Barreira Arcana (+10 Escudo)!');
             }
 
             // Perk: Combo Crítico
@@ -595,7 +611,7 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
           isEnragedRef.current = true;
           setIsEnraged(true);
           sound.playChallengeFail();
-          spawnDamage(0, true, '🔥 PROTOCOLO DE FÚRIA ATIVADO!');
+          spawnDamage(0, true, 'PROTOCOLO DE FÚRIA ATIVADO!');
         }
 
         // Gatilhos de Crowd Control (Debuffs) e QTE por porcentagem de HP do Boss
@@ -609,7 +625,7 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
             type: 'blind',
             label: 'CEGUEIRA DIGITAL',
             description: 'Visão ofuscada! Digite 4 teclas corretas pela memória motora!',
-            icon: '👁️',
+            icon: 'blind',
             durationSeconds: 8,
             progress: 0,
             maxProgress: 4,
@@ -626,7 +642,7 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
             type: 'hold',
             label: 'PARALISIA DE BUFFER (GELO)',
             description: 'Cursor congelado! Pressione a barra de [ESPAÇO] 3x para quebrar o gelo!',
-            icon: '❄️',
+            icon: 'hold',
             durationSeconds: 8,
             progress: 0,
             maxProgress: 3,
@@ -643,7 +659,7 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
             type: 'fear',
             label: 'ONDA DE PAVOR (INTERFERÊNCIA)',
             description: 'Tremor no sistema! Conclua 1 palavra inteira com 100% de perfeição!',
-            icon: '😱',
+            icon: 'fear',
             durationSeconds: 7,
             progress: 0,
             maxProgress: 1,
@@ -708,11 +724,11 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
         const actualDmgTaken = Math.max(isUnderDebuff ? 6 : 3, Math.round(baseDmg * (1 - dmgMitigation)));
 
         if (isUnderDebuff && isEnraged) {
-          spawnDamage(actualDmgTaken, false, `💥 ERRO CRÍTICO NA FÚRIA! -${actualDmgTaken} (3X DANO)`);
+          spawnDamage(actualDmgTaken, false, `ERRO CRÍTICO NA FÚRIA! -${actualDmgTaken} (3X DANO)`);
         } else if (isUnderDebuff) {
-          spawnDamage(actualDmgTaken, false, `💥 ERRO SOB DEBUFF! -${actualDmgTaken} (2X DANO)`);
+          spawnDamage(actualDmgTaken, false, `ERRO SOB DEBUFF! -${actualDmgTaken} (2X DANO)`);
         } else if (isEnraged) {
-          spawnDamage(actualDmgTaken, false, `🔥 ERRO NA FÚRIA! -${actualDmgTaken} (+50% DANO)`);
+          spawnDamage(actualDmgTaken, false, `ERRO NA FÚRIA! -${actualDmgTaken} (+50% DANO)`);
         }
 
         setPlayerShield((prev) => {
@@ -919,12 +935,13 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
                       : 'bg-gradient-to-b from-[#381c08] via-[#241105] to-[#120802] border-amber-400 shadow-[0_0_90px_rgba(245,158,11,0.7)] text-amber-100'
                   }`}
                 >
-                  <div className="w-20 h-20 rounded-2xl bg-black/70 border-2 border-current flex items-center justify-center text-5xl mb-3 shadow-[0_0_30px_rgba(255,255,255,0.2)] animate-bounce">
-                    {activeStatusEffect.icon}
+                  <div className="w-20 h-20 rounded-2xl bg-black/70 border-2 border-current flex items-center justify-center mb-3 shadow-[0_0_30px_rgba(255,255,255,0.2)] animate-bounce">
+                    {renderDebuffIcon(activeStatusEffect.type, 'w-10 h-10')}
                   </div>
 
-                  <span className="px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-rose-600 text-black mb-2 animate-pulse">
-                    ⚠️ DEBUFF ATIVO!
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-rose-600 text-black mb-2 animate-pulse">
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                    DEBUFF ATIVO!
                   </span>
 
                   <h3 className="text-2xl sm:text-3xl font-black text-white uppercase tracking-wider mb-1">
@@ -936,7 +953,7 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
 
                   <div className="w-full bg-black/85 rounded-2xl p-4 border-2 border-amber-400 shadow-[0_0_30px_rgba(245,158,11,0.4)] mb-4">
                     <span className="text-[11px] font-black text-amber-300 uppercase tracking-widest block mb-1">
-                      👉 COMO QUEBRAR:
+                      COMO QUEBRAR:
                     </span>
                     <span className="text-base sm:text-lg font-black text-white leading-snug block">
                       {activeStatusEffect.breakInstruction}
@@ -959,11 +976,14 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
                       <Clock className="w-4 h-4 animate-spin" />
                       <span>TEMPO: {debuffSecondsLeft.toFixed(1)}s</span>
                     </span>
-                    <span className="text-rose-400">⚠️ -25 Dano Direto se zerar!</span>
+                    <span className="text-rose-400 flex items-center gap-1">
+                      <AlertTriangle className="w-3.5 h-3.5" />
+                      -25 Dano Direto se zerar!
+                    </span>
                   </div>
 
                   <div className="mt-3 text-[11px] text-zinc-400 font-bold flex items-center gap-1.5 animate-pulse">
-                    <span>⬆️</span>
+                    <ArrowUp className="w-3.5 h-3.5" />
                     <span>Fixando no painel superior...</span>
                   </div>
                 </div>
@@ -1022,8 +1042,9 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
                       FÚRIA DO CHEFE ATIVA (+40% VELOCIDADE)
                     </span>
                   ) : overloadTriggered ? (
-                    <span className="text-[10px] font-mono text-amber-300 font-bold bg-amber-950/80 px-2 py-0.5 rounded border border-amber-500/50 animate-pulse">
-                      ⚡ SOBRECARGA ATIVA
+                    <span className="text-[10px] font-mono text-amber-300 font-bold bg-amber-950/80 px-2 py-0.5 rounded border border-amber-500/50 animate-pulse flex items-center gap-1">
+                      <Zap className="w-2.5 h-2.5" />
+                      SOBRECARGA ATIVA
                     </span>
                   ) : (
                     <span className="text-[10px] font-mono text-zinc-400 bg-zinc-900/80 px-2 py-0.5 rounded border border-zinc-700/60">
@@ -1074,7 +1095,7 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
                       }`}
                     >
                       <Zap className={`w-3 h-3 ${isEnraged ? 'text-red-400 fill-current' : 'text-amber-400'}`} />
-                      <span>{isEnraged ? '🔥 ATAQUE EM FÚRIA' : '⚡ ATAQUE IMINENTE'}</span>
+                      <span>{isEnraged ? 'ATAQUE EM FÚRIA' : 'ATAQUE IMINENTE'}</span>
                     </span>
                     <span
                       className={`text-[10px] font-mono font-bold ${
@@ -1161,18 +1182,21 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
                       </span>
                     )}
                     {dungeon.perks.weaknessVampirism > 0 && (
-                      <span className="text-rose-400" title="Vampirismo em Fraquezas">
-                        🩸 Nv.{dungeon.perks.weaknessVampirism}/10
+                      <span className="text-rose-400 flex items-center gap-0.5" title="Vampirismo em Fraquezas">
+                        <Heart className="w-2.5 h-2.5 text-rose-400 fill-current" />
+                        <span>Nv.{dungeon.perks.weaknessVampirism}/10</span>
                       </span>
                     )}
                     {dungeon.perks.criticalCombo > 0 && (
-                      <span className="text-cyan-400" title="Bônus em Combo Perfeito">
-                        ⚡ Nv.{dungeon.perks.criticalCombo}/10
+                      <span className="text-cyan-400 flex items-center gap-0.5" title="Bônus em Combo Perfeito">
+                        <Zap className="w-2.5 h-2.5 text-cyan-400" />
+                        <span>Nv.{dungeon.perks.criticalCombo}/10</span>
                       </span>
                     )}
                     {dungeon.perks.shieldHardening > 0 && (
-                      <span className="text-indigo-400" title="Mitigação de Escudo">
-                        🛡️ Nv.{dungeon.perks.shieldHardening}/10
+                      <span className="text-indigo-400 flex items-center gap-0.5" title="Mitigação de Escudo">
+                        <Shield className="w-2.5 h-2.5 text-indigo-400" />
+                        <span>Nv.{dungeon.perks.shieldHardening}/10</span>
                       </span>
                     )}
                     {rpgClass && RPG_CLASSES[rpgClass] && (
@@ -1180,7 +1204,7 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
                         className={`px-1.5 py-0.5 rounded border text-[9px] font-bold flex items-center gap-1 ${RPG_CLASSES[rpgClass].badgeBg} ${RPG_CLASSES[rpgClass].badgeBorder} ${RPG_CLASSES[rpgClass].badgeText}`}
                         title={RPG_CLASSES[rpgClass].passives.map(p => `${p.title}: ${p.description}`).join(' | ')}
                       >
-                        <span>{RPG_CLASSES[rpgClass].icon}</span>
+                        <RpgClassIcon rpgClass={rpgClass} className="w-2.5 h-2.5 inline shrink-0" />
                         <span>{RPG_CLASSES[rpgClass].name}</span>
                       </span>
                     )}
@@ -1207,8 +1231,8 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
               {/* Linha Superior: Ícone, Nome, Status e Temporizador */}
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-xl bg-black/60 border-2 border-current flex items-center justify-center text-2xl shadow-inner flex-shrink-0">
-                    {activeStatusEffect.icon}
+                  <div className="w-11 h-11 rounded-xl bg-black/60 border-2 border-current flex items-center justify-center shadow-inner flex-shrink-0">
+                    {renderDebuffIcon(activeStatusEffect.type, 'w-6 h-6')}
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
@@ -1256,7 +1280,7 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
                 <div className="flex items-center gap-2 bg-black/60 px-3 py-1.5 rounded-lg border border-amber-400/60 w-full sm:w-auto">
                   <Zap className="w-4 h-4 text-amber-300 flex-shrink-0 animate-bounce" />
                   <span className="text-xs font-black text-amber-200">
-                    👉 COMO QUEBRAR: {activeStatusEffect.breakInstruction}
+                    COMO QUEBRAR: {activeStatusEffect.breakInstruction}
                   </span>
                   {activeStatusEffect.type === 'hold' && (
                     <span className="ml-auto text-xs font-mono font-bold text-cyan-300 bg-cyan-950 px-2 py-0.5 rounded border border-cyan-400/50">
@@ -1289,7 +1313,7 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
                 <Zap className="w-5 h-5 text-amber-400 animate-bounce" />
                 <div>
                   <span className="font-mono font-black text-amber-300 text-xs sm:text-sm tracking-wider uppercase">
-                    ⚠️ SOBRECARGA DO NÚCLEO DO BOSS!
+                    SOBRECARGA DO NÚCLEO DO BOSS!
                   </span>
                   <p className="text-[11px] text-amber-200/80 font-mono">
                     Pressione as teclas na ordem para atordoar o guardião e causar dano crítico massivo:
@@ -1337,8 +1361,9 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
                   </span>
                 ))}
               </div>
-              <span className="text-amber-400/90 ml-auto text-[11px] hidden sm:inline font-semibold">
-                ⚡ Ignoram 100% da Armadura + Dano Crítico Massivo!
+              <span className="text-amber-400/90 ml-auto text-[11px] hidden sm:flex items-center gap-1 font-semibold">
+                <Zap className="w-3 h-3 text-amber-400" />
+                Ignoram 100% da Armadura + Dano Crítico Massivo!
               </span>
             </div>
           )}
@@ -1378,8 +1403,9 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
             )}
 
             {pendingAccent && (
-              <div className="inline-block px-3 py-1.5 mb-3 rounded-lg bg-amber-500/25 text-amber-300 border border-amber-500/50 text-xs font-bold font-mono animate-pulse shadow-[0_0_12px_rgba(245,158,11,0.3)]">
-                ⌨️ {getAccentDisplayName(pendingAccent)} (digite a vogal correspondente)
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 mb-3 rounded-lg bg-amber-500/25 text-amber-300 border border-amber-500/50 text-xs font-bold font-mono animate-pulse shadow-[0_0_12px_rgba(245,158,11,0.3)]">
+                <Keyboard className="w-3.5 h-3.5 text-amber-400" />
+                <span>{getAccentDisplayName(pendingAccent)} (digite a vogal correspondente)</span>
               </div>
             )}
 
@@ -1452,8 +1478,8 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
               animate={{ opacity: 1, scale: 1 }}
               className="absolute inset-0 bg-black/90 backdrop-blur-md z-40 flex flex-col items-center justify-center p-6 text-center"
             >
-              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-amber-500/30 to-emerald-500/20 border-2 border-amber-400/80 flex items-center justify-center text-5xl shadow-[0_0_40px_rgba(245,158,11,0.5)] animate-bounce mb-3">
-                🏆
+              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-amber-500/30 to-emerald-500/20 border-2 border-amber-400/80 flex items-center justify-center shadow-[0_0_40px_rgba(245,158,11,0.5)] animate-bounce mb-3">
+                <Trophy className="w-10 h-10 text-amber-400" />
               </div>
 
               <h2 className="text-2xl sm:text-3xl font-black text-white">ANDAR {floorData.floor} CONQUISTADO!</h2>
@@ -1515,8 +1541,8 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
               animate={{ opacity: 1, scale: 1 }}
               className="absolute inset-0 bg-black/95 backdrop-blur-md z-40 flex flex-col items-center justify-center p-6 text-center"
             >
-              <div className="w-20 h-20 rounded-2xl bg-rose-950/80 border-2 border-rose-500/80 flex items-center justify-center text-5xl shadow-[0_0_40px_rgba(244,63,94,0.6)] mb-3 animate-pulse">
-                💀
+              <div className="w-20 h-20 rounded-2xl bg-rose-950/80 border-2 border-rose-500/80 flex items-center justify-center shadow-[0_0_40px_rgba(244,63,94,0.6)] mb-3 animate-pulse">
+                <Skull className="w-10 h-10 text-rose-500" />
               </div>
 
               <h2 className="text-2xl sm:text-3xl font-black text-rose-300">ESCUDO ROMPIDO!</h2>
@@ -1526,7 +1552,7 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
 
               {/* Status de Chaves de Expedição */}
               <div className="my-4 px-4 py-2.5 rounded-xl bg-zinc-900/90 border border-zinc-700/80 flex items-center gap-3">
-                <span className="text-2xl">🔑</span>
+                <Key className="w-6 h-6 text-amber-400 shrink-0" />
                 <div className="text-left font-mono">
                   <div className="text-xs font-bold text-zinc-300">
                     Chaves de Expedição Restantes:{' '}
@@ -1574,7 +1600,7 @@ export const RpgChronicleArena: React.FC<RpgChronicleArenaProps> = ({
                   }`}
                 >
                   <RotateCcw className="w-4 h-4" />
-                  <span>{hasKeysToRetry ? 'TENTAR NOVAMENTE (-1 Chave 🔑)' : 'SEM CHAVES RESTANTES'}</span>
+                  <span>{hasKeysToRetry ? 'TENTAR NOVAMENTE (-1 Chave)' : 'SEM CHAVES RESTANTES'}</span>
                 </button>
 
                 <button

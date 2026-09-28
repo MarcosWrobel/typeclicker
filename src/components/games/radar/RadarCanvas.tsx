@@ -785,7 +785,7 @@ export const RadarCanvas: React.FC<RadarCanvasProps> = ({
         ctx.font = 'bold 10px monospace';
         ctx.fillStyle = '#fda4af';
         ctx.textAlign = 'left';
-        ctx.fillText('🚨 CHEFÃO // DREADNOUGHT CLASSE ÔMEGA', barX - 6, barY - 5);
+        ctx.fillText('[CHEFÃO] DREADNOUGHT CLASSE ÔMEGA', barX - 6, barY - 5);
 
         ctx.textAlign = 'right';
         ctx.fillStyle = '#f43f5e';

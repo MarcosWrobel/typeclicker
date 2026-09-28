@@ -284,7 +284,13 @@ export const AccessibilityModal: React.FC<AccessibilityModalProps> = ({
                       : 'bg-zinc-950 text-zinc-300 border-zinc-700 hover:border-zinc-500'
                   }`}
                 >
-                  {settings.highContrast ? '✓ Ativado' : 'Desativado'}
+                  {settings.highContrast ? (
+                    <span className="flex items-center gap-1">
+                      <Check className="w-3.5 h-3.5" /> Ativado
+                    </span>
+                  ) : (
+                    'Desativado'
+                  )}
                 </button>
               </div>
 

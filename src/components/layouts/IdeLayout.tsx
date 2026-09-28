@@ -1,6 +1,6 @@
 import React from 'react';
 import { BaseLayoutProps } from './TerminalLayout';
-import { Code2, FileCode, FolderGit2, Terminal, Cpu } from 'lucide-react';
+import { Code2, FileCode, FolderGit2, Terminal, Cpu, GitBranch } from 'lucide-react';
 
 export const IdeLayout: React.FC<BaseLayoutProps> = ({
   header,
@@ -96,8 +96,9 @@ export const IdeLayout: React.FC<BaseLayoutProps> = ({
       {/* Rodapé da IDE (VS Code Status Bar) */}
       <footer className="bg-[#007acc] text-white px-3 py-1 flex items-center justify-between text-[11px] font-mono flex-shrink-0">
         <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1 font-bold">
-            <span>🌿 main*</span>
+          <span className="flex items-center gap-1.5 font-bold">
+            <GitBranch className="w-3.5 h-3.5" />
+            <span>main*</span>
           </span>
           <span className="hidden sm:inline">0 errors, 0 warnings</span>
         </div>

@@ -142,9 +142,9 @@ export const RpgChestMinigame: React.FC<RpgChestMinigameProps> = ({
           <motion.div
             animate={isCompleted ? { scale: [1, 1.2, 1], rotate: [0, -10, 10, 0] } : { y: [-3, 3, -3] }}
             transition={{ duration: 2, repeat: isCompleted ? 0 : Infinity }}
-            className="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-amber-500/25 via-rose-500/20 to-purple-600/20 border-2 border-amber-400/60 flex items-center justify-center text-4xl shadow-[0_0_30px_rgba(245,158,11,0.35)]"
+            className="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-amber-500/25 via-rose-500/20 to-purple-600/20 border-2 border-amber-400/60 flex items-center justify-center shadow-[0_0_30px_rgba(245,158,11,0.35)]"
           >
-            {isCompleted ? '🔓' : '🔐'}
+            {isCompleted ? <Unlock className="w-10 h-10 text-emerald-400" /> : <Lock className="w-10 h-10 text-amber-400" />}
           </motion.div>
 
           <h3 className="text-xl sm:text-2xl font-black text-white mt-4 font-mono">
