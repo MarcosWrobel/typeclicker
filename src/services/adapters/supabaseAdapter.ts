@@ -312,6 +312,7 @@ export class SupabaseAdapter implements IDatabaseService {
       nickname: state.studentNickname,
       avatar: state.studentAvatar,
       turma: state.studentClass,
+      role: state.studentClass === 'Professor' ? 'teacher' : undefined,
       bytes: state.bytes,
       totalBytesEarned: state.totalBytesEarned,
       level: state.level || 1,

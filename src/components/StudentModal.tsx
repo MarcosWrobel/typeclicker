@@ -93,7 +93,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
   const isTeacher = Boolean(
     isAdmin || 
     state.studentClass === 'Professor' || 
-    (user?.email && ['wrobel.marcos@gmail.com', 'marcos.wrobel@escola.pr.gov.br', 'wrobel.marcos3@gmail.com'].includes(user.email.toLowerCase()))
+    (user?.email && ['wrobel.marcos@gmail.com', 'marcos.wrobel@escola.pr.gov.br'].includes(user.email.toLowerCase()))
   );
   
   const hasAssignedClass = Boolean(state.rpgClass);

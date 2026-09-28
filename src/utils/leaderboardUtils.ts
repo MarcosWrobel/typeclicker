@@ -3,8 +3,7 @@ import { LeaderboardEntry, Level100PioneerSlot } from '../types/leaderboard';
 export const ADMIN_EMAILS: string[] = [
   'wrobel.marcos@gmail.com',
   'marcoswrobel@gmail.com',
-  'marcos.wrobel@escola.pr.gov.br',
-  'wrobel.marcos3@gmail.com'
+  'marcos.wrobel@escola.pr.gov.br'
 ];
 
 /**

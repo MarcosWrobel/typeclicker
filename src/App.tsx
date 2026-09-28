@@ -239,9 +239,10 @@ export default function App() {
     }, 3500);
 
     const unsubscribe = subscribeToAuthChanges(async (currentUser) => {
+      let adminStatus = false;
       try {
         setUser(currentUser);
-        const adminStatus = await checkIsAdminAsync(currentUser);
+        adminStatus = await checkIsAdminAsync(currentUser);
         setIsAdmin(adminStatus);
       } catch (authErr) {
         console.error('Erro na checagem de autenticação/admin:', authErr);
@@ -249,7 +250,10 @@ export default function App() {
         setAuthLoading(false);
       }
       
-      const isStaffUser = (currentUser?.email && ADMIN_EMAILS.some((adm) => adm.toLowerCase() === currentUser.email?.toLowerCase()));
+      const isStaffUser = Boolean(
+        adminStatus || 
+        (currentUser?.email && ADMIN_EMAILS.some((adm) => adm.toLowerCase() === currentUser.email?.toLowerCase()))
+      );
 
       if (currentUser) {
         try {
@@ -261,7 +265,7 @@ export default function App() {
             const loadedState: GameState = {
             ...INITIAL_STATE,
             ...res.saveState,
-            studentName: currentUser.displayName || res.saveState.studentName || (isStaffUser ? 'Prof. Marcos Wrobel' : 'Aluno'),
+            studentName: currentUser.displayName || res.saveState.studentName || (isStaffUser ? (currentUser.displayName || 'Professor') : 'Aluno'),
             studentNickname: loadedNickname,
             studentClass: loadedClass,
             rpgClass: res.saveState.rpgClass || undefined,
@@ -330,14 +334,14 @@ export default function App() {
           if (hasLocalData) {
             activeState = {
               ...localState,
-              studentName: currentUser.displayName || localState.studentName || (isStaffUser ? 'Prof. Marcos Wrobel' : 'Aluno'),
+              studentName: currentUser.displayName || localState.studentName || (isStaffUser ? (currentUser.displayName || 'Professor') : 'Aluno'),
               studentClass: isStaffUser ? 'Professor' : (localState.studentClass || ''),
               isClassLocked: isStaffUser ? true : localState.isClassLocked
             };
           } else {
             activeState = {
               ...INITIAL_STATE,
-              studentName: currentUser.displayName || (isStaffUser ? 'Prof. Marcos Wrobel' : 'Aluno'),
+              studentName: currentUser.displayName || (isStaffUser ? (currentUser.displayName || 'Professor') : 'Aluno'),
               studentClass: isStaffUser ? 'Professor' : '',
               isClassLocked: isStaffUser ? true : false
             };

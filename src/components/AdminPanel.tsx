@@ -29,7 +29,7 @@ import {
   Swords
 } from 'lucide-react';
 import { fetchSupabaseMetrics, SupabaseMetricsData } from '../services/supabaseMetricsService';
-import { isSupabaseConfigured } from '../services/supabaseClient';
+import { isSupabaseConfigured, supabase } from '../services/supabaseClient';
 import {
   createSupabaseBackup,
   downloadSupabaseBackupFile,
@@ -583,11 +583,24 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setIsUpdatingTeachers(true);
     try {
       const currentList = settings?.allowedTeachers || [];
-      if (!currentList.includes(newTeacherEmail)) {
-        const newList = [...currentList, newTeacherEmail.trim().toLowerCase()];
+      const normalizedEmail = newTeacherEmail.trim().toLowerCase();
+      if (!currentList.includes(normalizedEmail)) {
+        const newList = [...currentList, normalizedEmail];
         await updateAllowedTeachers(newList);
         setSettings((prev) => (prev ? { ...prev, allowedTeachers: newList } : null));
         setNewTeacherEmail('');
+
+        // Sincroniza role no Supabase caso a conta já exista
+        if (isSupabaseConfigured) {
+          try {
+            await supabase
+              .from('profiles')
+              .update({ role: 'teacher', turma: 'Professor' })
+              .eq('email', normalizedEmail);
+          } catch (supaErr) {
+            console.warn('Erro ao sincronizar professor no Supabase:', supaErr);
+          }
+        }
       }
     } catch (e) {
       console.error(e);
@@ -600,9 +613,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setIsUpdatingTeachers(true);
     try {
       const currentList = settings?.allowedTeachers || [];
-      const newList = currentList.filter((e) => e !== emailToRemove);
+      const normalizedEmail = emailToRemove.trim().toLowerCase();
+      const newList = currentList.filter((e) => e !== normalizedEmail);
       await updateAllowedTeachers(newList);
       setSettings((prev) => (prev ? { ...prev, allowedTeachers: newList } : null));
+
+      // Reverte role no Supabase caso exista perfil
+      if (isSupabaseConfigured) {
+        try {
+          await supabase
+            .from('profiles')
+            .update({ role: 'student', turma: '' })
+            .eq('email', normalizedEmail);
+        } catch (supaErr) {
+          console.warn('Erro ao reverter role de professor no Supabase:', supaErr);
+        }
+      }
     } catch (e) {
       console.error(e);
     } finally {
