@@ -79,8 +79,11 @@ service cloud.firestore {
     match /system/settings {
       allow read: if isSignedIn();
       allow write: if isAdmin() || (
-        isTeacher() &&
+        isSignedIn() &&
+        request.auth.token.email_verified == true &&
         resource != null &&
+        'allowedTeachers' in resource.data &&
+        request.auth.token.email in resource.data.allowedTeachers &&
         !incoming().diff(resource.data).affectedKeys().hasAny(['allowedTeachers', 'testGrantsHistory', 'pendingTestGrants', 'testerEmails'])
       );
     }

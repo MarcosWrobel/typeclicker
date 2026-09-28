@@ -504,11 +504,15 @@ export async function claimPendingTestGrantsSupabase(
     delete pendingGrants[cleanEmail];
     if (userId) delete pendingGrants[userId];
 
-    await setDoc(
-      doc(db, 'system', 'settings'),
-      { pendingTestGrants: pendingGrants },
-      { merge: true }
-    );
+    try {
+      await setDoc(
+        doc(db, 'system', 'settings'),
+        { pendingTestGrants: pendingGrants },
+        { merge: true }
+      );
+    } catch {
+      // Ignora erro de permissão caso o usuário conectado seja aluno ou professor sem privilégio de SuperAdmin
+    }
 
     return {
       claimed: true,
