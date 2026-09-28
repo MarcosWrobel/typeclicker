@@ -48,6 +48,9 @@
 - **Arquitetura Vetorial Canônica & Política de Zero Emojis Unicode**:
   - É proibido o uso de glifos de emoji Unicode em UI e gameplay por incompatibilidade de renderização entre SOs (Linux, ChromeOS, Windows, macOS), quebra de alinhamento e dissonância estética com o tema retrô/cyberpunk escolar.
   - Adota-se a ordem de precedência: 1) `lucide-react` para utilitários; 2) `src/constants/vectorShapes.ts` e mascotes existentes (`BytezinhoAvatar`, `BytezinhoMascot`); 3) vetores icônicos em SVG nativo React em `src/components/vectors/` ou pastas de jogos específicos (`RadarIcons.tsx`, etc.). Todos com custo zero de rede/egress, renderização SVG inline e suporte a herança de cores via Tailwind (`currentColor`).
+  - **Dicionários Vetoriais de Retrocompatibilidade (`src/components/vectors/`)**: Para garantir 100% de integridade com o banco de dados Supabase e Firestore sem executar migrações de dados invasivas, foram criados renderizadores canônicos (`TrackIconRenderer`, `RpgClassIcon`, `StudentAvatarRenderer`, `LevelBadgeRenderer`, `AchievementIconRenderer`, `CardFrameIcon`). Eles mantêm dicionários com as chaves legadas e renderizam dinamicamente componentes SVG nítidos e escaláveis.
+  - **Procedural Canvas Rendering**: Os jogos em HTML5 Canvas (`TyperDashCanvas`, `RadarCanvas`, `ScratchBoardCanvas`) utilizam traçados procedurais via Context2D (`ctx.beginPath() ... ctx.stroke()`) ou textos com fontes mono incorporadas, eliminando símbolos Unicode dependentes da tipografia do sistema operacional do laboratório escolar.
+  - **Padronização de Avatares Compactos**: Expansão do `BytezinhoAvatar` para suportar `size="xs"` (`w-4 h-4`), permitindo avatares vetoriais interativos no seletor de skins de jogos (`TyperDashGame`).
 
 ## Decisões do Código Legado e Status de Migração
 

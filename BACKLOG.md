@@ -26,6 +26,8 @@
 | **[SCRATCHBOT/OBSTÁCULOS]** Obstáculos Interativos: EMP Hazards, Warp Pads, Portões Laser com Chaves e Esteiras | nenhum (lógica pura client-side) | `ScratchBoardCanvas.tsx`, `levelsData.ts`, `proceduralGenerator.ts`, `scratchAudio.ts` | M | **Concluído** |
 | **[SCRATCHBOT/UX]** Layout de 3 colunas otimizado, suporte a aninhamento em loops e skin oficial do Bytezinho | `user_cosmetics` / `equippedSkin` | `ScratchBotGame.tsx`, `ScratchBlockItem.tsx`, `ScratchBoardCanvas.tsx` | M | **Concluído** |
 | **[DESIGN/VETORIAL]** Padronização de Diretriz Vetorial (Zero Emojis + SVGs Icônicos/Originais) | Sem alterações de banco | Global (`ARCHITECTURE.md`, `DECISIONS.md`, `EducationalMascotVector.tsx`) | M | **Concluído** |
+| **[VETORIAL]** Migração Integral para Arquitetura Vetorial & Iconografia Canônica | nenhum (preservação estrita de chaves e dados legados) | Toda a UI, Hub, Modais, Arenas, Jogos (`Radar`, `TyperDash`, `ScratchBot`), HUDs e Layouts | G | **Concluído (`a60eaf9`)** |
+| **[VETORIAL]** Renderizadores Canônicos com Retrocompatibilidade (`TrackIconRenderer`, `RpgClassIcon`, `StudentAvatarRenderer`, `LevelBadgeRenderer`, `AchievementIconRenderer`, `CardFrameIcon`) | nenhum (preservação de chave id) | `src/components/vectors/*`, `StudentModal.tsx`, `StudentProfileCard.tsx`, `CosmeticsShopModal.tsx`, `AchievementsModal.tsx`, `LevelsModal.tsx` | M | **Concluído (`235865c` / `a60eaf9`)** |
 
 ---
 
@@ -39,9 +41,7 @@
 ### P2 — Débitos Técnicos e Trilhas Curriculares
 | Feature | Dados DB (Supabase / Legado Firestore) | Telas afetadas | Complexidade | Status |
 |---|---|---|---|---|
-| **[VETORIAL]** Substituição de emojis por avatares vetoriais SVG nativos | nenhum (persistência de chave id) | `StudentModal.tsx`, `StudentProfileCard.tsx` | M | Pendente |
-| **[VETORIAL]** Substituição de emojis por ícones Lucide/SVGs nos Níveis e Conquistas | nenhum (lógica client-side) | `src/data/levels.ts`, `src/constants/achievementsCatalog.ts` | P | Pendente |
-| **[VETORIAL]** Substituição de emojis por vetores no Catálogo de Cosméticos e Modais | nenhum (lógica client-side) | `cosmeticsCatalog.ts`, `CosmeticsShopModal.tsx` | M | Pendente |
+| *(Nenhum débito prioritário pendente — arquitetura vetorial e trilhas curriculares 100% integradas)* | - | - | - | Em dia |
 
 ### P3 — Novos Jogos e Expansão do Hub
 | Feature | Dados DB (Supabase / Legado Firestore) | Telas afetadas | Complexidade | Status |

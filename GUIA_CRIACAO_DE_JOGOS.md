@@ -21,7 +21,8 @@ A plataforma TypeClicker roda em `typeclicker-leopoldina.ai.studio`. Ela tem um 
 - `typeclicker` — jogo principal de digitação e mineração (não modificar)
 - `type_radar` — torre de defesa cibernética e roguelike (não modificar)
 - `progplay` — 1º jogo integrado criado por aluno (André Luís Borato Ferreira - 8º 2) com 100 desafios em 5 linguagens e arena 1v1
-- `byte_logic`, `math_storm`, `syntax_maze` — jogos criados pelo professor (não modificar)
+- `scratchbot` — jogo oficial de lógica algorítmica e pensamento computacional em blocos (não modificar)
+- `math_storm`, `syntax_maze` — jogos futuros do professor (não modificar)
 
 **Você, como aluno, cria um jogo novo com tema e nome à sua escolha.**  
 O professor define o `GameId` e faz a integração no Hub após avaliar o seu componente. Todos os jogos de alunos são carregados via **Lazy Loading** (`React.lazy`). Isso significa que bibliotecas pesadas usadas no seu jogo não deixam a plataforma lenta para os outros alunos.
@@ -54,6 +55,7 @@ NÃO use:
 - Imagens externas, fontes de CDN, fetch para APIs.
 - import de banco de dados (`firebaseService`, `supabaseAdapter`, `@supabase/supabase-js`, `db`, `setDoc`, `getDoc` ou qualquer cliente DB). O Hub gerencia a persistência no Supabase automaticamente.
 - localStorage ou sessionStorage dentro do jogo (o Hub cuida do save).
+- Emojis de sistema como ícones de botões e interface (use sempre ícones do `lucide-react` para consistência visual em qualquer sistema operacional).
 ```
 
 ---

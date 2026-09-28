@@ -15,7 +15,7 @@ Desenvolvida para o **Colégio Estadual Leopoldina Bittencourt Pedroso** (Curiti
 | **Build Tool** | [Vite](https://vitejs.dev/) | 6.2.3 |
 | **Estilização** | [Tailwind CSS](https://tailwindcss.com/) | 4.1.14 |
 | **Animações** | [Motion (Framer Motion)](https://motion.dev/) | 12.23.x |
-| **Ícones** | [Lucide React](https://lucide.dev/) | 0.546.x |
+| **Ícones & Vetores** | [Lucide React](https://lucide.dev/) (0.546.x) + Renderizadores SVG Canônicos (`src/components/vectors/`) — Arquitetura Zero Emojis de Sistema |
 | **Banco de Dados (Oficial)** | [Supabase](https://supabase.com/) (PostgreSQL 15+) | `@supabase/supabase-js` 2.x |
 | **Banco de Dados (Legado / Contingência)** | [Cloud Firestore](https://firebase.google.com/docs/firestore) *(obsoleto)* | SDK 12.x (`FirebaseAdapter`) |
 | **Autenticação** | [Firebase Auth](https://firebase.google.com/docs/auth) (Google Identity institucional) | SDK 12.x |
@@ -121,6 +121,39 @@ Jogo de pensamento computacional e raciocínio lógico algorítmico oficial da p
 - **Trilha Pedagógica & Desafio Infinito:** 8 fases artesanais com curva curricular progressiva + gerador procedural infinito com semente determinística e garantia matemática de solvabilidade (BFS).
 - **Integração Visual com a Loja:** O mascote renderiza em tempo real a skin oficial equipada pelo aluno com reações contextuais de colisão e vitória.
 - **Áudio Procedural:** Sons sintetizados em tempo real via Web Audio API (snap de blocos, passos mecânicos, teleportes, choques, desbloqueios e fanfarra de vitória).
+
+### 10. TyperDash — Single-Beat Rhythm Runner
+Minijogo de corrida rítmica em que o jogador digita palavras e caracteres precisos no compasso sonoro (*single-beat*), acumulando combos e velocidade frenética.
+
+- **Mecânica de Timing:** Sweet spots com multiplicadores dinâmicos de velocidade (`2X SPEED`, `FRENZY`, `OVERDRIVE`).
+- **Renderização Procedural em Canvas:** Pista acelerada, faixas de neon e marcadores vetoriais com zero fontes externas ou caracteres Unicode.
+- **Seletor de Skins Integrado:** Miniaturas vetoriais do Bytezinho (`size="xs"`) que refletem a skin equipada na loja.
+- **Áudio e Efeitos:** Sintetizador sonoro em tempo real com trilha e cliques sincronizados ao BPM.
+
+### 11. ProgPlay — Desafios de Programação e Duelo 1v1 (Criado por Aluno)
+Primeiro jogo desenvolvido por aluno integrado ao Hub oficial (**André Luís Borato Ferreira - 8º 2**), voltado para a prática de lógica de programação e sintaxe real.
+
+- **5 Trilhas de Linguagens:** Módulos estruturados de JavaScript, Python, CSS3, HTML5 e SQL com 100 níveis progressivos.
+- **Editor de Código Monaco:** Ambiente autêntico de desenvolvimento com destaque de sintaxe e autocomplete.
+- **Duelo 1v1 Sem Dependência de IA:** Batalhas de raciocínio contra o bot mascote inteligente (*Bytezinho*) ou multiplayer local via Supabase Realtime Broadcast efêmero.
+- **Contrato Oficial `BaseGameProps`:** Pontuação e métricas normalizadas de saída (`onExitToHub`) integradas à economia unificada de Bytes.
+
+---
+
+## 📐 Diretriz Unificada de Arquitetura Vetorial (Zero Emojis Genéricos)
+
+Para assegurar fidelidade visual profissional e eliminar inconsistências de renderização entre os diferentes sistemas operacionais escolares (Linux, ChromeOS, Windows, macOS), o **TypeClicker** adota a política de **Zero Emojis Unicode** em todos os componentes de interface e gameplay:
+
+1. **Iconografia Canônica (`lucide-react`)**: Utilização estrita de ícones SVG limpos, acessíveis e responsivos para navegação, ações, ferramentas e status.
+2. **Renderizadores Proprietários com Retrocompatibilidade (`src/components/vectors/`)**:
+   - `TrackIconRenderer.tsx`: Mapeamento das trilhas curriculares (`geral`, `scratch`, `web`, `empresarial`, `ingles`).
+   - `RpgClassIcon.tsx`: Ícones das 10 classes de RPG da Masmorra e Arenas.
+   - `StudentAvatarRenderer.tsx`: Avatares de perfil com suporte a chaves legadas e renderização procedural SVG.
+   - `LevelBadgeRenderer.tsx`: Emblemas dinâmicos escaláveis para marcos de progressão de níveis.
+   - `AchievementIconRenderer.tsx`: Ícones temáticos para todas as 60+ conquistas do sistema.
+   - `CardFrameIcon.tsx`: Molduras cosméticas de cartas e títulos.
+3. **Canvas 100% Procedural**: Os minijogos que operam sobre HTML5 Canvas desenham marcadores e vetores através de primitivas nativas (`ctx.beginPath()`, `ctx.stroke()`), sem fontes locais de emojis de sistema.
+4. **Preservação de Dados de Produção**: Nenhuma coluna ou valor do banco de dados (Supabase ou Firestore) precisou ser migrado; a camada vetorial traduz dados legados dinamicamente em tempo de renderização.
 
 ---
 
