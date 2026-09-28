@@ -16,6 +16,7 @@ import {
 import { LeaderboardMetric, METRIC_TABS } from './LeaderboardModal';
 import { useLeaderboardPodium } from '../hooks/useLeaderboardPodium';
 import { formatBytes } from '../utils/formatting';
+import { StudentAvatarRenderer } from './vectors/StudentAvatarRenderer';
 
 export interface TopPodiumWidgetProps {
   currentUserId?: string;
@@ -185,9 +186,9 @@ export const TopPodiumWidget: React.FC<TopPodiumWidgetProps> = ({
                     {medals[idx] || `${idx + 1}º`}
                   </div>
 
-                  <span className="text-sm shrink-0 select-none">
-                    {player.avatar || '👩‍💻'}
-                  </span>
+                  <div className="w-5 h-5 shrink-0 select-none">
+                    <StudentAvatarRenderer avatar={player.avatar} className="w-full h-full" />
+                  </div>
 
                   <div className="flex flex-col min-w-0">
                     <div className="flex items-center gap-1 truncate">

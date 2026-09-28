@@ -100,6 +100,31 @@ Para atender aos diferentes dispositivos escolares (Chromebooks, teclados ABNT2 
      - Modo `words`: dimensões estáticas (`h-[105px] ... overflow-hidden flex items-center justify-center`) para preservar o alinhamento de palavras individuais.
      - Modos `sentences` e `code`: container expandido e dinâmico (`min-h-[130px] max-h-[240px...320px] overflow-y-auto`) com auto-scroll suave (`scrollIntoView`) focalizando o caractere ativo `.char-current`.
 
+## Diretriz Unificada: Arquitetura Vetorial, Iconografia Canônica & Identidade Visual (Zero Emojis Genéricos)
+
+### 1. Proibição Estrita de Emojis Unicode
+- **Zero Emojis em UI e Gameplay**: É terminantemente proibido o uso de glifos de emoji Unicode nativos (`🏆`, `⚔️`, `🛡️`, `🐱`, `⚡`, `👾`, `💎`, etc.) como ícones, botões, insígnias, chefes, ilustrações de cartas ou elementos visuais de minijogos.
+- **Motivo Técnico e Pedagógico**: Emojis sofrem discrepâncias graves de renderização entre sistemas operacionais (Windows, macOS, Linux, ChromeOS das escolas públicas), quebram o alinhamento de layout, destoam da estética retrô/cyberpunk/RPG da plataforma e transmitem aspecto de protótipo amador.
+
+### 2. Hierarquia e Reutilização Canônica de Vetores
+Antes de gerar qualquer novo elemento visual, deve-se seguir a seguinte ordem de precedência:
+1. **Pacote de Ícones Utilitários**: Usar componentes de `lucide-react` (já integrado ao bundle Vite) para ações funcionais padrão (fechar, voltar, sons, configurações, troféus utilitários, filtros).
+2. **Catálogo Canônico Centralizado (`src/constants/vectorShapes.ts`)**:
+   - Reutilizar insígnias, molduras de cartas e padrões geométricos já existentes.
+   - Reutilizar `BytezinhoAvatar.tsx` e `BytezinhoMascot.tsx` para mascote principal, estados emocionais e skins.
+3. **Módulos de Vetores Específicos de Jogos**:
+   - Reutilizar os vetores temáticos já consolidados, a exemplo de `src/components/games/radar/RadarIcons.tsx` para naves, torretas, ondas e defesas.
+
+### 3. Criação de Vetores Originais e Vetores Icônicos (SVG Nativo React)
+Quando a mecânica pedagógica ou o design exigir uma forma não coberta pelos passos anteriores:
+1. **Vetores Icônicos Reais (Ex: Mascote do Scratch, Logotipos Educacionais, Conceitos Pedagógicos)**:
+   - **Vetorização Direta em SVG**: Construídos como componentes funcionais React SVG nativos (`viewBox="0 0 100 100"` ou `0 0 48 48` / `0 0 24 24`), sem requisições HTTP adicionais, sem assets rasterizados (PNG/JPG) e sem dependência de CDNs externas.
+   - **Componentização Modular**: Salvos no diretório compartilhado `src/components/vectors/` (ex: `src/components/vectors/EducationalMascotVector.tsx`) ou dentro da pasta do respectivo jogo em `src/components/games/<nome-jogo>/<NomeJogo>Icons.tsx`.
+   - **Parametrização & Estados**: Suportar props dinâmicas (tamanho `size`, variações de humor `mood`, brilho `glow`, estados de erro/acerto ou classes de tema).
+2. **Regras Técnicas de Estilização Vetorial**:
+   - **Tailwind & `currentColor`**: Usar preferencialmente `stroke="currentColor"` e `fill="currentColor"` (ou camadas com a paleta Tailwind padrão do projeto como `#F59E0B`, `#6366F1`, `#38BDF8`, etc.) para permitir herança automática de cor em layouts de tema (Arcade, Terminal, Cyberdeck, Bios).
+   - **Custo Zero & Acessibilidade**: Todo vetor SVG inline deve incluir tags semânticas de acessibilidade (`aria-label`, `role="img"` ou `aria-hidden="true"` quando estritamente decorativo) e não adiciona custos de storage ou egress no Supabase.
+
 ## Separação Arquitetural: Painel Pedagógico vs. Administração do Sistema
 
 O antigo componente monolítico `AdminPanel.tsx` foi desacoplado em dois subsistemas independentes, com papéis, temas visuais e permissões estritas:

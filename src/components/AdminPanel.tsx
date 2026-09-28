@@ -26,8 +26,10 @@ import {
   Activity,
   Calendar,
   Timer,
-  Swords
+  Swords,
+  Crown
 } from 'lucide-react';
+import { StudentAvatarRenderer } from './vectors/StudentAvatarRenderer';
 import { fetchSupabaseMetrics, SupabaseMetricsData } from '../services/supabaseMetricsService';
 import { isSupabaseConfigured, supabase } from '../services/supabaseClient';
 import {
@@ -896,15 +898,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         {/* Card 4: Líder Provisório */}
                         <div className="p-4 rounded-2xl bg-gradient-to-br from-yellow-500/10 via-zinc-900 to-zinc-950 border border-yellow-500/30 flex flex-col justify-between shadow-sm">
                           <div className="flex items-center justify-between mb-2">
-                            <span className="text-xs font-semibold text-yellow-400 flex items-center gap-1">
-                              <span>👑</span> Líder Provisório
+                            <span className="text-xs font-semibold text-yellow-400 flex items-center gap-1.5">
+                              <Crown className="w-3.5 h-3.5 text-yellow-400" /> Líder Provisório
                             </span>
                             <Trophy className="w-4 h-4 text-yellow-400" />
                           </div>
                           {leader ? (
                             <div>
                               <div className="flex items-center gap-2">
-                                <span className="text-2xl">{leader.avatar || '👩‍💻'}</span>
+                                <div className="w-7 h-7 rounded-lg bg-zinc-800 p-0.5 flex-shrink-0">
+                                  <StudentAvatarRenderer avatar={leader.avatar} className="w-full h-full" />
+                                </div>
                                 <div className="min-w-0">
                                   <div className="text-sm font-black text-white truncate">{leader.apelido || leader.nome}</div>
                                   <div className="text-[11px] text-zinc-400 font-mono">Turma {leader.turma}</div>
@@ -1824,7 +1828,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                 className="w-full text-left p-2 rounded hover:bg-zinc-800 flex items-center justify-between text-xs transition cursor-pointer"
                               >
                                 <div className="flex items-center gap-2">
-                                  <span className="text-base">{st.avatar || '🐧'}</span>
+                                  <div className="w-5 h-5 flex-shrink-0">
+                                    <StudentAvatarRenderer avatar={st.avatar} className="w-full h-full" />
+                                  </div>
                                   <span className="font-bold text-white">{st.nome}</span>
                                   {st.apelido && <span className="text-zinc-400">({st.apelido})</span>}
                                   <span className="px-1.5 py-0.5 rounded bg-zinc-800 text-[10px] text-zinc-400">{st.turma}</span>

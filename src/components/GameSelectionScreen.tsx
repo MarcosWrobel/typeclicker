@@ -38,6 +38,7 @@ import { HubConfig } from '../services/firebaseService';
 import { calculatePlayerRank, formatBytes } from '../utils/formatting';
 import { getCurricularTrack } from '../data/tracks';
 import { getOverallAchievementsStats } from '../services/achievementEngine';
+import { StudentAvatarRenderer } from './vectors/StudentAvatarRenderer';
 import { sound } from '../utils/audio';
 import { LeaderboardMetric } from './LeaderboardModal';
 import { useGameCatalog, GameMetadata, GameSubject, GameGenre } from '../data/gameCatalog';
@@ -241,9 +242,9 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
               className="flex items-center gap-2.5 px-3 py-1.5 rounded-2xl bg-zinc-900/90 hover:bg-zinc-800/90 border border-zinc-700/60 hover:border-emerald-500/50 transition cursor-pointer shadow-sm group"
               title="Clique para editar seu perfil, apelido e avatar"
             >
-              <span className="text-xl sm:text-2xl group-hover:scale-110 transition-transform">
-                {state.studentAvatar || '🐧'}
-              </span>
+              <div className="w-7 h-7 sm:w-8 sm:h-8 flex-shrink-0 group-hover:scale-110 transition-transform">
+                <StudentAvatarRenderer avatar={state.studentAvatar} className="w-full h-full" />
+              </div>
               <div className="text-left hidden sm:block">
                 <div className="flex items-center gap-1.5">
                   <span className="text-xs font-bold text-white max-w-[120px] truncate">

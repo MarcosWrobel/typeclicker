@@ -12,8 +12,10 @@ import {
   X,
   Sparkles,
   AlertTriangle,
-  Award
+  Award,
+  Crown
 } from 'lucide-react';
+import { StudentAvatarRenderer } from './vectors/StudentAvatarRenderer';
 import confetti from 'canvas-confetti';
 import { ClassroomRaid, RaidParticipant } from '../types/raid';
 import { RpgClassType, RPG_CLASSES } from '../types/rpgClass';
@@ -668,7 +670,9 @@ export const ClassroomRaidArena: React.FC<ClassroomRaidArenaProps> = ({
                         <span className="font-bold text-zinc-500 w-4 text-center">
                           {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}º`}
                         </span>
-                        <span className="text-base">{p.avatar || '⚡'}</span>
+                        <div className="w-5 h-5 flex-shrink-0 select-none">
+                          <StudentAvatarRenderer avatar={p.avatar} className="w-full h-full" />
+                        </div>
                         <span className="font-bold text-zinc-200 truncate">
                           {p.apelido || p.nome}
                         </span>
@@ -719,8 +723,8 @@ export const ClassroomRaidArena: React.FC<ClassroomRaidArenaProps> = ({
             className="fixed inset-0 z-60 bg-black/95 flex items-center justify-center p-4"
           >
             <div className="w-full max-w-xl bg-zinc-950 border-2 border-amber-500/60 rounded-3xl p-6 sm:p-8 text-center shadow-[0_0_50px_rgba(245,158,11,0.3)]">
-              <div className="w-20 h-20 mx-auto rounded-full bg-amber-500/20 border-2 border-amber-500/60 flex items-center justify-center text-4xl mb-4 animate-bounce">
-                🏆
+              <div className="w-20 h-20 mx-auto rounded-full bg-amber-500/20 border-2 border-amber-500/60 flex items-center justify-center mb-4">
+                <Trophy className="w-10 h-10 text-amber-400 animate-bounce" />
               </div>
 
               <span className="px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-mono font-bold tracking-widest uppercase">
@@ -737,13 +741,17 @@ export const ClassroomRaidArena: React.FC<ClassroomRaidArenaProps> = ({
               {/* Destaque do MVP */}
               {raid.mvp && (
                 <div className="my-6 p-4 rounded-2xl bg-zinc-900/90 border border-amber-500/40 text-left flex items-center gap-4">
-                  <div className="text-3xl">👑</div>
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                    <Crown className="w-6 h-6 text-amber-400" />
+                  </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-[10px] font-mono text-amber-400 font-bold uppercase">
                       Maior Contribuinte (MVP da Batalha)
                     </div>
                     <div className="text-base font-bold text-white font-mono truncate flex items-center gap-2">
-                      <span>{raid.mvp.avatar}</span>
+                      <div className="w-6 h-6 flex-shrink-0 select-none">
+                        <StudentAvatarRenderer avatar={raid.mvp.avatar} className="w-full h-full" />
+                      </div>
                       <span>{raid.mvp.apelido || raid.mvp.nome}</span>
                       <span className="text-xs text-zinc-400">({raid.mvp.turma})</span>
                     </div>

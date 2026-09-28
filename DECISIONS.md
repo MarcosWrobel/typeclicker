@@ -45,6 +45,9 @@
 - **Wipe Seguro com Limpeza Sincronizada Multi-Provedor**:
   - A exclusão de dados respeita integridade relacional, preservando contas docentes (`role = 'teacher'`) e limpando tabelas filhas antes de resetar os perfis dos alunos.
   - Para prevenir ressurgimento de dados fantasmas caso a aplicação seja executada em ambientes com fallback para Firestore ativado, uma exclusão sincronizada é disparada em paralelo nas coleções legadas (`/saves`, `/leaderboard`).
+- **Arquitetura Vetorial Canônica & Política de Zero Emojis Unicode**:
+  - É proibido o uso de glifos de emoji Unicode em UI e gameplay por incompatibilidade de renderização entre SOs (Linux, ChromeOS, Windows, macOS), quebra de alinhamento e dissonância estética com o tema retrô/cyberpunk escolar.
+  - Adota-se a ordem de precedência: 1) `lucide-react` para utilitários; 2) `src/constants/vectorShapes.ts` e mascotes existentes (`BytezinhoAvatar`, `BytezinhoMascot`); 3) vetores icônicos em SVG nativo React em `src/components/vectors/` ou pastas de jogos específicos (`RadarIcons.tsx`, etc.). Todos com custo zero de rede/egress, renderização SVG inline e suporte a herança de cores via Tailwind (`currentColor`).
 
 ## Decisões do Código Legado e Status de Migração
 

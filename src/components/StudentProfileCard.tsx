@@ -7,6 +7,7 @@ import { calculatePlayerBadges, extractStatsFromPlayer } from '../services/profi
 import { formatBytes, calculatePlayerRank } from '../utils/formatting';
 import { RPG_CLASSES } from '../types/rpgClass';
 import { getSerieLabelFromTurma } from '../constants/school';
+import { StudentAvatarRenderer } from './vectors/StudentAvatarRenderer';
 
 import { PlayerCosmetics } from '../types/cosmetics';
 
@@ -130,7 +131,7 @@ export const StudentProfileCard: React.FC<StudentProfileCardProps> = ({
           {/* Avatar com moldura temática */}
           <div className="relative shrink-0">
             <div
-              className={`w-16 h-16 sm:w-18 sm:h-18 rounded-2xl flex items-center justify-center text-3xl sm:text-4xl shadow-inner border-2 ${
+              className={`w-16 h-16 sm:w-18 sm:h-18 rounded-2xl flex items-center justify-center p-1.5 shadow-inner border-2 ${
                 frameConfig.id === 'foil'
                   ? 'border-pink-400 bg-pink-950/40 shadow-[0_0_15px_rgba(236,72,153,0.4)]'
                   : frameConfig.id === 'gold'
@@ -140,14 +141,14 @@ export const StudentProfileCard: React.FC<StudentProfileCardProps> = ({
                   : 'border-white/20 bg-black/60 shadow-md'
               }`}
             >
-              {avatar}
+              <StudentAvatarRenderer avatar={avatar} className="w-full h-full" />
             </div>
             {pioneerRank && (
               <div
-                className="absolute -top-2 -right-2 text-lg filter drop-shadow-[0_0_6px_rgba(251,191,36,0.8)]"
+                className="absolute -top-2 -right-2 p-1 rounded-full bg-amber-950/90 border border-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)] flex items-center justify-center"
                 title={`Pioneiro #${pioneerRank} da História do Colégio!`}
               >
-                👑
+                <Crown className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
               </div>
             )}
           </div>

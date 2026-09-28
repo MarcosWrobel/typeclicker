@@ -28,6 +28,7 @@ import { dbService } from '../services/dbFactory';
 import { Level100PioneersWidget } from './Level100PioneersWidget';
 import { StudentProfileCardModal } from './StudentProfileCardModal';
 import { formatBytes } from '../utils/formatting';
+import { StudentAvatarRenderer } from './vectors/StudentAvatarRenderer';
 import { ALL_LEVELS } from '../data/levels';
 import {
   SERIES_CONFIG,
@@ -1027,8 +1028,8 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                               <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-slate-400/20 text-slate-200 border border-slate-400/30">
                                 2º Lugar • Vice-Campeão
                               </span>
-                              <div className="w-12 h-12 rounded-xl bg-zinc-800 border border-slate-400/40 flex items-center justify-center text-2xl mt-1 shadow-inner">
-                                {archivedSeasonHistory[1].avatar || '👩‍💻'}
+                              <div className="w-12 h-12 rounded-xl bg-zinc-800 border border-slate-400/40 flex items-center justify-center p-1.5 mt-1 shadow-inner">
+                                <StudentAvatarRenderer avatar={archivedSeasonHistory[1].avatar} className="w-full h-full" />
                               </div>
                               <h4 className="text-base font-black text-white mt-1">
                                 {archivedSeasonHistory[1].displayName}
@@ -1059,8 +1060,8 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                                 <span>🥇</span>
                                 <span>CAMPEÃO DO TRIMESTRE</span>
                               </span>
-                              <div className="w-14 h-14 rounded-2xl bg-zinc-900 border-2 border-yellow-500/60 flex items-center justify-center text-3xl mt-1 shadow-lg shadow-yellow-500/20">
-                                {archivedSeasonHistory[0].avatar || '👩‍💻'}
+                              <div className="w-14 h-14 rounded-2xl bg-zinc-900 border-2 border-yellow-500/60 flex items-center justify-center p-2 mt-1 shadow-lg shadow-yellow-500/20">
+                                <StudentAvatarRenderer avatar={archivedSeasonHistory[0].avatar} className="w-full h-full" />
                               </div>
                               <h4 className="text-lg font-black text-white mt-1">
                                 {archivedSeasonHistory[0].displayName}
@@ -1088,8 +1089,8 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                               <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-orange-600/20 text-orange-300 border border-orange-600/30">
                                 3º Lugar • Bronze
                               </span>
-                              <div className="w-12 h-12 rounded-xl bg-zinc-800 border border-orange-600/40 flex items-center justify-center text-2xl mt-1 shadow-inner">
-                                {archivedSeasonHistory[2].avatar || '👩‍💻'}
+                              <div className="w-12 h-12 rounded-xl bg-zinc-800 border border-orange-600/40 flex items-center justify-center p-1.5 mt-1 shadow-inner">
+                                <StudentAvatarRenderer avatar={archivedSeasonHistory[2].avatar} className="w-full h-full" />
                               </div>
                               <h4 className="text-base font-black text-white mt-1">
                                 {archivedSeasonHistory[2].displayName}
@@ -1150,8 +1151,8 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
 
                             {/* Avatar & Identificação */}
                             <div className="flex items-center gap-2.5 sm:gap-3 flex-1 min-w-0">
-                              <div className="w-10 h-10 sm:w-11 sm:h-11 shrink-0 bg-zinc-800 rounded-xl flex items-center justify-center text-xl sm:text-2xl shadow-inner border border-zinc-700/80">
-                                {item.avatar || '👩‍💻'}
+                              <div className="w-10 h-10 sm:w-11 sm:h-11 shrink-0 bg-zinc-800 rounded-xl flex items-center justify-center p-1.5 shadow-inner border border-zinc-700/80">
+                                <StudentAvatarRenderer avatar={item.avatar} className="w-full h-full" />
                               </div>
 
                               <div className="flex flex-col min-w-0">
@@ -1493,8 +1494,8 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
 
                         {/* Avatar & Identificação do Aluno */}
                         <div className="flex items-center gap-2.5 sm:gap-3 flex-1 min-w-0">
-                          <div className="w-10 h-10 sm:w-11 sm:h-11 shrink-0 bg-zinc-800 rounded-xl flex items-center justify-center text-xl sm:text-2xl shadow-inner border border-zinc-700/80">
-                            {player.avatar || '👩‍💻'}
+                          <div className="w-10 h-10 sm:w-11 sm:h-11 shrink-0 bg-zinc-800 rounded-xl flex items-center justify-center p-1.5 shadow-inner border border-zinc-700/80">
+                            <StudentAvatarRenderer avatar={player.avatar} className="w-full h-full" />
                           </div>
 
                           <div className="flex flex-col min-w-0">

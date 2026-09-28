@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { Cpu, Trophy, ChevronRight, Users, Shield } from 'lucide-react';
+import { Cpu, Trophy, ChevronRight, Users, Shield, Crown, GraduationCap, Medal, Sparkles, Coins } from 'lucide-react';
+import { StudentAvatarRenderer } from './vectors/StudentAvatarRenderer';
 import { GameState } from '../types';
 import { RPG_CLASSES } from '../types/rpgClass';
 import { formatBytes, formatRate, calculatePlayerRank } from '../utils/formatting';
@@ -62,8 +63,8 @@ export const StatsSidebar: React.FC<StatsSidebarProps> = ({
           title="Alterar perfil (Apelido, Turma e Avatar)"
         >
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-11 h-11 rounded-xl bg-emerald-500/20 border border-emerald-400/60 flex items-center justify-center text-emerald-300 text-2xl select-none flex-shrink-0 group-hover:scale-105 transition-transform shadow-inner">
-              {state.studentAvatar || '🐧'}
+            <div className="w-11 h-11 rounded-xl bg-emerald-500/20 border border-emerald-400/60 flex items-center justify-center p-1.5 select-none flex-shrink-0 group-hover:scale-105 transition-transform shadow-inner">
+              <StudentAvatarRenderer avatar={state.studentAvatar} className="w-full h-full" />
             </div>
             <div className="flex flex-col min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap">
@@ -71,15 +72,19 @@ export const StatsSidebar: React.FC<StatsSidebarProps> = ({
                   {state.studentNickname || state.studentName || 'Definir Apelido'}
                 </span>
                 {isSuperAdmin ? (
-                  <span className="px-1.5 py-0.2 rounded-full bg-red-500/20 border border-red-500/30 text-[9px] font-bold text-red-400 whitespace-nowrap">👑 ADM</span>
+                  <span className="px-1.5 py-0.2 rounded-full bg-red-500/20 border border-red-500/30 text-[9px] font-bold text-red-400 whitespace-nowrap flex items-center gap-0.5">
+                    <Crown className="w-2.5 h-2.5 text-red-400" /> ADM
+                  </span>
                 ) : isAdmin ? (
-                  <span className="px-1.5 py-0.2 rounded-full bg-sky-500/20 border border-sky-500/30 text-[9px] font-bold text-sky-400 whitespace-nowrap">👨‍🏫 Prof</span>
+                  <span className="px-1.5 py-0.2 rounded-full bg-sky-500/20 border border-sky-500/30 text-[9px] font-bold text-sky-400 whitespace-nowrap flex items-center gap-0.5">
+                    <GraduationCap className="w-2.5 h-2.5 text-sky-400" /> Prof
+                  </span>
                 ) : myPioneerSlot ? (
                   <span
                     className="px-1.5 py-0.2 rounded-full bg-amber-500/20 border border-amber-400/60 text-[9px] font-mono font-bold text-amber-300 whitespace-nowrap flex items-center gap-0.5 shadow-sm"
                     title={`Pioneiro do Nível 100 • #${myPioneerSlot.rank} na história do colégio`}
                   >
-                    <span>{myPioneerSlot.rank === 1 ? '🥇' : myPioneerSlot.rank === 2 ? '🥈' : '🥉'}</span>
+                    <Medal className="w-2.5 h-2.5 text-amber-300" />
                     <span>Pioneiro #{myPioneerSlot.rank}</span>
                   </span>
                 ) : null}
@@ -110,7 +115,7 @@ export const StatsSidebar: React.FC<StatsSidebarProps> = ({
           title="Ver seu Card Colecionável 3D e Galeria de Insígnias"
         >
           <div className="flex items-center gap-2">
-            <span className="text-base select-none">🎴</span>
+            <Sparkles className="w-4 h-4 text-amber-400" />
             <span className="font-mono tracking-wide">Meu Card de Aluno</span>
           </div>
           <span className="text-[10px] text-amber-400/80 group-hover:text-amber-300 font-normal">
@@ -121,7 +126,7 @@ export const StatsSidebar: React.FC<StatsSidebarProps> = ({
 
       {/* Saldo de Bytes */}
       <div className="bg-[#0a0c10] border border-[#232833] rounded-2xl p-4 shadow-inner flex flex-col items-center text-center gap-1">
-        <span className="text-3xl select-none animate-pulse mb-1">🪙</span>
+        <Coins className="w-7 h-7 text-emerald-400 animate-pulse mb-1" />
         <span className="text-xs text-zinc-400 font-sans font-bold uppercase tracking-widest leading-none">Saldo de Bytes</span>
         <span className="text-2xl font-black text-emerald-400 break-all leading-none mt-1">
           {formatBytes(state.bytes)}

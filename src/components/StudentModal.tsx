@@ -23,6 +23,7 @@ import { sound } from '../utils/audio';
 import { GameState } from '../types';
 import { RPG_CLASSES, RpgClassType } from '../types/rpgClass';
 import { logoutUser, loginWithGoogle, isDevAdminModeActive, toggleDevAdminMode } from '../services/firebaseService';
+import { StudentAvatarRenderer } from './vectors/StudentAvatarRenderer';
 
 export interface AvatarOption {
   id: string;
@@ -210,7 +211,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
 
   const effectiveTurma = state.studentClass || '';
   const canSubmit = Boolean(nickname.trim().length > 0);
-  const currentAvatarObj = AVATAR_OPTIONS.find((a) => a.emoji === selectedAvatar) || AVATAR_OPTIONS[0];
+  const currentAvatarObj = AVATAR_OPTIONS.find((a) => a.emoji === selectedAvatar || a.id === selectedAvatar) || AVATAR_OPTIONS[0];
   const activeClassDisplay = effectiveTurma;
   const currentRpgObj = state.rpgClass ? RPG_CLASSES[state.rpgClass] : null;
 
@@ -245,10 +246,8 @@ export const StudentModal: React.FC<StudentModalProps> = ({
           <div className="bg-gradient-to-r from-emerald-950/90 via-[#161c28] to-teal-950/90 px-4 py-3 sm:px-5 sm:py-3.5 border-b border-[#242c3d] flex-shrink-0">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
-                <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-emerald-500/30 to-teal-500/10 border-2 border-emerald-400 p-0.5 flex items-center justify-center shadow-[0_0_12px_rgba(16,185,129,0.35)] flex-shrink-0">
-                  <span className="text-2xl sm:text-3xl select-none animate-bounce" style={{ animationDuration: '3s' }}>
-                    {selectedAvatar}
-                  </span>
+                <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-emerald-500/30 to-teal-500/10 border-2 border-emerald-400 p-1 flex items-center justify-center shadow-[0_0_12px_rgba(16,185,129,0.35)] flex-shrink-0">
+                  <StudentAvatarRenderer avatar={selectedAvatar} className="w-8 h-8 sm:w-9 sm:h-9" />
                 </div>
 
                 <div className="min-w-0">
@@ -463,20 +462,20 @@ export const StudentModal: React.FC<StudentModalProps> = ({
 
                     <div className="grid grid-cols-8 gap-1.5 bg-[#090b10] p-2 rounded-2xl border border-zinc-800">
                       {AVATAR_OPTIONS.map((av) => {
-                        const isSelected = selectedAvatar === av.emoji;
+                        const isSelected = selectedAvatar === av.id || selectedAvatar === av.emoji;
                         return (
                           <button
                             key={av.id}
                             type="button"
-                            onClick={() => handleSelectAvatar(av.emoji)}
+                            onClick={() => handleSelectAvatar(av.id)}
                             title={av.name}
-                            className={`h-9 sm:h-10 rounded-xl flex items-center justify-center transition cursor-pointer relative ${
+                            className={`h-10 sm:h-11 rounded-xl p-1 flex items-center justify-center transition cursor-pointer relative ${
                               isSelected
                                 ? 'bg-emerald-500/25 border-2 border-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.5)] scale-105'
                                 : 'bg-[#141822] hover:bg-zinc-800 border border-zinc-700/60 hover:border-zinc-500'
                             }`}
                           >
-                            <span className="text-xl select-none leading-none">{av.emoji}</span>
+                            <StudentAvatarRenderer avatar={av.id} className="w-6 h-6 sm:w-7 sm:h-7" />
                             {isSelected && (
                               <span className="absolute -top-1 -right-1 bg-emerald-500 text-zinc-950 p-0.5 rounded-full">
                                 <Check className="w-2 h-2" strokeWidth={4} />
@@ -810,7 +809,18 @@ export const StudentModal: React.FC<StudentModalProps> = ({
                     : 'bg-zinc-800 text-zinc-500 cursor-not-allowed opacity-60 border border-zinc-700/50'
                 }`}
               >
-                <span>{canSubmit ? `${selectedAvatar} Salvar Perfil e Jogar` : '⚠️ Digite seu Apelido para Continuar'}</span>
+                <span className="flex items-center gap-2">
+                  {canSubmit ? (
+                    <>
+                      <span className="w-5 h-5 inline-flex items-center justify-center">
+                        <StudentAvatarRenderer avatar={selectedAvatar} className="w-full h-full" />
+                      </span>
+                      <span>Salvar Perfil e Jogar</span>
+                    </>
+                  ) : (
+                    'Digite seu Apelido para Continuar'
+                  )}
+                </span>
                 {canSubmit && <ArrowRight className="w-4 h-4" />}
               </motion.button>
             </div>

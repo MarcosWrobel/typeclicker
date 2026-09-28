@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Trophy, X, CheckCircle2, Lock, Sparkles, Search, ArrowRight, Target, ChevronRight, Award, GraduationCap, Crown } from 'lucide-react';
 import { ALL_LEVELS, LEVEL_TIERS, LevelDef, PlayerRank } from '../data/levels';
 import { formatBytes } from '../utils/formatting';
+import { StudentAvatarRenderer } from './vectors/StudentAvatarRenderer';
 import { Level100PioneerSlot } from '../types/leaderboard';
 
 interface LevelsModalProps {
@@ -142,8 +143,11 @@ export const LevelsModal: React.FC<LevelsModalProps> = ({
                   <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-300 bg-emerald-950/80 px-2 py-0.5 rounded-full border border-emerald-500/40">
                     Seu Nível Atual
                   </span>
-                  <span className="text-xs text-zinc-400 font-medium">
-                    {studentAvatar} {studentName || 'Aluno'}
+                  <span className="text-xs text-zinc-400 font-medium flex items-center gap-1.5">
+                    <span className="w-4 h-4 inline-block">
+                      <StudentAvatarRenderer avatar={studentAvatar} className="w-full h-full" />
+                    </span>
+                    <span>{studentName || 'Aluno'}</span>
                   </span>
                 </div>
                 <h3 className="text-base sm:text-lg font-black text-white mt-0.5">
@@ -393,7 +397,9 @@ export const LevelsModal: React.FC<LevelsModalProps> = ({
                                 key={slot.rank}
                                 className={`p-2.5 rounded-xl border ${borderCol} flex items-center gap-2`}
                               >
-                                <span className="text-xl select-none">{slot.player.avatar || '👑'}</span>
+                                <div className="w-6 h-6 select-none flex-shrink-0">
+                                  <StudentAvatarRenderer avatar={slot.player.avatar} className="w-full h-full" />
+                                </div>
                                 <div className="flex flex-col min-w-0 text-left font-mono">
                                   <span className="text-xs font-bold text-white truncate">
                                     {medal} {slot.player.apelido || slot.player.nome}
