@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { LeaderboardEntry, Level100PioneerSlot } from '../types/leaderboard';
 import { isStaffMember, extractLevel100Pioneers } from '../utils/leaderboardUtils';
 import { dbService } from '../services/dbFactory';
+import { auth } from '../services/firebaseService';
 import { LeaderboardMetric } from '../components/LeaderboardModal';
 
 const METRIC_ORDER: LeaderboardMetric[] = ['level', 'wpm', 'combo', 'bytes', 'pvp', 'races', 'dash'];
@@ -39,6 +40,10 @@ export function useLeaderboardPodium(): UseLeaderboardPodiumReturn {
 
   // Carregamento de dados com tratamento estrito de staff
   const loadData = useCallback(async (force: boolean = false) => {
+    if (!auth.currentUser) {
+      setIsLoading(false);
+      return;
+    }
     try {
       setIsLoading(true);
       const data = await dbService.getGlobalLeaderboard(force);
@@ -236,3 +241,52 @@ export function useLeaderboardPodium(): UseLeaderboardPodiumReturn {
     refreshNow
   };
 }
+
+/**
+ * Hook dedicado e ultraleve que carrega os pioneiros do Nível 100
+ * sem o timer de 1s de rotação de métricas do carrossel do pódio.
+ * Impede re-renderizações desnecessárias no componente raiz App.tsx.
+ */
+export function useLevel100Pioneers(): { pioneers: Level100PioneerSlot[]; isLoading: boolean } {
+  const [allPlayers, setAllPlayers] = useState<LeaderboardEntry[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    let mounted = true;
+    const fetchPioneers = async () => {
+      if (!auth.currentUser) {
+        if (mounted) setIsLoading(false);
+        return;
+      }
+      try {
+        const data = await dbService.getGlobalLeaderboard(false);
+        if (!mounted) return;
+        const cleanStudents = data.filter((p) => !isStaffMember(p));
+        setAllPlayers(cleanStudents);
+      } catch (err) {
+        console.warn('Falha ao carregar pioneiros:', err);
+      } finally {
+        if (mounted) setIsLoading(false);
+      }
+    };
+
+    fetchPioneers();
+    // Atualiza a cada 3 minutos (Spark-Safe)
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      fetchPioneers();
+    }, CLOUD_SYNC_INTERVAL_SEC * 1000);
+
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, []);
+
+  const pioneers = useMemo(() => {
+    return extractLevel100Pioneers(allPlayers);
+  }, [allPlayers]);
+
+  return { pioneers, isLoading };
+}
+

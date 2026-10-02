@@ -4,6 +4,7 @@
 
 | Feature | Dados DB (Supabase / Legado Firestore) | Telas / Arquivos | Complexidade | Status |
 |---|---|---|---|---|
+| **[PERFORMANCE]** Eliminação de Stutter/Jitter, Efeito Elástico no Radar e Reflows de Digitação/Loja | nenhum (otimização client-side) | `RadarCanvas.tsx`, `TypeRadarGame.tsx`, `TypingArena.tsx`, `ShopPanel.tsx`, `fxEngine.ts`, `App.tsx` | G | **Concluído** |
 | **[BUG]** Corrigir `hackTokens` → `cosmetics.levelTokens` no Baú Criptográfico | `game_progress.state_payload` / `saves/{uid}` | `App.tsx`, `storage.ts` | P | **Concluído** |
 | **[DÉBITO]** Migrar `TypeRadarGame.onExitToHub` para novo `GameExitPayload` | `game_progress.state_payload.arcadeHistory` | `App.tsx`, `TypeRadarGame.tsx` | P | **Concluído** |
 | **[DÉBITO]** Implementar normalização de bytes no Hub para jogos plug-in | nenhum (lógica pura) | `App.tsx`, `gameNormalizer.ts` | P | **Concluído** |

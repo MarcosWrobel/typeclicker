@@ -7,7 +7,8 @@ import {
   adminUpdateStudentProfile,
   adminAutoBalanceRpgClasses,
   wipeDatabase,
-  sanitizeStaffFromLeaderboard
+  sanitizeStaffFromLeaderboard,
+  removeUndefinedFields
 } from '../firebaseService';
 import { doc, getDoc, setDoc, updateDoc, collection, query, orderBy, limit, getDocs, where } from 'firebase/firestore';
 import { GameState } from '../../types';
@@ -149,13 +150,13 @@ export class FirebaseAdapter implements IDatabaseService {
     const arrayName = categoryMap[category];
     if (arrayName && !cosmetics[arrayName]?.includes(itemId)) {
       await setDoc(docRef, {
-        saveState: {
+        saveState: removeUndefinedFields({
           ...data.saveState,
           cosmetics: {
             ...cosmetics,
             [arrayName]: [...(cosmetics[arrayName] || []), itemId]
           }
-        }
+        })
       }, { merge: true });
     }
   }
@@ -164,7 +165,7 @@ export class FirebaseAdapter implements IDatabaseService {
     const docRef = doc(db, 'saves', userId);
     await setDoc(docRef, {
       userId,
-      saveState: state,
+      saveState: removeUndefinedFields(state),
       lastUpdated: Date.now()
     }, { merge: true });
   }

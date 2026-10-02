@@ -24,7 +24,7 @@ import { triggerUpgradePurchaseVfx } from '../services/fxEngine';
 
 interface ShopPanelProps {
   state: GameState;
-  onBuyUpgrade: (upgrade: UpgradeDef) => boolean | void;
+  onBuyUpgrade: (upgrade: UpgradeDef, isContinuous?: boolean) => boolean | void;
   onOpenPrestige: () => void;
   isPaused?: boolean;
   equippedAnimation?: AnimationEffectId;
@@ -57,6 +57,7 @@ export const ShopPanel: React.FC<ShopPanelProps> = ({
   const activeHoldingUpgradeRef = useRef<UpgradeDef | null>(null);
   const currentButtonRectRef = useRef<DOMRect | null>(null);
   const hasHandledPointerDownRef = useRef<boolean>(false);
+  const lastVfxTriggerRef = useRef<number>(0);
   const stateRef = useRef(state);
   stateRef.current = state;
 
@@ -120,52 +121,59 @@ export const ShopPanel: React.FC<ShopPanelProps> = ({
       return false;
     }
 
-    // Dispara a compra no estado global
-    const success = onBuyUpgrade(upgrade);
+    const isContinuous = isHoldingRef.current;
+    // Dispara a compra no estado global informando se é compra contínua mantida
+    const success = onBuyUpgrade(upgrade, isContinuous);
     if (success === false) return false;
 
     const nextCount = count + 1;
     const isMilestone = nextCount % 5 === 0;
 
-    // Marca o ID para animação de pulso no card
-    setLastBoughtId(upgrade.id);
-    setTimeout(() => {
-      setLastBoughtId((curr) => (curr === upgrade.id ? null : curr));
-    }, 400);
+    // Marca o ID para animação de pulso no card (apenas em compras avulsas ou marcos de 5 em 5)
+    if (!isContinuous || isMilestone) {
+      setLastBoughtId(upgrade.id);
+      setTimeout(() => {
+        setLastBoughtId((curr) => (curr === upgrade.id ? null : curr));
+      }, 350);
+    }
 
-    // Dispara o efeito visual customizado equipado a cada compra (com boost em marcos de 5 em 5)
-    if (buttonRect && (isMilestone || !isHoldingRef.current)) {
+    // Dispara o efeito visual: com throttle de 120ms para compras avulsas e sempre no marco de 5 em 5
+    const now = Date.now();
+    if (buttonRect && (isMilestone || (!isContinuous && now - lastVfxTriggerRef.current > 120))) {
+      lastVfxTriggerRef.current = now;
       triggerUpgradePurchaseVfx(equippedAnimation, buttonRect, isMilestone);
     }
 
-    // Cria ou atualiza tag flutuante pedagógica
-    setFloatingAlerts((prev) => {
-      const existing = prev.find((a) => a.upgradeId === upgrade.id);
-      if (existing && isHoldingRef.current) {
-        return prev.map((a) =>
-          a.id === existing.id
-            ? {
-                ...a,
-                text: `Nv. ${nextCount}!`,
-                detail: upgrade.type === 'passive' ? `+${upgrade.value}/s` : `+${upgrade.value}/tecla`
-              }
-            : a
-        );
-      }
+    // Alertas flutuantes pedagógicos: em compra contínua, emite apenas nos marcos para não sobrecarregar Framer Motion
+    if (!isContinuous || isMilestone) {
+      setFloatingAlerts((prev) => {
+        const existing = prev.find((a) => a.upgradeId === upgrade.id);
+        if (existing) {
+          return prev.map((a) =>
+            a.id === existing.id
+              ? {
+                  ...a,
+                  text: `Nv. ${nextCount}!`,
+                  detail: upgrade.type === 'passive' ? `+${upgrade.value}/s` : `+${upgrade.value}/tecla`
+                }
+              : a
+          );
+        }
 
-      const newAlert: FloatingUpgradeAlert = {
-        id: Date.now() + Math.random(),
-        upgradeId: upgrade.id,
-        text: `Nv. ${nextCount}!`,
-        detail: upgrade.type === 'passive' ? `+${upgrade.value}/s` : `+${upgrade.value}/tecla`,
-        type: upgrade.type
-      };
-      return [...prev.slice(-3), newAlert];
-    });
+        const newAlert: FloatingUpgradeAlert = {
+          id: Date.now() + Math.random(),
+          upgradeId: upgrade.id,
+          text: `Nv. ${nextCount}!`,
+          detail: upgrade.type === 'passive' ? `+${upgrade.value}/s` : `+${upgrade.value}/tecla`,
+          type: upgrade.type
+        };
+        return [...prev.slice(-2), newAlert];
+      });
 
-    setTimeout(() => {
-      setFloatingAlerts((prev) => prev.filter((a) => a.upgradeId !== upgrade.id || a.id > Date.now() - 700));
-    }, 800);
+      setTimeout(() => {
+        setFloatingAlerts((prev) => prev.filter((a) => a.upgradeId !== upgrade.id || a.id > Date.now() - 700));
+      }, 700);
+    }
 
     return true;
   }, [onBuyUpgrade, equippedAnimation]);

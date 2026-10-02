@@ -43,6 +43,8 @@ export const CockpitFrame: React.FC<CockpitFrameProps> = ({
       <svg
         className="absolute inset-0 w-full h-full pointer-events-none opacity-30 xl:opacity-45"
         xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 1000 700"
+        preserveAspectRatio="none"
       >
         {/* Cabos esquerdos */}
         <path
@@ -65,19 +67,19 @@ export const CockpitFrame: React.FC<CockpitFrameProps> = ({
         />
         {/* Cabos direitos */}
         <path
-          d="M100%,70 Ccalc(100% - 150px),130 calc(100% - 100px),400 100%,520"
+          d="M1020,70 C850,130 900,400 1020,520"
           fill="none"
           stroke="#1e293b"
           strokeWidth="12"
         />
         <path
-          d="M100%,120 Ccalc(100% - 120px),170 calc(100% - 80px),370 100%,460"
+          d="M1020,120 C880,170 920,370 1020,460"
           fill="none"
           stroke="#0f172a"
           strokeWidth="7"
         />
         <path
-          d="M100%,210 Ccalc(100% - 170px),270 calc(100% - 130px),550 100%,650"
+          d="M1020,210 C830,270 870,550 1020,650"
           fill="none"
           stroke="#334155"
           strokeWidth="4"

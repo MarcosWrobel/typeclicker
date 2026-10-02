@@ -139,7 +139,7 @@ const THEME_STYLES: Record<string, {
   }
 };
 
-export const TypingArena: React.FC<TypingArenaProps> = ({
+const TypingArenaComponent: React.FC<TypingArenaProps> = ({
   playerRankLevel,
   currentWord,
   charIndex,
@@ -461,38 +461,86 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
   // Rastreamento para disparo cinemático de impacto de teclas e finalização de palavras (Arcade VFX)
   const lastCharIndexRef = useRef(charIndex);
   const wordContainerRef = useRef<HTMLDivElement>(null);
+  const containerRectRef = useRef<{ left: number; top: number; width: number; height: number } | null>(null);
+  // Cache de coordenadas pré-calculadas de cada caractere na montagem da palavra ou resize
+  // Isso ELIMINA 100% o querySelector e o getBoundingClientRect (Forced Reflow) a cada tecla digitada!
+  const charCoordsCacheRef = useRef<{ x: number; y: number }[]>([]);
+
+  useEffect(() => {
+    const updateCoords = () => {
+      const container = wordContainerRef.current;
+      if (!container) return;
+      const r = container.getBoundingClientRect();
+      containerRectRef.current = { left: r.left, top: r.top, width: r.width, height: r.height };
+
+      const spans = container.querySelectorAll('[data-char-index]');
+      const coords: { x: number; y: number }[] = [];
+      spans.forEach((span) => {
+        const sr = span.getBoundingClientRect();
+        const idx = Number(span.getAttribute('data-char-index'));
+        coords[idx] = {
+          x: sr.left + sr.width / 2,
+          y: sr.top + sr.height / 2
+        };
+      });
+      charCoordsCacheRef.current = coords;
+    };
+
+    const rafId = requestAnimationFrame(updateCoords);
+    window.addEventListener('resize', updateCoords, { passive: true });
+    return () => {
+      cancelAnimationFrame(rafId);
+      window.removeEventListener('resize', updateCoords);
+    };
+  }, [currentWord]);
 
   useEffect(() => {
     // Se o jogador avançou na digitação correta da palavra
     if (charIndex > lastCharIndexRef.current) {
-      let xPx = window.innerWidth / 2;
-      let yPx = window.innerHeight / 2;
-
-      const activeCharSpan = wordContainerRef.current?.querySelector('.char-current') as HTMLElement | null;
-      if (activeCharSpan) {
-        const rect = activeCharSpan.getBoundingClientRect();
-        xPx = rect.left + rect.width / 2;
-        yPx = rect.top + rect.height / 2;
-      }
-
       const isWordComplete = charIndex >= currentWord.length;
       const themeColor = activeTerminalTheme.previewColors.accent || '#38bdf8';
+      const typedIndex = isWordComplete ? currentWord.length - 1 : charIndex - 1;
+
+      const cached = charCoordsCacheRef.current[typedIndex];
+      let xPx = cached?.x;
+      let yPx = cached?.y;
+
+      if (xPx === undefined || yPx === undefined) {
+        if (containerRectRef.current) {
+          xPx = containerRectRef.current.left + containerRectRef.current.width / 2;
+          yPx = containerRectRef.current.top + containerRectRef.current.height / 2;
+        } else {
+          xPx = window.innerWidth / 2;
+          yPx = window.innerHeight / 2;
+        }
+      }
 
       triggerKeystrokeImpact(xPx, yPx, themeColor, equippedAnimation, isWordComplete);
     }
     lastCharIndexRef.current = charIndex;
   }, [charIndex, currentWord, activeTerminalTheme, equippedAnimation]);
 
-  // Auto-scroll suave para manter a linha e o caractere ativo sempre visíveis em frases e código
+  // Auto-scroll imediato (behavior: auto) para manter o caractere ativo visível sem engavetar animações suaves
   useEffect(() => {
     if (typingMode === 'words') return;
-    const activeSpan = wordContainerRef.current?.querySelector('.char-current') as HTMLElement | null;
-    if (activeSpan && wordContainerRef.current) {
-      activeSpan.scrollIntoView({
-        behavior: 'smooth',
-        block: 'nearest',
-        inline: 'nearest'
-      });
+    const container = wordContainerRef.current;
+    if (!container) return;
+
+    const activeSpan = container.querySelector('.char-current') as HTMLElement | null;
+    if (activeSpan) {
+      // Checagem inteligente de visibilidade: só aciona scroll se estiver fora da área visível do container
+      const spanTop = activeSpan.offsetTop;
+      const spanBottom = spanTop + activeSpan.offsetHeight;
+      const viewTop = container.scrollTop;
+      const viewBottom = viewTop + container.clientHeight;
+
+      if (spanTop < viewTop || spanBottom > viewBottom) {
+        activeSpan.scrollIntoView({
+          behavior: 'auto',
+          block: 'nearest',
+          inline: 'nearest'
+        });
+      }
     }
   }, [charIndex, typingMode]);
 
@@ -516,11 +564,8 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
     if (isPaused) return;
 
     const focusInput = () => {
+      // isPaused já consolida a presença de qualquer modal aberto no App.tsx
       if (isPaused) return;
-
-      // Salvaguarda extra: se houver qualquer modal ou overlay z-50 ativo no DOM, aborta imediatamente
-      const hasActiveModal = Boolean(document.querySelector('.fixed.inset-0.z-50, .fixed.inset-0.z-\\[100\\]'));
-      if (hasActiveModal) return;
 
       if (inputRef.current && document.activeElement !== inputRef.current) {
         // Não rouba foco se o aluno ou professor estiver editando campos, selects ou botões de diálogo
@@ -877,27 +922,32 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
                   {token.chars.map(({ char, index }) => {
                     const isDone = index < charIndex;
                     const isCurrent = index === charIndex;
-                    const isPending = index > charIndex;
                     const isJustTyped = index === charIndex - 1;
-                    const animClasses = !isHighContrast ? getLetterVfxClasses(equippedAnimation, isDone, isCurrent, isJustTyped) : '';
+                    const justTypedAnim = isJustTyped && !isHighContrast
+                      ? getLetterVfxClasses(equippedAnimation, false, false, true)
+                      : '';
+                    const doneAnimClasses = isDone && !isHighContrast
+                      ? getLetterVfxClasses(equippedAnimation, true, false, false)
+                      : '';
                     const isTargetKey = Boolean(drillSession?.targetKeys?.includes(char.toLowerCase()));
 
                     return (
                       <span
                         key={index}
-                        className={`inline-block relative transition-all duration-75 ${charPadding} rounded ${
+                        data-char-index={index}
+                        className={`inline-block relative transition-colors duration-75 ${charPadding} rounded ${
                         isDone
                           ? isHighContrast
                             ? highContrastDoneCharClass
-                            : `char-done ${activeTerminalTheme.classes.charDone} ${animClasses} opacity-90`
+                            : `char-done ${activeTerminalTheme.classes.charDone} ${doneAnimClasses} opacity-90`
                           : isCurrent
                           ? isHighContrast
                             ? highContrastCurrentCharClass
-                            : `char-current ${activeTerminalTheme.classes.charCurrent} ${animClasses} bg-zinc-900/60 ring-2 ring-current/80 shadow-[0_0_15px_rgba(255,255,255,0.2)]`
+                            : `char-current ${activeTerminalTheme.classes.charCurrent} bg-zinc-900/60 ring-2 ring-current/80 shadow-[0_0_15px_rgba(255,255,255,0.2)]`
                           : isHighContrast
                           ? highContrastPendingCharClass
                           : 'char-pending text-zinc-600'
-                      } ${isJustTyped && !isHighContrast ? animClasses : ''} ${
+                      } ${justTypedAnim} ${
                         isTargetKey && !isDone
                           ? 'border-b-2 border-amber-400 font-extrabold text-amber-200'
                           : ''
@@ -1398,3 +1448,6 @@ export const TypingArena: React.FC<TypingArenaProps> = ({
     </div>
   );
 };
+
+export const TypingArena = React.memo(TypingArenaComponent);
+

@@ -368,7 +368,7 @@ export function sanitizeCosmetics(rawCosmetics?: Partial<PlayerCosmetics> | null
       }
     : undefined;
 
-  return {
+  const sanitized: PlayerCosmetics = {
     levelTokens,
     duelTokens,
     quantumFragments,
@@ -383,9 +383,14 @@ export function sanitizeCosmetics(rawCosmetics?: Partial<PlayerCosmetics> | null
     equippedSound,
     equippedAnimation,
     unlockedCardFrames,
-    equippedCardFrame,
-    dailyConversions
+    equippedCardFrame
   };
+
+  if (dailyConversions) {
+    sanitized.dailyConversions = dailyConversions;
+  }
+
+  return sanitized;
 }
 
 export function sanitizeAccessibility(raw?: Partial<AccessibilitySettings> | null): AccessibilitySettings {

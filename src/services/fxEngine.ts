@@ -1665,59 +1665,59 @@ export function getLetterVfxClasses(
   if (isDone) {
     switch (style) {
       case 'golden_coins':
-        return 'text-amber-400 drop-shadow-[0_0_6px_rgba(245,158,11,0.4)]';
+        return 'text-amber-400 [text-shadow:0_0_6px_rgba(245,158,11,0.4)]';
       case 'matrix_stream':
-        return 'text-emerald-400 drop-shadow-[0_0_6px_rgba(34,197,94,0.45)]';
+        return 'text-emerald-400 [text-shadow:0_0_6px_rgba(34,197,94,0.45)]';
       case 'supernova_burst':
-        return 'text-purple-300 drop-shadow-[0_0_6px_rgba(168,85,247,0.45)]';
+        return 'text-purple-300 [text-shadow:0_0_6px_rgba(168,85,247,0.45)]';
       case 'tesla_lightning':
-        return 'text-sky-300 drop-shadow-[0_0_6px_rgba(14,165,233,0.45)]';
+        return 'text-sky-300 [text-shadow:0_0_6px_rgba(14,165,233,0.45)]';
       case 'volcano_flame':
-        return 'text-orange-400 drop-shadow-[0_0_6px_rgba(249,115,22,0.45)]';
+        return 'text-orange-400 [text-shadow:0_0_6px_rgba(249,115,22,0.45)]';
       case 'cyber_neon':
-        return 'text-pink-400 drop-shadow-[0_0_6px_rgba(236,72,153,0.45)]';
+        return 'text-pink-400 [text-shadow:0_0_6px_rgba(236,72,153,0.45)]';
       case 'pixel_retro':
-        return 'text-yellow-300 drop-shadow-[1px_1px_0_#000]';
+        return 'text-yellow-300 [text-shadow:1px_1px_0_#000]';
       case 'fireworks_show':
-        return 'text-rose-300 drop-shadow-[0_0_6px_rgba(244,63,94,0.45)]';
+        return 'text-rose-300 [text-shadow:0_0_6px_rgba(244,63,94,0.45)]';
       case 'bubble_magic':
-        return 'text-cyan-300 drop-shadow-[0_0_6px_rgba(6,182,212,0.4)]';
+        return 'text-cyan-300 [text-shadow:0_0_6px_rgba(6,182,212,0.4)]';
       case 'hyperspace_warp':
-        return 'text-sky-300 drop-shadow-[0_0_8px_rgba(56,189,248,0.5)]';
+        return 'text-sky-300 [text-shadow:0_0_8px_rgba(56,189,248,0.5)]';
       case 'kamehameha_energy':
-        return 'text-amber-300 drop-shadow-[0_0_8px_rgba(250,204,21,0.55)]';
+        return 'text-amber-300 [text-shadow:0_0_8px_rgba(250,204,21,0.55)]';
       case 'diamond_rain':
-        return 'text-cyan-300 drop-shadow-[0_0_6px_rgba(6,182,212,0.5)]';
+        return 'text-cyan-300 [text-shadow:0_0_6px_rgba(6,182,212,0.5)]';
       case 'infinite_void_burst':
-        return 'text-cyan-200 drop-shadow-[0_0_8px_rgba(56,189,248,0.55)]';
+        return 'text-cyan-200 [text-shadow:0_0_8px_rgba(56,189,248,0.55)]';
       case 'gear_second_steam':
-        return 'text-rose-300 drop-shadow-[0_0_8px_rgba(251,113,133,0.55)]';
+        return 'text-rose-300 [text-shadow:0_0_8px_rgba(251,113,133,0.55)]';
       case 'gaster_bone_barrage':
-        return 'text-cyan-300 drop-shadow-[0_0_8px_rgba(103,232,249,0.55)]';
+        return 'text-cyan-300 [text-shadow:0_0_8px_rgba(103,232,249,0.55)]';
       case 'sandevistan_afterimage':
-        return 'text-yellow-200 drop-shadow-[0_0_8px_rgba(250,204,21,0.55)]';
+        return 'text-yellow-200 [text-shadow:0_0_8px_rgba(250,204,21,0.55)]';
       case 'water_flame_dragon':
-        return 'text-orange-300 drop-shadow-[0_0_8px_rgba(249,115,22,0.55)]';
+        return 'text-orange-300 [text-shadow:0_0_8px_rgba(249,115,22,0.55)]';
       case 'thunder_storm_vfx':
-        return 'text-yellow-200 drop-shadow-[0_0_8px_rgba(250,204,21,0.6)]';
+        return 'text-yellow-200 [text-shadow:0_0_8px_rgba(250,204,21,0.6)]';
       case 'serious_shockwave':
-        return 'text-red-300 drop-shadow-[0_0_8px_rgba(239,68,68,0.55)]';
+        return 'text-red-300 [text-shadow:0_0_8px_rgba(239,68,68,0.55)]';
       case 'soul_vessel_burst':
-        return 'text-sky-200 drop-shadow-[0_0_8px_rgba(125,211,252,0.55)]';
+        return 'text-sky-200 [text-shadow:0_0_8px_rgba(125,211,252,0.55)]';
       case 'golden_ring_burst':
-        return 'text-yellow-200 drop-shadow-[0_0_8px_rgba(253,224,71,0.6)]';
+        return 'text-yellow-200 [text-shadow:0_0_8px_rgba(253,224,71,0.6)]';
       case 'bat_swarm_vfx':
-        return 'text-amber-200 drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]';
+        return 'text-amber-200 [text-shadow:0_0_8px_rgba(245,158,11,0.5)]';
       case 'whatsapp_bubbles_burst':
-        return 'text-[#25d366] drop-shadow-[0_0_8px_rgba(37,211,102,0.55)]';
+        return 'text-[#25d366] [text-shadow:0_0_8px_rgba(37,211,102,0.55)]';
       case 'instagram_hearts_glow':
-        return 'text-[#e1306c] drop-shadow-[0_0_8px_rgba(225,48,108,0.55)]';
+        return 'text-[#e1306c] [text-shadow:0_0_8px_rgba(225,48,108,0.55)]';
       case 'youtube_play_spark':
-        return 'text-[#ff3333] drop-shadow-[0_0_8px_rgba(255,0,0,0.6)]';
+        return 'text-[#ff3333] [text-shadow:0_0_8px_rgba(255,0,0,0.6)]';
       case 'tiktok_music_glitch':
-        return 'text-[#00f2fe] drop-shadow-[0_0_8px_rgba(0,242,254,0.6)]';
+        return 'text-[#00f2fe] [text-shadow:0_0_8px_rgba(0,242,254,0.6)]';
       case 'roblox_blocks_fall':
-        return 'text-[#00a2ff] drop-shadow-[0_0_8px_rgba(0,162,255,0.6)]';
+        return 'text-[#00a2ff] [text-shadow:0_0_8px_rgba(0,162,255,0.6)]';
       default:
         return '';
     }

@@ -52,6 +52,22 @@
   - **Procedural Canvas Rendering**: Os jogos em HTML5 Canvas (`TyperDashCanvas`, `RadarCanvas`, `ScratchBoardCanvas`) utilizam traçados procedurais via Context2D (`ctx.beginPath() ... ctx.stroke()`) ou textos com fontes mono incorporadas, eliminando símbolos Unicode dependentes da tipografia do sistema operacional do laboratório escolar.
   - **Padronização de Avatares Compactos**: Expansão do `BytezinhoAvatar` para suportar `size="xs"` (`w-4 h-4`), permitindo avatares vetoriais interativos no seletor de skins de jogos (`TyperDashGame`).
 
+## Decisões de Arquitetura: Alta Performance, Renderização 60 FPS & Desacoplamento de Loops
+
+- **Desacoplamento Estrito de Loops de Renderização Canvas (`requestAnimationFrame`) vs. Ciclo de Vida do React**:
+  - Motores gráficos em Canvas 2D (`RadarCanvas`, `TyperDashCanvas`, etc.) não devem recriar o loop do `rAF` nem depender de arrays mutáveis de entidades (`enemies`, `particles`, `lasers`) no array de dependências do `useEffect`.
+  - Entidades de alta frequência devem ser transmitidas via referências reativas (`useRef`) consumidas diretamente no tick do canvas a 60 FPS, evitando desmontagens e remontagens de timers a cada render do componente pai.
+  - O cálculo do delta de tempo (`dt`) deve utilizar exclusivamente o parâmetro de timestamp do próprio `requestAnimationFrame`, com salvaguarda estrita contra valores negativos (`Math.max(0, Math.min(0.05, (time - lastTime) / 1000))`), eliminando saltos temporais e recuos angulares (efeito elástico / rubber-banding).
+- **Isolamento de Timers de Fundo e Eventos Globais de Teclado no Hub Multi-Jogos**:
+  - Timers de alta cadência e persistência do TypeClicker no componente raiz `App.tsx` (`idleTimer` a 100ms, `secTimer` a 1s e `saveTimer` a 5s) e listeners globais de teclado (`keydown`) devem possuir guardrails estritos baseados no jogo ativo (`selectedGameRef.current === 'typeclicker'`).
+  - Quando outro jogo estiver ativo (`TyperDash`, `Type: Radar`, `ProgPlay`, `ScratchBot`) ou no Hub, os processos de background do TypeClicker são suspensos, garantindo zero interrupções do JavaScript e zero concorrência de digitação na thread principal.
+- **Eliminação de Forced Synchronous Layouts (Reflows) e Shaders Pesados na Digitação**:
+  - É proibida a chamada de métodos de medição geométrica síncrona de elementos (`getBoundingClientRect`, `offsetTop`, etc.) no ciclo crítico de digitação tecla a tecla. Coordenadas de feedback visual de partículas devem ser pré-computadas em memória (`charCoordsCacheRef`) na carga da palavra ou resize da janela.
+  - Classes CSS com `filter: drop-shadow(...)` foram substituídas por `[text-shadow:...]` nos caracteres concluídos (`isDone`), delegando a renderização do brilho à aceleração nativa de fontes da GPU e eliminando o cálculo de dezenas de shaders Gaussian Blur por frame.
+- **Compra Contínua Leve na Loja de Upgrades (`isContinuous`)**:
+  - Aceleração de compra com clique pressionado (holding a 45ms) não deve disparar animações cumulativas de partículas (`confetti`), nós transitórios do Framer Motion (`<motion.div>`) ou textos flutuantes no componente raiz a cada 45ms.
+  - Efeitos cosméticos pesados e notificações flutuantes são reservados para o clique inicial e para marcos épicos (`isMilestone`, múltiplos de 5), mantendo a taxa de quadros a 60 FPS cravados durante o avanço rápido de níveis.
+
 ## Decisões do Código Legado e Status de Migração
 
 - **[OBSOLETO / SUBSTITUÍDO] Firestore em vez de Realtime Database**: O Firestore foi o banco inicial (`FIRESTORE_NATIVE`), mas tornou-se obsoleto e foi substituído pelo **Supabase (PostgreSQL 15+)** como banco primário oficial. O `FirebaseAdapter` foi preservado exclusivamente para rollback/contingência em caso de emergência.

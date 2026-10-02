@@ -521,8 +521,10 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
         }
       });
 
-      setEnemies(nextList);
       enemiesRef.current = nextList;
+      if (enemyReachedBase) {
+        setEnemies(nextList);
+      }
 
       // Aplica dano à base, reseta combo e ativa Screen Shake com Glitch e Sirene Tática
       if (enemyReachedBase && damageTaken > 0) {
@@ -567,46 +569,46 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
         }));
       }
 
-      // 3. Atualiza Fading de Lasers
-      setLasers((prev) => 
-        prev
-          .map((l) => ({ ...l, life: l.life - dt * 4 }))
-          .filter((l) => l.life > 0)
-      );
+      // 3. Atualiza Fading de Lasers (apenas se houver lasers ativos)
+      setLasers((prev) => {
+        if (prev.length === 0) return prev;
+        const next = prev.map((l) => ({ ...l, life: l.life - dt * 4 })).filter((l) => l.life > 0);
+        return next.length === 0 && prev.length === 0 ? prev : next;
+      });
 
-      // 4. Atualiza Partículas
-      setParticles((prev) =>
-        prev
-          .map((p) => ({
-            ...p,
-            x: p.x + p.vx * dt,
-            y: p.y + p.vy * dt,
-            life: p.life - p.decay * dt
-          }))
-          .filter((p) => p.life > 0)
-      );
+      // 4. Atualiza Partículas (apenas se houver partículas ativas)
+      setParticles((prev) => {
+        if (prev.length === 0) return prev;
+        const next = prev.map((p) => ({
+          ...p,
+          x: p.x + p.vx * dt,
+          y: p.y + p.vy * dt,
+          life: p.life - p.decay * dt
+        })).filter((p) => p.life > 0);
+        return next.length === 0 && prev.length === 0 ? prev : next;
+      });
 
       // 5. Atualiza Textos Flutuantes (XP / PTS / BYTES)
-      setFloatingTexts((prev) =>
-        prev
-          .map((ft) => ({
-            ...ft,
-            y: ft.y + ft.vy * dt,
-            life: ft.life - ft.decay * dt
-          }))
-          .filter((ft) => ft.life > 0)
-      );
+      setFloatingTexts((prev) => {
+        if (prev.length === 0) return prev;
+        const next = prev.map((ft) => ({
+          ...ft,
+          y: ft.y + ft.vy * dt,
+          life: ft.life - ft.decay * dt
+        })).filter((ft) => ft.life > 0);
+        return next.length === 0 && prev.length === 0 ? prev : next;
+      });
 
       // 6. Atualiza Shockwaves em Expansão
-      setShockwaves((prev) =>
-        prev
-          .map((sw) => ({
-            ...sw,
-            radius: sw.radius + (sw.maxRadius - sw.radius) * 9 * dt,
-            life: sw.life - sw.decay * dt
-          }))
-          .filter((sw) => sw.life > 0)
-      );
+      setShockwaves((prev) => {
+        if (prev.length === 0) return prev;
+        const next = prev.map((sw) => ({
+          ...sw,
+          radius: sw.radius + (sw.maxRadius - sw.radius) * 9 * dt,
+          life: sw.life - sw.decay * dt
+        })).filter((sw) => sw.life > 0);
+        return next.length === 0 && prev.length === 0 ? prev : next;
+      });
 
       // 7. Verificação de Conclusão da Onda
       if (
@@ -1970,6 +1972,7 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
               {/* Canvas do Radar */}
               <RadarCanvas
                 enemies={enemies}
+                enemiesRef={enemiesRef}
                 lasers={lasers}
                 particles={particles}
                 floatingTexts={floatingTexts}

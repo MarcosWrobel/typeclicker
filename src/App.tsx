@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { GameState, CategoryId, FloatingText, UpgradeDef, DrillSession, AccessibilitySettings, RpgClassType, CurricularTrackId, TypingMode } from './types';
 import { RPG_CLASSES } from './types/rpgClass';
 import { loadSavedState, saveState, clearSavedState, INITIAL_STATE, sanitizeCosmetics, DEFAULT_ARENA_STATS, DEFAULT_ACCESSIBILITY } from './utils/storage';
@@ -26,7 +26,7 @@ import { HelpModal } from './components/HelpModal';
 import { LeaderboardModal, LeaderboardMetric } from './components/LeaderboardModal';
 import { StudentProfileCardModal } from './components/StudentProfileCardModal';
 import { Level100CelebrationModal } from './components/Level100CelebrationModal';
-import { useLeaderboardPodium } from './hooks/useLeaderboardPodium';
+import { useLevel100Pioneers } from './hooks/useLeaderboardPodium';
 import { ArenaModal } from './components/ArenaModal';
 import { TimeAttackModal } from './components/TimeAttackModal';
 import { ArenaStats, getArenaRank } from './types/arena';
@@ -145,8 +145,8 @@ export default function App() {
   const [isProfileCardOpen, setIsProfileCardOpen] = useState<boolean>(false);
   const [selectedProfileCardPlayer, setSelectedProfileCardPlayer] = useState<Partial<LeaderboardEntry> | GameState | null>(null);
 
-  // Sincronização e consulta dos Pioneiros Nível 100
-  const { pioneers: podiumPioneers } = useLeaderboardPodium();
+  // Sincronização e consulta dos Pioneiros Nível 100 (sem timer de rotação de 1s na raiz)
+  const { pioneers: podiumPioneers } = useLevel100Pioneers();
 
   const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
   const [isPedagogicalOpen, setIsPedagogicalOpen] = useState<boolean>(false);
@@ -469,6 +469,8 @@ export default function App() {
 
   // Escuta corridas sincronizadas em tempo real disparadas pelo professor
   useEffect(() => {
+    if (!user) return;
+
     const unsubRace = subscribeToActiveRace((race) => {
       setActiveRace(race);
 
@@ -502,10 +504,12 @@ export default function App() {
     });
 
     return () => unsubRace();
-  }, [state.studentClass, dismissedRaceId, isAdmin, isAdminOpen, isPedagogicalOpen]);
+  }, [user, state.studentClass, dismissedRaceId, isAdmin, isAdminOpen, isPedagogicalOpen]);
 
   // Escuta Raids Coletivas em tempo real disparadas pelo professor
   useEffect(() => {
+    if (!user) return;
+
     const unsubRaid = subscribeToActiveRaid((raid) => {
       setActiveRaid(raid);
 
@@ -538,7 +542,7 @@ export default function App() {
     });
 
     return () => unsubRaid();
-  }, [state.studentClass, dismissedRaidId, isAdmin, isAdminOpen, isPedagogicalOpen]);
+  }, [user, state.studentClass, dismissedRaidId, isAdmin, isAdminOpen, isPedagogicalOpen]);
 
   const [pendingAccent, setPendingAccent] = useState<string | null>(null);
   const [recentWordComplete, setRecentWordComplete] = useState<boolean>(false);
@@ -598,6 +602,9 @@ export default function App() {
   // Keep stateRef in sync to avoid stale closures in event listeners and intervals
   const stateRef = useRef(state);
   stateRef.current = state;
+
+  const selectedGameRef = useRef<GameId | null>(selectedGame);
+  selectedGameRef.current = selectedGame;
 
   const maxFocusBufferRef = useRef<number>(5.0);
   maxFocusBufferRef.current = maxFocusBuffer;
@@ -689,6 +696,7 @@ export default function App() {
   // (Ignoring when typing inside text inputs, textareas or when modal dialogs are open)
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (selectedGameRef.current !== 'typeclicker') return;
       if (e.key !== 'Escape' && e.code !== 'Pause') {
         return;
       }
@@ -1521,7 +1529,11 @@ export default function App() {
             advanceEvents.push({ type: 'keystroke', amount: nextCombo });
           }
           const stateWithQuests = applyQuestEvents(nextState, advanceEvents);
-          return checkAndAwardAchievements(stateWithQuests);
+          // Otimização de performance: só avalia catálogo completo de 40+ conquistas no primeiro toque ou a cada 25 combos
+          if (prev.correctKeys === 0 || nextCombo % 25 === 0) {
+            return checkAndAwardAchievements(stateWithQuests);
+          }
+          return stateWithQuests;
         });
         setCharIndex(index + 1);
       }
@@ -1636,6 +1648,9 @@ export default function App() {
   // Global keydown typing listener (ABNT2 Linux fallback)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Se outro jogo estiver ativo ou no menu de seleção, a digitação do TypeClicker é desativada
+      if (selectedGameRef.current !== 'typeclicker') return;
+
       // Se estiver em pausa ou com janela sobreposta aberta, a digitação do jogo base fica suspensa.
       // O activeFocusDrill é tratado com exclusividade pelo FocusDrillModal sem acionar a pausa global.
       if (isPausedRef.current || isAnyModalOpen || activeFocusDrill !== null) {
@@ -1722,6 +1737,7 @@ export default function App() {
     let tickCounter = 0;
 
     const idleTimer = setInterval(() => {
+      if (selectedGameRef.current !== 'typeclicker') return;
       if (isPausedRef.current || isAnyModalOpenRef.current || activeFocusDrillRef.current) return;
 
       tickCounter++;
@@ -1796,6 +1812,7 @@ export default function App() {
   // 1000ms Interval: Active practice time tracker
   useEffect(() => {
     const secTimer = setInterval(() => {
+      if (selectedGameRef.current !== 'typeclicker') return;
       if (isPausedRef.current || isAnyModalOpenRef.current || activeFocusDrillRef.current || isDrainingRef.current) return;
       setState((prev) => ({
         ...prev,
@@ -1809,6 +1826,7 @@ export default function App() {
   // Auto-save to localStorage periodically (a cada 5s sem forçar re-render da árvore inteira)
   useEffect(() => {
     const saveTimer = setInterval(() => {
+      if (selectedGameRef.current !== 'typeclicker') return;
       saveState(stateRef.current, auth.currentUser?.uid);
     }, 5000);
 
@@ -1816,16 +1834,26 @@ export default function App() {
   }, []);
 
   // Buy upgrade action (retorna true se efetuado, false se saldo insuficiente)
-  const handleBuyUpgrade = useCallback((upgrade: UpgradeDef): boolean => {
+  const lastUpgradeSoundRef = useRef<number>(0);
+  const handleBuyUpgrade = useCallback((upgrade: UpgradeDef, isContinuous: boolean = false): boolean => {
     const curr = stateRef.current;
     const currentCount = curr.upgrades[upgrade.id] || 0;
     const cost = getUpgradeCost(upgrade, currentCount);
 
     if (curr.bytes >= cost) {
-      sound.playUpgrade();
+      const now = Date.now();
+      // Throttle de áudio para evitar sobrecarga no WebAudio em compras contínuas
+      if (!isContinuous || now - lastUpgradeSoundRef.current > 120) {
+        lastUpgradeSoundRef.current = now;
+        sound.playUpgrade();
+      }
+
+      const nextCount = currentCount + 1;
+      const isMilestone = nextCount % 5 === 0;
+
       const nextUpgrades = {
         ...curr.upgrades,
-        [upgrade.id]: currentCount + 1
+        [upgrade.id]: nextCount
       };
       const { bytesPerChar, autoBytesPerSec } = computeBaseRates(nextUpgrades);
 
@@ -1840,10 +1868,13 @@ export default function App() {
       stateRef.current = awardedState; // Sincroniza imediatamente o ref para suportar compras contínuas no clique mantido
       setState(awardedState);
 
-      setRecentUpgradeBought(upgrade.name);
-      setTimeout(() => setRecentUpgradeBought(null), 2500);
+      // Em compras rápidas contínuas, só atualiza texto flutuante e banner nos marcos de 5 em 5 ou avulsas
+      if (!isContinuous || isMilestone) {
+        setRecentUpgradeBought(upgrade.name);
+        setTimeout(() => setRecentUpgradeBought(null), 1800);
+        spawnFloatingText(`+NÍVEL: ${upgrade.name}`, 'level');
+      }
 
-      spawnFloatingText(`+NÍVEL: ${upgrade.name}`, 'level');
       return true;
     }
     return false;
@@ -2408,6 +2439,25 @@ export default function App() {
     setIsLeaderboardOpen(true);
   }, []);
 
+  const handleOpenTimeAttack = useCallback(() => setIsTimeAttackOpen(true), []);
+  const handleOpenCosmetics = useCallback(() => setIsCosmeticsOpen(true), []);
+  const handleOpenAchievements = useCallback(() => setIsAchievementsOpen(true), []);
+  const handleOpenQuests = useCallback(() => setIsQuestsOpen(true), []);
+  const handleOpenDungeon = useCallback(() => setIsDungeonOpen(true), []);
+  const handleOpenArena = useCallback(() => setIsArenaOpen(true), []);
+  const handleOpenConverter = useCallback(() => setIsConverterOpen(true), []);
+
+  const achievementsCountMemo = useMemo(() => {
+    return getOverallAchievementsStats(state);
+  }, [state.achievements]);
+
+  const questsCountMemo = useMemo(() => {
+    return {
+      readyToClaim: (state.quests?.weeklyQuests || []).filter((q) => q.completed && !q.claimed).length,
+      currentFloor: state.quests?.rpgDungeonFloor ?? 1
+    };
+  }, [state.quests?.weeklyQuests, state.quests?.rpgDungeonFloor]);
+
   if (authLoading) {
     return (
       <div className="min-h-screen bg-[#0e1013] text-zinc-100 flex flex-col items-center justify-center font-sans">
@@ -2831,55 +2881,52 @@ export default function App() {
               activeTrack={activeCurricularTrack}
               typingMode={typingMode}
               onSelectTypingMode={handleSelectTypingMode}
-              onOpenTimeAttack={() => setIsTimeAttackOpen(true)}
+              onOpenTimeAttack={handleOpenTimeAttack}
               charIndex={charIndex}
-            isErrorShaking={isErrorShaking}
-            comboStreak={state.comboStreak}
-            multiplier={
-              Boolean(state.bossBuffExpiresAt && Date.now() < state.bossBuffExpiresAt)
-                ? Number((state.multiplier + (state.bossBuffMultiplier || 0)).toFixed(2))
-                : state.multiplier
-            }
-            maxCombo={state.maxCombo}
-            selectedCategory={state.selectedCategory}
-            onSelectCategory={handleSelectCategory}
-            floatingTexts={floatingTexts}
-            pendingAccent={pendingAccent}
-            onTypeChar={handleTypeChar}
-            onDeadKey={handleDeadKey}
-            onClearPendingAccent={handleClearPendingAccent}
-            inputRef={typingInputRef}
-            recentWordComplete={recentWordComplete}
-            recentUpgradeBought={recentUpgradeBought}
-            focusBufferSeconds={focusBufferSeconds}
-            maxFocusBuffer={maxFocusBuffer}
-            isDraining={isDraining}
-            consecutiveErrors={consecutiveErrors}
-            isOverloaded={isOverloaded}
-            isOverheating={isOverloaded || isDraining}
-            drainRatePerSec={Math.max(1, Math.round(state.bytesPerChar * 1.2) + Math.round(state.bytes * 0.003))}
-            isPaused={isPaused || isAnyModalOpen}
-            onResume={handleResumeGame}
-            onPause={handlePauseGame}
-            equippedSkin={currentCosmetics.equippedSkin || 'classic'}
-            equippedTheme={currentCosmetics.equippedTheme || 'matrix'}
-            equippedAnimation={currentCosmetics.equippedAnimation || 'confetti_classic'}
-            onOpenCosmetics={() => setIsCosmeticsOpen(true)}
-            onOpenLeaderboard={handleOpenGeneralLeaderboard}
-            onOpenAchievements={() => setIsAchievementsOpen(true)}
-            achievementsCount={getOverallAchievementsStats(state)}
-            onOpenQuests={() => setIsQuestsOpen(true)}
-            onOpenDungeon={() => setIsDungeonOpen(true)}
-            questsCount={{
-              readyToClaim: (state.quests?.weeklyQuests || []).filter((q) => q.completed && !q.claimed).length,
-              currentFloor: state.quests?.rpgDungeonFloor ?? 1
-            }}
-            dungeonKeys={state.quests?.dungeon?.keys ?? 3}
-            maxDungeonKeys={5}
-            wordsTowardKey={state.quests?.dungeon?.wordsProgress ?? 0}
-            onMascotClick={handleMascotClick}
-            onOpenArena={() => setIsArenaOpen(true)}
-            onOpenConverter={() => setIsConverterOpen(true)}
+              isErrorShaking={isErrorShaking}
+              comboStreak={state.comboStreak}
+              multiplier={
+                Boolean(state.bossBuffExpiresAt && Date.now() < state.bossBuffExpiresAt)
+                  ? Number((state.multiplier + (state.bossBuffMultiplier || 0)).toFixed(2))
+                  : state.multiplier
+              }
+              maxCombo={state.maxCombo}
+              selectedCategory={state.selectedCategory}
+              onSelectCategory={handleSelectCategory}
+              floatingTexts={floatingTexts}
+              pendingAccent={pendingAccent}
+              onTypeChar={handleTypeChar}
+              onDeadKey={handleDeadKey}
+              onClearPendingAccent={handleClearPendingAccent}
+              inputRef={typingInputRef}
+              recentWordComplete={recentWordComplete}
+              recentUpgradeBought={recentUpgradeBought}
+              focusBufferSeconds={focusBufferSeconds}
+              maxFocusBuffer={maxFocusBuffer}
+              isDraining={isDraining}
+              consecutiveErrors={consecutiveErrors}
+              isOverloaded={isOverloaded}
+              isOverheating={isOverloaded || isDraining}
+              drainRatePerSec={Math.max(1, Math.round(state.bytesPerChar * 1.2) + Math.round(state.bytes * 0.003))}
+              isPaused={isPaused || isAnyModalOpen}
+              onResume={handleResumeGame}
+              onPause={handlePauseGame}
+              equippedSkin={currentCosmetics.equippedSkin || 'classic'}
+              equippedTheme={currentCosmetics.equippedTheme || 'matrix'}
+              equippedAnimation={currentCosmetics.equippedAnimation || 'confetti_classic'}
+              onOpenCosmetics={handleOpenCosmetics}
+              onOpenLeaderboard={handleOpenGeneralLeaderboard}
+              onOpenAchievements={handleOpenAchievements}
+              achievementsCount={achievementsCountMemo}
+              onOpenQuests={handleOpenQuests}
+              onOpenDungeon={handleOpenDungeon}
+              questsCount={questsCountMemo}
+              dungeonKeys={state.quests?.dungeon?.keys ?? 3}
+              maxDungeonKeys={5}
+              wordsTowardKey={state.quests?.dungeon?.wordsProgress ?? 0}
+              onMascotClick={handleMascotClick}
+              onOpenArena={handleOpenArena}
+              onOpenConverter={handleOpenConverter}
             levelTokens={state.cosmetics?.levelTokens ?? 0}
             quantumFragments={state.cosmetics?.quantumFragments ?? 0}
             isAdmin={isAdmin}

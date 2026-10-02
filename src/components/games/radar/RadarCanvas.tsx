@@ -13,6 +13,11 @@ interface RadarCanvasProps {
   particles: RadarParticle[];
   floatingTexts?: RadarFloatingText[];
   shockwaves?: RadarShockwave[];
+  enemiesRef?: React.RefObject<RadarEnemy[]>;
+  lasersRef?: React.RefObject<RadarLaser[]>;
+  particlesRef?: React.RefObject<RadarParticle[]>;
+  floatingTextsRef?: React.RefObject<RadarFloatingText[]>;
+  shockwavesRef?: React.RefObject<RadarShockwave[]>;
   activeTargetId: string | null;
   shield: number;
   maxShield: number;
@@ -50,6 +55,11 @@ export const RadarCanvas: React.FC<RadarCanvasProps> = ({
   particles,
   floatingTexts = [],
   shockwaves = [],
+  enemiesRef,
+  lasersRef,
+  particlesRef,
+  floatingTextsRef,
+  shockwavesRef,
   activeTargetId,
   shield,
   maxShield,
@@ -68,6 +78,44 @@ export const RadarCanvas: React.FC<RadarCanvasProps> = ({
   const coreRotationRef = useRef<number>(0);
   const dustParticlesRef = useRef<PhosphorDust[]>([]);
   const orbitalRingRef = useRef<OrbitalParticle[]>([]);
+
+  const propsRef = useRef({
+    enemies,
+    lasers,
+    particles,
+    floatingTexts,
+    shockwaves,
+    activeTargetId,
+    shield,
+    maxShield,
+    health,
+    maxHealth,
+    freezeActive,
+    shockwaveActive,
+    screenShakeIntensity,
+    crtFxEnabled,
+    isGlitchActive,
+    wave
+  });
+
+  propsRef.current = {
+    enemies,
+    lasers,
+    particles,
+    floatingTexts,
+    shockwaves,
+    activeTargetId,
+    shield,
+    maxShield,
+    health,
+    maxHealth,
+    freezeActive,
+    shockwaveActive,
+    screenShakeIntensity,
+    crtFxEnabled,
+    isGlitchActive,
+    wave
+  };
 
   // Inicializar anel orbital de poeira cósmica ciano/esmeralda (idêntico à imagem de referência)
   if (orbitalRingRef.current.length === 0) {
@@ -92,11 +140,33 @@ export const RadarCanvas: React.FC<RadarCanvasProps> = ({
     if (!ctx) return;
 
     let animationFrameId: number;
-    let lastTime = performance.now();
+    let lastTime = 0;
 
     const render = (time: number) => {
-      const dt = (time - lastTime) / 1000;
+      if (!lastTime) lastTime = time;
+      // Garante dt estritamente não-negativo e limitado a 50ms para evitar qualquer recuo angular ("elástico")
+      const dt = Math.max(0, Math.min(0.05, (time - lastTime) / 1000));
       lastTime = time;
+
+      const p = propsRef.current;
+      const enemies = enemiesRef?.current ?? p.enemies;
+      const lasers = lasersRef?.current ?? p.lasers;
+      const particles = particlesRef?.current ?? p.particles;
+      const floatingTexts = floatingTextsRef?.current ?? p.floatingTexts;
+      const shockwaves = shockwavesRef?.current ?? p.shockwaves;
+      const {
+        activeTargetId,
+        shield,
+        maxShield,
+        health,
+        maxHealth,
+        freezeActive,
+        shockwaveActive,
+        screenShakeIntensity = 0,
+        crtFxEnabled = true,
+        isGlitchActive = false,
+        wave = 1
+      } = p;
 
       const width = canvas.width;
       const height = canvas.height;
@@ -844,22 +914,7 @@ export const RadarCanvas: React.FC<RadarCanvasProps> = ({
 
     animationFrameId = requestAnimationFrame(render);
     return () => cancelAnimationFrame(animationFrameId);
-  }, [
-    enemies, 
-    lasers, 
-    particles, 
-    floatingTexts, 
-    shockwaves, 
-    activeTargetId, 
-    shield, 
-    maxShield, 
-    health, 
-    maxHealth, 
-    freezeActive, 
-    shockwaveActive, 
-    screenShakeIntensity, 
-    isPaused
-  ]);
+  }, [isPaused]);
 
   return (
     <div className="relative flex items-center justify-center p-0.5 sm:p-1 w-full">

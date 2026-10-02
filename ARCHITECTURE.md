@@ -152,8 +152,38 @@ O antigo componente monolítico `AdminPanel.tsx` foi desacoplado em dois subsist
 
 ---
 
+## Arquitetura de Execução, Renderização 60 FPS & Desacoplamento de Concorrência
+
+Para garantir que a experiência de jogo atinja 60 a 144 FPS consistentes mesmo em computadores e Chromebooks modestos dos laboratórios escolares, a plataforma implementa diretrizes estritas de concorrência e renderização gráfica:
+
+1. **Desacoplamento de Canvas Loops vs. React Reconciliation**:
+   - Componentes Canvas 2D (`RadarCanvas`, `TyperDashCanvas`, `ScratchBoardCanvas`) executam um único ciclo de vida contínuo via `requestAnimationFrame` sem dependências de arrays de estado voláteis no `useEffect`.
+   - Atualizações de alta frequência das entidades (`enemies`, `particles`, `lasers`, `shockwaves`) trafegam por referências mutáveis (`useRef`) consumidas diretamente no tick do canvas.
+   - O delta time (`dt`) é estritamente não-negativo e limitado (`Math.max(0, Math.min(0.05, (time - lastTime) / 1000))`), prevenindo recuos angulares (efeito elástico / rubber-banding) causados por dessincronia de timestamps do compositor.
+   - Chamadas a `setState` nos jogos canvas são reservadas para alterações estruturais (spawn, destruição ou conclusão de onda), eliminando 60 re-renderizações desnecessárias por segundo da árvore JSX.
+
+2. **Isolamento de Processos de Fundo no Hub Multi-Jogos**:
+   - Os timers de alta cadência do TypeClicker no `App.tsx` (`idleTimer` a cada 100ms, `secTimer` a 1s e `saveTimer` a 5s) e listeners globais de digitação (`keydown`) são protegidos por checagens imediatas de jogo ativo (`selectedGameRef.current === 'typeclicker'`).
+   - Ao executar qualquer outro minijogo (`TyperDash`, `Type: Radar`, `ProgPlay`, `ScratchBot`) ou navegar no catálogo, a thread principal é 100% liberada de chamadas em segundo plano ao `setState` e ao `localStorage`.
+
+3. **Eliminação de Forced Synchronous Layouts (Reflows)**:
+   - Eliminação de chamadas síncronas a `getBoundingClientRect()` durante o ciclo crítico de digitação tecla a tecla. A geometria das letras é pré-computada em cache O(1) (`charCoordsCacheRef`) no momento do carregamento da palavra ou redimensionamento de janela.
+   - Substituição de filtros gráficos pesados (`filter: drop-shadow(...)`) por estilos nativos de tipografia (`[text-shadow:...]`) nos caracteres já concluídos (`isDone`), reduzindo drasticamente o consumo de pixel shaders e texturização na GPU.
+
+4. **Otimização de Compra Contínua na Loja (`ShopPanel`)**:
+   - O modo turbo com clique pressionado (holding) utiliza a flag `isContinuous` para desacoplar a geração de partículas pesadas (`canvas-confetti`), textos flutuantes no componente pai e montagem de nós transitórios do Framer Motion (`<motion.div>`), reservando animações épicas para o primeiro clique e para marcos de 5 em 5 níveis (`isMilestone`).
+   - Throttling no sintetizador WebAudio (`sound.playUpgrade()`) para prevenir saturação do buffer de som.
+
+5. **Gerenciamento Sob Demanda de Camadas de GPU**:
+   - O canvas global de partículas (`arcadeVfxEngine`) opera com `display: none` por padrão, tornando-se `display: block` exclusivamente enquanto houver partículas vivas no buffer, evitando que uma camada transparente fullscreen de hardware compositing permaneça ativa sobre os demais jogos.
+
+---
+
 ## Histórico de Sanitização da Arquitetura Híbrida & Evolução do Core
 
+| Assunto / Marco | Commit | Componentes & Arquivos Afetados | Detalhes da Implementação & Impacto Arquitetural |
+|---|---|---|---|
+| **Alta Performance: Fim do Stutter, Elástico no Radar e Reflows** | `2b0bff7` | `RadarCanvas.tsx`, `TypeRadarGame.tsx`, `TypingArena.tsx`, `ShopPanel.tsx`, `fxEngine.ts`, `App.tsx`, `arcadeVfxEngine.ts`, `audio.ts` | • Desacoplamento do loop `requestAnimationFrame` do `RadarCanvas` com consumo de entidades via `enemiesRef` e proteção `dt >= 0`, eliminando o efeito elástico e 60 re-renders/s do pai;<br>• Eliminação de Forced Synchronous Layouts (`getBoundingClientRect`) na digitação do TypeClicker via cache pré-computado O(1) de coordenadas (`charCoordsCacheRef`);<br>• Substituição de filtros caros de `drop-shadow` por `[text-shadow:...]` em 27 estilos de finalização de caracteres em `fxEngine.ts`;<br>• Otimização do modo turbo de compras de upgrades (`ShopPanel` & `App.tsx`) com desacoplamento de confetti, throttle de áudio e supressão de Framer Motion intermediário;<br>• Isolamento completo de timers de 100ms e listeners de teclado do `App.tsx` quando outros minijogos estiverem em foco;<br>• Desbloqueio preguiçoso de áudio (`audio.ts`) e canvas overlay on-demand (`arcadeVfxEngine.ts`). |
 | **Iconografia Vetorial Canônica & Zero Emojis** | `a60eaf9` | `src/components/*`, `src/components/vectors/*`, `src/components/games/*`, `src/components/layouts/*` | • Eliminação integral de emojis Unicode em toda a interface visual, HUDs, arenas, layouts e minijogos;<br>• Criação de renderizadores canônicos com suporte retrocompatível para dados legados do banco: `TrackIconRenderer`, `RpgClassIcon`, `StudentAvatarRenderer`, `LevelBadgeRenderer`, `AchievementIconRenderer`, `CardFrameIcon`;<br>• Desenho vetorial procedural em HTML5 Canvas (`TyperDashCanvas`, `RadarCanvas`, `ScratchBoardCanvas`) e suporte a `size="xs"` em `BytezinhoAvatar`;<br>• Preservação absoluta do schema de dados no Supabase e Firestore sem migrações destrutivas. |
 | **Avatares Vetoriais Canônicos de Estudante** | `235865c` | `StudentModal.tsx`, `StudentProfileCard.tsx`, `StudentAvatarRenderer.tsx` | • Substituição de emojis de avatares escolares por renderizadores vetoriais proceduralmente gerados e mapeados para chaves de dados existentes. |
 | **Autorização Docente & Sessões Escolares** | `4d232ce` | `firestore.rules`, `App.tsx`, `AdminPanel.tsx`, `supabaseAdapter.ts`, `leaderboardUtils.ts` | • Implementação da função `isTeacher()` no Firestore para permitir geração/encerramento de sessões e lançamento de corridas/raids por professores autorizados em `allowedTeachers`;<br>• Proteção contra escalonamento de privilégios (`allowedTeachers`, `testGrantsHistory`);<br>• Reconhecimento de `isStaffUser` com `adminStatus` no `App.tsx` e preservação de `role = 'teacher'` no Supabase;<br>• Sincronização automática de papel no Supabase via `AdminPanel` ao adicionar/remover docentes e remoção de e-mail descontinuado da lista de SuperAdmin. |

@@ -4,9 +4,28 @@ class SoundEngine {
   private ctx: AudioContext | null = null;
   private enabled: boolean = true;
   private soundTheme: KeySoundThemeId = 'mechanical';
+  private hasUserInteracted: boolean = false;
+
+  constructor() {
+    if (typeof window !== 'undefined') {
+      const unlockAudio = () => {
+        this.hasUserInteracted = true;
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume().catch(() => {});
+        }
+        window.removeEventListener('pointerdown', unlockAudio, true);
+        window.removeEventListener('keydown', unlockAudio, true);
+        window.removeEventListener('touchstart', unlockAudio, true);
+      };
+
+      window.addEventListener('pointerdown', unlockAudio, { passive: true, capture: true });
+      window.addEventListener('keydown', unlockAudio, { passive: true, capture: true });
+      window.addEventListener('touchstart', unlockAudio, { passive: true, capture: true });
+    }
+  }
 
   private getContext(): AudioContext | null {
-    if (!this.enabled) return null;
+    if (!this.enabled || !this.hasUserInteracted) return null;
     if (!this.ctx) {
       const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       if (AudioCtx) {
