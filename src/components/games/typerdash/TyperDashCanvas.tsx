@@ -196,7 +196,7 @@ export function renderTyperDash(
   }
 
   if (zoomPulse > 0.001) {
-    const scale = 1.0 + Math.min(zoomPulse, 0.08);
+    const scale = 1.0 + Math.min(zoomPulse, 0.008);
     ctx.translate(width / 2, height / 2);
     ctx.scale(scale, scale);
     ctx.translate(-width / 2, -height / 2);
@@ -1245,8 +1245,8 @@ export function renderTyperDash(
       const frameW = 138;
       const frameH = 94;
 
-      // Animação de pulso rítmico quando estiver na Jump Zone
-      const pulseScale = inJumpZone ? 1.0 + Math.sin(Date.now() / 60) * 0.05 : 1.0;
+      // Animação de pulso sutil e estável para manter leitura instantânea da tecla
+      const pulseScale = inJumpZone ? 1.0 + Math.sin(Date.now() / 140) * 0.015 : 1.0;
       ctx.translate(hudCenterX, hudCenterY);
       ctx.scale(pulseScale, pulseScale);
 

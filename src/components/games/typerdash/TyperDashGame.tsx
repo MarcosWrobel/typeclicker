@@ -427,7 +427,7 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
   const handleCrash = useCallback(() => {
     typerDashAudio.playCrashSound();
     typerDashAudio.stopMetronome();
-    screenShakeRef.current = 24;
+    screenShakeRef.current = 12;
     spawnCubeShatter(cubeRef.current.x + CUBE_SIZE / 2, cubeRef.current.y + CUBE_SIZE / 2);
     setGameState('game_over');
   }, [spawnCubeShatter]);
@@ -589,7 +589,7 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
               if (trick.currentIndex >= trick.sequence.length) {
                 // Manobra completada!
                 typerDashAudio.playHitSound(true, comboRef.current + 6);
-                screenShakeRef.current = 12;
+                screenShakeRef.current = 5;
                 const trickBonus = 1500;
                 addDenshaPopup(trick.name, '+1,500 TRICK COMBO!', '#ec4899');
                 setScore((s) => s + trickBonus);
@@ -654,7 +654,7 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
           cubeRef.current.isGrounded = false;
           cubeRef.current.isJumping = true;
           cubeRef.current.targetRotation += Math.PI * 2;
-          screenShakeRef.current = 10;
+          screenShakeRef.current = 4;
           const dismountBonus = 1200;
           addDenshaPopup('PERFECT DISMOUNT!', '+1,200 PTS // BOOST', '#facc15');
           setScore((s) => s + dismountBonus);
@@ -1074,12 +1074,12 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
 
       hueRef.current = (hueRef.current + dt * 25) % 360;
 
-      // 2. Pulso de Câmera (Zoom Pulse) & Metrônomo do Mago
+      // 2. Pulso de Câmera Suave (Reduzido em 88% para não cansar a visão nem atrapalhar o foco nos obstáculos)
       const timeInSeconds = currentTime / 1000;
       const currentBpm = speedMult > 1.2 ? 160 : 130;
       const beatPeriod = 60 / currentBpm;
       const beatProgress = (timeInSeconds % beatPeriod) / beatPeriod;
-      zoomPulseRef.current = Math.max(0, 1 - beatProgress * 3.5) * (speedMult > 1.2 ? 0.045 : 0.03);
+      zoomPulseRef.current = Math.max(0, 1 - beatProgress * 4.0) * (speedMult > 1.2 ? 0.005 : 0.003);
 
       metronomePulseRef.current = Math.max(0, 1 - beatProgress * 2.5);
 
@@ -1142,7 +1142,7 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
             activeGrindRef.current = null;
             cube.isGrounded = false;
             cubeVyRef.current = 140;
-            screenShakeRef.current = 9;
+            screenShakeRef.current = 4;
             addDenshaPopup('OVERHEAT!', 'TROPEÇO NO FIM', '#f43f5e');
             spawnSparks(cube.x + CUBE_SIZE / 2, GROUND_Y - elev, '#f43f5e', 16);
           }
@@ -1213,7 +1213,7 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
           if (cube.x + cube.size >= obs.x) {
             obs.cleared = true;
             typerDashAudio.playPortalSound();
-            screenShakeRef.current = 14;
+            screenShakeRef.current = 4;
             spawnSparks(obs.x, GROUND_Y - 70, '#facc15', 25);
             addFloatingText('SPEED BOOST [2X]!', '#facc15', 1.3);
           }
@@ -1228,7 +1228,7 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
             cube.isGrounded = false;
             cube.isJumping = true;
             cube.targetRotation += Math.PI * 2;
-            screenShakeRef.current = 8;
+            screenShakeRef.current = 3;
 
             const trick = DIRECTIONAL_SWEEPS[Math.floor(Math.random() * DIRECTIONAL_SWEEPS.length)];
             activeTrickRef.current = {
