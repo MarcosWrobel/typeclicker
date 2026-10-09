@@ -37,8 +37,6 @@ interface TypingArenaProps {
   currentWord: string;
   charIndex: number;
   isErrorShaking: boolean;
-  isTypingLocked?: boolean;
-  onResetTypingLock?: () => void;
   comboStreak: number;
   multiplier: number;
   maxCombo: number;
@@ -135,8 +133,6 @@ const TypingArenaComponent: React.FC<TypingArenaProps> = ({
   currentWord,
   charIndex,
   isErrorShaking,
-  isTypingLocked = false,
-  onResetTypingLock,
   comboStreak,
   multiplier,
   maxCombo,
@@ -454,59 +450,21 @@ const TypingArenaComponent: React.FC<TypingArenaProps> = ({
   // Rastreamento para disparo cinemático de impacto de teclas e finalização de palavras (Arcade VFX)
   const lastCharIndexRef = useRef(charIndex);
   const wordContainerRef = useRef<HTMLDivElement>(null);
-  const containerRectRef = useRef<{ left: number; top: number; width: number; height: number } | null>(null);
-  // Cache de coordenadas pré-calculadas de cada caractere na montagem da palavra ou resize
-  // Isso ELIMINA 100% o querySelector e o getBoundingClientRect (Forced Reflow) a cada tecla digitada!
-  const charCoordsCacheRef = useRef<{ x: number; y: number }[]>([]);
-
-  useEffect(() => {
-    const updateCoords = () => {
-      const container = wordContainerRef.current;
-      if (!container) return;
-      const r = container.getBoundingClientRect();
-      containerRectRef.current = { left: r.left, top: r.top, width: r.width, height: r.height };
-
-      const spans = container.querySelectorAll('[data-char-index]');
-      const coords: { x: number; y: number }[] = [];
-      spans.forEach((span) => {
-        const sr = span.getBoundingClientRect();
-        const idx = Number(span.getAttribute('data-char-index'));
-        coords[idx] = {
-          x: sr.left + sr.width / 2,
-          y: sr.top + sr.height / 2
-        };
-      });
-      charCoordsCacheRef.current = coords;
-    };
-
-    const rafId = requestAnimationFrame(updateCoords);
-    window.addEventListener('resize', updateCoords, { passive: true });
-    return () => {
-      cancelAnimationFrame(rafId);
-      window.removeEventListener('resize', updateCoords);
-    };
-  }, [currentWord]);
-
   useEffect(() => {
     // Se o jogador avançou na digitação correta da palavra
     if (charIndex > lastCharIndexRef.current) {
+      let xPx = window.innerWidth / 2;
+      let yPx = window.innerHeight / 2;
+
+      const activeCharSpan = wordContainerRef.current?.querySelector('.char-current') as HTMLElement | null;
+      if (activeCharSpan) {
+        const rect = activeCharSpan.getBoundingClientRect();
+        xPx = rect.left + rect.width / 2;
+        yPx = rect.top + rect.height / 2;
+      }
+
       const isWordComplete = charIndex >= currentWord.length;
       const themeColor = activeTerminalTheme.previewColors.accent || '#38bdf8';
-      const typedIndex = isWordComplete ? currentWord.length - 1 : charIndex - 1;
-
-      const cached = charCoordsCacheRef.current[typedIndex];
-      let xPx = cached?.x;
-      let yPx = cached?.y;
-
-      if (xPx === undefined || yPx === undefined) {
-        if (containerRectRef.current) {
-          xPx = containerRectRef.current.left + containerRectRef.current.width / 2;
-          yPx = containerRectRef.current.top + containerRectRef.current.height / 2;
-        } else {
-          xPx = window.innerWidth / 2;
-          yPx = window.innerHeight / 2;
-        }
-      }
 
       triggerKeystrokeImpact(xPx, yPx, themeColor, equippedAnimation, isWordComplete);
     }
@@ -544,28 +502,20 @@ const TypingArenaComponent: React.FC<TypingArenaProps> = ({
     }
   }, [currentWord]);
 
-  // Desfoca imediatamente o input invisível e suspende o foco quando o jogo estiver pausado ou com foco travado por erro
+  // Desfoca imediatamente o input invisível quando o jogo estiver pausado
   useEffect(() => {
-    if (isPaused || isTypingLocked) {
+    if (isPaused) {
       inputRef.current?.blur();
       setIsFocused(false);
     }
-  }, [isPaused, isTypingLocked, inputRef]);
-
-  // Restaura o foco automaticamente quando o bloqueio temporário por erro for liberado
-  useEffect(() => {
-    if (!isTypingLocked && !isPaused) {
-      setIsFocused(true);
-    }
-  }, [isTypingLocked, isPaused]);
+  }, [isPaused, inputRef]);
 
   // Mantém o input focado para captura de digitação direta no laboratório quando o jogo estiver ativo
   useEffect(() => {
-    if (isPaused || isTypingLocked) return;
+    if (isPaused) return;
 
     const focusInput = () => {
-      // isPaused ou isTypingLocked suspendem o foco automático
-      if (isPaused || isTypingLocked) return;
+      if (isPaused) return;
 
       if (inputRef.current && document.activeElement !== inputRef.current) {
         // Não rouba foco se o aluno ou professor estiver editando campos, selects ou botões de diálogo
@@ -579,24 +529,17 @@ const TypingArenaComponent: React.FC<TypingArenaProps> = ({
     focusInput();
     const interval = setInterval(focusInput, 1500);
     return () => clearInterval(interval);
-  }, [inputRef, isPaused, isTypingLocked]);
+  }, [inputRef, isPaused]);
 
   const handleCardClick = () => {
     if (isPaused) return;
-    if (isTypingLocked && onResetTypingLock) {
-      onResetTypingLock();
-      return;
-    }
     inputRef.current?.focus({ preventScroll: true });
     setIsFocused(true);
   };
 
   // Processa caracteres digitados no input nativo (suporta composição de acentos ABNT2)
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (isPaused || isTypingLocked) {
-      e.target.value = '';
-      return;
-    }
+    if (isPaused) return;
     const val = e.target.value;
     if (!val) return;
 
@@ -613,7 +556,7 @@ const TypingArenaComponent: React.FC<TypingArenaProps> = ({
 
   // Captura eventos de teclas mortas (Dead) e cancelamento de acentuação
   const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (isPaused || isTypingLocked) {
+    if (isPaused) {
       e.preventDefault();
       return;
     }
@@ -666,7 +609,7 @@ const TypingArenaComponent: React.FC<TypingArenaProps> = ({
         id="typing-engine-input"
         type="text"
         value=""
-        disabled={isPaused || isTypingLocked}
+        disabled={isPaused}
         onChange={handleInputChange}
         onKeyDown={handleInputKeyDown}
         onFocus={() => setIsFocused(true)}
@@ -718,8 +661,6 @@ const TypingArenaComponent: React.FC<TypingArenaProps> = ({
               ? 'border-amber-500/90 shadow-[0_0_40px_rgba(245,158,11,0.3)] bg-[#0f1219]'
               : shouldShake
               ? 'animate-shake border-red-500/80 shadow-[0_0_24px_rgba(239,68,68,0.3)] bg-red-950/20'
-              : isTypingLocked
-              ? 'border-rose-500/60 shadow-[0_0_20px_rgba(244,63,94,0.2)] bg-rose-950/15'
               : !isFocused
               ? 'border-amber-500/40 shadow-[0_0_20px_rgba(245,158,11,0.1)]'
               : isHighContrast
@@ -890,20 +831,8 @@ const TypingArenaComponent: React.FC<TypingArenaProps> = ({
 
                 {/* Status de Foco */}
                 <div className="hidden sm:flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-zinc-900/80 border border-zinc-800 text-[10px] text-zinc-400 font-normal">
-                  <span className={`w-1.5 h-1.5 rounded-full ${
-                    isTypingLocked
-                      ? 'bg-rose-500 animate-ping'
-                      : isFocused
-                      ? 'bg-emerald-400 animate-pulse'
-                      : 'bg-amber-400'
-                  }`} />
-                  <span>
-                    {isTypingLocked
-                      ? 'RECUPERANDO'
-                      : isFocused
-                      ? 'ATIVO'
-                      : 'DESFOCADO'}
-                  </span>
+                  <span className={`w-1.5 h-1.5 rounded-full ${isFocused ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+                  <span>{isFocused ? 'ATIVO' : 'DESFOCADO'}</span>
                   <kbd className="px-1 py-0.2 rounded bg-zinc-800 text-zinc-300 text-[9px] font-bold">Esc</kbd>
                 </div>
 
@@ -958,8 +887,7 @@ const TypingArenaComponent: React.FC<TypingArenaProps> = ({
                     return (
                       <span
                         key={index}
-                        data-char-index={index}
-                        className={`inline-block relative transition-colors duration-75 ${charPadding} rounded ${
+                        className={`inline-block relative ${charPadding} rounded ${
                         isDone
                           ? isHighContrast
                             ? highContrastDoneCharClass
@@ -996,18 +924,10 @@ const TypingArenaComponent: React.FC<TypingArenaProps> = ({
           })}
           </div>
 
-          {(!isFocused || isTypingLocked) && (
-            <div className={`flex items-center gap-1.5 text-xs font-mono mt-0.5 px-3 py-0.5 rounded-md border transition-all ${
-              isTypingLocked
-                ? 'bg-rose-500/10 text-rose-300 border-rose-500/30 animate-pulse'
-                : 'bg-amber-500/10 text-amber-400/90 border-amber-500/20'
-            }`}>
+          {!isFocused && (
+            <div className="flex items-center gap-1.5 text-xs text-amber-400/90 font-mono mt-0.5 bg-amber-500/10 px-3 py-0.5 rounded-md border border-amber-500/20">
               <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
-              <span>
-                {isTypingLocked
-                  ? 'Foco suspenso momentaneamente: recomponha o ritmo...'
-                  : 'Clique no painel para reativar o teclado'}
-              </span>
+              <span>Clique no painel para reativar o teclado</span>
             </div>
           )}
 

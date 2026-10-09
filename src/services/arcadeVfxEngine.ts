@@ -79,10 +79,9 @@ class ArcadeVfxEngine {
       this.canvas.style.height = '100vh';
       this.canvas.style.pointerEvents = 'none';
       this.canvas.style.zIndex = '9999';
-      this.canvas.style.display = 'none';
+      this.canvas.style.transform = 'translateZ(0)';
       document.body.appendChild(this.canvas);
     }
-    this.canvas.style.display = 'none';
 
     this.ctx = this.canvas.getContext('2d', { alpha: true });
     this.handleResize();
@@ -107,10 +106,6 @@ class ArcadeVfxEngine {
    */
   public emitBurst(config: BurstConfig): void {
     if (!this.ctx || !this.canvas) return;
-
-    if (this.canvas.style.display === 'none') {
-      this.canvas.style.display = 'block';
-    }
 
     // Teto de saturação: evita sobrecarga em digitações extremas acima de 150 WPM
     if (this.particles.length >= this.MAX_ACTIVE_PARTICLES) return;
@@ -164,10 +159,9 @@ class ArcadeVfxEngine {
   private tick = (): void => {
     if (!this.ctx || !this.canvas) return;
 
-    // AUTO-PAUSE: Quando não há partículas, limpa o buffer e dorme (0% CPU e remove camada da GPU)
+    // AUTO-PAUSE: Quando não há partículas, limpa o buffer e dorme (0% CPU sem recriar camadas de GPU)
     if (this.particles.length === 0) {
       this.ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
-      this.canvas.style.display = 'none';
       this.animFrameId = null;
       return;
     }
