@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { createClient } from '@supabase/supabase-js';
+import { calculatePlayerRankFromLevels } from '../src/data/levels';
 
 // Parse CLI flags
 const args = process.argv.slice(2);
@@ -135,7 +136,9 @@ async function runMigration() {
       const avatar = state.studentAvatar || board.avatar || (isStaff ? '👨‍🏫' : '👩‍💻');
       const totalBytes = Math.round(Number(save.points || board.points || state.totalBytesEarned || 0));
       const bytes = Math.round(Number(state.bytes || 0));
-      const level = Math.round(Number(save.level || board.level || state.level || 1));
+      const rawLevel = Math.round(Number(save.level || board.level || state.level || 1));
+      const computedLevel = calculatePlayerRankFromLevels(totalBytes).level;
+      const level = Math.max(rawLevel, computedLevel);
 
       // 1. Perfil Unificado
       profilesToUpsert.push({

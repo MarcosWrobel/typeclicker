@@ -137,7 +137,7 @@ export async function findTargetAccount(
         turma: effectiveTurma,
         email: profileData.email || (cleanIdentifier.includes('@') ? cleanIdentifier : undefined),
         role: profileData.role || 'student',
-        currentLevel: Number(profileData.level) || rank.level,
+        currentLevel: Math.max(Number(profileData.level) || 1, rank.level),
         currentBytes: bytes,
         levelTokens: Number(profileData.level_tokens) || 0,
         duelTokens: Number(profileData.duel_tokens) || 0,
@@ -502,8 +502,21 @@ export async function claimPendingTestGrantsSupabase(
             state_payload: updatedState,
             updated_at: new Date().toISOString()
           }, { onConflict: 'user_id, game_id' });
+
+        await supabase
+          .from('profiles')
+          .update({
+            total_bytes_earned: Math.round(Number(updatedState.totalBytesEarned) || 0),
+            bytes: Math.round(Number(updatedState.bytes) || 0),
+            level: Math.max(Number(updatedState.level) || 1, calculatePlayerRank(updatedState.totalBytesEarned || 0).level),
+            level_tokens: updatedState.cosmetics?.levelTokens || 0,
+            duel_tokens: updatedState.cosmetics?.duelTokens || 0,
+            quantum_fragments: updatedState.cosmetics?.quantumFragments || 0,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', cleanUserId);
       } catch (errSupabase) {
-        console.warn('Aviso: save de game_progress no Supabase falhou:', errSupabase);
+        console.warn('Aviso: save no Supabase falhou:', errSupabase);
       }
     }
 

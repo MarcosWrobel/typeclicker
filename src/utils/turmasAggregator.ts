@@ -1,5 +1,6 @@
 import { LeaderboardEntry } from '../types/leaderboard';
 import { getSerieIdFromTurma, getSerieLabelFromTurma } from '../constants/school';
+import { calculatePlayerRank } from './formatting';
 
 export interface ClassStats {
   turma: string;
@@ -68,8 +69,10 @@ export function aggregateClassStats(students: LeaderboardEntry[]): ClassStats[] 
       map.set(rawTurma, group);
     }
 
+    const effectiveLevel = Math.max(s.level || 1, calculatePlayerRank(s.points || 0).level);
+
     group.studentCount += 1;
-    group.totalLevel += s.level || 1;
+    group.totalLevel += effectiveLevel;
     group.totalWpm += s.wpm || 0;
     if (s.accuracy !== undefined && s.accuracy > 0) {
       group.totalAccuracy += s.accuracy;
@@ -80,11 +83,11 @@ export function aggregateClassStats(students: LeaderboardEntry[]): ClassStats[] 
     group.totalPvPWins += s.pvpWins || 0;
 
     // Localiza o aluno destaque da turma (maior nível / wpm)
-    if (!group.bestPlayer || (s.level || 1) > group.bestPlayer.level || ((s.level || 1) === group.bestPlayer.level && (s.wpm || 0) > group.bestPlayer.wpm)) {
+    if (!group.bestPlayer || effectiveLevel > group.bestPlayer.level || (effectiveLevel === group.bestPlayer.level && (s.wpm || 0) > group.bestPlayer.wpm)) {
       group.bestPlayer = {
         nome: s.nome,
         apelido: s.apelido,
-        level: s.level || 1,
+        level: effectiveLevel,
         wpm: s.wpm || 0
       };
     }

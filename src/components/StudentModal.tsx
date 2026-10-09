@@ -661,6 +661,11 @@ export const StudentModal: React.FC<StudentModalProps> = ({
                           <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider block">Conta Google Vinculada:</span>
                           <span className="text-xs font-bold text-white truncate block">{user.displayName || 'Aluno(a)'}</span>
                           <span className="text-[11px] text-emerald-400/90 font-mono truncate block">{user.email}</span>
+                          {user.email && !user.email.endsWith('@escola.pr.gov.br') && !isAdmin && (
+                            <span className="text-[10px] text-amber-400 font-semibold block mt-0.5 leading-tight">
+                              ⚠️ Conta pessoal. Caso seu progresso de aula tenha ficado na conta escolar, faça login com @escola.pr.gov.br.
+                            </span>
+                          )}
                         </div>
                       </div>
 

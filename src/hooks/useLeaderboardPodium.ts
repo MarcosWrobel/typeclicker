@@ -4,6 +4,7 @@ import { isStaffMember, extractLevel100Pioneers } from '../utils/leaderboardUtil
 import { dbService } from '../services/dbFactory';
 import { auth } from '../services/firebaseService';
 import { LeaderboardMetric } from '../components/LeaderboardModal';
+import { calculatePlayerRank } from '../utils/formatting';
 
 const METRIC_ORDER: LeaderboardMetric[] = ['level', 'wpm', 'combo', 'bytes', 'pvp', 'races', 'dash'];
 const ROTATION_INTERVAL_SEC = 12; // 12 segundos por ranking (custo zero de banco)
@@ -47,7 +48,12 @@ export function useLeaderboardPodium(): UseLeaderboardPodiumReturn {
     try {
       setIsLoading(true);
       const data = await dbService.getGlobalLeaderboard(force);
-      const cleanStudents = data.filter((p) => !isStaffMember(p));
+      const cleanStudents = data
+        .filter((p) => !isStaffMember(p))
+        .map((p) => ({
+          ...p,
+          level: Math.max(p.level || 1, calculatePlayerRank(p.points || 0).level)
+        }));
       setAllPlayers(cleanStudents);
       setSyncRemaining(CLOUD_SYNC_INTERVAL_SEC);
     } catch (err) {
@@ -139,7 +145,11 @@ export function useLeaderboardPodium(): UseLeaderboardPodiumReturn {
 
     // 1. Nível & XP
     map.level = [...allPlayers]
-      .sort((a, b) => (b.level || 0) - (a.level || 0) || (b.points || 0) - (a.points || 0))
+      .sort((a, b) => {
+        const lvlA = Math.max(a.level || 1, calculatePlayerRank(a.points || 0).level);
+        const lvlB = Math.max(b.level || 1, calculatePlayerRank(b.points || 0).level);
+        return (lvlB - lvlA) || ((b.points || 0) - (a.points || 0));
+      })
       .slice(0, 3);
 
     // 2. Velocidade PPM
@@ -261,7 +271,12 @@ export function useLevel100Pioneers(): { pioneers: Level100PioneerSlot[]; isLoad
       try {
         const data = await dbService.getGlobalLeaderboard(false);
         if (!mounted) return;
-        const cleanStudents = data.filter((p) => !isStaffMember(p));
+        const cleanStudents = data
+          .filter((p) => !isStaffMember(p))
+          .map((p) => ({
+            ...p,
+            level: Math.max(p.level || 1, calculatePlayerRank(p.points || 0).level)
+          }));
         setAllPlayers(cleanStudents);
       } catch (err) {
         console.warn('Falha ao carregar pioneiros:', err);

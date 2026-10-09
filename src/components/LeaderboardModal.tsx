@@ -28,7 +28,7 @@ import { isStaffMember, extractLevel100Pioneers } from '../utils/leaderboardUtil
 import { dbService } from '../services/dbFactory';
 import { Level100PioneersWidget } from './Level100PioneersWidget';
 import { StudentProfileCardModal } from './StudentProfileCardModal';
-import { formatBytes } from '../utils/formatting';
+import { formatBytes, calculatePlayerRank } from '../utils/formatting';
 import { StudentAvatarRenderer } from './vectors/StudentAvatarRenderer';
 import { ALL_LEVELS } from '../data/levels';
 import {
@@ -267,7 +267,16 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
         ? await dbService.getSeasonLeaderboard(force)
         : await dbService.getGlobalLeaderboard(force);
       // Garantia estrita: nenhum professor ou admin aparece nos rankings
-      const cleanStudentsOnly = data.filter((player) => !isStaffMember(player));
+      // e normalização canônica do nível derivado de totalBytesEarned
+      const cleanStudentsOnly = data
+        .filter((player) => !isStaffMember(player))
+        .map((player) => {
+          const computedLevel = calculatePlayerRank(player.points || 0).level;
+          return {
+            ...player,
+            level: Math.max(player.level || 1, computedLevel)
+          };
+        });
       setRankings(cleanStudentsOnly);
     } catch (err: any) {
       setError(err.message || 'Erro ao carregar ranking escolar.');
@@ -387,8 +396,10 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
     switch (activeRankTab) {
       case 'level':
         return list.sort((a, b) => {
-          if ((b.level || 0) !== (a.level || 0)) {
-            return (b.level || 0) - (a.level || 0);
+          const lvlA = Math.max(a.level || 1, calculatePlayerRank(a.points || 0).level);
+          const lvlB = Math.max(b.level || 1, calculatePlayerRank(b.points || 0).level);
+          if (lvlB !== lvlA) {
+            return lvlB - lvlA;
           }
           return (b.points || 0) - (a.points || 0);
         });
@@ -416,7 +427,9 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
           if (bytesB !== bytesA) {
             return bytesB - bytesA;
           }
-          return (b.level || 0) - (a.level || 0);
+          const lvlA = Math.max(a.level || 1, calculatePlayerRank(a.points || 0).level);
+          const lvlB = Math.max(b.level || 1, calculatePlayerRank(b.points || 0).level);
+          return lvlB - lvlA;
         });
 
       case 'pvp':

@@ -259,22 +259,51 @@ export default function App() {
         try {
           // Try to load state from cloud automatically upon login
           const res = await dbService.loadGameState(currentUser.uid);
-          if (res.success && res.saveState) {
-            const loadedNickname = res.saveState.studentNickname || '';
-            const loadedClass = isStaffUser ? 'Professor' : (res.saveState.studentClass || '');
+          const localState = loadSavedState(currentUser.uid);
+          const localTotalBytes = Math.round(Number(localState.totalBytesEarned) || 0);
+          const cloudTotalBytes = Math.round(Number(res.saveState?.totalBytesEarned || res.points || 0));
+
+          let baseSaveState = res.saveState;
+          const shouldHealCloud = localTotalBytes > cloudTotalBytes;
+
+          // Proteção Anti-Regressão de Nível / Progresso:
+          // Se o save local do aluno nesta máquina possui MAIS progresso que a nuvem,
+          // preserva os bytes e upgrades mais avançados para o aluno nunca perder níveis!
+          if (shouldHealCloud) {
+            console.warn(`[App] Progresso local (${localTotalBytes} B) > nuvem (${cloudTotalBytes} B). Preservando progresso mais avançado!`);
+            baseSaveState = {
+              ...(res.saveState || {}),
+              ...localState,
+              totalBytesEarned: localTotalBytes,
+              bytes: Math.max(Number(localState.bytes) || 0, Number(res.saveState?.bytes) || 0),
+              upgrades: {
+                ...(res.saveState?.upgrades || {}),
+                ...(localState.upgrades || {})
+              }
+            };
+          }
+
+          if (res.success && baseSaveState) {
+            const loadedNickname = baseSaveState.studentNickname || localState.studentNickname || '';
+            const loadedClass = isStaffUser ? 'Professor' : (baseSaveState.studentClass || localState.studentClass || '');
             const loadedState: GameState = {
             ...INITIAL_STATE,
-            ...res.saveState,
-            studentName: currentUser.displayName || res.saveState.studentName || (isStaffUser ? (currentUser.displayName || 'Professor') : 'Aluno'),
+            ...baseSaveState,
+            studentName: currentUser.displayName || baseSaveState.studentName || (isStaffUser ? (currentUser.displayName || 'Professor') : 'Aluno'),
             studentNickname: loadedNickname,
             studentClass: loadedClass,
-            rpgClass: res.saveState.rpgClass || undefined,
-            isClassLocked: isStaffUser ? true : (res.saveState.isClassLocked ?? (Boolean(loadedClass))),
-            isRpgClassLocked: res.saveState.isRpgClassLocked ?? (Boolean(res.saveState.rpgClass)),
-            cosmetics: sanitizeCosmetics(res.saveState.cosmetics),
-            arenaStats: res.saveState.arenaStats || INITIAL_STATE.arenaStats
+            rpgClass: baseSaveState.rpgClass || localState.rpgClass || undefined,
+            isClassLocked: isStaffUser ? true : (baseSaveState.isClassLocked ?? (Boolean(loadedClass))),
+            isRpgClassLocked: baseSaveState.isRpgClassLocked ?? (Boolean(baseSaveState.rpgClass || localState.rpgClass)),
+            cosmetics: sanitizeCosmetics(baseSaveState.cosmetics || localState.cosmetics),
+            arenaStats: baseSaveState.arenaStats || localState.arenaStats || INITIAL_STATE.arenaStats
           };
           let finalState = loadedState;
+
+          // Se curamos a nuvem a partir do progresso local, sincroniza imediatamente
+          if (shouldHealCloud) {
+            dbService.saveLegacyGameState(currentUser.uid, finalState).catch(console.error);
+          }
           if (currentUser.uid) {
             try {
               const grantRes = await claimPendingTestGrantsSupabase(currentUser.uid, currentUser.email || '', finalState);

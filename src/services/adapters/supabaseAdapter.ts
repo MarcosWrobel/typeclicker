@@ -4,6 +4,7 @@ import { IDatabaseService, UserProfile, GameSessionPayload } from '../dbInterfac
 import { GameState } from '../../types';
 import { DEFAULT_COSMETICS } from '../../types/cosmetics';
 import { CloudLoadResponse, LeaderboardEntry, SeasonHistoryEntry } from '../../types/leaderboard';
+import { calculatePlayerRank } from '../../utils/formatting';
 
 export class SupabaseAdapter implements IDatabaseService {
   private client: SupabaseClient;
@@ -13,6 +14,10 @@ export class SupabaseAdapter implements IDatabaseService {
   }
 
   private mapProfile(row: any): UserProfile {
+    const totalBytes = Number(row.total_bytes_earned) || 0;
+    const computedLevel = calculatePlayerRank(totalBytes).level;
+    const effectiveLevel = Math.max(Number(row.level) || 1, computedLevel);
+
     return {
       id: row.id,
       displayName: row.display_name,
@@ -22,9 +27,9 @@ export class SupabaseAdapter implements IDatabaseService {
       turma: row.turma,
       role: row.role,
       bytes: Number(row.bytes) || 0,
-      totalBytesEarned: Number(row.total_bytes_earned) || 0,
+      totalBytesEarned: totalBytes,
       seasonBytes: Number(row.season_bytes) || 0,
-      level: row.level || 1,
+      level: effectiveLevel,
       levelTokens: row.level_tokens || 0,
       duelTokens: row.duel_tokens || 0,
       quantumFragments: row.quantum_fragments || 0,
@@ -60,9 +65,14 @@ export class SupabaseAdapter implements IDatabaseService {
     if (profile.turma !== undefined) payload.turma = profile.turma;
     if (profile.role !== undefined) payload.role = profile.role;
     if (profile.bytes !== undefined) payload.bytes = Math.round(Number(profile.bytes) || 0);
-    if (profile.totalBytesEarned !== undefined) payload.total_bytes_earned = Math.round(Number(profile.totalBytesEarned) || 0);
+    const totalBytes = profile.totalBytesEarned !== undefined ? Math.round(Number(profile.totalBytesEarned) || 0) : undefined;
+    if (totalBytes !== undefined) payload.total_bytes_earned = totalBytes;
     if (profile.seasonBytes !== undefined) payload.season_bytes = Math.round(Number(profile.seasonBytes) || 0);
-    if (profile.level !== undefined) payload.level = Math.max(1, Math.round(Number(profile.level) || 1));
+    if (profile.level !== undefined || totalBytes !== undefined) {
+      const explicitLevel = Number(profile.level) || 1;
+      const computed = totalBytes !== undefined ? calculatePlayerRank(totalBytes).level : 1;
+      payload.level = Math.max(explicitLevel, computed);
+    }
     if (profile.levelTokens !== undefined) payload.level_tokens = Math.round(Number(profile.levelTokens) || 0);
     if (profile.duelTokens !== undefined) payload.duel_tokens = Math.round(Number(profile.duelTokens) || 0);
     if (profile.quantumFragments !== undefined) payload.quantum_fragments = Math.round(Number(profile.quantumFragments) || 0);
@@ -119,21 +129,26 @@ export class SupabaseAdapter implements IDatabaseService {
       .limit(250);
 
     if (error || !data) return [];
-    return data.map((row: any): LeaderboardEntry => ({
-      userId: row.id,
-      nome: row.display_name || 'Aluno',
-      apelido: row.nickname,
-      turma: row.turma || '',
-      level: row.level || 1,
-      points: Number(row.total_bytes_earned) || 0,
-      seasonBytes: Number(row.season_bytes) || 0,
-      wpm: 0,
-      avatar: row.avatar,
-      updatedAt: row.updated_at || new Date().toISOString(),
-      rpgClass: row.rpg_class,
-      cardFrame: row.equipped_frame,
-      isStaff: row.role === 'teacher' || row.role === 'admin'
-    }));
+    return data.map((row: any): LeaderboardEntry => {
+      const points = Number(row.total_bytes_earned) || 0;
+      const computedLevel = calculatePlayerRank(points).level;
+      const level = Math.max(Number(row.level) || 1, computedLevel);
+      return {
+        userId: row.id,
+        nome: row.display_name || 'Aluno',
+        apelido: row.nickname,
+        turma: row.turma || '',
+        level,
+        points,
+        seasonBytes: Number(row.season_bytes) || 0,
+        wpm: 0,
+        avatar: row.avatar,
+        updatedAt: row.updated_at || new Date().toISOString(),
+        rpgClass: row.rpg_class,
+        cardFrame: row.equipped_frame,
+        isStaff: row.role === 'teacher' || row.role === 'admin'
+      };
+    });
   }
 
   async getSeasonLeaderboard(forceRefresh: boolean = false): Promise<LeaderboardEntry[]> {
@@ -144,21 +159,26 @@ export class SupabaseAdapter implements IDatabaseService {
       .limit(250);
 
     if (error || !data) return [];
-    return data.map((row: any): LeaderboardEntry => ({
-      userId: row.id,
-      nome: row.display_name || 'Aluno',
-      apelido: row.nickname,
-      turma: row.turma || '',
-      level: row.level || 1,
-      points: Number(row.total_bytes_earned) || 0,
-      seasonBytes: Number(row.season_bytes) || 0,
-      wpm: 0,
-      avatar: row.avatar,
-      updatedAt: row.updated_at || new Date().toISOString(),
-      rpgClass: row.rpg_class,
-      cardFrame: row.equipped_frame,
-      isStaff: row.role === 'teacher' || row.role === 'admin'
-    }));
+    return data.map((row: any): LeaderboardEntry => {
+      const points = Number(row.total_bytes_earned) || 0;
+      const computedLevel = calculatePlayerRank(points).level;
+      const level = Math.max(Number(row.level) || 1, computedLevel);
+      return {
+        userId: row.id,
+        nome: row.display_name || 'Aluno',
+        apelido: row.nickname,
+        turma: row.turma || '',
+        level,
+        points,
+        seasonBytes: Number(row.season_bytes) || 0,
+        wpm: 0,
+        avatar: row.avatar,
+        updatedAt: row.updated_at || new Date().toISOString(),
+        rpgClass: row.rpg_class,
+        cardFrame: row.equipped_frame,
+        isStaff: row.role === 'teacher' || row.role === 'admin'
+      };
+    });
   }
 
   async getSeasonHistory(seasonId: string): Promise<SeasonHistoryEntry[]> {
@@ -253,19 +273,22 @@ export class SupabaseAdapter implements IDatabaseService {
         .eq('game_id', 'typeclicker')
         .single();
 
-      if (!progressErr && progressData?.state_payload && Object.keys(progressData.state_payload).length > 0) {
+      const progressBytes = Number(progressData?.state_payload?.totalBytesEarned || progressData?.high_score || 0);
+
+      if (!progressErr && progressData?.state_payload && Object.keys(progressData.state_payload).length > 0 && progressBytes > 0) {
         return {
           success: true,
           message: 'Save carregado do Supabase com sucesso!',
           saveState: progressData.state_payload,
           savedAt: new Date(progressData.updated_at).toLocaleString('pt-BR'),
-          points: progressData.high_score
+          points: progressBytes
         };
       }
 
       // 2. Fallback: carrega os dados principais da tabela profiles
       const profile = await this.getUserProfile(userId);
-      if (profile) {
+      const profileBytes = Number(profile?.totalBytesEarned || profile?.bytes || 0);
+      if (profile && profileBytes > 0) {
         const fallbackSaveState: Partial<GameState> = {
           studentName: profile.displayName,
           studentNickname: profile.nickname,
@@ -292,6 +315,68 @@ export class SupabaseAdapter implements IDatabaseService {
         };
       }
 
+      // 3. Fallback Resiliente de Migração: se não encontrou no Supabase ou se o save estava com 0 bytes,
+      // verifica se o aluno possui save histórico preservado no Cloud Firestore
+      try {
+        const { db } = await import('../firebaseService');
+        const { doc, getDoc } = await import('firebase/firestore');
+        const fsDoc = await getDoc(doc(db, 'saves', userId));
+        if (fsDoc.exists()) {
+          const fsData = fsDoc.data();
+          const rawSave = (fsData?.saveState || {}) as Partial<GameState>;
+          const fsTotalBytes = Math.round(Number(rawSave.totalBytesEarned || fsData?.points || 0));
+          if (fsTotalBytes > 0) {
+            console.log(`[SupabaseAdapter] Save legado recuperado do Firestore para ${userId}: ${fsTotalBytes} bytes. Sincronizando para Supabase...`);
+            this.saveLegacyGameState(userId, rawSave as GameState).catch((err) => {
+              console.warn('Erro ao salvar no Supabase após recuperar do Firestore:', err);
+            });
+            return {
+              success: true,
+              message: 'Save recuperado da nuvem legada com sucesso!',
+              saveState: rawSave,
+              savedAt: new Date().toLocaleString('pt-BR'),
+              points: fsTotalBytes
+            };
+          }
+        }
+      } catch (fsErr) {
+        console.warn('Aviso: Fallback Firestore indisponível:', fsErr);
+      }
+
+      // 4. Se encontrou perfil ou progress com 0 bytes no Supabase, retorna como última opção
+      if (progressData?.state_payload && Object.keys(progressData.state_payload).length > 0) {
+        return {
+          success: true,
+          message: 'Save carregado do Supabase!',
+          saveState: progressData.state_payload,
+          savedAt: new Date(progressData.updated_at).toLocaleString('pt-BR'),
+          points: 0
+        };
+      }
+
+      if (profile) {
+        const fallbackSaveState: Partial<GameState> = {
+          studentName: profile.displayName,
+          studentNickname: profile.nickname,
+          studentClass: profile.turma,
+          bytes: profile.bytes,
+          totalBytesEarned: profile.totalBytesEarned,
+          rpgClass: profile.rpgClass as any,
+          cosmetics: {
+            ...DEFAULT_COSMETICS,
+            levelTokens: profile.levelTokens,
+            duelTokens: profile.duelTokens,
+            quantumFragments: profile.quantumFragments
+          }
+        };
+        return {
+          success: true,
+          message: 'Perfil Supabase carregado!',
+          saveState: fallbackSaveState,
+          points: 0
+        };
+      }
+
       return {
         success: false,
         message: 'Nenhum save encontrado no Supabase.'
@@ -305,6 +390,10 @@ export class SupabaseAdapter implements IDatabaseService {
   }
 
   async saveLegacyGameState(userId: string, state: GameState): Promise<void> {
+    const totalBytes = Math.round(Number(state.totalBytesEarned) || 0);
+    const computedLevel = calculatePlayerRank(totalBytes).level;
+    const effectiveLevel = Math.max(Number(state.level) || 1, computedLevel);
+
     // 1. Atualiza dados relacionais do perfil
     await this.saveUserProfile({
       id: userId,
@@ -313,8 +402,8 @@ export class SupabaseAdapter implements IDatabaseService {
       avatar: state.studentAvatar,
       turma: state.studentClass,
       bytes: state.bytes,
-      totalBytesEarned: state.totalBytesEarned,
-      level: state.level || 1,
+      totalBytesEarned: totalBytes,
+      level: effectiveLevel,
       levelTokens: state.cosmetics?.levelTokens || 0,
       duelTokens: state.cosmetics?.duelTokens || 0,
       quantumFragments: state.cosmetics?.quantumFragments || 0,
@@ -332,7 +421,7 @@ export class SupabaseAdapter implements IDatabaseService {
         .upsert({
           user_id: userId,
           game_id: 'typeclicker',
-          high_score: Math.round(Number(state.totalBytesEarned) || 0),
+          high_score: totalBytes,
           state_payload: state,
           updated_at: new Date().toISOString()
         }, { onConflict: 'user_id, game_id' });
@@ -360,22 +449,27 @@ export class SupabaseAdapter implements IDatabaseService {
 
     return data
       .filter((row: any) => row.role !== 'teacher' && row.role !== 'admin')
-      .map((row: any): LeaderboardEntry => ({
-        userId: row.id,
-        nome: row.display_name || 'Aluno',
-        email: row.email,
-        apelido: row.nickname,
-        turma: row.turma || '',
-        level: row.level || 1,
-        points: Number(row.total_bytes_earned) || 0,
-        seasonBytes: Number(row.season_bytes) || 0,
-        wpm: 0,
-        avatar: row.avatar,
-        updatedAt: row.updated_at || new Date().toISOString(),
-        rpgClass: row.rpg_class,
-        cardFrame: row.equipped_frame,
-        isStaff: false
-      }));
+      .map((row: any): LeaderboardEntry => {
+        const points = Number(row.total_bytes_earned) || 0;
+        const computedLevel = calculatePlayerRank(points).level;
+        const level = Math.max(Number(row.level) || 1, computedLevel);
+        return {
+          userId: row.id,
+          nome: row.display_name || 'Aluno',
+          email: row.email,
+          apelido: row.nickname,
+          turma: row.turma || '',
+          level,
+          points,
+          seasonBytes: Number(row.season_bytes) || 0,
+          wpm: 0,
+          avatar: row.avatar,
+          updatedAt: row.updated_at || new Date().toISOString(),
+          rpgClass: row.rpg_class,
+          cardFrame: row.equipped_frame,
+          isStaff: false
+        };
+      });
   }
 
   async adminUpdateStudentProfile(

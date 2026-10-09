@@ -1,4 +1,5 @@
 import { LeaderboardEntry, Level100PioneerSlot } from '../types/leaderboard';
+import { calculatePlayerRank } from './formatting';
 
 export const ADMIN_EMAILS: string[] = [
   'wrobel.marcos@gmail.com',
@@ -57,9 +58,11 @@ export function isStaffMember(
  */
 export function extractLevel100Pioneers(players: LeaderboardEntry[]): Level100PioneerSlot[] {
   // Apenas estudantes com level >= 100
-  const eligible = players.filter(
-    (p) => !isStaffMember(p) && (p.level >= 100 || (p as any).isMaxLevel)
-  );
+  const eligible = players.filter((p) => {
+    if (isStaffMember(p)) return false;
+    const effectiveLevel = Math.max(p.level || 1, calculatePlayerRank(p.points || 0).level);
+    return effectiveLevel >= 100 || (p as any).isMaxLevel;
+  });
 
   // Ordenação cronológica por data de conquista do nível 100
   eligible.sort((a, b) => {
