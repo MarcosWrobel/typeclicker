@@ -1,23 +1,22 @@
-import React,{ useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import confetti from 'canvas-confetti';
 import {
-Play,
-RotateCcw,
-Volume2,
-VolumeX,
-Pause,
-Shield,
-Crosshair,
-Zap,
-Trophy,
-ArrowLeft,
-Flame,
-Award,
-Check,
-Sparkles,
-Flag,
-Target,Timer
+  Play,
+  RotateCcw,
+  Volume2,
+  VolumeX,
+  Pause,
+  Zap,
+  Trophy,
+  ArrowLeft,
+  Flame,
+  Check,
+  Sparkles,
+  Flag,
+  Target,
+  Timer,
+  Award
 } from 'lucide-react';
 import { GamePluginProps, GameExitPayload } from '../../../types/gamePlugin';
 import { BytezinhoSkinId } from '../../../types/cosmetics';
@@ -25,16 +24,17 @@ import { TyperDashStats } from '../../../types';
 import { LeaderboardMetric } from '../../LeaderboardModal';
 import { BYTEZINHO_SKINS } from '../../../constants/themes';
 import { BytezinhoAvatar } from '../../BytezinhoAvatar';
+import { CapsLockWarning } from '../../common/CapsLockWarning';
 import { typerDashAudio, TyperDashMusicStage } from './typerDashAudio';
 import {
-TyperDashCanvas,
-renderTyperDash,
-DashCubeState,
-DashObstacle,
-DashParticle,
-DashFloatingText,
-DashGhostTrail,
-DashDenshaPopup
+  TyperDashCanvas,
+  renderTyperDash,
+  DashCubeState,
+  DashObstacle,
+  DashParticle,
+  DashFloatingText,
+  DashGhostTrail,
+  DashDenshaPopup
 } from './TyperDashCanvas';
 
 // Teclas Pedagógicas: Mão Esquerda (Solo/Espinhos)
@@ -63,97 +63,6 @@ const DIRECTIONAL_SWEEPS = [
 
 const GRIND_KEYS = ['F', 'J', 'D', 'K', 'S'];
 
-const CLASS_OPTIONS = [
-  {
-    id: 'warrior' as const,
-    name: 'Guerreiro',
-    tagline: 'Sobrevivência & Escudo',
-    keyNumber: '1',
-    themeColor: '#10b981',
-    borderClass: 'border-emerald-500',
-    ringClass: 'ring-emerald-400',
-    bgGradient: 'from-emerald-950/50 via-zinc-900/90 to-zinc-950',
-    accentText: 'text-emerald-400',
-    activeGlow: 'shadow-[0_0_25px_rgba(16,185,129,0.35)]',
-    badgeBg: 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300',
-    icon: Shield,
-    passiveTitle: 'Escudo Rúnico (Aegis)',
-    passiveDesc: 'Absorve a 1ª colisão letal sem morrer! Concede 1.5s de invulnerabilidade e protege seu combo.',
-    focusText: 'Mão Esquerda (Linha Guia A, S, D, F)',
-    stats: [
-      { label: 'Defesa', score: 5 },
-      { label: 'Tolerância', score: 5 },
-      { label: 'Dificuldade', score: 1 }
-    ]
-  },
-  {
-    id: 'archer' as const,
-    name: 'Arqueiro',
-    tagline: 'Precisão Cirúrgica & Score',
-    keyNumber: '2',
-    themeColor: '#f59e0b',
-    borderClass: 'border-amber-500',
-    ringClass: 'ring-amber-400',
-    bgGradient: 'from-amber-950/50 via-zinc-900/90 to-zinc-950',
-    accentText: 'text-amber-400',
-    activeGlow: 'shadow-[0_0_25px_rgba(245,158,11,0.35)]',
-    badgeBg: 'bg-amber-500/20 border-amber-500/50 text-amber-300',
-    icon: Crosshair,
-    passiveTitle: 'Foco do Atirador (+28% Perfect)',
-    passiveDesc: 'Janela de timing do PERFECT ampliada para 160ms. Multiplicador de combo acelera +50% mais rápido.',
-    focusText: 'Orbs e Saltos Aéreos (J, K, L, E, I)',
-    stats: [
-      { label: 'Pontuação', score: 5 },
-      { label: 'Precisão', score: 5 },
-      { label: 'Dificuldade', score: 4 }
-    ]
-  },
-  {
-    id: 'mage' as const,
-    name: 'Mago',
-    tagline: 'Metrônomo Arcano 130 BPM',
-    keyNumber: '3',
-    themeColor: '#06b6d4',
-    borderClass: 'border-cyan-500',
-    ringClass: 'ring-cyan-400',
-    bgGradient: 'from-cyan-950/50 via-zinc-900/90 to-zinc-950',
-    accentText: 'text-cyan-400',
-    activeGlow: 'shadow-[0_0_25px_rgba(6,182,212,0.35)]',
-    badgeBg: 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300',
-    icon: Zap,
-    passiveTitle: 'Sintonia Rítmica Audiovisual',
-    passiveDesc: 'Metrônomo sonoro contínuo pulsando nos 4 tempos do compasso, marcando o timing exato para tocar as teclas.',
-    focusText: 'Coordenação Rítmica e Alternância',
-    stats: [
-      { label: 'Ritmo', score: 5 },
-      { label: 'Sincronia', score: 5 },
-      { label: 'Dificuldade', score: 3 }
-    ]
-  },
-  {
-    id: 'rogue' as const,
-    name: 'Ladino',
-    tagline: 'Overdrive Turbo & Frenesi',
-    keyNumber: '4',
-    themeColor: '#f43f5e',
-    borderClass: 'border-rose-500',
-    ringClass: 'ring-rose-400',
-    bgGradient: 'from-rose-950/50 via-zinc-900/90 to-zinc-950',
-    accentText: 'text-rose-400',
-    activeGlow: 'shadow-[0_0_25px_rgba(244,63,94,0.35)]',
-    badgeBg: 'bg-rose-500/20 border-rose-500/50 text-rose-300',
-    icon: Flame,
-    passiveTitle: 'Adrenalina Turbo (+50% Tricks)',
-    passiveDesc: 'Multiplicador acelerado de frenesi. Concede +50% de bônus em Manobras Aéreas e Grinds perfeitos.',
-    focusText: 'Agilidade Motora e Trocas Rápidas',
-    stats: [
-      { label: 'Velocidade', score: 5 },
-      { label: 'Frenesi', score: 5 },
-      { label: 'Dificuldade', score: 4 }
-    ]
-  }
-];
-
 const getSkinDisplayName = (skin: string) => {
   switch (skin) {
     case 'golden_king': return 'Rei Dourado';
@@ -172,9 +81,10 @@ const GROUND_Y = 430;
 const CUBE_SIZE = 42;
 const JUDGMENT_LINE_X = 140;
 
-// Constantes de Salto
+// Constantes de Salto e Meta da Fase Geometry Dash
 const JUMP_VELOCITY = -650;
 const GRAVITY = 1750;
+const TARGET_STAGE_METERS = 1000; // 100% da Pista
 
 export interface TyperDashGameProps extends GamePluginProps {
   equippedSkin?: BytezinhoSkinId;
@@ -194,16 +104,6 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
   onOpenLeaderboardTab,
   dashStats
 }) => {
-  // Seleção de Classe Pré-Run (Válida exclusivamente para a Run ativa)
-  const [selectedClass, setSelectedClass] = useState<'warrior' | 'archer' | 'mage' | 'rogue'>(
-    (studentClass as 'warrior' | 'archer' | 'mage' | 'rogue') || 'warrior'
-  );
-
-  const isWarrior = selectedClass === 'warrior';
-  const isArcher = selectedClass === 'archer';
-  const isMage = selectedClass === 'mage';
-  const isRogue = selectedClass === 'rogue';
-
   // Cosmético equipado do Bytezinho (sincronizado com perfil e selecionável na partida)
   const [activeSkin, setActiveSkin] = useState<BytezinhoSkinId>(equippedSkin);
 
@@ -217,8 +117,8 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
     typerDashAudio.playHitSound(true, 1);
   };
 
-  // Estados de Jogo
-  const [gameState, setGameState] = useState<'class_select' | 'countdown' | 'playing' | 'paused' | 'game_over'>('class_select');
+  // Estados de Jogo (Lobby Direto ao Ponto sem Classes)
+  const [gameState, setGameState] = useState<'lobby' | 'countdown' | 'playing' | 'paused' | 'game_over'>('lobby');
   const [countdown, setCountdown] = useState<number>(3);
   const [score, setScore] = useState<number>(0);
   const [combo, setCombo] = useState<number>(0);
@@ -228,7 +128,6 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
   const [misses, setMisses] = useState<number>(0);
   const [distanceMeters, setDistanceMeters] = useState<number>(0);
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
-  const [hasShield, setHasShield] = useState<boolean>(isWarrior);
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [highScore, setHighScore] = useState<number>(() => {
     if (dashStats?.highScore) return dashStats.highScore;
@@ -286,11 +185,10 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
   const hueRef = useRef<number>(180);
   const screenShakeRef = useRef<number>(0);
   const invulnerableUntilRef = useRef<number>(0);
-  const hasShieldRef = useRef<boolean>(isWarrior);
   const metronomePulseRef = useRef<number>(0);
   const lastBeatTimeRef = useRef<number>(0);
   const isPausedRef = useRef<boolean>(false);
-  const gameStateRef = useRef<'class_select' | 'countdown' | 'playing' | 'paused' | 'game_over'>('class_select');
+  const gameStateRef = useRef<'lobby' | 'countdown' | 'playing' | 'paused' | 'game_over'>('lobby');
 
   // Refs da Máquina de Fases & Geometry Dash FX
   const ghostTrailRef = useRef<DashGhostTrail[]>([]);
@@ -355,10 +253,6 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
     gameStateRef.current = gameState;
   }, [gameState]);
 
-  useEffect(() => {
-    hasShieldRef.current = hasShield;
-  }, [hasShield]);
-
   // Função pura de desenho na tela em 60 FPS
   const drawCurrentFrame = useCallback((paused: boolean = false) => {
     const canvas = canvasRef.current;
@@ -394,24 +288,17 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
       groundY: GROUND_Y,
       parallaxOffset: distanceRef.current,
       isInvulnerable: Date.now() < invulnerableUntilRef.current,
-      hasShield: hasShieldRef.current,
-      isArcher,
-      isMage,
       combo: comboRef.current,
       screenShake: screenShakeRef.current,
       metronomePulse: metronomePulseRef.current,
       isPaused: paused,
-      bytezinhoSkin: activeSkin
+      bytezinhoSkin: activeSkin,
+      progressRatio: Math.min(1, (distanceRef.current / 40) / TARGET_STAGE_METERS)
     });
-  }, [isArcher, isMage, activeSkin]);
+  }, [activeSkin]);
 
-  // Iniciar contagem com classe selecionada (Run individual)
-  const startCountdownWithClass = useCallback((cls?: 'warrior' | 'archer' | 'mage' | 'rogue') => {
-    const targetClass = cls || selectedClass;
-    setSelectedClass(targetClass);
-    const withShield = targetClass === 'warrior';
-    setHasShield(withShield);
-    hasShieldRef.current = withShield;
+  // Iniciar corrida com contagem rápida ou início imediato
+  const handleStartRun = useCallback(() => {
     setGameState('countdown');
     setCountdown(3);
     setScore(0);
@@ -435,7 +322,7 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
     cubeRef.current.rotation = 0;
     cubeRef.current.targetRotation = 0;
     typerDashAudio.playHitSound(true, 1);
-  }, [selectedClass]);
+  }, []);
 
   // Helper para adicionar popups no estilo quadrinho urbano (Denshattack!)
   const addDenshaPopup = useCallback((title: string, subtitle?: string, color: string = '#facc15') => {
@@ -548,18 +435,21 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
     if (gameStateRef.current !== 'playing') return;
 
     const key = pressedKey.toUpperCase();
+    const cube = cubeRef.current;
+    const cubeFront = cube.x + cube.size;
 
-    // Procurar o obstáculo mais próximo da Judgment Line (que ainda não foi superado)
+    // Procurar o obstáculo ativo mais próximo na Jump Zone à frente do cubo (-20px a 270px)
     let closestObstacle: DashObstacle | null = null;
     let closestDist = Infinity;
 
     for (const obs of obstaclesRef.current) {
       if (obs.cleared) continue;
-      const obsCenter = obs.x + obs.width / 2;
-      const dist = Math.abs(obsCenter - JUDGMENT_LINE_X);
-      if (dist < closestDist) {
-        closestDist = dist;
-        closestObstacle = obs;
+      const distToCube = obs.x - cubeFront;
+      if (distToCube >= -25 && distToCube <= 270) {
+        if (distToCube < closestDist) {
+          closestDist = distToCube;
+          closestObstacle = obs;
+        }
       }
     }
 
@@ -567,17 +457,15 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
 
     // Verificar se a tecla digitada confere com a letra do obstáculo
     const isKeyCorrect = closestObstacle.letter.toUpperCase() === key;
-    const perfectWindow = isArcher ? 36 : 28; // Janela estendida para o Arqueiro
-    const goodWindow = 75;
 
-    if (isKeyCorrect && closestDist <= goodWindow) {
-      // Acerto Válido!
+    if (isKeyCorrect) {
+      // Acerto Válido na Jump Zone!
       closestObstacle.cleared = true;
-      const isPerfect = closestDist <= perfectWindow;
+      const isSweetSpot = closestDist >= 25 && closestDist <= 190;
 
       // ── CASO 1: JUMP ORB (Impulso Aéreo Instantâneo) ──
       if (closestObstacle.type === 'orb') {
-        cubeVyRef.current = JUMP_VELOCITY * 0.95;
+        cubeVyRef.current = JUMP_VELOCITY * 0.96;
         cubeRef.current.isGrounded = false;
         cubeRef.current.isJumping = true;
         cubeRef.current.targetRotation += Math.PI / 2;
@@ -585,63 +473,54 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
 
         const orbCenterX = closestObstacle.x + closestObstacle.width / 2;
         const orbCenterY = closestObstacle.y + closestObstacle.height / 2;
-        spawnSparks(orbCenterX, orbCenterY, '#ec4899', 20);
+        spawnSparks(orbCenterX, orbCenterY, '#ec4899', 24);
 
         setCombo((prevCombo) => {
           const nextCombo = prevCombo + 1;
           comboRef.current = nextCombo;
           setMaxCombo((prevMax) => Math.max(prevMax, nextCombo));
-          const comboMultiplier = isArcher ? 1 + nextCombo * 0.15 : isRogue ? 1 + nextCombo * 0.13 : 1 + nextCombo * 0.1;
+          const comboMultiplier = 1 + nextCombo * 0.12;
           const pointsAwarded = Math.round(150 * comboMultiplier);
           setScore((s) => s + pointsAwarded);
           return nextCombo;
         });
 
-        if (isPerfect) {
-          setPerfectHits((p) => p + 1);
-          addFloatingText('ORB PERFECT!', '#f472b6', 1.3);
-        } else {
-          setGoodHits((g) => g + 1);
-          addFloatingText('ORB BOOST!', '#38bdf8', 1.1);
-        }
+        setPerfectHits((p) => p + 1);
+        addFloatingText('ORB BOOST!', '#f472b6', 1.3);
         return;
       }
 
       // ── CASO 2: PLATAFORMAS OU ESPINHOS DE SOLO ──
+      triggerJump();
+
       setCombo((prevCombo) => {
         const nextCombo = prevCombo + 1;
         comboRef.current = nextCombo;
         setMaxCombo((prevMax) => Math.max(prevMax, nextCombo));
 
-        // Bônus de combo: Arqueiro +1.5x, Ladino +1.3x
-        const comboMultiplier = isArcher ? 1 + nextCombo * 0.15 : isRogue ? 1 + nextCombo * 0.13 : 1 + nextCombo * 0.1;
-        const baseScore = isPerfect ? 100 : 50;
+        const comboMultiplier = 1 + nextCombo * 0.12;
+        const baseScore = isSweetSpot ? 100 : 60;
         const pointsAwarded = Math.round(baseScore * comboMultiplier);
 
         setScore((prevScore) => prevScore + pointsAwarded);
-        typerDashAudio.playHitSound(isPerfect, nextCombo);
+        typerDashAudio.playHitSound(isSweetSpot, nextCombo);
         return nextCombo;
       });
 
-      if (isPerfect) {
+      if (isSweetSpot) {
         setPerfectHits((p) => p + 1);
-        addFloatingText('PERFECT!', '#fde047', 1.25);
+        addFloatingText('PERFECT JUMP!', '#fde047', 1.25);
         spawnSparks(closestObstacle.x + closestObstacle.width / 2, closestObstacle.y, '#fde047', 18);
       } else {
         setGoodHits((g) => g + 1);
-        addFloatingText('GOOD!', '#34d399', 1.05);
-        spawnSparks(closestObstacle.x + closestObstacle.width / 2, closestObstacle.y, '#34d399', 10);
+        addFloatingText('JUMP!', '#34d399', 1.05);
+        spawnSparks(closestObstacle.x + closestObstacle.width / 2, closestObstacle.y, '#34d399', 12);
       }
-
-      triggerJump();
-    } else if (closestDist <= goodWindow + 30) {
-      // Tecla errada no momento do obstáculo: QUEBRA DE COMBO
-      comboRef.current = 0;
-      setCombo(0);
-      setMisses((m) => m + 1);
-      addFloatingText('MISS!', '#f43f5e', 0.95);
+    } else {
+      // Tecla digitada não corresponde ao obstáculo atual: feedback visual sem interromper
+      spawnSparks(cube.x + CUBE_SIZE / 2, GROUND_Y, '#f43f5e', 4);
     }
-  }, [isArcher, triggerJump, addFloatingText, spawnSparks]);
+  }, [triggerJump, addFloatingText, spawnSparks]);
 
   // ─────────────────────────────────────────────────────────────
   // Listeners de Teclado
@@ -650,45 +529,10 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
     const handleKeyDown = (e: KeyboardEvent) => {
       const key = e.key;
 
-      // 0. Seleção de Classes Pré-Run (Lobby)
-      if (gameStateRef.current === 'class_select') {
-        if (key === '1') {
-          e.preventDefault();
-          setSelectedClass('warrior');
-          setHasShield(true);
-          hasShieldRef.current = true;
-          typerDashAudio.playHitSound(true, 1);
-          return;
-        }
-        if (key === '2') {
-          e.preventDefault();
-          setSelectedClass('archer');
-          setHasShield(false);
-          hasShieldRef.current = false;
-          typerDashAudio.playHitSound(true, 2);
-          return;
-        }
-        if (key === '3') {
-          e.preventDefault();
-          setSelectedClass('mage');
-          setHasShield(false);
-          hasShieldRef.current = false;
-          typerDashAudio.playHitSound(true, 3);
-          return;
-        }
-        if (key === '4') {
-          e.preventDefault();
-          setSelectedClass('rogue');
-          setHasShield(false);
-          hasShieldRef.current = false;
-          typerDashAudio.playHitSound(true, 4);
-          return;
-        }
-        if (key === 'Enter' || key === ' ') {
-          e.preventDefault();
-          startCountdownWithClass();
-          return;
-        }
+      // 0. Iniciar a partir do Lobby ou reiniciar após Game Over
+      if ((gameStateRef.current === 'lobby' || gameStateRef.current === 'game_over') && (key === 'Enter' || key === ' ')) {
+        e.preventDefault();
+        handleStartRun();
         return;
       }
 
@@ -703,7 +547,7 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
         } else if (gameStateRef.current === 'paused') {
           setGameState('playing');
           isPausedRef.current = false;
-          typerDashAudio.startMetronome(isMage);
+          typerDashAudio.startMetronome();
         }
         return;
       }
@@ -713,7 +557,7 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
         e.preventDefault();
         setGameState('playing');
         isPausedRef.current = false;
-        typerDashAudio.startMetronome(isMage);
+        typerDashAudio.startMetronome();
         return;
       }
 
@@ -742,8 +586,8 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
                 // Manobra completada!
                 typerDashAudio.playHitSound(true, comboRef.current + 6);
                 screenShakeRef.current = 12;
-                const trickBonus = isRogue ? 2250 : 1500;
-                addDenshaPopup(trick.name, isRogue ? '+2,250 OVERDRIVE TRICK!' : '+1,500 TRICK COMBO!', '#ec4899');
+                const trickBonus = 1500;
+                addDenshaPopup(trick.name, '+1,500 TRICK COMBO!', '#ec4899');
                 setScore((s) => s + trickBonus);
                 setCombo((prevCombo) => {
                   const nextCombo = prevCombo + 3;
@@ -807,8 +651,8 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
           cubeRef.current.isJumping = true;
           cubeRef.current.targetRotation += Math.PI * 2;
           screenShakeRef.current = 10;
-          const dismountBonus = isRogue ? 1800 : 1200;
-          addDenshaPopup('PERFECT DISMOUNT!', isRogue ? '+1,800 ROGUE BOOST!' : '+1,200 PTS // BOOST', '#facc15');
+          const dismountBonus = 1200;
+          addDenshaPopup('PERFECT DISMOUNT!', '+1,200 PTS // BOOST', '#facc15');
           setScore((s) => s + dismountBonus);
           setPerfectHits((p) => p + 1);
           setCombo((prevCombo) => {
@@ -833,7 +677,7 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
       window.removeEventListener('keydown', handleKeyDown, true);
       window.removeEventListener('keyup', handleKeyUp, true);
     };
-  }, [handleKeyPress, isMage, addDenshaPopup, addFloatingText, spawnSparks]);
+  }, [handleKeyPress, addDenshaPopup, addFloatingText, spawnSparks]);
 
   // ─────────────────────────────────────────────────────────────
   // Contagem Regressiva Inicial (3, 2, 1, GO!)
@@ -848,7 +692,7 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
           setGameState('playing');
           startTimeRef.current = Date.now();
           lastTimeRef.current = performance.now();
-          typerDashAudio.startMetronome(isMage);
+          typerDashAudio.startMetronome();
           return 0;
         }
         typerDashAudio.playHitSound(false, 3 - prev);
@@ -857,7 +701,7 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
     }, BEAT_DURATION_SEC * 1000);
 
     return () => clearInterval(timer);
-  }, [gameState, isMage]);
+  }, [gameState]);
 
   // ─────────────────────────────────────────────────────────────
   // Geração Procedural de Obstáculos e Fases Rítmicas
@@ -1224,9 +1068,7 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
       const beatProgress = (timeInSeconds % beatPeriod) / beatPeriod;
       zoomPulseRef.current = Math.max(0, 1 - beatProgress * 3.5) * (speedMult > 1.2 ? 0.045 : 0.03);
 
-      if (isMage) {
-        metronomePulseRef.current = Math.max(0, 1 - beatProgress * 2.5);
-      }
+      metronomePulseRef.current = Math.max(0, 1 - beatProgress * 2.5);
 
       // 3. Screen Shake Decay
       if (screenShakeRef.current > 0) {
@@ -1403,20 +1245,8 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
             const isHittingGroundSpikes = cubeBottom >= GROUND_Y - 6 && cubeRight >= obs.x + 4 && cubeLeft <= obs.x + obs.width - 4;
 
             if (isHittingFrontWall || isHittingGroundSpikes) {
-              if (hasShieldRef.current) {
-                hasShieldRef.current = false;
-                setHasShield(false);
-                invulnerableUntilRef.current = now + 1400;
-                obs.cleared = true;
-                typerDashAudio.playShieldBreakSound();
-                screenShakeRef.current = 14;
-                spawnSparks(cube.x + CUBE_SIZE / 2, cube.y + CUBE_SIZE / 2, '#34d399', 24);
-                addFloatingText('ESCUDO DEFLETIDO!', '#34d399', 1.2);
-                continue;
-              } else {
-                handleCrash();
-                return;
-              }
+              handleCrash();
+              return;
             }
           } else if (obs.type === 'single' || obs.type === 'double' || obs.type === 'tall') {
             const obsLeft = obs.x + 4;
@@ -1427,20 +1257,8 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
             const isCollidingY = cubeBottom >= obsTop;
 
             if (isCollidingX && isCollidingY) {
-              if (hasShieldRef.current) {
-                hasShieldRef.current = false;
-                setHasShield(false);
-                invulnerableUntilRef.current = now + 1400;
-                obs.cleared = true;
-                typerDashAudio.playShieldBreakSound();
-                screenShakeRef.current = 14;
-                spawnSparks(cube.x + CUBE_SIZE / 2, cube.y + CUBE_SIZE / 2, '#34d399', 24);
-                addFloatingText('ESCUDO DEFLETIDO!', '#34d399', 1.2);
-                continue;
-              } else {
-                handleCrash();
-                return;
-              }
+              handleCrash();
+              return;
             }
           }
 
@@ -1522,7 +1340,6 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
   }, [
     gameState,
     difficultyMultiplier,
-    isMage,
     maybeSpawnObstacle,
     handleCrash,
     addFloatingText,
@@ -1530,10 +1347,10 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
     drawCurrentFrame
   ]);
 
-  // Renderizar o frame estático inicial ou durante a pausa / seleção
+  // Renderizar o frame estático inicial ou durante a pausa / lobby
   useEffect(() => {
-    if (gameState === 'class_select' || gameState === 'countdown' || gameState === 'paused') {
-      drawCurrentFrame(gameState === 'paused' || gameState === 'class_select');
+    if (gameState === 'lobby' || gameState === 'countdown' || gameState === 'paused') {
+      drawCurrentFrame(gameState === 'paused' || gameState === 'lobby');
     }
   }, [gameState, drawCurrentFrame, countdown]);
 
@@ -1556,6 +1373,7 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
   const accuracyPercentage = totalAttempts > 0 
     ? Math.round(((perfectHits + goodHits) / totalAttempts) * 100) 
     : 100;
+  const progressPercent = Math.min(100, Math.floor((distanceMeters / TARGET_STAGE_METERS) * 100));
 
   useEffect(() => {
     if (gameState === 'game_over' && accuracyPercentage >= 80 && score > 300) {
@@ -1611,8 +1429,6 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
     setDistanceMeters(0);
     lastElapsedSecondRef.current = 0;
     setElapsedSeconds(0);
-    setHasShield(isWarrior);
-    hasShieldRef.current = isWarrior;
     setCountdown(3);
     setGameState('countdown');
   };
@@ -1642,7 +1458,7 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
           goodHits,
           maxCombo,
           distanceMeters,
-          studentClass: selectedClass
+          studentClass: studentClass || 'runner'
         }
       }
     };
@@ -1777,40 +1593,23 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
           </div>
         </div>
 
-        {/* Lado Direito: Badge da Classe Ativa, Áudio & Pausa */}
-        <div className="flex items-center gap-2">
-          {/* Badge Interativo da Classe Ativa da Run */}
-          <button
-            type="button"
-            onClick={() => {
-              if (gameState !== 'playing') {
-                setGameState('class_select');
-              }
-            }}
-            className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-mono font-bold border-2 transition-all shadow-[0_3px_0_rgba(0,0,0,0.5)] ${
-              isWarrior 
-                ? 'bg-emerald-950/90 border-emerald-500 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.25)]' 
-                : isArcher 
-                ? 'bg-amber-950/90 border-amber-500 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.25)]' 
-                : isMage
-                ? 'bg-cyan-950/90 border-cyan-500 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.25)]'
-                : 'bg-rose-950/90 border-rose-500 text-rose-300 shadow-[0_0_15px_rgba(244,63,94,0.25)]'
-            }`}
-            title={gameState === 'playing' ? 'Classe Ativa na Run' : 'Clique para alterar a classe'}
-          >
-            {isWarrior && <Shield className="w-4 h-4 text-emerald-400" />}
-            {isArcher && <Crosshair className="w-4 h-4 text-amber-400" />}
-            {isMage && <Zap className="w-4 h-4 text-cyan-400" />}
-            {isRogue && <Flame className="w-4 h-4 text-rose-400" />}
-            <div className="flex flex-col text-left">
-              <span className="uppercase text-[11px] leading-tight font-black">
-                {isWarrior ? 'Guerreiro' : isArcher ? 'Arqueiro' : isMage ? 'Mago' : 'Ladino'}
-              </span>
-              <span className="text-[9px] text-zinc-400 leading-tight">
-                {isWarrior ? (hasShield ? 'Escudo [1/1]' : 'Escudo Quebrado') : isArcher ? 'Mira +28%' : isMage ? '130 BPM' : 'Overdrive'}
-              </span>
+        {/* Lado Direito: Barra de Progresso Geometry Dash, Ranking, Áudio & Pausa */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* Barra de Progresso Clássica Geometry Dash (0% a 100%) */}
+          <div className="flex items-center gap-2 sm:gap-2.5 px-3 py-1.5 rounded-xl bg-zinc-950/90 border-2 border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+            <div className="flex flex-col items-start min-w-[100px] sm:min-w-[140px]">
+              <div className="w-full flex items-center justify-between text-[10px] font-mono font-black text-emerald-400 mb-0.5">
+                <span className="tracking-wider">PROGRESSO</span>
+                <span className="text-white text-xs font-black">{progressPercent}%</span>
+              </div>
+              <div className="w-full h-2 rounded-full bg-zinc-900 overflow-hidden border border-zinc-700/80">
+                <div
+                  className="h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400 transition-all duration-150 rounded-full"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
             </div>
-          </button>
+          </div>
 
           {/* Botão de Ranking Oficial */}
           {onOpenLeaderboardTab && (
@@ -1846,7 +1645,7 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
               } else if (gameState === 'paused') {
                 setGameState('playing');
                 isPausedRef.current = false;
-                typerDashAudio.startMetronome(isMage);
+                typerDashAudio.startMetronome();
               }
             }}
             className="p-2 sm:p-2.5 rounded-xl bg-zinc-900 hover:bg-amber-950/60 border-2 border-zinc-700 hover:border-amber-500 text-zinc-300 hover:text-amber-300 transition-all cursor-pointer shadow-[0_3px_0_rgba(0,0,0,0.5)]"
@@ -1866,35 +1665,43 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
         {/* ─────────────────────────────────────────────────────────
             Lobby Pré-Run: Seleção de Classe (Estilo Cel-Shaded Manga)
         ───────────────────────────────────────────────────────── */}
+        {/* ─────────────────────────────────────────────────────────
+            Lobby Pré-Run: Geometry Dash Runner Arcade
+        ───────────────────────────────────────────────────────── */}
         <AnimatePresence>
-          {gameState === 'class_select' && (
+          {gameState === 'lobby' && (
             <motion.div
               initial={{ opacity: 0, scale: 0.96 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.96 }}
               transition={{ duration: 0.2 }}
-              className="absolute inset-0 z-40 bg-[#080b11]/92 backdrop-blur-md flex flex-col items-center justify-between p-3 sm:p-6 overflow-y-auto"
+              className="absolute inset-0 z-40 bg-[#080b11]/92 backdrop-blur-md flex flex-col items-center justify-center p-4 sm:p-8 overflow-y-auto"
             >
-              {/* Cabeçalho do Lobby Pré-Run */}
-              <div className="flex flex-col items-center text-center max-w-2xl my-auto">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-400/20 border border-amber-400/60 text-amber-300 text-xs font-mono font-black uppercase tracking-wider mb-2 shadow-[0_0_12px_rgba(251,191,36,0.3)]">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>PREPARAÇÃO DE RUN • VALIDADE POR PARTIDA</span>
+              <div className="flex flex-col items-center text-center max-w-2xl w-full my-auto space-y-4 sm:space-y-5">
+                {/* Badge de Título */}
+                <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/60 text-emerald-300 text-xs font-mono font-black uppercase tracking-widest shadow-[0_0_15px_rgba(16,185,129,0.3)]">
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>RHYTHM RUNNER • GEOMETRY DASH MODE</span>
                 </div>
-                <h2 className="text-2xl sm:text-4xl font-mono font-black text-white tracking-wider uppercase drop-shadow-[0_4px_0_rgba(0,0,0,0.9)]">
-                  ESCOLHA SUA CLASSE
-                </h2>
-                <p className="text-xs sm:text-sm text-zinc-400 font-mono mt-1">
-                  Selecione sua vantagem tática para esta corrida. Você pode trocar de classe a qualquer momento após o Game Over.
-                </p>
-                {/* Seletor & Preview Interativo do Bytezinho */}
-                <div className="mt-3 flex flex-wrap items-center justify-center gap-3 px-4 py-2 rounded-2xl bg-zinc-950/85 border-2 border-zinc-800 shadow-md max-w-2xl">
-                  <div className="flex items-center gap-2.5">
+
+                {/* Título Principal */}
+                <div>
+                  <h1 className="text-3xl sm:text-5xl font-mono font-black text-white tracking-wider uppercase drop-shadow-[0_4px_0_rgba(0,0,0,0.9)] bg-gradient-to-r from-yellow-300 via-amber-400 to-rose-400 bg-clip-text text-transparent">
+                    TYPERDASH
+                  </h1>
+                  <p className="text-xs sm:text-sm text-zinc-300 font-mono mt-1.5 max-w-lg mx-auto">
+                    Digite a letra correspondente para saltar sobre espinhos, grinde sobre trilhos e ative os jump orbs no ar!
+                  </p>
+                </div>
+
+                {/* Seletor de Mascote Bytezinho */}
+                <div className="w-full flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 rounded-2xl bg-zinc-950/85 border-2 border-zinc-800 shadow-md">
+                  <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-xl bg-zinc-900 border border-zinc-700/80 p-0.5 flex items-center justify-center shadow-inner shrink-0">
                       <BytezinhoAvatar skin={activeSkin} size="sm" mood="happy" interactive />
                     </div>
                     <div className="text-left">
-                      <div className="flex items-center gap-1.5 flex-wrap">
+                      <div className="flex items-center gap-1.5">
                         <span className="text-xs font-mono font-black text-white">
                           {BYTEZINHO_SKINS[activeSkin]?.icon} {BYTEZINHO_SKINS[activeSkin]?.name || 'Bytezinho'}
                         </span>
@@ -1903,14 +1710,13 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
                         </span>
                       </div>
                       <p className="text-[10px] text-zinc-400 font-mono">
-                        Mascote Ativo na Corrida • {unlockedSkins.length} skin{unlockedSkins.length > 1 ? 's' : ''} disponível{unlockedSkins.length > 1 ? 'is' : ''}
+                        Mascote Ativo • {unlockedSkins.length} skin{unlockedSkins.length > 1 ? 's' : ''} liberada{unlockedSkins.length > 1 ? 's' : ''}
                       </p>
                     </div>
                   </div>
 
-                  {/* Carrossel / Botões Rápidos de Skins Desbloqueadas */}
                   {unlockedSkins.length > 1 && (
-                    <div className="flex items-center gap-1.5 flex-wrap justify-center py-0.5">
+                    <div className="flex items-center gap-1.5 flex-wrap justify-center">
                       {unlockedSkins.map((sId) => {
                         const isEquipped = activeSkin === sId;
                         const skinConf = BYTEZINHO_SKINS[sId];
@@ -1937,142 +1743,75 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
                   )}
                 </div>
 
-                {/* Badge de Recorde Pessoal & Acesso ao Ranking */}
-                <div className="mt-2.5 flex items-center gap-2.5 px-3.5 py-1.5 rounded-xl bg-zinc-950/80 border border-amber-500/40 text-xs font-mono shadow-xs">
-                  <div className="flex items-center gap-1.5 text-amber-300 font-bold">
-                    <Trophy className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Seu Recorde: <strong className="text-white font-black">{highScore.toLocaleString()} pts</strong></span>
-                    {dashStats?.maxDistance ? (
-                      <span className="text-zinc-400 hidden sm:inline">• {dashStats.maxDistance}m</span>
-                    ) : null}
+                {/* Guia Rápido dos Controles e Zonas de Salto */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full text-left font-mono">
+                  <div className="p-3.5 rounded-xl bg-zinc-900/80 border border-cyan-500/40">
+                    <div className="flex items-center justify-between text-xs font-black text-cyan-300 mb-1.5 uppercase">
+                      <span>◄ Mão Esquerda (Solo)</span>
+                      <span className="text-[10px] text-zinc-400">Espinhos</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 mb-2">
+                      {LEFT_HAND_KEYS.map((k) => (
+                        <kbd key={k} className="w-7 h-7 rounded-md bg-zinc-950 border border-cyan-500/60 text-cyan-300 flex items-center justify-center font-black text-xs">
+                          {k}
+                        </kbd>
+                      ))}
+                    </div>
+                    <p className="text-[11px] text-zinc-400 leading-snug">
+                      Aperte a letra quando o espinho entrar na zona dourada para saltar com perfeição.
+                    </p>
                   </div>
+
+                  <div className="p-3.5 rounded-xl bg-zinc-900/80 border border-fuchsia-500/40">
+                    <div className="flex items-center justify-between text-xs font-black text-fuchsia-300 mb-1.5 uppercase">
+                      <span>▲ Mão Direita & Ar</span>
+                      <span className="text-[10px] text-zinc-400">Jump Orbs</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 mb-2">
+                      {AIR_KEYS.map((k) => (
+                        <kbd key={k} className="w-7 h-7 rounded-md bg-zinc-950 border border-fuchsia-500/60 text-fuchsia-300 flex items-center justify-center font-black text-xs">
+                          {k}
+                        </kbd>
+                      ))}
+                    </div>
+                    <p className="text-[11px] text-zinc-400 leading-snug">
+                      Ao avistar uma esfera amarela (Jump Orb) no ar, aperte a letra para um salto duplo acrobático!
+                    </p>
+                  </div>
+                </div>
+
+                {/* Recorde Pessoal */}
+                <div className="flex items-center justify-center gap-2.5 px-4 py-2 rounded-xl bg-zinc-950/80 border border-amber-500/40 text-xs font-mono">
+                  <Trophy className="w-4 h-4 text-amber-400" />
+                  <span className="text-zinc-300">Seu Recorde: <strong className="text-white font-black">{highScore.toLocaleString()} pts</strong></span>
+                  {dashStats?.maxDistance ? (
+                    <span className="text-zinc-400">• {dashStats.maxDistance}m</span>
+                  ) : null}
                   {onOpenLeaderboardTab && (
                     <button
                       type="button"
                       onClick={() => onOpenLeaderboardTab('dash')}
-                      className="ml-1 px-2.5 py-0.5 rounded-md bg-amber-400 hover:bg-amber-300 text-black font-black text-[10px] uppercase tracking-wider transition-all cursor-pointer shadow-xs hover:scale-105 active:scale-95"
+                      className="ml-2 px-2.5 py-0.5 rounded-md bg-amber-400 hover:bg-amber-300 text-black font-black text-[10px] uppercase tracking-wider transition-all cursor-pointer"
                     >
-                      Ver Ranking
+                      Ranking
                     </button>
                   )}
                 </div>
-              </div>
 
-              {/* Grid dos 4 Cards de Classe */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 w-full max-w-5xl my-3">
-                {CLASS_OPTIONS.map((cls) => {
-                  const isSelected = selectedClass === cls.id;
-                  const Icon = cls.icon;
-
-                  return (
-                    <motion.div
-                      key={cls.id}
-                      whileHover={{ scale: 1.02, y: -4 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => {
-                        setSelectedClass(cls.id);
-                        if (cls.id === 'warrior') {
-                          setHasShield(true);
-                          hasShieldRef.current = true;
-                        } else {
-                          setHasShield(false);
-                          hasShieldRef.current = false;
-                        }
-                        typerDashAudio.playHitSound(true, Number(cls.keyNumber));
-                      }}
-                      className={`relative rounded-2xl border-3 transition-all cursor-pointer p-4 flex flex-col justify-between select-none ${
-                        isSelected
-                          ? `border-white ring-4 ${cls.ringClass} ${cls.activeGlow} bg-gradient-to-b ${cls.bgGradient} -translate-y-1`
-                          : 'border-zinc-800 bg-zinc-950/80 hover:border-zinc-600 hover:bg-zinc-900/60'
-                      }`}
-                    >
-                      {/* Tecla Rápida (1, 2, 3, 4) */}
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="w-7 h-7 rounded-lg bg-black border-2 border-zinc-700 flex items-center justify-center font-mono font-black text-xs text-white shadow-xs">
-                          {cls.keyNumber}
-                        </span>
-                        <div className={`px-2 py-0.5 rounded text-[10px] font-mono font-black uppercase tracking-wider border flex items-center gap-1 ${
-                          isSelected ? cls.badgeBg : 'bg-zinc-900 border-zinc-700 text-zinc-400'
-                        }`}>
-                          {isSelected ? (
-                            <>
-                              <Check className="w-2.5 h-2.5" />
-                              <span>ATIVA</span>
-                            </>
-                          ) : (
-                            'SELECIONAR'
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Ícone e Título da Classe */}
-                      <div className="flex flex-col items-center text-center">
-                        <div className={`w-14 h-14 rounded-2xl p-0.5 flex items-center justify-center mb-2.5 shadow-md ${
-                          isSelected ? 'bg-gradient-to-br from-white to-zinc-400' : 'bg-zinc-800'
-                        }`}>
-                          <div className="w-full h-full bg-zinc-950 rounded-[14px] flex items-center justify-center">
-                            <Icon className={`w-7 h-7 ${cls.accentText}`} />
-                          </div>
-                        </div>
-
-                        <h3 className={`font-mono text-lg font-black tracking-wider uppercase ${cls.accentText}`}>
-                          {cls.name}
-                        </h3>
-                        <p className="text-[11px] font-mono text-zinc-400 font-bold uppercase mt-0.5">
-                          {cls.tagline}
-                        </p>
-                      </div>
-
-                      {/* Descrição da Habilidade Passiva */}
-                      <div className="my-3.5 p-2.5 rounded-xl bg-black/60 border border-zinc-800/80 text-left">
-                        <div className="text-[10px] font-mono font-black uppercase tracking-wider text-zinc-300 flex items-center gap-1 mb-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                          <span>{cls.passiveTitle}</span>
-                        </div>
-                        <p className="text-[11px] font-mono text-zinc-400 leading-snug">
-                          {cls.passiveDesc}
-                        </p>
-                      </div>
-
-                      {/* Barra de Atributos & Foco Pedagógico */}
-                      <div className="space-y-1.5 border-t border-zinc-800/80 pt-2.5 text-left font-mono">
-                        {cls.stats.map((st) => (
-                          <div key={st.label} className="flex items-center justify-between text-[10px]">
-                            <span className="text-zinc-400 uppercase">{st.label}</span>
-                            <div className="flex items-center gap-1">
-                              {[1, 2, 3, 4, 5].map((idx) => (
-                                <span
-                                  key={idx}
-                                  className={`w-2 h-2 rounded-xs ${
-                                    idx <= st.score ? cls.badgeBg.split(' ')[0] : 'bg-zinc-800'
-                                  }`}
-                                />
-                              ))}
-                            </div>
-                          </div>
-                        ))}
-                        <p className="text-[9px] text-zinc-500 font-bold truncate pt-1">
-                          {cls.focusText}
-                        </p>
-                      </div>
-                    </motion.div>
-                  );
-                })}
-              </div>
-
-              {/* Botão de Iniciar Corrida */}
-              <div className="flex flex-col items-center gap-2 mt-auto my-auto">
-                <button
-                  type="button"
-                  onClick={() => startCountdownWithClass()}
-                  className="px-8 sm:px-12 py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 hover:from-amber-300 hover:to-yellow-200 text-black font-mono font-black text-sm sm:text-base uppercase tracking-wider shadow-[0_5px_0_#b45309] active:translate-y-1 active:shadow-none transition-all flex items-center justify-center gap-3 cursor-pointer hover:scale-[1.02]"
-                >
-                  <Play className="w-5 h-5 fill-black" />
-                  <span>INICIAR COM {selectedClass.toUpperCase()} [ESPAÇO]</span>
-                </button>
-                <p className="text-[11px] font-mono text-zinc-400">
-                  Teclas <strong className="text-white">[1, 2, 3, 4]</strong> para escolher • <strong className="text-white">[ENTER / ESPAÇO]</strong> para iniciar
-                </p>
+                {/* Botão de Iniciar Corrida */}
+                <div className="pt-2 w-full flex flex-col items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleStartRun}
+                    className="w-full sm:w-auto px-10 sm:px-14 py-4 rounded-2xl bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 hover:from-emerald-300 hover:to-cyan-300 text-black font-mono font-black text-base sm:text-lg uppercase tracking-wider shadow-[0_5px_0_#065f46] active:translate-y-1 active:shadow-none transition-all flex items-center justify-center gap-3 cursor-pointer hover:scale-[1.02]"
+                  >
+                    <Play className="w-5 h-5 fill-black" />
+                    <span>INICIAR CORRIDA [ESPAÇO]</span>
+                  </button>
+                  <p className="text-[11px] font-mono text-zinc-400">
+                    Pressione <strong className="text-white">[ESPAÇO]</strong> ou <strong className="text-white">[ENTER]</strong> para começar a correr
+                  </p>
+                </div>
               </div>
             </motion.div>
           )}
@@ -2133,10 +1872,10 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
 
         {/* Status Central Dinâmico */}
         <div className="flex items-center gap-3 text-[11px] text-zinc-400">
-          {gameState === 'class_select' ? (
+          {gameState === 'lobby' ? (
             <span className="flex items-center gap-1.5 text-amber-300 font-bold">
               <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
-              LOBBY DE PREPARAÇÃO // TECLAS [1, 2, 3, 4] PARA ESCOLHER
+              LOBBY DE CORRIDA // PRESSIONE [ESPAÇO] OU [ENTER] PARA INICIAR
             </span>
           ) : activeGrindRef.current ? (
             <span className={`flex items-center gap-1.5 font-bold ${activeGrindRef.current.inSweetSpot ? 'text-amber-300 animate-pulse' : 'text-cyan-300'}`}>
@@ -2241,12 +1980,30 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
                 <h2 className="text-2xl sm:text-3xl font-black text-white tracking-widest uppercase">
                   {rankInfo.title}
                 </h2>
-                <p className="text-xs text-zinc-400 mt-1">
-                  Relatório oficial de ritmo, tempo e acurácia motora.
-                </p>
+
+                {/* Barra de Progresso Geometry Dash Oficial da Run */}
+                <div className="w-full bg-zinc-950/90 border-2 border-emerald-500/50 rounded-2xl p-3.5 my-3.5 shadow-[0_0_20px_rgba(16,185,129,0.2)]">
+                  <div className="flex items-center justify-between text-xs font-mono font-black mb-1.5">
+                    <span className="text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5" /> PROGRESSO DA FASE
+                    </span>
+                    <span className="text-white text-lg font-black">{progressPercent}%</span>
+                  </div>
+                  <div className="w-full h-3 rounded-full bg-zinc-900 overflow-hidden border border-zinc-700/80">
+                    <div
+                      className="h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400 rounded-full transition-all duration-500"
+                      style={{ width: `${progressPercent}%` }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between text-[10px] text-zinc-400 font-mono mt-1.5">
+                    <span>Início (0m)</span>
+                    <span className="text-zinc-200 font-bold">{distanceMeters}m de {TARGET_STAGE_METERS}m</span>
+                    <span>Meta ({TARGET_STAGE_METERS}m)</span>
+                  </div>
+                </div>
 
                 {/* Grid de Estatísticas */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 w-full my-5">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 w-full mb-3.5">
                   <div className="bg-gradient-to-b from-amber-950/30 to-zinc-950 border border-amber-500/40 rounded-xl p-3 flex flex-col items-center">
                     <span className="text-[9px] text-amber-400 font-bold uppercase tracking-wider">Pontuação</span>
                     <span className="text-lg font-black text-white">{formatArcadeScore(score)}</span>
@@ -2269,7 +2026,7 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
                 </div>
 
                 {/* Breakdown de Timing (Perfect vs Good vs Miss) */}
-                <div className="w-full bg-zinc-950/80 border border-zinc-800 rounded-xl p-3 flex items-center justify-around text-xs mb-5">
+                <div className="w-full bg-zinc-950/80 border border-zinc-800 rounded-xl p-3 flex items-center justify-around text-xs mb-3.5">
                   <div className="flex items-center gap-1.5">
                     <span className="w-2.5 h-2.5 rounded-full bg-yellow-400 shadow-[0_0_8px_#facc15]" />
                     <span className="text-zinc-400">Perfect:</span>
@@ -2294,7 +2051,7 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
                 </div>
 
                 {/* Recompensa de Bytes */}
-                <div className="w-full bg-amber-950/40 border border-amber-500/40 rounded-xl p-3 flex items-center justify-between mb-5 shadow-[inset_0_0_15px_rgba(245,158,11,0.15)]">
+                <div className="w-full bg-amber-950/40 border border-amber-500/40 rounded-xl p-3 flex items-center justify-between mb-4 shadow-[inset_0_0_15px_rgba(245,158,11,0.15)]">
                   <div className="flex items-center gap-2">
                     <Trophy className="w-5 h-5 text-amber-400" />
                     <span className="text-xs text-zinc-300 font-bold">Bytes Conquistados:</span>
@@ -2316,37 +2073,24 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
                   </button>
                 )}
 
-                {/* Ações: Repetir Corrida, Trocar Classe, Sair */}
+                {/* Ações: Repetir Corrida ou Sair */}
                 <div className="flex flex-col sm:flex-row gap-2.5 w-full">
                   <button
                     type="button"
-                    onClick={handleRestart}
-                    className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 hover:from-amber-300 hover:to-yellow-200 text-black font-black text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-[0_4px_0_#b45309] active:translate-y-0.5 active:shadow-none transition-all cursor-pointer"
+                    onClick={handleStartRun}
+                    className="flex-1 py-3.5 px-5 rounded-xl bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 hover:from-emerald-300 hover:to-cyan-300 text-black font-black text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-[0_4px_0_#065f46] active:translate-y-0.5 active:shadow-none transition-all cursor-pointer"
                   >
                     <RotateCcw className="w-4 h-4 stroke-[3]" />
-                    <span>JOGAR NOVAMENTE</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      typerDashAudio.stopMetronome();
-                      typerDashAudio.stopGrindLoop();
-                      setGameState('class_select');
-                    }}
-                    className="py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-black text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-[0_4px_0_#0369a1] active:translate-y-0.5 active:shadow-none transition-all cursor-pointer"
-                  >
-                    <Shield className="w-4 h-4" />
-                    <span>TROCAR CLASSE</span>
+                    <span>JOGAR NOVAMENTE [ESPAÇO]</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={handleExit}
-                    className="py-3 px-4 rounded-xl bg-zinc-900 hover:bg-zinc-800 border-2 border-zinc-700 text-zinc-300 hover:text-white font-bold text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                    className="py-3.5 px-6 rounded-xl bg-zinc-900 hover:bg-zinc-800 border-2 border-zinc-700 text-zinc-300 hover:text-white font-bold text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-2 transition-colors cursor-pointer"
                   >
                     <Award className="w-4 h-4 text-zinc-400" />
-                    <span>SAIR</span>
+                    <span>VOLTAR AO HUB</span>
                   </button>
                 </div>
               </motion.div>
@@ -2354,6 +2098,9 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
           );
         })()}
       </AnimatePresence>
+
+      {/* Aviso Global de Caps Lock */}
+      <CapsLockWarning className="absolute bottom-16 left-1/2 -translate-x-1/2 z-50 pointer-events-none" />
     </div>
   );
 };

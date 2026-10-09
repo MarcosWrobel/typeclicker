@@ -135,14 +135,15 @@ export interface DashRenderState {
   groundY: number;
   parallaxOffset: number;
   isInvulnerable: boolean;
-  hasShield: boolean;
-  isArcher: boolean;
-  isMage: boolean;
+  hasShield?: boolean;
+  isArcher?: boolean;
+  isMage?: boolean;
   combo: number;
   screenShake: number;
   metronomePulse: number;
   isPaused: boolean;
   bytezinhoSkin?: string;
+  progressRatio?: number;
 }
 
 /**
@@ -419,26 +420,36 @@ export function renderTyperDash(
       ctx.restore();
 
       // Badge flutuante acima da esfera
+      const distToCube = obs.x - (cube.x + cube.size);
+      const inJumpZone = distToCube >= -20 && distToCube <= 260 && !obs.cleared;
+
       const badgeY = cy - r - 22;
-      const badgeW = 28;
-      const badgeH = 28;
-      ctx.fillStyle = obs.cleared ? 'rgba(6, 78, 59, 0.95)' : 'rgba(15, 23, 42, 0.95)';
-      ctx.strokeStyle = obs.cleared ? '#34d399' : '#f472b6';
-      ctx.lineWidth = 2;
+      const badgeW = inJumpZone ? 32 : 28;
+      const badgeH = inJumpZone ? 32 : 28;
+
+      ctx.save();
+      if (inJumpZone) {
+        ctx.shadowBlur = 14;
+        ctx.shadowColor = '#f472b6';
+      }
+      ctx.fillStyle = obs.cleared ? 'rgba(6, 78, 59, 0.95)' : inJumpZone ? 'rgba(88, 28, 135, 0.95)' : 'rgba(15, 23, 42, 0.95)';
+      ctx.strokeStyle = obs.cleared ? '#34d399' : inJumpZone ? '#f472b6' : '#ec4899';
+      ctx.lineWidth = inJumpZone ? 2.5 : 2;
       ctx.beginPath();
-      ctx.roundRect(cx - badgeW / 2, badgeY - badgeH / 2, badgeW, badgeH, 7);
+      ctx.roundRect(cx - badgeW / 2, badgeY - badgeH / 2, badgeW, badgeH, 8);
       ctx.fill();
       ctx.stroke();
 
-      ctx.fillStyle = obs.cleared ? '#6ee7b7' : '#ffffff';
-      ctx.font = '900 16px "JetBrains Mono", monospace';
+      ctx.fillStyle = obs.cleared ? '#6ee7b7' : inJumpZone ? '#ffffff' : '#fbcfe8';
+      ctx.font = inJumpZone ? '900 18px "JetBrains Mono", monospace' : '900 16px "JetBrains Mono", monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(obs.letter.toUpperCase(), cx, badgeY);
+      ctx.restore();
 
       // Haste
-      ctx.strokeStyle = obs.cleared ? 'rgba(52, 211, 153, 0.4)' : 'rgba(244, 114, 182, 0.4)';
-      ctx.lineWidth = 1.2;
+      ctx.strokeStyle = obs.cleared ? 'rgba(52, 211, 153, 0.4)' : inJumpZone ? 'rgba(244, 114, 182, 0.8)' : 'rgba(244, 114, 182, 0.4)';
+      ctx.lineWidth = inJumpZone ? 2 : 1.2;
       ctx.beginPath();
       ctx.moveTo(cx, badgeY + badgeH / 2);
       ctx.lineTo(cx, cy - r);
@@ -769,15 +780,23 @@ export function renderTyperDash(
     ctx.restore();
 
     // 2. Pílula / Badge Flutuante da Tecla Única
+    const distToCube = obs.x - (cube.x + cube.size);
+    const inJumpZone = distToCube >= -15 && distToCube <= 260 && !obs.cleared;
+
     const badgeY = groundY - obs.height - 24;
     const badgeCenterX = obs.x + obs.width / 2;
-    const badgeW = 28;
-    const badgeH = 28;
-    const badgeRadius = 7;
+    const badgeW = inJumpZone ? 32 : 28;
+    const badgeH = inJumpZone ? 32 : 28;
+    const badgeRadius = 8;
 
-    ctx.fillStyle = obs.cleared ? 'rgba(6, 78, 59, 0.95)' : 'rgba(10, 14, 23, 0.96)';
-    ctx.strokeStyle = obs.cleared ? '#34d399' : '#fde047';
-    ctx.lineWidth = 2;
+    ctx.save();
+    if (inJumpZone) {
+      ctx.shadowBlur = 15;
+      ctx.shadowColor = '#facc15';
+    }
+    ctx.fillStyle = obs.cleared ? 'rgba(6, 78, 59, 0.95)' : inJumpZone ? 'rgba(120, 53, 15, 0.95)' : 'rgba(10, 14, 23, 0.96)';
+    ctx.strokeStyle = obs.cleared ? '#34d399' : inJumpZone ? '#fde047' : '#f59e0b';
+    ctx.lineWidth = inJumpZone ? 2.5 : 2;
 
     ctx.beginPath();
     ctx.roundRect(badgeCenterX - badgeW / 2, badgeY - badgeH / 2, badgeW, badgeH, badgeRadius);
@@ -785,15 +804,16 @@ export function renderTyperDash(
     ctx.stroke();
 
     // Letra
-    ctx.fillStyle = obs.cleared ? '#6ee7b7' : '#ffffff';
-    ctx.font = '900 16px "JetBrains Mono", monospace';
+    ctx.fillStyle = obs.cleared ? '#6ee7b7' : inJumpZone ? '#ffffff' : '#fef08a';
+    ctx.font = inJumpZone ? '900 18px "JetBrains Mono", monospace' : '900 16px "JetBrains Mono", monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(obs.letter.toUpperCase(), badgeCenterX, badgeY);
+    ctx.restore();
 
     // Haste estética
-    ctx.strokeStyle = obs.cleared ? 'rgba(52, 211, 153, 0.4)' : 'rgba(253, 224, 71, 0.4)';
-    ctx.lineWidth = 1.2;
+    ctx.strokeStyle = obs.cleared ? 'rgba(52, 211, 153, 0.4)' : inJumpZone ? 'rgba(250, 204, 21, 0.85)' : 'rgba(253, 224, 71, 0.4)';
+    ctx.lineWidth = inJumpZone ? 2 : 1.2;
     ctx.beginPath();
     ctx.moveTo(badgeCenterX, badgeY + badgeH / 2);
     ctx.lineTo(badgeCenterX, groundY - obs.height);
