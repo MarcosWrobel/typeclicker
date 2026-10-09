@@ -96,6 +96,18 @@ export function gerarPadraoRepeticao(tecla: string): string[] {
   if (t === 'ç') {
     return ['aça', 'aço', 'peça', 'laço'];
   }
+  if (t === '^') {
+    return ['você', 'avô', 'robô', 'três', 'mês'];
+  }
+  if (t === '´' || t === "'") {
+    return ['água', 'está', 'café', 'fácil', 'lápis'];
+  }
+  if (t === '~') {
+    return ['não', 'pão', 'mão', 'lição', 'balão'];
+  }
+  if (t === '`') {
+    return ['àquela', 'às', 'àquilo', 'à'];
+  }
 
   // Consoante padrão: tríade + alternância com vogais
   return [
@@ -116,7 +128,17 @@ export function encontrarPalavrasRelevantes(
 ): string[] {
   if (teclasAlvo.length === 0) return [];
 
-  const targets = teclasAlvo.map(k => k.toLowerCase());
+  // Expande teclas de acentos para as letras acentuadas correspondentes em português
+  const expandTargetKey = (k: string): string[] => {
+    const lower = k.toLowerCase();
+    if (lower === '^') return ['â', 'ê', 'î', 'ô', 'û'];
+    if (lower === '´' || lower === "'") return ['á', 'é', 'í', 'ó', 'ú'];
+    if (lower === '~') return ['ã', 'õ'];
+    if (lower === '`') return ['à'];
+    return [lower];
+  };
+
+  const targets = teclasAlvo.flatMap(expandTargetKey);
 
   // Coleta vocabulário prioritário: categoria ativa + iniciante/fácil para foco motor sem sobrecarga
   const availableCategories = WORD_CATEGORIES.filter(

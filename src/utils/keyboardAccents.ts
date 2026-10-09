@@ -5,16 +5,16 @@ import type React from 'react';
 
 export const ACCENT_MAP: Record<string, Record<string, string>> = {
   // Acento Agudo (´) e apóstrofo (') para teclados US-Intl
-  '´': { a: 'á', e: 'é', i: 'í', o: 'ó', u: 'ú', c: 'ç', A: 'Á', E: 'É', I: 'Í', O: 'Ó', U: 'Ú', C: 'Ç' },
-  "'": { a: 'á', e: 'é', i: 'í', o: 'ó', u: 'ú', c: 'ç', A: 'Á', E: 'É', I: 'Í', O: 'Ó', U: 'Ú', C: 'Ç' },
+  '´': { ' ': '´', '´': '´', "'": '´', a: 'á', e: 'é', i: 'í', o: 'ó', u: 'ú', c: 'ç', A: 'Á', E: 'É', I: 'Í', O: 'Ó', U: 'Ú', C: 'Ç' },
+  "'": { ' ': "'", "'": "'", '´': "'", a: 'á', e: 'é', i: 'í', o: 'ó', u: 'ú', c: 'ç', A: 'Á', E: 'É', I: 'Í', O: 'Ó', U: 'Ú', C: 'Ç' },
   // Til (~)
-  '~': { a: 'ã', o: 'õ', n: 'ñ', A: 'Ã', O: 'Õ', N: 'Ñ' },
+  '~': { ' ': '~', '~': '~', a: 'ã', o: 'õ', n: 'ñ', A: 'Ã', O: 'Õ', N: 'Ñ' },
   // Circunflexo (^)
-  '^': { a: 'â', e: 'ê', i: 'î', o: 'ô', u: 'û', A: 'Â', E: 'Ê', I: 'Î', O: 'Ô', U: 'Û' },
+  '^': { ' ': '^', '^': '^', a: 'â', e: 'ê', i: 'î', o: 'ô', u: 'û', A: 'Â', E: 'Ê', I: 'Î', O: 'Ô', U: 'Û' },
   // Crase (`)
-  '`': { a: 'à', e: 'è', i: 'ì', o: 'ò', u: 'ù', A: 'À', E: 'È', I: 'Ì', O: 'Ò', U: 'Ù' },
+  '`': { ' ': '`', '`': '`', a: 'à', e: 'è', i: 'ì', o: 'ò', u: 'ù', A: 'À', E: 'È', I: 'Ì', O: 'Ò', U: 'Ù' },
   // Trema (¨)
-  '¨': { u: 'ü', U: 'Ü' }
+  '¨': { ' ': '¨', '¨': '¨', u: 'ü', U: 'Ü' }
 };
 
 export const STANDALONE_ACCENTS = ['´', "'", '~', '^', '`', '¨'];
@@ -35,43 +35,51 @@ export function resolveDeadKey(e: KeyboardEvent | React.KeyboardEvent | any, tar
   const code = evt?.code || e?.code;
   const shiftKey = !!(evt?.shiftKey ?? e?.shiftKey);
 
+  // 1. Pelo contexto pedagógico da letra esperada na palavra (MAIOR PRECISÃO)
+  if (targetChar) {
+    const lower = targetChar.toLocaleLowerCase('pt-BR');
+    if (['á', 'é', 'í', 'ó', 'ú', 'ç', '´', "'"].includes(lower)) return '´';
+    if (['ã', 'õ', '~'].includes(lower)) return '~';
+    if (['â', 'ê', 'î', 'ô', 'û', '^'].includes(lower)) return '^';
+    if (['à', 'è', 'ì', 'ò', 'ù', '`'].includes(lower)) return '`';
+    if (['ü', '¨'].includes(lower)) return '¨';
+  }
+
   if (key === 'Dead') {
-    // 1. Pelo contexto pedagógico da letra esperada na palavra (MAIOR PRECISÃO)
-    if (targetChar) {
-      const lower = targetChar.toLocaleLowerCase('pt-BR');
-      if (['á', 'é', 'í', 'ó', 'ú', 'ç'].includes(lower)) return '´';
-      if (['ã', 'õ'].includes(lower)) return '~';
-      if (['â', 'ê', 'î', 'ô', 'û'].includes(lower)) return '^';
-      if (['à', 'è', 'ì', 'ò', 'ù'].includes(lower)) return '`';
-      if (['ü'].includes(lower)) return '¨';
+    // 2. Pelo código físico da tecla ABNT2 / US-Intl no Linux, Windows e macOS
+    // ABNT2: tecla ao lado do Ç é [~ / ^] (BracketRight ou Quote no Linux/X11)
+    if (code === 'BracketRight') {
+      return shiftKey ? '^' : '~';
+    }
+    // No Linux X11/Wayland com ABNT2, a tecla física [~ / ^] frequentemente emite code: 'Quote'!
+    // Com Shift pressionado, é indubitavelmente CIRCUNFLEXO (^)
+    if (code === 'Quote') {
+      return shiftKey ? '^' : '´';
     }
 
-    // 2. Pelo código físico da tecla ABNT2 / US-Intl
     // ABNT2: tecla ao lado do P é [´ / `] (BracketLeft)
     if (code === 'BracketLeft') {
       return shiftKey ? '`' : '´';
     }
-    // ABNT2: tecla ao lado do Ç é [~ / ^] (BracketRight)
-    if (code === 'BracketRight') {
-      return shiftKey ? '^' : '~';
-    }
-    // US-Intl: tecla [~ / `] (Backquote)
+
+    // Tecla antes do número 1 (Backquote): no ABNT2 é [' / "], no US-Intl é [` / ~]
     if (code === 'Backquote') {
       return shiftKey ? '~' : '`';
     }
-    // US-Intl: tecla [' / "] (Quote)
-    if (code === 'Quote') {
-      return shiftKey ? '¨' : '´';
-    }
-    // Atalhos numéricos com Shift (^ no 6) ou Equal
-    if (code === 'Digit6' || code === 'Equal') {
+
+    // Atalhos numéricos com Shift (^ no 6 em teclados US-Intl)
+    if (code === 'Digit6') {
       return '^';
+    }
+    if (code === 'Equal') {
+      return shiftKey ? '+' : '=';
     }
     if (code === 'Tilde') {
       return shiftKey ? '^' : '~';
     }
 
-    return '´';
+    // Se shiftKey estiver ativo e não foi mapeado antes, grande probabilidade de ser circunflexo
+    return shiftKey ? '^' : '´';
   }
 
   if (isAccentKey(key)) {

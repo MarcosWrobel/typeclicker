@@ -160,7 +160,7 @@ export const FocusDrillModal: React.FC<FocusDrillModalProps> = ({
     }
   }, [onComplete, reward]);
 
-  // Listener global de teclado com Capture Phase
+  // Listener global de teclado com suporte a ABNT2 e composição nativa IME
   useEffect(() => {
     if (!isOpen) return;
 
@@ -186,20 +186,52 @@ export const FocusDrillModal: React.FC<FocusDrillModalProps> = ({
         return;
       }
 
+      // Se o evento vier diretamente do input nativo, permite que o navegador faça
+      // a composição de Dead Keys nativa (ABNT2 / US-Intl / Linux IME) via onChange!
+      if (e.target === inputRef.current) {
+        if (e.key === 'Backspace' && pendingAccentRef.current) {
+          e.preventDefault();
+          setPendingAccent(null);
+          pendingAccentRef.current = null;
+        }
+        return;
+      }
+
       if (document.activeElement !== inputRef.current) {
         focusInput();
       }
 
-      // 1. Teclas mortas (Dead keys ABNT2/US-Intl)
+      const currentWords = wordsRef.current;
+      const wordIdx = currentWordIndexRef.current;
+      const chIdx = charIndexRef.current;
+      const expectedChar = currentWords[wordIdx]?.[chIdx];
+
+      // 1. Teclas mortas (Dead keys ABNT2/US-Intl) ou acentos isolados (^, ~, ´, ', `)
       if (e.key === 'Dead' || isAccentKey(e.key)) {
-        e.preventDefault();
-        e.stopPropagation();
-        const currentWords = wordsRef.current;
-        const wordIdx = currentWordIndexRef.current;
-        const chIdx = charIndexRef.current;
-        const expectedChar = currentWords[wordIdx]?.[chIdx];
+        // Se a letra esperada for o próprio caractere do acento (ex: '^' ou "'")
+        if (expectedChar === e.key) {
+          e.preventDefault();
+          e.stopPropagation();
+          setPendingAccent(null);
+          pendingAccentRef.current = null;
+          processChar(e.key);
+          return;
+        }
+
         const resolved = resolveDeadKey(e, expectedChar);
         if (resolved) {
+          // Se a letra esperada for o acento resolvido ou se digitou o mesmo acento 2x seguidas:
+          if (expectedChar === resolved || pendingAccentRef.current === resolved) {
+            e.preventDefault();
+            e.stopPropagation();
+            setPendingAccent(null);
+            pendingAccentRef.current = null;
+            processChar(resolved);
+            return;
+          }
+
+          e.preventDefault();
+          e.stopPropagation();
           setPendingAccent(resolved);
           pendingAccentRef.current = resolved;
         }
@@ -216,6 +248,7 @@ export const FocusDrillModal: React.FC<FocusDrillModalProps> = ({
 
       if (e.key.length === 1 || e.key === 'Space') {
         e.preventDefault();
+        e.stopPropagation();
         const rawChar = e.key === ' ' || e.key === 'Space' ? ' ' : e.key;
         let charToProcess = rawChar;
         if (pendingAccentRef.current) {
@@ -235,10 +268,32 @@ export const FocusDrillModal: React.FC<FocusDrillModalProps> = ({
     if (statusRef.current !== 'playing') return;
     const val = e.target.value;
     if (!val) return;
-    setPendingAccent(null);
-    pendingAccentRef.current = null;
+
     for (const ch of val) {
-      processChar(ch);
+      const currentWords = wordsRef.current;
+      const wordIdx = currentWordIndexRef.current;
+      const chIdx = charIndexRef.current;
+      const expectedChar = currentWords[wordIdx]?.[chIdx];
+
+      if (isAccentKey(ch)) {
+        // Se a palavra espera o próprio caractere de acento (ex: '^' ou "'")
+        if (expectedChar === ch) {
+          setPendingAccent(null);
+          pendingAccentRef.current = null;
+          processChar(ch);
+        } else {
+          setPendingAccent(ch);
+          pendingAccentRef.current = ch;
+        }
+      } else {
+        let finalCh = ch;
+        if (pendingAccentRef.current) {
+          finalCh = combineAccent(pendingAccentRef.current, ch);
+          setPendingAccent(null);
+          pendingAccentRef.current = null;
+        }
+        processChar(finalCh);
+      }
     }
     e.target.value = '';
   };
@@ -313,6 +368,12 @@ export const FocusDrillModal: React.FC<FocusDrillModalProps> = ({
             type="text"
             value=""
             onChange={handleInputChange}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                e.preventDefault();
+                onSkip();
+              }
+            }}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
             className="opacity-0 absolute -left-[9999px] top-0 w-1 h-1 pointer-events-auto"
