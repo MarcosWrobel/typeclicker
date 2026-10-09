@@ -99,24 +99,36 @@ export function subscribeToSystemSettings(callback: (settings: SystemSettings | 
     return () => {};
   }
 
-  const channel = supabase.channel('system_settings_realtime')
-    .on('postgres_changes', {
-      event: '*',
-      schema: 'public',
-      table: 'system_settings',
-      filter: 'id=eq.default'
-    }, (payload) => {
-      const newSettings = (payload.new as any)?.payload as SystemSettings | undefined;
-      if (newSettings) {
-        cachedSettings = newSettings;
-        lastFetchTime = Date.now();
-        callback(newSettings);
-      }
-    })
-    .subscribe();
+  const channelName = `system_settings_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+  let channel: ReturnType<typeof supabase.channel> | null = null;
+  try {
+    channel = supabase.channel(channelName)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'system_settings',
+        filter: 'id=eq.default'
+      }, (payload) => {
+        const newSettings = (payload.new as any)?.payload as SystemSettings | undefined;
+        if (newSettings) {
+          cachedSettings = newSettings;
+          lastFetchTime = Date.now();
+          callback(newSettings);
+        }
+      })
+      .subscribe();
+  } catch (err) {
+    console.warn('Erro ao criar canal realtime de system_settings:', err);
+  }
 
   return () => {
-    supabase.removeChannel(channel);
+    if (channel) {
+      try {
+        supabase.removeChannel(channel);
+      } catch (err) {
+        console.warn('Erro ao remover canal realtime de system_settings:', err);
+      }
+    }
   };
 }
 

@@ -367,29 +367,34 @@ function setupSupabaseChannel(roomCode: string, currentUserId: string) {
     return realtimeChannels.get(normalized);
   }
 
-  const channel = supabase.channel(`progplay_duel_${normalized}`);
+  try {
+    const channel = supabase.channel(`progplay_duel_${normalized}`);
 
-  channel
-    .on('broadcast', { event: 'sync_state' }, ({ payload }) => {
-      if (payload && payload.roomCode === normalized) {
-        activeRooms.set(normalized, payload);
-        notifyRoomSubscribers(normalized);
-      }
-    })
-    .on('broadcast', { event: 'request_state' }, () => {
-      const room = activeRooms.get(normalized);
-      if (room && room.creatorId === currentUserId) {
-        channel.send({
-          type: 'broadcast',
-          event: 'sync_state',
-          payload: room,
-        });
-      }
-    })
-    .subscribe();
+    channel
+      .on('broadcast', { event: 'sync_state' }, ({ payload }) => {
+        if (payload && payload.roomCode === normalized) {
+          activeRooms.set(normalized, payload);
+          notifyRoomSubscribers(normalized);
+        }
+      })
+      .on('broadcast', { event: 'request_state' }, () => {
+        const room = activeRooms.get(normalized);
+        if (room && room.creatorId === currentUserId) {
+          channel.send({
+            type: 'broadcast',
+            event: 'sync_state',
+            payload: room,
+          });
+        }
+      })
+      .subscribe();
 
-  realtimeChannels.set(normalized, channel);
-  return channel;
+    realtimeChannels.set(normalized, channel);
+    return channel;
+  } catch (err) {
+    console.warn('Erro ao configurar canal de duelo ProgPlay:', err);
+    return null;
+  }
 }
 
 // ─────────────────────────────────────────────────────────────

@@ -392,22 +392,34 @@ export function subscribeToArenaRoom(
         }
       });
 
-    const channel = supabase.channel(`arena_duel_${roomId}`)
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'arena_rooms',
-        filter: `id=eq.${roomId}`
-      }, (payload) => {
-        const roomData = (payload.new as any)?.data as ArenaRoom | undefined;
-        if (roomData) {
-          callback(roomData);
-        }
-      })
-      .subscribe();
+    const channelName = `arena_duel_${roomId}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    try {
+      channel = supabase.channel(channelName)
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'arena_rooms',
+          filter: `id=eq.${roomId}`
+        }, (payload) => {
+          const roomData = (payload.new as any)?.data as ArenaRoom | undefined;
+          if (roomData) {
+            callback(roomData);
+          }
+        })
+        .subscribe();
+    } catch (err) {
+      console.warn('Erro ao criar canal realtime de duelo de arena:', err);
+    }
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) {
+        try {
+          supabase.removeChannel(channel);
+        } catch (err) {
+          console.warn('Erro ao remover canal realtime de arena:', err);
+        }
+      }
     };
   }
 

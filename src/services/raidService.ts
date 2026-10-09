@@ -103,20 +103,32 @@ export function subscribeToActiveRaid(
       }
     });
 
-  const channel = supabase.channel('realtime_classroom_raid')
-    .on('postgres_changes', {
-      event: '*',
-      schema: 'public',
-      table: 'arena_rooms',
-      filter: `id=eq.${ACTIVE_RAID_DOC_ID}`
-    }, (payload) => {
-      const raidData = (payload.new as any)?.data as ClassroomRaid | undefined;
-      callback(raidData || null);
-    })
-    .subscribe();
+  const channelName = `realtime_classroom_raid_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+  let channel: ReturnType<typeof supabase.channel> | null = null;
+  try {
+    channel = supabase.channel(channelName)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'arena_rooms',
+        filter: `id=eq.${ACTIVE_RAID_DOC_ID}`
+      }, (payload) => {
+        const raidData = (payload.new as any)?.data as ClassroomRaid | undefined;
+        callback(raidData || null);
+      })
+      .subscribe();
+  } catch (err) {
+    console.warn('Erro ao criar canal realtime de raid:', err);
+  }
 
   return () => {
-    supabase.removeChannel(channel);
+    if (channel) {
+      try {
+        supabase.removeChannel(channel);
+      } catch (err) {
+        console.warn('Erro ao remover canal realtime de raid:', err);
+      }
+    }
   };
 }
 

@@ -154,20 +154,32 @@ export function subscribeToActiveRace(
       }
     });
 
-  const channel = supabase.channel('realtime_classroom_race')
-    .on('postgres_changes', {
-      event: '*',
-      schema: 'public',
-      table: 'arena_rooms',
-      filter: `id=eq.${ACTIVE_RACE_DOC_ID}`
-    }, (payload) => {
-      const raceData = (payload.new as any)?.data as ClassroomRace | undefined;
-      callback(raceData || null);
-    })
-    .subscribe();
+  const channelName = `realtime_classroom_race_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+  let channel: ReturnType<typeof supabase.channel> | null = null;
+  try {
+    channel = supabase.channel(channelName)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'arena_rooms',
+        filter: `id=eq.${ACTIVE_RACE_DOC_ID}`
+      }, (payload) => {
+        const raceData = (payload.new as any)?.data as ClassroomRace | undefined;
+        callback(raceData || null);
+      })
+      .subscribe();
+  } catch (err) {
+    console.warn('Erro ao criar canal realtime de corrida:', err);
+  }
 
   return () => {
-    supabase.removeChannel(channel);
+    if (channel) {
+      try {
+        supabase.removeChannel(channel);
+      } catch (err) {
+        console.warn('Erro ao remover canal realtime de corrida:', err);
+      }
+    }
   };
 }
 

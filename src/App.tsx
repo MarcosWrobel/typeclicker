@@ -473,6 +473,19 @@ export default function App() {
     return () => unsubSettings();
   }, [isAdmin]);
 
+  const stateRef = useRef(state);
+  stateRef.current = state;
+  const isAdminRef = useRef(isAdmin);
+  isAdminRef.current = isAdmin;
+  const isAdminOpenRef = useRef(isAdminOpen);
+  isAdminOpenRef.current = isAdminOpen;
+  const isPedagogicalOpenRef = useRef(isPedagogicalOpen);
+  isPedagogicalOpenRef.current = isPedagogicalOpen;
+  const dismissedRaceIdRef = useRef(dismissedRaceId);
+  dismissedRaceIdRef.current = dismissedRaceId;
+  const dismissedRaidIdRef = useRef(dismissedRaidId);
+  dismissedRaidIdRef.current = dismissedRaidId;
+
   // Escuta corridas sincronizadas em tempo real disparadas pelo professor
   useEffect(() => {
     if (!user) return;
@@ -494,17 +507,17 @@ export default function App() {
 
       if (race.status === 'countdown' || race.status === 'in_progress') {
         // Se o professor estiver com o painel ADM ou Pedagógico aberto, não interrompe a tela dele
-        if (isAdmin && (isAdminOpen || isPedagogicalOpen)) {
+        if (isAdminRef.current && (isAdminOpenRef.current || isPedagogicalOpenRef.current)) {
           return;
         }
 
         const isTarget =
           race.targetTurma === 'todas' ||
           !race.targetTurma ||
-          (state.studentClass && state.studentClass.trim().toLowerCase() === race.targetTurma.trim().toLowerCase());
+          (stateRef.current.studentClass && stateRef.current.studentClass.trim().toLowerCase() === race.targetTurma.trim().toLowerCase());
 
-        if (isTarget && race.id !== dismissedRaceId) {
-          if (!selectedGame) {
+        if (isTarget && race.id !== dismissedRaceIdRef.current) {
+          if (!selectedGameRef.current) {
             modalSourceRef.current = 'hub';
             setSelectedGame('typeclicker');
           }
@@ -514,7 +527,7 @@ export default function App() {
     });
 
     return () => unsubRace();
-  }, [user, state.studentClass, dismissedRaceId, isAdmin, isAdminOpen, isPedagogicalOpen, selectedGame]);
+  }, [user?.uid]);
 
   // Escuta Raids Coletivas em tempo real disparadas pelo professor
   useEffect(() => {
@@ -536,17 +549,17 @@ export default function App() {
       }
 
       if (raid.status === 'in_progress') {
-        if (isAdmin && (isAdminOpen || isPedagogicalOpen)) {
+        if (isAdminRef.current && (isAdminOpenRef.current || isPedagogicalOpenRef.current)) {
           return;
         }
 
         const isTarget =
           raid.targetTurma === 'todas' ||
           !raid.targetTurma ||
-          (state.studentClass && state.studentClass.trim().toLowerCase() === raid.targetTurma.trim().toLowerCase());
+          (stateRef.current.studentClass && stateRef.current.studentClass.trim().toLowerCase() === raid.targetTurma.trim().toLowerCase());
 
-        if (isTarget && raid.id !== dismissedRaidId) {
-          if (!selectedGame) {
+        if (isTarget && raid.id !== dismissedRaidIdRef.current) {
+          if (!selectedGameRef.current) {
             modalSourceRef.current = 'hub';
             setSelectedGame('typeclicker');
           }
@@ -556,7 +569,7 @@ export default function App() {
     });
 
     return () => unsubRaid();
-  }, [user, state.studentClass, dismissedRaidId, isAdmin, isAdminOpen, isPedagogicalOpen, selectedGame]);
+  }, [user?.uid]);
 
   const [pendingAccent, setPendingAccent] = useState<string | null>(null);
   const [recentWordComplete, setRecentWordComplete] = useState<boolean>(false);
@@ -614,7 +627,6 @@ export default function App() {
   });
 
   // Keep stateRef in sync to avoid stale closures in event listeners and intervals
-  const stateRef = useRef(state);
   stateRef.current = state;
 
   const selectedGameRef = useRef<GameId | null>(selectedGame);
