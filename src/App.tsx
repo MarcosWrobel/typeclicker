@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React,{ useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { GameState, CategoryId, FloatingText, UpgradeDef, DrillSession, AccessibilitySettings, RpgClassType, CurricularTrackId, TypingMode } from './types';
 import { RPG_CLASSES } from './types/rpgClass';
 import { loadSavedState, saveState, clearSavedState, INITIAL_STATE, sanitizeCosmetics, DEFAULT_ARENA_STATS, DEFAULT_ACCESSIBILITY } from './utils/storage';
@@ -36,8 +36,6 @@ import { SessionLockOverlay } from './components/SessionLockOverlay';
 import { GameSelectionScreen } from './components/GameSelectionScreen';
 import { TypeRadarGame } from './components/games/radar/TypeRadarGame';
 import { TyperDashGame } from './components/games/typerdash';
-const ProgPlayGame = React.lazy(() => import('./plugins/progplay/ProgPlayGame'));
-const ScratchBotGame = React.lazy(() => import('./components/games/scratchbot/ScratchBotGame'));
 import { GameExitPayload, ArcadeMatchRecord, GameId } from './types/gamePlugin';
 import { normalizePluginBytes } from './utils/gameNormalizer';
 import { LevelUpOverlay } from './components/LevelUpOverlay';
@@ -61,16 +59,16 @@ import { ClassroomRaid } from './types/raid';
 import { Swords } from 'lucide-react';
 import { checkPendingAchievements, getOverallAchievementsStats, syncRetroactiveAchievements } from './services/achievementEngine';
 import {
-  syncQuestsState,
-  processQuestEvent,
-  claimWeeklyQuestReward,
-  generateRpgFloor,
-  completeRpgFloor,
-  addWordProgressToDungeon,
-  grantDungeonKeys,
-  consumeDungeonKey,
-  upgradeDungeonEquipment,
-  upgradeDungeonPerk
+syncQuestsState,
+processQuestEvent,
+claimWeeklyQuestReward,
+generateRpgFloor,
+completeRpgFloor,
+addWordProgressToDungeon,
+grantDungeonKeys,
+consumeDungeonKey,
+upgradeDungeonEquipment,
+upgradeDungeonPerk
 } from './services/questsEngine';
 import { AchievementDef, AchievementContext } from './types/achievements';
 import { RpgFloorData, QuestEvent } from './types/quests';
@@ -83,6 +81,8 @@ import { dbService } from './services/dbFactory';
 import { isCategoryAllowed, getMinAllowedCategoryLevel } from './utils/difficulty';
 import { useGameSync } from './hooks/useGameSync';
 import { Loader2 } from 'lucide-react';
+const ProgPlayGame = React.lazy(() => import('./plugins/progplay/ProgPlayGame'));
+const ScratchBotGame = React.lazy(() => import('./components/games/scratchbot/ScratchBotGame'));
 
 export default function App() {
   const suppressLevelUpRef = useRef<boolean>(true);
@@ -92,6 +92,9 @@ export default function App() {
   const [currentWord, setCurrentWord] = useState<string>(() => getTextForMode(state.typingMode || 'words', state.selectedCategory));
   const [charIndex, setCharIndex] = useState<number>(0);
   const [isErrorShaking, setIsErrorShaking] = useState<boolean>(false);
+  const [isTypingLocked, setIsTypingLocked] = useState<boolean>(false);
+  const isTypingLockedRef = useRef<boolean>(false);
+  const typingLockTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [floatingTexts, setFloatingTexts] = useState<FloatingText[]>([]);
 
   // Spawn floating feedback particle
@@ -284,7 +287,10 @@ export default function App() {
                   finalState.studentClass = 'Professor';
                   finalState.isClassLocked = true;
                 }
+                saveState(finalState, currentUser.uid);
                 await dbService.saveLegacyGameState(currentUser.uid, finalState);
+                sound.playPrestige();
+                spawnFloatingText('🎁 Recursos pedagógicos atribuídos com sucesso!', 'bonus');
               }
             } catch (e) {
               console.error('Error claiming pending test grants:', e);
@@ -356,7 +362,10 @@ export default function App() {
               const grantRes = await claimPendingTestGrantsSupabase(currentUser.uid, currentUser.email || '', activeState);
               if (grantRes.claimed && grantRes.updatedState) {
                 activeState = grantRes.updatedState;
+                saveState(activeState, currentUser.uid);
                 await dbService.saveLegacyGameState(currentUser.uid, activeState);
+                sound.playPrestige();
+                spawnFloatingText('🎁 Recursos pedagógicos atribuídos com sucesso!', 'bonus');
               }
             } catch (e) {
               console.error('Error claiming pending test grants:', e);
@@ -682,6 +691,27 @@ export default function App() {
       if (prev) sound.playResume();
       return false;
     });
+  }, []);
+
+  const handleResetTypingLock = useCallback(() => {
+    if (typingLockTimeoutRef.current) {
+      clearTimeout(typingLockTimeoutRef.current);
+      typingLockTimeoutRef.current = null;
+    }
+    setIsTypingLocked(false);
+    isTypingLockedRef.current = false;
+    if (!isPausedRef.current && !isAnyModalOpenRef.current && selectedGameRef.current === 'typeclicker') {
+      typingInputRef.current?.focus({ preventScroll: true });
+    }
+  }, []);
+
+  // Limpeza de timeout de bloqueio temporário de digitação ao desmontar
+  useEffect(() => {
+    return () => {
+      if (typingLockTimeoutRef.current) {
+        clearTimeout(typingLockTimeoutRef.current);
+      }
+    };
   }, []);
 
   // Ativa a pausa do jogo automaticamente ao entrar em qualquer janela sobreposta (modal / arena secundária)
@@ -1286,7 +1316,7 @@ export default function App() {
 
   // Processador central de caracteres digitados (com suporte a acentos ABNT2 e composição)
   const handleTypeChar = useCallback((rawChar: string) => {
-    if (isPausedRef.current) return;
+    if (isPausedRef.current || isTypingLockedRef.current) return;
 
     let finalChar = rawChar;
     const currentPending = pendingAccentRef.current;
@@ -1570,6 +1600,24 @@ export default function App() {
       setIsErrorShaking(true);
       setTimeout(() => setIsErrorShaking(false), 380);
 
+      // Desativa momentaneamente o foco de digitação ao errar a sequência
+      const lockDuration = nextErrors >= 3 ? 650 : nextErrors === 2 ? 500 : 400;
+      setIsTypingLocked(true);
+      isTypingLockedRef.current = true;
+      typingInputRef.current?.blur();
+
+      if (typingLockTimeoutRef.current) {
+        clearTimeout(typingLockTimeoutRef.current);
+      }
+      typingLockTimeoutRef.current = setTimeout(() => {
+        setIsTypingLocked(false);
+        isTypingLockedRef.current = false;
+        typingLockTimeoutRef.current = null;
+        if (!isPausedRef.current && !isAnyModalOpenRef.current && selectedGameRef.current === 'typeclicker') {
+          typingInputRef.current?.focus({ preventScroll: true });
+        }
+      }, lockDuration);
+
       let bytesLost = 0;
       if (caseMismatch.isMismatch) {
         sound.playError();
@@ -1637,7 +1685,7 @@ export default function App() {
   }, [spawnFloatingText, activeFocusDrill, checkAndAwardAchievements, applyQuestEvents]);
 
   const handleDeadKey = useCallback((accent: string) => {
-    if (isPausedRef.current || isAnyModalOpenRef.current || activeFocusDrillRef.current) return;
+    if (isPausedRef.current || isAnyModalOpenRef.current || activeFocusDrillRef.current || isTypingLockedRef.current) return;
     setPendingAccent(accent);
   }, []);
 
@@ -1651,9 +1699,9 @@ export default function App() {
       // Se outro jogo estiver ativo ou no menu de seleção, a digitação do TypeClicker é desativada
       if (selectedGameRef.current !== 'typeclicker') return;
 
-      // Se estiver em pausa ou com janela sobreposta aberta, a digitação do jogo base fica suspensa.
+      // Se estiver em pausa, com janela sobreposta aberta ou com foco bloqueado por erro, a digitação do jogo base fica suspensa.
       // O activeFocusDrill é tratado com exclusividade pelo FocusDrillModal sem acionar a pausa global.
-      if (isPausedRef.current || isAnyModalOpen || activeFocusDrill !== null) {
+      if (isPausedRef.current || isAnyModalOpen || activeFocusDrill !== null || isTypingLockedRef.current) {
         return;
       }
 
@@ -2570,6 +2618,7 @@ export default function App() {
             }
             await logoutUser();
             setSelectedGame(null);
+            setState(loadSavedState(null));
           }}
         />
 
@@ -2595,6 +2644,7 @@ export default function App() {
             }
             await logoutUser();
             setSelectedGame(null);
+            setState(loadSavedState(null));
           }}
         />
 
@@ -2884,6 +2934,8 @@ export default function App() {
               onOpenTimeAttack={handleOpenTimeAttack}
               charIndex={charIndex}
               isErrorShaking={isErrorShaking}
+              isTypingLocked={isTypingLocked}
+              onResetTypingLock={handleResetTypingLock}
               comboStreak={state.comboStreak}
               multiplier={
                 Boolean(state.bossBuffExpiresAt && Date.now() < state.bossBuffExpiresAt)

@@ -1,23 +1,16 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React,{ useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  Swords,
-  Shield,
-  Timer,
-  Trophy,
-  Flame,
-  Zap,
-  Users,
-  CheckCircle2,
-  X,
-  Sparkles,
-  AlertTriangle,
-  Award,
-  Crown,
-  Skull,
-  Lightbulb,
-  Medal,
-  Keyboard
+Timer,
+Trophy,
+Flame,Users,
+CheckCircle2,
+X,
+Sparkles,Crown,
+Skull,
+Lightbulb,
+Medal,
+Keyboard
 } from 'lucide-react';
 import { StudentAvatarRenderer } from './vectors/StudentAvatarRenderer';
 import { RpgClassIcon } from './vectors/rpg/RpgClassIcon';

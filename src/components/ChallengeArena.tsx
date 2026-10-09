@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React,{ useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Terminal, ShieldAlert, CheckCircle2, Zap, Keyboard, X, Shield, Flame, RotateCcw, Award, Star, Sparkles, AlertTriangle, Trophy } from 'lucide-react';
+import { Terminal, Zap, Keyboard, X, Shield, RotateCcw, Award, Star, Sparkles, AlertTriangle, Trophy } from 'lucide-react';
 import { sound } from '../utils/audio';
 import { formatBytes } from '../utils/formatting';
 import { getLevelBoss, LevelBossDef } from '../data/levelBosses';

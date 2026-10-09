@@ -7,6 +7,18 @@ export const ADMIN_EMAILS: string[] = [
 ];
 
 /**
+ * Fonte única da verificação de administrador master (cliente).
+ * A autoridade real continua nas firestore.rules / server.ts; aqui é só decisão de UI.
+ * Quando `emailVerified` é informado, exige que seja true (espelha `email_verified` das rules).
+ */
+export function isSuperAdminEmail(email?: string | null, emailVerified?: boolean): boolean {
+  if (!email) return false;
+  if (emailVerified === false) return false;
+  const clean = email.trim().toLowerCase();
+  return ADMIN_EMAILS.some((adm) => adm.toLowerCase() === clean);
+}
+
+/**
  * Determina se um registro de ranking pertence a um professor, diretor ou administrador.
  * Garante que contas administrativas nunca apareçam no ranking competitivo dos alunos.
  */

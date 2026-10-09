@@ -1,4 +1,4 @@
-import { RpgBoss, RpgFloorData } from '../types/quests';
+import { RpgBoss } from '../types/quests';
 
 export interface RpgTextSnippet {
   id: string;

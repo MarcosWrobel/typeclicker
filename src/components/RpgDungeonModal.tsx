@@ -1,23 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React,{ useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  Swords,
-  Sparkles,
-  Coins,
-  Layers,
-  X,
-  Target,
-  Trophy,
-  Flame,
-  Shield,
-  Compass,
-  Key,
-  Lock,
-  ArrowUpCircle,
-  Zap,
-  Heart,
-  Gift,
-  Lightbulb
+Swords,
+Sparkles,
+Coins,
+Layers,
+X,
+Target,
+Trophy,
+Flame,
+Shield,
+Compass,
+Key,
+Lock,
+ArrowUpCircle,
+Zap,
+Heart,Lightbulb
 } from 'lucide-react';
 import { GameState } from '../types';
 import { DungeonPerks } from '../types/quests';

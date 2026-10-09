@@ -16,11 +16,10 @@ Desenvolvida para o **Colégio Estadual Leopoldina Bittencourt Pedroso** (Curiti
 | **Estilização** | [Tailwind CSS](https://tailwindcss.com/) | 4.1.14 |
 | **Animações** | [Motion (Framer Motion)](https://motion.dev/) | 12.23.x |
 | **Ícones & Vetores** | [Lucide React](https://lucide.dev/) (0.546.x) + Renderizadores SVG Canônicos (`src/components/vectors/`) — Arquitetura Zero Emojis de Sistema |
-| **Banco de Dados (Oficial)** | [Supabase](https://supabase.com/) (PostgreSQL 15+) | `@supabase/supabase-js` 2.x |
-| **Banco de Dados (Legado / Contingência)** | [Cloud Firestore](https://firebase.google.com/docs/firestore) *(obsoleto)* | SDK 12.x (`FirebaseAdapter`) |
-| **Autenticação** | [Firebase Auth](https://firebase.google.com/docs/auth) (Google Identity institucional) | SDK 12.x |
+| **Banco de Dados & Realtime** | [Supabase](https://supabase.com/) (PostgreSQL 15+ & Realtime WebSockets) | `@supabase/supabase-js` 2.x |
+| **Autenticação** | [Firebase Auth](https://firebase.google.com/docs/auth) (Google Identity institucional `@escola.pr.gov.br`) | SDK 12.x |
 | **Servidor** | [Express](https://expressjs.com/) + Vite SSR/Middleware | 4.x / 6.x |
-| **Monitoramento** | Métricas Supabase Postgres + [@google-cloud/monitoring](https://cloud.google.com/monitoring) *(legado)* | 6.x |
+| **Monitoramento** | Métricas PostgreSQL nativas via PostgREST (`supabaseMetricsService`) | Integrado |
 | **VFX de Confetti** | [canvas-confetti](https://github.com/catdad/canvas-confetti) | 1.9.x |
 | **Áudio** | Web Audio API (nativa) — sintetizador procedural | — |
 | **Hospedagem** | Google Cloud Run (containerizado) | — |
@@ -306,17 +305,17 @@ A plataforma opera com **custo zero** no tier gratuito do Supabase, calibrada pa
 
 ## 🔒 Segurança
 
-- **Identidade Híbrida (Firebase Auth + Supabase):** Autenticação segura via Google Identity institucional (`@escola.pr.gov.br`). O UID gerado no Google Auth é mapeado diretamente como chave primária `TEXT` no Supabase (`public.profiles.id`).
-- **Supabase Row Level Security (RLS):** Todas as tabelas possuem políticas RLS ativas:
-  - `public.profiles`: Leitura pública para pódios/placar; inserção e atualização permitidas apenas para o próprio usuário (`auth.uid() = id`).
-  - `public.game_progress`: Leitura pública de pontuações; gravação restrita ao proprietário.
-  - `public.user_cosmetics` e `public.user_achievements`: Apenas o dono pode gerenciar seu inventário.
-  - `public.seasons_history`: Histórico de Hall da Fama aberto para consulta pública.
-- **Anti-Cheat em Camadas:**
-  - *Client-side:* Validação de sanidade do estado (`validateStateSanity`) checa deltas máximos por segundo.
-  - *Database-side:* Stored Procedure `record_game_session` com validação de caps no PostgreSQL, impedindo adulteração de saldo via DevTools.
-- **Turma Imutável pelo Aluno:** Atribuição de turma somente via código de sessão verificado pelo professor.
-- **Código de Sessão com Expiração:** Validade configurável pelo professor (1h a 4h) com invalidação automática.
+> Auditoria de 06/10/2026. Estado das correções: ver `BACKLOG.md` (P1) e `DECISIONS.md`.
+
+- **Identidade Híbrida (Firebase Auth + Supabase):** login Google institucional (`@escola.pr.gov.br`). O UID do Firebase é a chave `TEXT` em `public.profiles.id`. Para o Postgres reconhecer esse UID, o projeto usa **Supabase Third-Party Auth (Firebase)**: o ID token é enviado ao PostgREST e as policies leem `auth.jwt()->>'sub'` (função `public.fb_uid()`).
+- **Ativação (ação manual obrigatória):** (1) Supabase Dashboard › Authentication › Third-Party Auth › adicionar Firebase; (2) aplicar `supabase/migrations/secure_rls_firebase_jwt.sql`; (3) cadastrar os professores em `public.staff_users`; (4) definir `VITE_SUPABASE_FIREBASE_AUTH=true`. **Enquanto isso não for feito, o RLS seguro não está em vigor.**
+- **Supabase RLS (alvo em `schema.sql`):** leitura pública para ranking; escrita apenas do dono (`user_id = fb_uid()`) ou staff; `role` só alterável por staff (trigger `protect_profile_role`); `anon` somente leitura.
+- **RPCs:** `record_game_session` exige `p_user_id = fb_uid()` e limita bytes por chamada; `close_current_season` exige staff.
+- **Firestore (legado):** `saves`/`leaderboard` só pelo dono; salas de arena comuns só por criador/desafiante; `/system/settings` escrito só por admin/professor. Limitação conhecida: o conteúdo do save e a pontuação são confiados ao cliente.
+- **Admin:** o e-mail de admin precisa estar verificado (`email_verified`) e é comparado sem diferenciar maiúsculas em cliente, rules e servidor. O antigo "Modo ADM local" via `localStorage` foi removido.
+- **Servidor:** headers `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`; `x-powered-by` desativado; body JSON limitado a 100 KB. CSP e rate-limit ainda pendentes.
+- **Anti-Cheat:** sanidade de estado no cliente (`validateStateSanity`) e teto de bytes por sessão no banco. A economia ainda é parcialmente confiada ao cliente.
+- **Turma Imutável pelo Aluno** e **Código de Sessão com Expiração** (1h a 4h) pelo professor.
 
 ---
 

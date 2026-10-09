@@ -1,25 +1,17 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Play, 
-  RotateCcw, 
-  Copy, 
-  Check, 
-  Download, 
-  Terminal as TerminalIcon, 
-  Globe, 
-  Database, 
-  Code2, 
-  Palette, 
-  Smartphone, 
-  Tablet, 
-  Monitor, 
-  Sparkles,
-  BookOpen,
-  Eye,
-  Trash2,
-  CheckCircle2,
-  AlertTriangle,
-  Bot
+import React,{ useState, useEffect, useRef } from 'react';
+import {
+Play,
+RotateCcw,
+Copy,
+Check,
+Download,
+Terminal as TerminalIcon,
+Globe,
+Database,Smartphone,
+Tablet,
+Monitor,
+Sparkles,
+BookOpen,Trash2,Bot
 } from 'lucide-react';
 import { CodeEditor } from './CodeEditor';
 import { PythonTerminal } from './PythonTerminal';

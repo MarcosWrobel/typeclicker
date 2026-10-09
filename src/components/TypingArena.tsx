@@ -1,45 +1,34 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React,{ useRef, useEffect, useState } from 'react';
 import {
-  Flame,
-  Sparkles,
-  Award,
-  Keyboard,
-  HelpCircle,
-  AlertCircle,
-  Zap,
-  Gauge,
-  Trophy,
-  AlertTriangle,
-  Timer,
-  Activity,
-  Pause,
-  Play,
-  Lock,
-  Palette,
-  Coins,
-  Users,
-  Swords,
-  Target,
-  Scroll,
-  Type,
-  MessageSquare,
-  Code2,
-  Rocket,
-  ShoppingBag,
-  Lightbulb,
-  Key,
-  Atom,
-  X
+Flame,
+Sparkles,AlertCircle,Trophy,
+AlertTriangle,
+Timer,Pause,
+Play,
+Lock,
+Palette,
+Coins,Swords,
+Target,
+Scroll,
+Type,
+MessageSquare,
+Code2,
+Rocket,
+ShoppingBag,
+Lightbulb,
+Key,
+Atom,
+X
 } from 'lucide-react';
 import { CategoryId, FloatingText, DrillSession, KeyTelemetry, AccessibilitySettings, CurricularTrackId, TypingMode } from '../types';
 import { BytezinhoSkinId, TerminalThemeId, AnimationEffectId } from '../types/cosmetics';
 import { TERMINAL_THEMES } from '../constants/themes';
-import { WORD_CATEGORIES, getCurricularTrack, getTrackCategories } from '../data/words';
+import { getCurricularTrack, getTrackCategories } from '../data/words';
 import { isAccentKey, resolveDeadKey, getAccentDisplayName } from '../utils/keyboardAccents';
 import { BytezinhoMascot } from './BytezinhoMascot';
 import { TerminalThemeEffects } from './TerminalThemeEffects';
 import { CapsLockWarning } from './common/CapsLockWarning';
-import { isCategoryAllowed, getMinAllowedCategoryLevel } from '../utils/difficulty';
+import { isCategoryAllowed } from '../utils/difficulty';
 import { getLetterVfxClasses, triggerKeystrokeImpact } from '../services/fxEngine';
 import { identificarTeclasFracas } from '../services/adaptiveDrillEngine';
 
@@ -48,6 +37,8 @@ interface TypingArenaProps {
   currentWord: string;
   charIndex: number;
   isErrorShaking: boolean;
+  isTypingLocked?: boolean;
+  onResetTypingLock?: () => void;
   comboStreak: number;
   multiplier: number;
   maxCombo: number;
@@ -144,6 +135,8 @@ const TypingArenaComponent: React.FC<TypingArenaProps> = ({
   currentWord,
   charIndex,
   isErrorShaking,
+  isTypingLocked = false,
+  onResetTypingLock,
   comboStreak,
   multiplier,
   maxCombo,
@@ -551,21 +544,28 @@ const TypingArenaComponent: React.FC<TypingArenaProps> = ({
     }
   }, [currentWord]);
 
-  // Desfoca imediatamente o input invisível e suspende o foco quando o jogo estiver pausado
+  // Desfoca imediatamente o input invisível e suspende o foco quando o jogo estiver pausado ou com foco travado por erro
   useEffect(() => {
-    if (isPaused) {
+    if (isPaused || isTypingLocked) {
       inputRef.current?.blur();
       setIsFocused(false);
     }
-  }, [isPaused, inputRef]);
+  }, [isPaused, isTypingLocked, inputRef]);
+
+  // Restaura o foco automaticamente quando o bloqueio temporário por erro for liberado
+  useEffect(() => {
+    if (!isTypingLocked && !isPaused) {
+      setIsFocused(true);
+    }
+  }, [isTypingLocked, isPaused]);
 
   // Mantém o input focado para captura de digitação direta no laboratório quando o jogo estiver ativo
   useEffect(() => {
-    if (isPaused) return;
+    if (isPaused || isTypingLocked) return;
 
     const focusInput = () => {
-      // isPaused já consolida a presença de qualquer modal aberto no App.tsx
-      if (isPaused) return;
+      // isPaused ou isTypingLocked suspendem o foco automático
+      if (isPaused || isTypingLocked) return;
 
       if (inputRef.current && document.activeElement !== inputRef.current) {
         // Não rouba foco se o aluno ou professor estiver editando campos, selects ou botões de diálogo
@@ -579,17 +579,24 @@ const TypingArenaComponent: React.FC<TypingArenaProps> = ({
     focusInput();
     const interval = setInterval(focusInput, 1500);
     return () => clearInterval(interval);
-  }, [inputRef, isPaused]);
+  }, [inputRef, isPaused, isTypingLocked]);
 
   const handleCardClick = () => {
     if (isPaused) return;
+    if (isTypingLocked && onResetTypingLock) {
+      onResetTypingLock();
+      return;
+    }
     inputRef.current?.focus({ preventScroll: true });
     setIsFocused(true);
   };
 
   // Processa caracteres digitados no input nativo (suporta composição de acentos ABNT2)
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (isPaused) return;
+    if (isPaused || isTypingLocked) {
+      e.target.value = '';
+      return;
+    }
     const val = e.target.value;
     if (!val) return;
 
@@ -606,7 +613,10 @@ const TypingArenaComponent: React.FC<TypingArenaProps> = ({
 
   // Captura eventos de teclas mortas (Dead) e cancelamento de acentuação
   const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (isPaused) return;
+    if (isPaused || isTypingLocked) {
+      e.preventDefault();
+      return;
+    }
 
     // Tecla Escape: se tiver acento pendente, cancela o acento (ABNT2).
     // Se não tiver acento pendente, permite a propagação para o listener unificado do App.tsx.
@@ -656,7 +666,7 @@ const TypingArenaComponent: React.FC<TypingArenaProps> = ({
         id="typing-engine-input"
         type="text"
         value=""
-        disabled={isPaused}
+        disabled={isPaused || isTypingLocked}
         onChange={handleInputChange}
         onKeyDown={handleInputKeyDown}
         onFocus={() => setIsFocused(true)}
@@ -708,6 +718,8 @@ const TypingArenaComponent: React.FC<TypingArenaProps> = ({
               ? 'border-amber-500/90 shadow-[0_0_40px_rgba(245,158,11,0.3)] bg-[#0f1219]'
               : shouldShake
               ? 'animate-shake border-red-500/80 shadow-[0_0_24px_rgba(239,68,68,0.3)] bg-red-950/20'
+              : isTypingLocked
+              ? 'border-rose-500/60 shadow-[0_0_20px_rgba(244,63,94,0.2)] bg-rose-950/15'
               : !isFocused
               ? 'border-amber-500/40 shadow-[0_0_20px_rgba(245,158,11,0.1)]'
               : isHighContrast
@@ -878,8 +890,20 @@ const TypingArenaComponent: React.FC<TypingArenaProps> = ({
 
                 {/* Status de Foco */}
                 <div className="hidden sm:flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-zinc-900/80 border border-zinc-800 text-[10px] text-zinc-400 font-normal">
-                  <span className={`w-1.5 h-1.5 rounded-full ${isFocused ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
-                  <span>{isFocused ? 'ATIVO' : 'DESFOCADO'}</span>
+                  <span className={`w-1.5 h-1.5 rounded-full ${
+                    isTypingLocked
+                      ? 'bg-rose-500 animate-ping'
+                      : isFocused
+                      ? 'bg-emerald-400 animate-pulse'
+                      : 'bg-amber-400'
+                  }`} />
+                  <span>
+                    {isTypingLocked
+                      ? 'RECUPERANDO'
+                      : isFocused
+                      ? 'ATIVO'
+                      : 'DESFOCADO'}
+                  </span>
                   <kbd className="px-1 py-0.2 rounded bg-zinc-800 text-zinc-300 text-[9px] font-bold">Esc</kbd>
                 </div>
 
@@ -972,10 +996,18 @@ const TypingArenaComponent: React.FC<TypingArenaProps> = ({
           })}
           </div>
 
-          {!isFocused && (
-            <div className="flex items-center gap-1.5 text-xs text-amber-400/90 font-mono mt-0.5 bg-amber-500/10 px-3 py-0.5 rounded-md border border-amber-500/20">
-              <AlertCircle className="w-3.5 h-3.5" />
-              <span>Clique no painel para reativar o teclado</span>
+          {(!isFocused || isTypingLocked) && (
+            <div className={`flex items-center gap-1.5 text-xs font-mono mt-0.5 px-3 py-0.5 rounded-md border transition-all ${
+              isTypingLocked
+                ? 'bg-rose-500/10 text-rose-300 border-rose-500/30 animate-pulse'
+                : 'bg-amber-500/10 text-amber-400/90 border-amber-500/20'
+            }`}>
+              <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+              <span>
+                {isTypingLocked
+                  ? 'Foco suspenso momentaneamente: recomponha o ritmo...'
+                  : 'Clique no painel para reativar o teclado'}
+              </span>
             </div>
           )}
 

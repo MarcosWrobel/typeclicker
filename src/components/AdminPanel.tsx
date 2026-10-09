@@ -1,63 +1,62 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React,{ useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  Shield,
-  Trash2,
-  X,
-  AlertTriangle,
-  Users,
-  Search,
-  RefreshCw,
-  Database,
-  Download,
-  Upload,
-  CheckCircle2,
-  RotateCcw,
-  Sliders,
-  Sparkles,
-  Coins,
-  Zap,
-  Trophy,
-  Plus,
-  History,
-  Gift,
-  ArrowRight,
-  Terminal,
-  Activity,
-  Calendar,
-  Timer,
-  Swords,
-  Crown,
-  Medal,
-  GraduationCap,
-  Clock
+Shield,
+Trash2,
+X,
+AlertTriangle,
+Users,
+Search,
+RefreshCw,
+Database,
+Download,
+Upload,
+CheckCircle2,
+RotateCcw,
+Sliders,
+Sparkles,
+Coins,
+Zap,
+Trophy,
+Plus,
+History,
+Gift,
+ArrowRight,
+Terminal,
+Activity,
+Calendar,
+Timer,
+Swords,
+Crown,
+Medal,
+GraduationCap,
+Clock
 } from 'lucide-react';
 import { StudentAvatarRenderer } from './vectors/StudentAvatarRenderer';
 import { fetchSupabaseMetrics, SupabaseMetricsData } from '../services/supabaseMetricsService';
 import { isSupabaseConfigured, supabase } from '../services/supabaseClient';
 import {
-  createSupabaseBackup,
-  downloadSupabaseBackupFile,
-  restoreSupabaseBackup,
-  FullSupabaseBackup
+createSupabaseBackup,
+downloadSupabaseBackupFile,
+restoreSupabaseBackup,
+FullSupabaseBackup
 } from '../services/supabaseBackupService';
 import {
-  findTargetAccount,
-  applyTestGrantToSupabase,
-  TargetAccountData,
-  SupabaseTestGrantPayload
+findTargetAccount,
+applyTestGrantToSupabase,
+TargetAccountData,
+SupabaseTestGrantPayload
 } from '../services/supabaseTestService';
 import { dbService } from '../services/dbFactory';
 import { LeaderboardEntry } from '../types/leaderboard';
 import { isStaffMember, ADMIN_EMAILS } from '../utils/leaderboardUtils';
 import {
-  auth,
-  SystemSettings,
-  getSystemSettings,
-  updateAllowedTeachers,
-  wipeDatabase as wipeLegacyFirestoreDatabase,
-  addTesterEmail,
-  removeTesterEmail
+auth,
+SystemSettings,
+getSystemSettings,
+updateAllowedTeachers,
+addTesterEmail,
+removeTesterEmail
 } from '../services/firebaseService';
 import { sound } from '../utils/audio';
 import { formatBytes, calculatePlayerRank } from '../utils/formatting';
@@ -150,6 +149,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [isLoadingAccountInfo, setIsLoadingAccountInfo] = useState<boolean>(false);
   const [showStudentPicker, setShowStudentPicker] = useState<boolean>(false);
   const [studentsForPicker, setStudentsForPicker] = useState<LeaderboardEntry[]>([]);
+  const [studentSearchTerm, setStudentSearchTerm] = useState<string>('');
+
+  const filteredStudentsForPicker = useMemo(() => {
+    const term = studentSearchTerm.trim().toLowerCase();
+    if (!term) return studentsForPicker;
+    return studentsForPicker.filter((st) => {
+      const nameMatch = (st.nome || '').toLowerCase().includes(term);
+      const nicknameMatch = (st.apelido || '').toLowerCase().includes(term);
+      const emailMatch = (st.email || '').toLowerCase().includes(term);
+      const turmaMatch = (st.turma || '').toLowerCase().includes(term);
+      return nameMatch || nicknameMatch || emailMatch || turmaMatch;
+    });
+  }, [studentsForPicker, studentSearchTerm]);
 
   const loadSettings = async () => {
     const data = await getSystemSettings();
@@ -569,11 +581,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     try {
       await dbService.wipeDatabase();
 
-      try {
-        await wipeLegacyFirestoreDatabase();
-      } catch (legacyErr) {
-        console.warn('Wipe de coleções legadas do Firestore ignorado ou falhou:', legacyErr);
-      }
+
 
       setWipeStatus('success');
       setWipeConfirm('');
@@ -598,10 +606,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         // Sincroniza role no Supabase caso a conta já exista
         if (isSupabaseConfigured) {
           try {
-            await supabase
-              .from('profiles')
-              .update({ role: 'teacher', turma: 'Professor' })
-              .eq('email', normalizedEmail);
+            // RPC restrita a staff (RLS impede update direto de `role` pelo cliente)
+            const { error: roleErr } = await supabase.rpc('set_user_role', {
+              p_email: normalizedEmail,
+              p_role: 'teacher',
+              p_turma: 'Professor'
+            });
+            if (roleErr) throw roleErr;
           } catch (supaErr) {
             console.warn('Erro ao sincronizar professor no Supabase:', supaErr);
           }
@@ -626,10 +637,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       // Reverte role no Supabase caso exista perfil
       if (isSupabaseConfigured) {
         try {
-          await supabase
-            .from('profiles')
-            .update({ role: 'student', turma: '' })
-            .eq('email', normalizedEmail);
+          const { error: roleErr } = await supabase.rpc('set_user_role', {
+            p_email: normalizedEmail,
+            p_role: 'student',
+            p_turma: ''
+          });
+          if (roleErr) throw roleErr;
         } catch (supaErr) {
           console.warn('Erro ao reverter role de professor no Supabase:', supaErr);
         }
@@ -1812,23 +1825,57 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
 
                     {showStudentPicker && (
-                      <div className="p-3 rounded-lg bg-zinc-950 border border-sky-500/40 space-y-2">
+                      <div className="p-3 rounded-lg bg-zinc-950 border border-sky-500/40 space-y-2.5 shadow-xl">
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-bold text-sky-300 flex items-center gap-1.5">
-                            <Search className="w-3.5 h-3.5" /> Alunos Cadastrados no Banco de Dados
+                            <Search className="w-3.5 h-3.5" />
+                            <span>Alunos Cadastrados no Banco</span>
+                            <span className="text-[10px] text-zinc-500 font-mono">
+                              ({filteredStudentsForPicker.length} de {studentsForPicker.length})
+                            </span>
                           </span>
                           <button
-                            onClick={() => setShowStudentPicker(false)}
-                            className="text-zinc-400 hover:text-white text-xs"
+                            onClick={() => {
+                              setShowStudentPicker(false);
+                              setStudentSearchTerm('');
+                            }}
+                            className="text-zinc-400 hover:text-white text-xs px-2 py-0.5 rounded hover:bg-zinc-800 transition cursor-pointer"
                           >
                             Fechar
                           </button>
                         </div>
-                        <div className="max-h-40 overflow-y-auto space-y-1">
-                          {studentsForPicker.length === 0 ? (
-                            <p className="text-xs text-zinc-500 py-2">Nenhum aluno com save encontrado no momento.</p>
+
+                        {/* Campo de Busca Rápida por Nome / Turma / E-mail */}
+                        <div className="relative">
+                          <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                          <input
+                            type="text"
+                            placeholder="Buscar aluno por nome, apelido, turma ou e-mail..."
+                            value={studentSearchTerm}
+                            onChange={(e) => setStudentSearchTerm(e.target.value)}
+                            autoFocus
+                            className="w-full pl-8 pr-8 py-1.5 rounded-md bg-zinc-900 border border-zinc-700 text-xs font-mono text-white placeholder-zinc-500 focus:outline-none focus:border-sky-500 transition"
+                          />
+                          {studentSearchTerm && (
+                            <button
+                              onClick={() => setStudentSearchTerm('')}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 p-0.5 cursor-pointer"
+                              title="Limpar busca"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="max-h-60 overflow-y-auto space-y-1 pr-1">
+                          {filteredStudentsForPicker.length === 0 ? (
+                            <p className="text-xs text-zinc-500 py-4 text-center">
+                              {studentSearchTerm
+                                ? `Nenhum aluno encontrado para "${studentSearchTerm}".`
+                                : 'Nenhum aluno com save encontrado no momento.'}
+                            </p>
                           ) : (
-                            studentsForPicker.map((st) => (
+                            filteredStudentsForPicker.map((st) => (
                               <button
                                 key={st.userId}
                                 onClick={() => {
@@ -1837,19 +1884,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                   setTargetEmail(st.email || `${st.nome} (${st.turma})`);
                                   checkTargetAccount(displayIdentifier, st.userId);
                                   setShowStudentPicker(false);
+                                  setStudentSearchTerm('');
                                 }}
-                                className="w-full text-left p-2 rounded hover:bg-zinc-800 flex items-center justify-between text-xs transition cursor-pointer"
+                                className="w-full text-left p-2 rounded hover:bg-zinc-850 border border-transparent hover:border-zinc-750 flex items-center justify-between text-xs transition cursor-pointer group"
                               >
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 min-w-0">
                                   <div className="w-5 h-5 flex-shrink-0">
                                     <StudentAvatarRenderer avatar={st.avatar} className="w-full h-full" />
                                   </div>
-                                  <span className="font-bold text-white">{st.nome}</span>
-                                  {st.apelido && <span className="text-zinc-400">({st.apelido})</span>}
-                                  <span className="px-1.5 py-0.5 rounded bg-zinc-800 text-[10px] text-zinc-400">{st.turma}</span>
-                                  {st.email && <span className="text-[10px] text-zinc-500 font-mono truncate max-w-[150px]">{st.email}</span>}
+                                  <span className="font-bold text-white group-hover:text-amber-300 transition truncate">{st.nome}</span>
+                                  {st.apelido && <span className="text-zinc-400 text-[11px] truncate">({st.apelido})</span>}
+                                  <span className="px-1.5 py-0.5 rounded bg-zinc-800 text-[10px] text-zinc-400 font-mono flex-shrink-0">{st.turma}</span>
+                                  {st.email && <span className="text-[10px] text-zinc-500 font-mono truncate max-w-[140px] hidden sm:inline">{st.email}</span>}
                                 </div>
-                                <span className="text-emerald-400 font-mono">Nv. {st.level} • {formatBytes(st.points || 0)}</span>
+                                <span className="text-emerald-400 font-mono text-[11px] flex-shrink-0 ml-2">Nv. {st.level} • {formatBytes(st.points || 0)}</span>
                               </button>
                             ))
                           )}

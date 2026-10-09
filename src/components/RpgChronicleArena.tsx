@@ -1,30 +1,28 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React,{ useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  Swords,
-  Shield,
-  Heart,
-  Sparkles,
-  Coins,
-  Layers,
-  X,
-  RotateCcw,
-  ChevronRight,
-  Trophy,
-  AlertCircle,
-  Flame,
-  Target,
-  Zap,
-  Eye,
-  EyeOff,
-  Snowflake,
-  Skull,
-  Lock,
-  Clock,
-  ArrowUp,
-  AlertTriangle,
-  Key,
-  Keyboard
+Swords,
+Shield,
+Heart,
+Sparkles,
+Coins,
+Layers,
+X,
+RotateCcw,
+ChevronRight,
+Trophy,
+AlertCircle,
+Flame,
+Target,
+Zap,EyeOff,
+Snowflake,
+Skull,
+Lock,
+Clock,
+ArrowUp,
+AlertTriangle,
+Key,
+Keyboard
 } from 'lucide-react';
 import { RpgFloorData, DungeonState, RpgActiveStatusEffect } from '../types/quests';
 import { RpgClassType, RPG_CLASSES } from '../types/rpgClass';

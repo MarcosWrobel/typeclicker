@@ -1,22 +1,20 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React,{ useState, useMemo, useEffect } from 'react';
 import {
-  Trophy,
-  X,
-  CheckCircle2,
-  Lock,
-  Sparkles,
-  Search,
-  Coins,
-  Layers,
-  HelpCircle,
-  Flame,
-  Zap,
-  BookOpen,
-  Target,
-  Palette
+Trophy,
+X,
+CheckCircle2,Sparkles,
+Search,
+Coins,
+Layers,
+HelpCircle,
+Flame,
+Zap,
+BookOpen,
+Target,
+Palette
 } from 'lucide-react';
 import { GameState } from '../types';
-import { AchievementCategory, AchievementDef } from '../types/achievements';
+import { AchievementCategory } from '../types/achievements';
 import { ACHIEVEMENTS_CATALOG } from '../constants/achievementsCatalog';
 import { getAchievementProgress, getOverallAchievementsStats } from '../services/achievementEngine';
 import { formatBytes } from '../utils/formatting';

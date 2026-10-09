@@ -1,18 +1,15 @@
-import React, { useState } from 'react';
-import { 
-  Sparkles, 
-  X, 
-  BookOpen, 
-  Clock, 
-  ArrowRight, 
-  Lightbulb, 
-  CheckCircle,
-  Code2,
-  Loader2,
-  Calendar,
-  Layers,
-  ShoppingBag,
-  ListTodo
+import React,{ useState } from 'react';
+import {
+Sparkles,
+X,
+BookOpen,
+Clock,
+ArrowRight,
+Lightbulb,Loader2,
+Calendar,
+Layers,
+ShoppingBag,
+ListTodo
 } from 'lucide-react';
 import { sounds } from '../utils/sound';
 

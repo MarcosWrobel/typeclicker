@@ -1,18 +1,12 @@
 import React from 'react';
 import {
-  Trophy,
-  Zap,
-  Flame,
-  Database,
-  Swords,
-  Flag,
-  ChevronLeft,
-  ChevronRight,
-  Pause,
-  Play,
-  RefreshCw,
-  ExternalLink,
-  Medal
+ChevronLeft,
+ChevronRight,
+Pause,
+Play,
+RefreshCw,
+ExternalLink,
+Medal
 } from 'lucide-react';
 import { LeaderboardMetric, METRIC_TABS } from './LeaderboardModal';
 import { useLeaderboardPodium } from '../hooks/useLeaderboardPodium';

@@ -1,5 +1,5 @@
 import React from 'react';
-import Editor, { OnMount } from '@monaco-editor/react';
+import Editor,{ OnMount } from '@monaco-editor/react';
 import { EditorSettings, CursorPosition } from '../types';
 import { THEMES } from '../constants/themes';
 import { registerAutocompleteProviders } from '../utils/monacoAutocomplete';

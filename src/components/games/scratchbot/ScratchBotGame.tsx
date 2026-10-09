@@ -1,40 +1,29 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React,{ useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import confetti from 'canvas-confetti';
-import { 
-  Play, 
-  RotateCcw, 
-  Flag, 
-  Square, 
-  ArrowLeft, 
-  Trophy, 
-  Sparkles, 
-  Volume2, 
-  VolumeX, 
-  Star, 
-  ChevronRight, 
-  Lightbulb, 
-  Layers,
-  Infinity as InfinityIcon,
-  CheckCircle2,
-  AlertTriangle,
-  Flame,
-  Award,
-  Bot,
-  ArrowUp,
-  RotateCw,
-  Repeat,
-  Diamond,
-  ArrowRight
+import {
+RotateCcw,
+Flag,
+Square,
+ArrowLeft,
+Trophy,
+Sparkles,Star,Lightbulb,
+Layers,
+Infinity as InfinityIcon,Bot,
+ArrowUp,
+RotateCw,
+Repeat,
+Diamond,
+ArrowRight
 } from 'lucide-react';
 import { BaseGameProps, GameExitPayload } from '../../../types/gamePlugin';
 import { BytezinhoSkinId } from '../../../types/cosmetics';
-import { 
-  ScratchBlock, 
-  BlockType, 
-  GridCoord, 
-  RobotDirection, 
-  ScratchLevelDef,
-  ScratchBotSaveData
+import {
+ScratchBlock,
+BlockType,
+GridCoord,
+RobotDirection,
+ScratchLevelDef,
+ScratchBotSaveData
 } from '../../../types/scratchBot';
 import { PEDAGOGICAL_LEVELS } from './levelsData';
 import { generateProceduralLevel } from './proceduralGenerator';

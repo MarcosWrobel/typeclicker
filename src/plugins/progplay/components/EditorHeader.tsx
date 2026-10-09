@@ -1,20 +1,16 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { 
-  Play, 
-  AlignLeft, 
-  WrapText, 
-  Copy, 
-  Check, 
-  RotateCcw, 
-  Settings, 
-  ChevronDown, 
-  Layout, 
-  DoorOpen, 
-  Cloud, 
-  UserCheck,
-  Swords,
-  Sparkles,
-  ArrowLeft
+import React,{ useState, useRef, useEffect } from 'react';
+import {
+Play,
+AlignLeft,
+WrapText,
+Copy,
+Check,
+RotateCcw,
+Settings,
+ChevronDown,
+Layout,
+DoorOpen,
+Cloud,Swords,ArrowLeft
 } from 'lucide-react';
 import { DuelUser } from '../services/progplayDuelService';
 import { EditorSettings, EditorThemeId } from '../types';

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React,{ useState } from 'react';
 import { BaseLayoutProps } from './TerminalLayout';
 import { Eye, EyeOff } from 'lucide-react';
 

@@ -1,18 +1,11 @@
-import {
-  doc,
-  setDoc,
-  updateDoc,
-  onSnapshot,
-  runTransaction
-} from 'firebase/firestore';
-import { db } from './firebaseService';
+import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { ClassroomRaid, ClassroomRaidConfig, RaidParticipant } from '../types/raid';
 import { RpgClassType } from '../types/rpgClass';
 
 export const ACTIVE_RAID_DOC_ID = 'active_classroom_raid';
 
 /**
- * Lança uma nova Raid Coletiva de Sala de Aula em tempo real
+ * Lança uma nova Raid Coletiva de Sala de Aula em tempo real no Supabase
  */
 export async function launchClassroomRaid(
   config: ClassroomRaidConfig,
@@ -44,8 +37,22 @@ export async function launchClassroomRaid(
     totalDamageDealt: 0
   };
 
-  const raidRef = doc(db, 'arena_rooms', ACTIVE_RAID_DOC_ID);
-  await setDoc(raidRef, newRaid);
+  if (isSupabaseConfigured) {
+    const { error } = await supabase.from('arena_rooms').upsert({
+      id: ACTIVE_RAID_DOC_ID,
+      room_type: 'raid',
+      created_by: teacherUser.uid,
+      status: 'in_progress',
+      data: newRaid,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'id' });
+
+    if (error) {
+      console.error('Erro ao lançar raid no Supabase:', error);
+    }
+  }
+
   return newRaid;
 }
 
@@ -53,39 +60,68 @@ export async function launchClassroomRaid(
  * Cancela ou encerra a Raid ativa
  */
 export async function cancelClassroomRaid(): Promise<void> {
-  const raidRef = doc(db, 'arena_rooms', ACTIVE_RAID_DOC_ID);
-  await updateDoc(raidRef, {
+  if (!isSupabaseConfigured) return;
+
+  const { data } = await supabase.from('arena_rooms').select('data').eq('id', ACTIVE_RAID_DOC_ID).maybeSingle();
+  if (!data?.data) return;
+
+  const raid = data.data as ClassroomRaid;
+  const updatedRaid: ClassroomRaid = {
+    ...raid,
     status: 'cancelled'
-  });
+  };
+
+  await supabase.from('arena_rooms').update({
+    status: 'cancelled',
+    data: updatedRaid,
+    updated_at: new Date().toISOString()
+  }).eq('id', ACTIVE_RAID_DOC_ID);
 }
 
 /**
- * Escuta em tempo real o estado da Raid ativa
+ * Escuta em tempo real o estado da Raid ativa via Supabase Realtime
  */
 export function subscribeToActiveRaid(
   callback: (raid: ClassroomRaid | null) => void
 ): () => void {
-  const raidRef = doc(db, 'arena_rooms', ACTIVE_RAID_DOC_ID);
-  return onSnapshot(
-    raidRef,
-    (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.data() as ClassroomRaid;
-        callback(data);
+  if (!isSupabaseConfigured) {
+    callback(null);
+    return () => {};
+  }
+
+  // Snapshot inicial
+  supabase
+    .from('arena_rooms')
+    .select('data')
+    .eq('id', ACTIVE_RAID_DOC_ID)
+    .maybeSingle()
+    .then(({ data }) => {
+      if (data?.data) {
+        callback(data.data as ClassroomRaid);
       } else {
         callback(null);
       }
-    },
-    (err) => {
-      console.warn('Erro ao escutar raid ativa:', err);
-      callback(null);
-    }
-  );
+    });
+
+  const channel = supabase.channel('realtime_classroom_raid')
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'arena_rooms',
+      filter: `id=eq.${ACTIVE_RAID_DOC_ID}`
+    }, (payload) => {
+      const raidData = (payload.new as any)?.data as ClassroomRaid | undefined;
+      callback(raidData || null);
+    })
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
 }
 
 /**
- * Submete a contribuição de dano do aluno através de transação atômica.
- * Acumula o dano no HP compartilhado do Boss e registra estatísticas do participante.
+ * Submete a contribuição de dano do aluno no Boss compartilhado da Raid.
  */
 export async function submitRaidContribution(
   raidId: string,
@@ -102,23 +138,28 @@ export async function submitRaidContribution(
   wpm: number
 ): Promise<{ success: boolean; currentHp: number; status: string }> {
   if (damage <= 0) return { success: true, currentHp: 0, status: 'in_progress' };
+  if (!isSupabaseConfigured) return { success: false, currentHp: 0, status: 'not_configured' };
 
-  const raidRef = doc(db, 'arena_rooms', ACTIVE_RAID_DOC_ID);
-
-  return await runTransaction(db, async (transaction) => {
-    const snap = await transaction.get(raidRef);
-    if (!snap.exists()) {
+  try {
+    const { data: snap } = await supabase.from('arena_rooms').select('data').eq('id', ACTIVE_RAID_DOC_ID).maybeSingle();
+    if (!snap?.data) {
       return { success: false, currentHp: 0, status: 'not_found' };
     }
 
-    const data = snap.data() as ClassroomRaid;
+    const data = snap.data as ClassroomRaid;
     if (data.id !== raidId || data.status !== 'in_progress') {
       return { success: false, currentHp: data.currentHp || 0, status: data.status };
     }
 
     // Checa expiração de tempo
     if (Date.now() > data.expiresAtMs) {
-      transaction.update(raidRef, { status: 'defeat' });
+      const updatedDefeat: ClassroomRaid = { ...data, status: 'defeat' };
+      await supabase.from('arena_rooms').update({
+        status: 'defeat',
+        data: updatedDefeat,
+        updated_at: new Date().toISOString()
+      }).eq('id', ACTIVE_RAID_DOC_ID);
+
       return { success: false, currentHp: data.currentHp, status: 'defeat' };
     }
 
@@ -161,25 +202,28 @@ export async function submitRaidContribution(
       }
     }
 
-    const updatePayload: Record<string, any> = {
+    const updatedRaid: ClassroomRaid = {
+      ...data,
       currentHp: newHp,
       totalDamageDealt: totalDamage,
-      participants: updatedParticipants
+      participants: updatedParticipants,
+      status: isDefeated ? 'victory' : 'in_progress',
+      ...(isDefeated && mvp ? { mvp } : {})
     };
 
-    if (isDefeated) {
-      updatePayload.status = 'victory';
-      if (mvp) {
-        updatePayload.mvp = mvp;
-      }
-    }
-
-    transaction.update(raidRef, updatePayload);
+    await supabase.from('arena_rooms').update({
+      status: updatedRaid.status,
+      data: updatedRaid,
+      updated_at: new Date().toISOString()
+    }).eq('id', ACTIVE_RAID_DOC_ID);
 
     return {
       success: true,
       currentHp: newHp,
       status: isDefeated ? 'victory' : 'in_progress'
     };
-  });
+  } catch (err) {
+    console.error('Erro ao submeter contribuição de raid:', err);
+    return { success: false, currentHp: 0, status: 'error' };
+  }
 }

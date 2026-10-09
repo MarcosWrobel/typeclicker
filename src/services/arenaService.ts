@@ -1,23 +1,7 @@
-import {
-  collection,
-  doc,
-  setDoc,
-  getDoc,
-  getDocs,
-  updateDoc,
-  deleteDoc,
-  query,
-  where,
-  limit,
-  onSnapshot,
-  serverTimestamp,
-  runTransaction
-} from 'firebase/firestore';
-import { db } from './firebaseService';
+import { supabase, isSupabaseConfigured } from './supabaseClient';
 import {
   ArenaRoom,
   ArenaPlayer,
-  ArenaRoomStatus,
   ArenaAiDifficulty,
   ArenaAiProfile
 } from '../types/arena';
@@ -76,35 +60,34 @@ export function generateArenaWords(count: number = ARENA_WORDS_PER_MATCH): strin
   if (advCat) pool.push(...advCat.words);
   if (expertCat) pool.push(...expertCat.words);
 
-  // Embaralha e retira palavras distintas com 5 a 14 caracteres
   const filtered = pool.filter(w => w.length >= 5 && w.length <= 14);
   const shuffled = [...filtered].sort(() => 0.5 - Math.random());
-  const selected = shuffled.slice(0, count);
 
-  if (selected.length < count) {
-    // Fallback garantido
-    const fallback = [
-      'cibernética', 'algoritmo', 'overclock', 'teclado', 'precisão',
-      'velocidade', 'leopoldina', 'processador', 'desenvolvedor', 'engenharia',
-      'criptografia', 'microchip', 'segurança', 'arquitetura', 'conectividade'
-    ];
-    return fallback.slice(0, count);
+  if (shuffled.length >= count) {
+    return shuffled.slice(0, count);
   }
 
-  return selected;
+  const fallback = [
+    'algoritmo', 'blockchain', 'criptografia', 'desenvolvimento',
+    'framework', 'hipertexto', 'inteligencia', 'javascript',
+    'kernel', 'linguagem', 'microsservicos', 'navegador',
+    'otimizacao', 'programacao', 'protocolo', 'recursividade'
+  ];
+  return fallback.slice(0, count);
 }
 
 /**
- * Cria uma nova sala na nuvem (Firestore) e aguarda desafiante
+ * Cria uma nova sala de arena de duelo (PvP) no Supabase
  */
-export async function createArenaRoom(player: ArenaPlayer): Promise<{ roomId: string; roomCode: string }> {
+export async function createArenaRoom(
+  player: ArenaPlayer,
+  words: string[] = generateArenaWords()
+): Promise<{ roomId: string; roomCode: string }> {
+  const roomId = `room_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
   const roomCode = generateRoomCode();
-  const roomsRef = collection(db, 'arena_rooms');
-  const newRoomRef = doc(roomsRef);
-  const words = generateArenaWords(ARENA_WORDS_PER_MATCH);
 
   const initialRoom: ArenaRoom = {
-    id: newRoomRef.id,
+    id: roomId,
     roomCode,
     createdBy: player.uid,
     createdAt: Date.now(),
@@ -120,31 +103,46 @@ export async function createArenaRoom(player: ArenaPlayer): Promise<{ roomId: st
     }
   };
 
-  await setDoc(newRoomRef, initialRoom);
-  return { roomId: newRoomRef.id, roomCode };
+  if (isSupabaseConfigured) {
+    const { error } = await supabase.from('arena_rooms').insert({
+      id: roomId,
+      room_type: 'duel',
+      created_by: player.uid,
+      status: 'waiting',
+      data: initialRoom,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    });
+    if (error) {
+      console.error('Erro ao criar sala de arena no Supabase:', error);
+    }
+  }
+
+  return { roomId, roomCode };
 }
 
 /**
  * Busca por uma sala pública aberta criada nos últimos 3 minutos
  */
 export async function findOpenArenaRoom(currentUid: string): Promise<ArenaRoom | null> {
+  if (!isSupabaseConfigured) return null;
   try {
-    const threeMinutesAgo = Date.now() - 3 * 60 * 1000;
-    const q = query(
-      collection(db, 'arena_rooms'),
-      where('status', '==', 'waiting'),
-      limit(10)
-    );
+    const threeMinutesAgo = new Date(Date.now() - 3 * 60 * 1000).toISOString();
+    const { data, error } = await supabase
+      .from('arena_rooms')
+      .select('id, data')
+      .eq('room_type', 'duel')
+      .eq('status', 'waiting')
+      .gte('created_at', threeMinutesAgo)
+      .order('created_at', { ascending: false })
+      .limit(10);
 
-    const snapshot = await getDocs(q);
-    for (const docSnap of snapshot.docs) {
-      const data = docSnap.data() as ArenaRoom;
-      if (
-        data.createdAt >= threeMinutesAgo &&
-        data.player1.uid !== currentUid &&
-        !data.player2
-      ) {
-        return { ...data, id: docSnap.id };
+    if (error || !data) return null;
+
+    for (const row of data) {
+      const room = row.data as ArenaRoom;
+      if (room && room.player1?.uid !== currentUid && !room.player2) {
+        return { ...room, id: row.id };
       }
     }
     return null;
@@ -158,30 +156,30 @@ export async function findOpenArenaRoom(currentUid: string): Promise<ArenaRoom |
  * Entra em uma sala existente através do código digitado
  */
 export async function joinArenaRoomByCode(roomCode: string, player: ArenaPlayer): Promise<ArenaRoom | null> {
-  const cleanCode = roomCode.trim().toUpperCase();
-  const q = query(
-    collection(db, 'arena_rooms'),
-    where('roomCode', '==', cleanCode),
-    where('status', '==', 'waiting'),
-    limit(1)
-  );
+  if (!isSupabaseConfigured) return null;
 
-  const snapshot = await getDocs(q);
-  if (snapshot.empty) {
+  const cleanCode = roomCode.trim().toUpperCase();
+  const { data, error } = await supabase
+    .from('arena_rooms')
+    .select('id, data')
+    .eq('room_type', 'duel')
+    .eq('status', 'waiting')
+    .filter('data->>roomCode', 'eq', cleanCode)
+    .limit(1);
+
+  if (error || !data || data.length === 0) {
     return null;
   }
 
-  const roomDoc = snapshot.docs[0];
-  const roomData = roomDoc.data() as ArenaRoom;
+  const row = data[0];
+  const roomData = row.data as ArenaRoom;
 
   if (roomData.player1.uid === player.uid) {
-    // É o próprio criador tentando se juntar novamente
-    return { ...roomData, id: roomDoc.id };
+    return { ...roomData, id: row.id };
   }
 
   if (roomData.player2 && roomData.player2.uid !== player.uid) {
-    // Sala já está cheia
-    return null;
+    return null; // Sala cheia
   }
 
   const updatedPlayer2: ArenaPlayer = {
@@ -193,15 +191,21 @@ export async function joinArenaRoomByCode(roomCode: string, player: ArenaPlayer)
     wordsCompleted: 0
   };
 
-  await updateDoc(roomDoc.ref, {
-    player2: updatedPlayer2
-  });
-
-  return {
+  const updatedRoom: ArenaRoom = {
     ...roomData,
-    id: roomDoc.id,
+    id: row.id,
     player2: updatedPlayer2
   };
+
+  await supabase
+    .from('arena_rooms')
+    .update({
+      data: updatedRoom,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', row.id);
+
+  return updatedRoom;
 }
 
 /**
@@ -212,95 +216,116 @@ export async function setPlayerReady(
   playerNum: 1 | 2,
   ready: boolean
 ): Promise<void> {
-  const roomRef = doc(db, 'arena_rooms', roomId);
+  if (!isSupabaseConfigured) return;
 
-  await runTransaction(db, async (transaction) => {
-    const roomSnap = await transaction.get(roomRef);
-    if (!roomSnap.exists()) return;
+  const { data } = await supabase.from('arena_rooms').select('data').eq('id', roomId).single();
+  if (!data?.data) return;
 
-    const data = roomSnap.data() as ArenaRoom;
-    const isP1 = playerNum === 1;
+  const room = data.data as ArenaRoom;
+  const isP1 = playerNum === 1;
+  const p1Ready = isP1 ? ready : room.player1.ready;
+  const p2Ready = !isP1 ? ready : (room.player2?.ready ?? false);
 
-    const p1Ready = isP1 ? ready : data.player1.ready;
-    const p2Ready = !isP1 ? ready : (data.player2?.ready ?? false);
+  const updatedRoom: ArenaRoom = {
+    ...room,
+    player1: isP1 ? { ...room.player1, ready } : room.player1,
+    player2: room.player2 ? (!isP1 ? { ...room.player2, ready } : room.player2) : null
+  };
 
-    const updatePayload: Record<string, any> = {};
+  if (p1Ready && p2Ready && updatedRoom.player2 && updatedRoom.status === 'waiting') {
+    updatedRoom.status = 'countdown';
+    updatedRoom.countdownStartedAt = Date.now();
+  }
 
-    if (isP1) {
-      updatePayload['player1.ready'] = ready;
-    } else {
-      updatePayload['player2.ready'] = ready;
-    }
-
-    // Se ambos estão prontos e há dois jogadores, inicia a contagem regressiva
-    if (p1Ready && p2Ready && data.player2 && data.status === 'waiting') {
-      updatePayload['status'] = 'countdown';
-      updatePayload['countdownStartedAt'] = Date.now();
-    }
-
-    transaction.update(roomRef, updatePayload);
-  });
+  await supabase
+    .from('arena_rooms')
+    .update({
+      status: updatedRoom.status,
+      data: updatedRoom,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', roomId);
 }
 
 /**
  * Transição de contagem regressiva para início oficial da partida
  */
 export async function startArenaGame(roomId: string): Promise<void> {
-  const roomRef = doc(db, 'arena_rooms', roomId);
-  await updateDoc(roomRef, {
+  if (!isSupabaseConfigured) return;
+
+  const { data } = await supabase.from('arena_rooms').select('data').eq('id', roomId).single();
+  if (!data?.data) return;
+
+  const room = data.data as ArenaRoom;
+  const updatedRoom: ArenaRoom = {
+    ...room,
     status: 'in_progress',
     gameStartedAt: Date.now()
-  });
+  };
+
+  await supabase
+    .from('arena_rooms')
+    .update({
+      status: 'in_progress',
+      data: updatedRoom,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', roomId);
 }
 
 /**
- * Atualiza o progresso do jogador durante a corrida (otimizado por palavra concluída)
+ * Atualiza o progresso de digitação de um jogador na sala em tempo real
  */
-export async function updatePlayerArenaProgress(
+export async function updateArenaProgress(
   roomId: string,
   playerNum: 1 | 2,
   progress: number,
   wpm: number,
   accuracy: number,
-  wordsCompleted: number,
-  isFinished: boolean
+  wordsCompleted: number
 ): Promise<void> {
-  const roomRef = doc(db, 'arena_rooms', roomId);
+  if (!isSupabaseConfigured) return;
 
   try {
-    if (isFinished) {
-      await runTransaction(db, async (transaction) => {
-        const snap = await transaction.get(roomRef);
-        if (!snap.exists()) return;
-        const data = snap.data() as ArenaRoom;
+    const { data } = await supabase.from('arena_rooms').select('data').eq('id', roomId).single();
+    if (!data?.data) return;
 
-        const updatePayload: Record<string, any> = {};
-        const fieldPrefix = playerNum === 1 ? 'player1' : 'player2';
+    const room = data.data as ArenaRoom;
+    const isP1 = playerNum === 1;
+    const targetPlayer = isP1 ? room.player1 : room.player2;
+    if (!targetPlayer) return;
 
-        updatePayload[`${fieldPrefix}.progress`] = 100;
-        updatePayload[`${fieldPrefix}.wpm`] = Math.round(wpm);
-        updatePayload[`${fieldPrefix}.accuracy`] = Math.round(accuracy);
-        updatePayload[`${fieldPrefix}.wordsCompleted`] = wordsCompleted;
-        updatePayload[`${fieldPrefix}.finishedAt`] = Date.now();
+    const isCompleted = progress >= 100;
+    const updatedPlayer: ArenaPlayer = {
+      ...targetPlayer,
+      progress: Math.min(100, Math.round(progress)),
+      wpm: Math.round(wpm),
+      accuracy: Math.round(accuracy),
+      wordsCompleted
+    };
 
-        // Se a sala ainda estava em progresso, este jogador é o vencedor!
-        if (data.status === 'in_progress' || !data.winnerUid) {
-          const winnerUid = playerNum === 1 ? data.player1.uid : data.player2?.uid;
-          updatePayload['status'] = 'finished';
-          updatePayload['winnerUid'] = winnerUid || 'draw';
-        }
+    const updatedRoom: ArenaRoom = {
+      ...room,
+      player1: isP1 ? updatedPlayer : room.player1,
+      player2: !isP1 && room.player2 ? updatedPlayer : room.player2
+    };
 
-        transaction.update(roomRef, updatePayload);
-      });
-    } else {
-      const fieldPrefix = playerNum === 1 ? 'player1' : 'player2';
-      await updateDoc(roomRef, {
-        [`${fieldPrefix}.progress`]: Math.min(100, Math.round(progress)),
-        [`${fieldPrefix}.wpm`]: Math.round(wpm),
-        [`${fieldPrefix}.accuracy`]: Math.round(accuracy),
-        [`${fieldPrefix}.wordsCompleted`]: wordsCompleted
-      });
+    let newStatus = room.status;
+    if (isCompleted && room.status === 'in_progress') {
+      newStatus = 'finished';
+      updatedRoom.status = 'finished';
+      updatedRoom.winnerUid = targetPlayer.uid;
+      updatedRoom.finishedAt = Date.now();
     }
+
+    await supabase
+      .from('arena_rooms')
+      .update({
+        status: newStatus,
+        data: updatedRoom,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', roomId);
   } catch (err) {
     console.error('Erro ao atualizar progresso na arena:', err);
   }
@@ -310,75 +335,121 @@ export async function updatePlayerArenaProgress(
  * Abandona ou fecha a sala
  */
 export async function abandonArenaRoom(roomId: string, playerNum: 1 | 2): Promise<void> {
-  try {
-    const roomRef = doc(db, 'arena_rooms', roomId);
-    const snap = await getDoc(roomRef);
-    if (!snap.exists()) return;
-    const data = snap.data() as ArenaRoom;
+  if (!isSupabaseConfigured) return;
 
-    if (data.status === 'in_progress') {
-      // Oponente vence por desistência
-      const winnerUid = playerNum === 1 ? data.player2?.uid : data.player1.uid;
-      await updateDoc(roomRef, {
+  try {
+    const { data } = await supabase.from('arena_rooms').select('data').eq('id', roomId).single();
+    if (!data?.data) return;
+
+    const room = data.data as ArenaRoom;
+
+    if (room.status === 'in_progress') {
+      const winnerUid = playerNum === 1 ? room.player2?.uid : room.player1.uid;
+      const updatedRoom: ArenaRoom = {
+        ...room,
         status: 'finished',
         winnerUid: winnerUid || 'draw'
-      });
-    } else if (data.status === 'waiting') {
+      };
+      await supabase
+        .from('arena_rooms')
+        .update({ status: 'finished', data: updatedRoom, updated_at: new Date().toISOString() })
+        .eq('id', roomId);
+    } else if (room.status === 'waiting') {
       if (playerNum === 1) {
-        // Criador saiu: cancela a sala
-        await updateDoc(roomRef, { status: 'abandoned' });
+        await supabase
+          .from('arena_rooms')
+          .update({ status: 'abandoned', data: { ...room, status: 'abandoned' }, updated_at: new Date().toISOString() })
+          .eq('id', roomId);
       } else {
-        // Desafiante saiu: libera a vaga para outro
-        await updateDoc(roomRef, { player2: null });
+        await supabase
+          .from('arena_rooms')
+          .update({ data: { ...room, player2: null }, updated_at: new Date().toISOString() })
+          .eq('id', roomId);
       }
     }
   } catch (err) {
-    console.error('Erro ao abandonar sala da arena:', err);
+    console.error('Erro ao abandonar sala:', err);
   }
 }
 
 /**
- * Escuta atualizações em tempo real da sala do Firestore via onSnapshot
+ * Subscreve em tempo real às atualizações da sala via Supabase Realtime
  */
-export function listenToArenaRoom(
+export function subscribeToArenaRoom(
   roomId: string,
   callback: (room: ArenaRoom | null) => void
 ): () => void {
-  const roomRef = doc(db, 'arena_rooms', roomId);
-  return onSnapshot(
-    roomRef,
-    (snapshot) => {
-      if (!snapshot.exists()) {
-        callback(null);
-        return;
-      }
-      callback({ ...(snapshot.data() as ArenaRoom), id: snapshot.id });
-    },
-    (err) => {
-      console.error('Erro no listener da sala de arena:', err);
-      callback(null);
-    }
-  );
+  // Snapshot inicial
+  if (isSupabaseConfigured) {
+    supabase
+      .from('arena_rooms')
+      .select('data')
+      .eq('id', roomId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.data) {
+          callback(data.data as ArenaRoom);
+        }
+      });
+
+    const channel = supabase.channel(`arena_duel_${roomId}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'arena_rooms',
+        filter: `id=eq.${roomId}`
+      }, (payload) => {
+        const roomData = (payload.new as any)?.data as ArenaRoom | undefined;
+        if (roomData) {
+          callback(roomData);
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }
+
+  return () => {};
 }
 
 /**
- * Cria uma sala local de treino contra a Inteligência Artificial (Bytezinho Cibernético)
- * Sem consumo de Firestore, 100% responsiva e offline-friendly
+ * Cria uma sala de treino contra IA local (Bytezinho Bot) sem tráfego de rede
  */
-export function createLocalAiRoom(
+export function createAiPracticeRoom(
   humanPlayer: ArenaPlayer,
-  difficulty: ArenaAiDifficulty
-): { room: ArenaRoom; botProfile: ArenaAiProfile } {
-  const botProfile = AI_BOT_PROFILES[difficulty];
-  const words = generateArenaWords(ARENA_WORDS_PER_MATCH);
+  difficulty: ArenaAiDifficulty = 'mestre',
+  words: string[] = generateArenaWords()
+): {
+  room: ArenaRoom;
+  subscribe: (cb: (room: ArenaRoom) => void) => () => void;
+  updateHumanProgress: (prog: number, wpm: number, acc: number, wordsComp: number) => void;
+  abandon: () => void;
+} {
+  const profile = AI_BOT_PROFILES[difficulty];
+  const roomId = `ai_${Date.now()}`;
 
-  const room: ArenaRoom = {
-    id: `local_ai_${Date.now()}`,
+  const botPlayer: ArenaPlayer = {
+    uid: `bot_${profile.id}`,
+    name: profile.name,
+    avatar: profile.avatar,
+    isBot: true,
+    botDifficulty: difficulty,
+    ready: true,
+    progress: 0,
+    wpm: profile.targetWpm,
+    accuracy: profile.accuracy,
+    wordsCompleted: 0
+  };
+
+  const currentRoom: ArenaRoom = {
+    id: roomId,
     roomCode: 'TREINO',
     createdBy: humanPlayer.uid,
     createdAt: Date.now(),
-    status: 'countdown',
-    countdownStartedAt: Date.now(),
+    status: 'in_progress',
+    gameStartedAt: Date.now(),
     words,
     player1: {
       ...humanPlayer,
@@ -388,20 +459,139 @@ export function createLocalAiRoom(
       accuracy: 100,
       wordsCompleted: 0
     },
-    player2: {
-      uid: `bot_${botProfile.id}`,
-      name: botProfile.name,
-      nickname: botProfile.name,
-      turma: botProfile.title,
-      avatar: botProfile.avatar,
-      ready: true,
-      progress: 0,
-      wpm: botProfile.targetWpm,
-      accuracy: botProfile.accuracy,
-      wordsCompleted: 0,
-      isBot: true
-    }
+    player2: botPlayer
   };
 
-  return { room, botProfile };
+  const listeners = new Set<(r: ArenaRoom) => void>();
+  const emit = () => listeners.forEach(cb => cb({ ...currentRoom }));
+
+  const totalChars = words.reduce((acc, w) => acc + w.length + 1, 0);
+  const charsPerSecond = (profile.targetWpm * 5) / 60;
+  const timeStepSeconds = 0.5;
+
+  let currentTypedChars = 0;
+  const botInterval = setInterval(() => {
+    if (currentRoom.status !== 'in_progress') {
+      clearInterval(botInterval);
+      return;
+    }
+
+    const fluctuation = 0.9 + Math.random() * 0.2;
+    currentTypedChars += charsPerSecond * timeStepSeconds * fluctuation;
+    const botProgress = Math.min(100, (currentTypedChars / totalChars) * 100);
+
+    const wordsCompleted = Math.floor((botProgress / 100) * words.length);
+
+    if (currentRoom.player2) {
+      currentRoom.player2.progress = Math.round(botProgress);
+      currentRoom.player2.wordsCompleted = wordsCompleted;
+    }
+
+    if (botProgress >= 100 && currentRoom.status === 'in_progress') {
+      currentRoom.status = 'finished';
+      currentRoom.winnerUid = botPlayer.uid;
+      currentRoom.finishedAt = Date.now();
+      clearInterval(botInterval);
+    }
+
+    emit();
+  }, timeStepSeconds * 1000);
+
+  return {
+    room: currentRoom,
+    subscribe: (cb) => {
+      listeners.add(cb);
+      cb({ ...currentRoom });
+      return () => {
+        listeners.delete(cb);
+        clearInterval(botInterval);
+      };
+    },
+    updateHumanProgress: (prog, wpm, acc, wordsComp) => {
+      if (currentRoom.status !== 'in_progress') return;
+
+      currentRoom.player1.progress = Math.min(100, Math.round(prog));
+      currentRoom.player1.wpm = Math.round(wpm);
+      currentRoom.player1.accuracy = Math.round(acc);
+      currentRoom.player1.wordsCompleted = wordsComp;
+
+      if (prog >= 100 && currentRoom.status === 'in_progress') {
+        currentRoom.status = 'finished';
+        currentRoom.winnerUid = humanPlayer.uid;
+        currentRoom.finishedAt = Date.now();
+        clearInterval(botInterval);
+      }
+
+      emit();
+    },
+    abandon: () => {
+      clearInterval(botInterval);
+      currentRoom.status = 'abandoned';
+      emit();
+    }
+  };
 }
+
+/**
+ * Cria uma sala local de treino contra IA (compatibilidade com ArenaModal)
+ */
+export function createLocalAiRoom(
+  humanPlayer: ArenaPlayer,
+  difficulty: ArenaAiDifficulty = 'mestre'
+): { room: ArenaRoom } {
+  const profile = AI_BOT_PROFILES[difficulty];
+  const roomId = `ai_${Date.now()}`;
+  const botPlayer: ArenaPlayer = {
+    uid: `bot_${profile.id}`,
+    name: profile.name,
+    avatar: profile.avatar,
+    isBot: true,
+    botDifficulty: difficulty,
+    ready: true,
+    progress: 0,
+    wpm: profile.targetWpm,
+    accuracy: profile.accuracy,
+    wordsCompleted: 0
+  };
+
+  const room: ArenaRoom = {
+    id: roomId,
+    roomCode: 'TREINO',
+    createdBy: humanPlayer.uid,
+    createdAt: Date.now(),
+    status: 'waiting',
+    words: generateArenaWords(),
+    player1: {
+      ...humanPlayer,
+      ready: false,
+      progress: 0,
+      wpm: 0,
+      accuracy: 100,
+      wordsCompleted: 0
+    },
+    player2: botPlayer
+  };
+
+  return { room };
+}
+
+/**
+ * Atualiza o progresso na arena (alias de compatibilidade para ArenaModal)
+ */
+export async function updatePlayerArenaProgress(
+  roomId: string,
+  playerNum: 1 | 2,
+  progress: number,
+  wpm: number,
+  accuracy: number,
+  wordsCompleted: number,
+  _isFinished?: boolean
+): Promise<void> {
+  return updateArenaProgress(roomId, playerNum, progress, wpm, accuracy, wordsCompleted);
+}
+
+/**
+ * Listener em tempo real da arena (alias de compatibilidade para ArenaModal)
+ */
+export const listenToArenaRoom = subscribeToArenaRoom;
+

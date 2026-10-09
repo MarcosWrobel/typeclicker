@@ -1,59 +1,53 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React,{ useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  Swords,
-  Trophy,
-  Users,
-  Lock,
-  Bot,
-  Zap,
-  RotateCcw,
-  Check,
-  Copy,
-  Clock,
-  X,
-  Sparkles,
-  Award,
-  Flame,
-  ArrowRight,
-  ShieldCheck,
-  Coins,
-  Crown,
-  Medal
+Swords,
+Trophy,
+Users,
+Lock,
+Bot,
+Zap,
+RotateCcw,
+Check,
+Copy,
+Clock,
+X,Award,ArrowRight,
+ShieldCheck,
+Coins,
+Crown,
+Medal
 } from 'lucide-react';
 import { StudentAvatarRenderer } from './vectors/StudentAvatarRenderer';
 import { User } from 'firebase/auth';
 import {
-  ArenaRoom,
-  ArenaPlayer,
-  ArenaStats,
-  ArenaAiDifficulty,
-  getArenaRank,
-  getNextArenaRank
+ArenaRoom,
+ArenaPlayer,
+ArenaStats,
+ArenaAiDifficulty,
+getArenaRank,
+getNextArenaRank
 } from '../types/arena';
 import { PlayerRank } from '../data/levels';
 import { AnimationEffectId, KeySoundThemeId } from '../types/cosmetics';
 import {
-  AI_BOT_PROFILES,
-  ARENA_WORDS_PER_MATCH,
-  createArenaRoom,
-  findOpenArenaRoom,
-  joinArenaRoomByCode,
-  setPlayerReady,
-  startArenaGame,
-  updatePlayerArenaProgress,
-  abandonArenaRoom,
-  listenToArenaRoom,
-  createLocalAiRoom
+AI_BOT_PROFILES,createArenaRoom,
+findOpenArenaRoom,
+joinArenaRoomByCode,
+setPlayerReady,
+startArenaGame,
+updatePlayerArenaProgress,
+abandonArenaRoom,
+listenToArenaRoom,
+createLocalAiRoom
 } from '../services/arenaService';
 import { sound } from '../utils/audio';
 import { triggerLevelUpCelebrationVfx } from '../services/fxEngine';
 import { formatTime } from '../utils/formatting';
 import {
-  resolveDeadKey,
-  combineAccent,
-  isAccentKey,
-  getAccentDisplayName
+resolveDeadKey,
+combineAccent,
+isAccentKey,
+getAccentDisplayName
 } from '../utils/keyboardAccents';
 import { CapsLockWarning } from './common/CapsLockWarning';
 import { checkCaseMismatch } from '../utils/keyboardCase';

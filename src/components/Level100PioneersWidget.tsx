@@ -1,4 +1,4 @@
-import { Trophy, Crown, Sparkles, Lock, ExternalLink, Calendar, Users, ShieldCheck, Star, Medal } from 'lucide-react';
+import { Crown, Sparkles, Lock, Calendar, Star, Medal } from 'lucide-react';
 import { StudentAvatarRenderer } from './vectors/StudentAvatarRenderer';
 import { Level100PioneerSlot } from '../types/leaderboard';
 

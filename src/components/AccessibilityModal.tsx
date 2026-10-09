@@ -1,22 +1,22 @@
-import React, { useEffect } from 'react';
+import React,{ useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Eye,
-  X,
-  Type,
-  Maximize,
-  Sun,
-  MousePointer,
-  RotateCcw,
-  Sparkles,
-  Check,
-  Activity
+Eye,
+X,
+Type,
+Maximize,
+Sun,
+MousePointer,
+RotateCcw,
+Sparkles,
+Check,
+Activity
 } from 'lucide-react';
 import {
-  AccessibilitySettings,
-  TextScale,
-  UiScale,
-  ContrastTheme
+AccessibilitySettings,
+TextScale,
+UiScale,
+ContrastTheme
 } from '../types';
 import { DEFAULT_ACCESSIBILITY } from '../utils/storage';
 import { sound } from '../utils/audio';

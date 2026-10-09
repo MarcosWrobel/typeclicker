@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react';
+import React,{ useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Crown, Sparkles, Trophy, Award, CheckCircle2, Medal } from 'lucide-react';
+import { Crown, Sparkles, Trophy, Medal } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { sound } from '../utils/audio';
 import { StudentAvatarRenderer } from './vectors/StudentAvatarRenderer';

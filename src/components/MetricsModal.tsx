@@ -1,27 +1,24 @@
-import React, { useState, useEffect } from 'react';
+import React,{ useState, useEffect } from 'react';
 import {
-  X,
-  Award,
-  Zap,
-  Clock,
-  Target,
-  FileText,
-  Copy,
-  Check,
-  User,
-  School
+X,
+Award,
+Zap,
+Clock,
+Target,
+FileText,
+Copy,
+Check
 } from 'lucide-react';
 import { StudentAvatarRenderer } from './vectors/StudentAvatarRenderer';
 import { GameState } from '../types';
 import {
-  calculatePPM,
-  calculateAccuracy,
-  formatBytes,
-  formatNumber,
-  formatTime,
-  calculatePlayerRank
+calculatePPM,
+calculateAccuracy,
+formatBytes,
+formatNumber,
+formatTime,
+calculatePlayerRank
 } from '../utils/formatting';
-import { exportSaveToFile } from '../utils/storage';
 import { WORD_CATEGORIES } from '../data/words';
 import { identificarTeclasFracas } from '../services/adaptiveDrillEngine';
 

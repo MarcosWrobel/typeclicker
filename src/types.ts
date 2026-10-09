@@ -1,8 +1,6 @@
 import { PlayerCosmetics } from './types/cosmetics';
 import { ArenaStats } from './types/arena';
-import { AchievementDef, AchievementReward, AchievementCategory, AchievementContext } from './types/achievements';
 import { QuestsState } from './types/quests';
-import { ClassroomRace, ClassroomRaceFinisher } from './types/race';
 import { RpgClassType } from './types/rpgClass';
 import { ArcadeMatchRecord, LogicStats, MathStats, SyntaxStats } from './types/gamePlugin';
 
@@ -118,6 +116,8 @@ export interface GameState {
   // Travas escolares gerenciadas pelo professor
   isClassLocked?: boolean;
   isRpgClassLocked?: boolean;
+  // Concessões de teste aplicadas (audit trail local para evitar concessão duplicada)
+  claimedGrantIds?: string[];
   // Novos campos opcionais com retrocompatibilidade garantida
   schemaVersion?: number;
   flaggedForReview?: boolean;

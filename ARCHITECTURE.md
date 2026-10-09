@@ -14,15 +14,16 @@
   - **Injeção Dinâmica de Variáveis de Runtime**: O Vite compila variáveis de build (`import.meta.env`), mas em contêineres de produção (Cloud Run / AI Studio Secrets), as variáveis existem apenas em `process.env` no Node. O `server.ts` injeta `window.__APP_ENV__` diretamente no `<head>` do `dist/index.html` a cada requisição, garantindo sincronia imediata entre as credenciais do contêiner e o frontend sem necessidade de rebuild.
   - **Camada de Resiliência Tripla (Supabase Env)**: O cliente Supabase (`supabaseClient.ts`) e o `dbFactory.ts` resolvem as credenciais na ordem: (1) `window.__APP_ENV__` (runtime Cloud Run), (2) `import.meta.env` (build Vite), (3) arquivo `supabase-applet-config.json` na raiz. Há suporte tolerante a nomes legados ou desvios de digitação comuns como `VITA_SUPABASE_URL` e `SUPABASE_URL`.
 - **Domínio de produção**: `typeclicker-leopoldina.ai.studio`.
-- **Camada de Banco de Dados Agnóstica**: Interface `IDatabaseService` com chaveamento dinâmico via `VITE_DB_PROVIDER` (`supabase` ou `firestore`). Se credenciais do Supabase forem detectadas, ele se auto-ativa por padrão.
-  - **Provedor Oficial Primário (Supabase)**: PostgreSQL hospedado com RLS (Row Level Security), índices B-Tree otimizados e Stored Procedures atômicas. Todos os 161 perfis e saves foram migrados com sucesso para esta base.
-  - **Provedor Legado de Contingência (Firestore - Obsoleto)**: `FirebaseAdapter` preservado estritamente para rollback emergencial via `VITE_DB_PROVIDER="firestore"`. Não recebe novas implementações nem regras de negócio.
+- **Camada de Banco de Dados Oficial**: Supabase (PostgreSQL 15+) gerenciado via `SupabaseAdapter`. O `FirebaseAdapter` e o banco Firestore foram 100% desativados e expurgados do fluxo de dados da aplicação.
+  - **Provedor Exclusivo (Supabase)**: PostgreSQL hospedado com RLS (Row Level Security), índices B-Tree otimizados e Stored Procedures atômicas. Todos os perfis, saves, cosméticos, conquistas, temporadas, configurações pedagógicas e salas multiplayer residem nesta base.
 - **Identidade e Auth Híbrida**: Firebase Auth (Google Sign-In via `signInWithPopup` + `GoogleAuthProvider`) para e-mails institucionais (`@escola.pr.gov.br`). O UID do Google é a chave primária `TEXT` no Supabase (`profiles.id`).
 - **Arquitetura de Dados no Supabase**:
   - `public.profiles`: Colunas relacionais indexadas (`id`, `display_name`, `turma`, `role`, `bytes`, `total_bytes_earned`, `level`, tokens).
   - `public.game_progress`: Tabela por jogo (`user_id`, `game_id`, `high_score`, `metrics`, `state_payload JSONB`).
   - `public.user_cosmetics`: Relação de itens e cosméticos desbloqueados (`user_id`, `item_id`, `item_category`).
   - `public.user_achievements`: Histórico relacional de conquistas (`user_id`, `achievement_id`).
+  - `public.system_settings`: Configurações globais de laboratório, travas de aula, textos curriculares e auditoria pedagógica.
+  - `public.arena_rooms`: Salas multiplayer em tempo real (Duelo 1v1, Corrida da Turma e Raid Coletiva) integradas ao Supabase Realtime.
 - **Regras de Leitura e Tráfego (Capacidade: 35–90 máquinas de laboratório)**:
   - **HTTP REST (PostgREST)**: Placares, pódios e perfil utilizam consultas REST com cache local de 30s–60s e singleflight promise deduplication. Ilimitado no tier gratuito.
   - **Supabase Realtime (WebSockets)**: Reservado **exclusivamente sob demanda** para disputas síncronas (Corrida e Raid), preservando a cota mensal de 2M mensagens e as 200 conexões simultâneas do tier gratuito.
@@ -56,7 +57,9 @@ O hub (`GameSelectionScreen`) exibe cards de jogos consumindo os metadados do `g
 |---|---|---|
 | `'typeclicker'` | `TypingArena` | estado direto no `GameState` |
 | `'type_radar'` | `TypeRadarGame` | `onExitToHub(bytes, endStats)` — legado, migração pendente |
-| `'byte_logic'` | a implementar pelo professor | `BaseGameProps.onExitToHub(payload)` |
+| `'scratchbot'` | `ScratchBotGame` (substituiu `byte_logic`) | `BaseGameProps.onExitToHub(payload)` |
+| `'typerdash'` | `TyperDashGame` | `BaseGameProps.onExitToHub(payload)` |
+| `'progplay'` | `src/plugins/progplay` (aluno) | `BaseGameProps.onExitToHub(payload)` |
 | `'math_storm'` | a implementar pelo professor | `BaseGameProps.onExitToHub(payload)` |
 | `'syntax_maze'` | a implementar pelo professor | `BaseGameProps.onExitToHub(payload)` |
 | `'<id_aluno>'` | `src/plugins/<nome>` (entregue pelo aluno) | `BaseGameProps.onExitToHub(payload)` |
@@ -199,3 +202,11 @@ Para garantir que a experiência de jogo atinja 60 a 144 FPS consistentes mesmo 
 | **Auditoria & Sanitização de Bypasses** | `5f1213c` | `App.tsx`, `AdminPanel.tsx`, `adapters/*`, `dbInterface.ts`, `leaderboardUtils.ts` | • Eliminados 14 pontos de bypass onde `saveProgressToCloud` burlava o provedor ativo;<br>• Todas as gravações de estado redirecionadas para `dbService.saveLegacyGameState`;<br>• Extensão de `IDatabaseService` com 5 operações administrativas implementadas no `SupabaseAdapter` e `FirebaseAdapter`;<br>• Extração de utilitários puros para `leaderboardUtils.ts` e desacoplamento de 8 componentes visuais/hooks de `firebaseService`. |
 | **Temporadas Trimestrais & Hall da Fama** | `2924470` | `LeaderboardModal.tsx`, `AdminPanel.tsx`, `schema.sql`, `supabaseAdapter.ts` | • Ciclo trimestral alinhado ao calendário SEED-PR;<br>• Seletor "3º Trimestre (Atual) \| Todos os Tempos \| Hall da Fama";<br>• Pódio comemorativo e memorial histórico Top 3;<br>• Fechamento seguro de temporada no painel docente com confirmação digitada (`"CONFIRMAR"`). |
 | **Migração Baseline v1.0.0** | `5b4aaa5` | Core Platform | • Baseline de referência estável da plataforma com arquitetura original Cloud Firestore. |
+
+## Modelo de Identidade e Segurança de Dados (auditoria 06/10/2026)
+
+- **Fonte oficial:** Supabase (PostgreSQL). O `FirebaseAdapter` foi eliminado na Fase A; `dbFactory.ts` instancia exclusivamente o `SupabaseAdapter`.
+- **Identidade no Postgres:** Firebase JWT via Supabase Third-Party Auth. `public.fb_uid()` devolve o `sub`; `public.is_staff()` consulta `public.staff_users` (tabela sem acesso via API). Cliente: `supabaseClient.ts` envia o ID token somente com `VITE_SUPABASE_FIREBASE_AUTH=true`.
+- **Autoridade de admin/professor:** `firestore.rules` e `server.ts` (token verificado) para Firestore/API; `staff_users` para Postgres. Checagens no cliente (`isSuperAdminEmail`, `isStaffMember`) servem apenas à UI.
+- **Escrita sensível** (`role`, temporada, créditos de bytes) passa por trigger/RPC com validação do chamador, nunca por `update` direto do cliente.
+- **Pendências conhecidas:** execução de código de aluno do ProgPlay (`new Function`) deve migrar para Web Worker/iframe sandbox; `/system/settings` ainda é legível por qualquer usuário logado (mover `pendingTestGrants`/`testerEmails`); resgate de concessões de teste ainda ocorre no cliente.

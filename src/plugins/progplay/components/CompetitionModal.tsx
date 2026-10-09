@@ -1,39 +1,32 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Swords, 
-  X, 
-  Copy, 
-  Check, 
-  Users, 
-  Trophy, 
-  Sparkles, 
-  ArrowRight, 
-  Flame, 
-  Clock, 
-  CheckCircle2, 
-  XCircle,
-  HelpCircle,
-  Loader2,
-  RefreshCw,
-  Zap,
-  Snowflake,
-  Shield,
-  CloudFog,
-  Split,
-  Crown,
-  AlertTriangle
+import React,{ useState, useEffect } from 'react';
+import {
+Swords,
+X,
+Copy,
+Check,
+Users,Sparkles,
+ArrowRight,
+Flame,CheckCircle2,
+XCircle,Loader2,
+RefreshCw,
+Zap,
+Snowflake,
+Shield,
+CloudFog,
+Split,
+Crown
 } from 'lucide-react';
-import { 
-  CompetitionRoom, 
-  createCompetitionRoom, 
-  createBotCompetitionRoom,
-  joinCompetitionRoom, 
-  subscribeToCompetitionRoom, 
-  submitCompetitionAnswer, 
-  advancePlayerQuestion,
-  useCompetitionPower,
-  fetchOpenCompetitionRooms,
-  DuelUser
+import {
+CompetitionRoom,
+createCompetitionRoom,
+createBotCompetitionRoom,
+joinCompetitionRoom,
+subscribeToCompetitionRoom,
+submitCompetitionAnswer,
+advancePlayerQuestion,
+useCompetitionPower,
+fetchOpenCompetitionRooms,
+DuelUser
 } from '../services/progplayDuelService';
 import { sounds } from '../utils/sound';
 

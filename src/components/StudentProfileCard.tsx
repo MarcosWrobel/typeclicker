@@ -1,5 +1,5 @@
 import React from 'react';
-import { Trophy, Zap, Flame, Database, Swords, Flag, Target, Award, Sparkles, Crown, Shield } from 'lucide-react';
+import { Trophy, Zap, Flame, Swords, Flag, Target, Award, Sparkles, Crown } from 'lucide-react';
 import { LeaderboardEntry } from '../types/leaderboard';
 import { GameState } from '../types';
 import { CARD_FRAME_CONFIGS, CardFrameId } from '../types/cardFrames';

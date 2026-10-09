@@ -279,9 +279,11 @@ Você entrega o arquivo `index.tsx` finalizado. O professor faz as seguintes alt
 export type GameId =
   | 'typeclicker'
   | 'type_radar'
-  | 'byte_logic'
-  | 'math_storm'
-  | 'syntax_maze'
+  | 'typerdash'
+  | 'progplay'
+  | 'scratchbot'
+  | 'math_storm'   // reservado (futuro)
+  | 'syntax_maze'  // reservado (futuro)
   | 'nome_do_seu_jogo'; // ← professor adiciona aqui
 ```
 

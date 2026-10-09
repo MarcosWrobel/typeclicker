@@ -90,13 +90,33 @@ service cloud.firestore {
 
     match /arena_rooms/{roomId} {
       allow read: if isSignedIn();
-      allow create, delete: if isAdmin() || isTeacher();
+      allow create: if isSignedIn() && (
+        isAdmin() ||
+        isTeacher() ||
+        (roomId != 'active_classroom_raid' && roomId != 'active_classroom_race' && incoming().createdBy == request.auth.uid)
+      );
+      allow delete: if isSignedIn() && (
+        isAdmin() ||
+        isTeacher() ||
+        (resource != null && resource.data.createdBy == request.auth.uid)
+      );
       allow update: if isSignedIn() && (
         isAdmin() ||
         isTeacher() ||
-        (roomId == 'active_classroom_raid' && incoming().diff(resource.data).affectedKeys().hasOnly(['currentHp', 'participants', 'status'])) ||
-        (roomId == 'active_classroom_race' && incoming().diff(resource.data).affectedKeys().hasOnly(['participants', 'finishers', 'winner'])) ||
-        (roomId != 'active_classroom_raid' && roomId != 'active_classroom_race')
+        (roomId == 'active_classroom_raid' && incoming().diff(resource.data).affectedKeys().hasOnly(['currentHp', 'totalDamageDealt', 'participants', 'status', 'mvp'])) ||
+        (roomId == 'active_classroom_race' && incoming().diff(resource.data).affectedKeys().hasOnly(['participants', 'finishers', 'winner', 'status'])) ||
+        (roomId != 'active_classroom_raid' && roomId != 'active_classroom_race' && (
+          // Criador da sala
+          resource.data.get('createdBy', '') == request.auth.uid ||
+          // Desafiante já registrado
+          (resource.data.get('player2', null) != null && resource.data.player2.uid == request.auth.uid) ||
+          // Entrando na vaga livre: só pode alterar player2 e se registrar com o próprio uid
+          (resource.data.get('player2', null) == null &&
+           incoming().get('player2', null) != null &&
+           incoming().player2.uid == request.auth.uid &&
+           incoming().diff(resource.data).affectedKeys().hasOnly(['player2']))
+        ))
+
       );
     }
 

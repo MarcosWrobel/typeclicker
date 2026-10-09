@@ -1,22 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React,{ useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  Scroll,
-  Calendar,
-  Clock,
-  CheckCircle2,
-  Sparkles,
-  Coins,
-  Layers,
-  X,
-  Trophy,
-  Swords
+Scroll,Clock,
+CheckCircle2,
+Sparkles,
+Coins,
+Layers,
+X,
+Trophy,
+Swords
 } from 'lucide-react';
 import { GameState } from '../types';
 import {
-  WEEKLY_QUEST_CATALOG,
-  getMsUntilNextWeeklyReset,
-  syncQuestsState
+WEEKLY_QUEST_CATALOG,
+getMsUntilNextWeeklyReset,
+syncQuestsState
 } from '../services/questsEngine';
 import { formatBytes } from '../utils/formatting';
 import { sound } from '../utils/audio';

@@ -1,16 +1,16 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React,{ useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  Trophy,
-  Timer,
-  Zap,
-  CheckCircle2,
-  X,
-  Sparkles,
-  Flag,
-  Rocket,
-  Medal,
-  Keyboard
+Trophy,
+Timer,
+Zap,
+CheckCircle2,
+X,
+Sparkles,
+Flag,
+Rocket,
+Medal,
+Keyboard
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { sound } from '../utils/audio';

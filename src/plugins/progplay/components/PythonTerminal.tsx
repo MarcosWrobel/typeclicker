@@ -1,13 +1,10 @@
-import React, { useState, useRef, useEffect, KeyboardEvent } from 'react';
-import { 
-  Terminal as TerminalIcon, 
-  Trash2, 
-  RotateCcw, 
-  Play, 
-  Sparkles, 
-  HelpCircle,
-  Copy,
-  Check
+import React,{ useState, useRef, useEffect, KeyboardEvent } from 'react';
+import {
+Terminal as TerminalIcon,
+Trash2,
+RotateCcw,
+Play,
+Sparkles
 } from 'lucide-react';
 import { pythonRunner, PythonExecutionResult } from '../utils/pythonRunner';
 

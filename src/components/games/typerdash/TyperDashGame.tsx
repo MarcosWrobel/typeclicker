@@ -1,25 +1,23 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React,{ useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import confetti from 'canvas-confetti';
-import { 
-  Play, 
-  RotateCcw, 
-  Volume2, 
-  VolumeX, 
-  Pause, 
-  Shield, 
-  Crosshair, 
-  Zap, 
-  Trophy, 
-  ArrowLeft,
-  Flame,
-  Award,
-  Check,
-  Sparkles,
-  Flag,
-  Target,
-  Gamepad2,
-  Timer
+import {
+Play,
+RotateCcw,
+Volume2,
+VolumeX,
+Pause,
+Shield,
+Crosshair,
+Zap,
+Trophy,
+ArrowLeft,
+Flame,
+Award,
+Check,
+Sparkles,
+Flag,
+Target,Timer
 } from 'lucide-react';
 import { GamePluginProps, GameExitPayload } from '../../../types/gamePlugin';
 import { BytezinhoSkinId } from '../../../types/cosmetics';
@@ -28,15 +26,15 @@ import { LeaderboardMetric } from '../../LeaderboardModal';
 import { BYTEZINHO_SKINS } from '../../../constants/themes';
 import { BytezinhoAvatar } from '../../BytezinhoAvatar';
 import { typerDashAudio, TyperDashMusicStage } from './typerDashAudio';
-import { 
-  TyperDashCanvas, 
-  renderTyperDash,
-  DashCubeState, 
-  DashObstacle, 
-  DashParticle, 
-  DashFloatingText,
-  DashGhostTrail,
-  DashDenshaPopup
+import {
+TyperDashCanvas,
+renderTyperDash,
+DashCubeState,
+DashObstacle,
+DashParticle,
+DashFloatingText,
+DashGhostTrail,
+DashDenshaPopup
 } from './TyperDashCanvas';
 
 // Teclas Pedagógicas: Mão Esquerda (Solo/Espinhos)

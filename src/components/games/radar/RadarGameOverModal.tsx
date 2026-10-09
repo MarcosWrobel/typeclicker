@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Trophy, RefreshCw, LayoutGrid, Zap, Target, Award, AlertTriangle, Rocket, Settings } from 'lucide-react';
+import { Trophy, RefreshCw, LayoutGrid, AlertTriangle, Rocket, Settings } from 'lucide-react';
 import { formatBytes } from '../../../utils/formatting';
 import { NukeIcon } from './RadarIcons';
 

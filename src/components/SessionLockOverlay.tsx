@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React,{ useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Lock, LogOut, Key, ArrowLeft, School, Target } from 'lucide-react';
 import { getSystemSettings, logoutUser } from '../services/firebaseService';

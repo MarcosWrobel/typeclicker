@@ -1,15 +1,13 @@
 import { GameState, KeyTelemetry } from '../types';
 import {
-  QuestsState,
-  WeeklyQuestDef,
-  WeeklyQuestProgress,
-  QuestEvent,
-  QuestReward,
-  RpgFloorData,
-  RpgBoss,
-  DungeonState,
-  DungeonEquipment,
-  DungeonPerks
+QuestsState,
+WeeklyQuestDef,
+WeeklyQuestProgress,
+QuestEvent,
+QuestReward,
+RpgFloorData,DungeonState,
+DungeonEquipment,
+DungeonPerks
 } from '../types/quests';
 import { RPG_BOSSES, RPG_BASE_CHAPTERS, ADAPTIVE_RPG_LORE } from '../data/rpgChronicles';
 import { identificarTeclasFracas } from './adaptiveDrillEngine';

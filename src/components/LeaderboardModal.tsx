@@ -1,29 +1,27 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React,{ useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  X,
-  Trophy,
-  Loader2,
-  Users,
-  Search,
-  Filter,
-  GraduationCap,
-  Flag,
-  Zap,
-  Flame,
-  Swords,
-  Database,
-  Shield,
-  Award,
-  Star,
-  Medal,
-  Radio,
-  Globe,
-  Landmark,
-  Sparkles,
-  Calendar,
-  Crown,
-  TrendingUp
+X,
+Trophy,
+Loader2,
+Users,
+Search,
+Filter,
+GraduationCap,
+Flag,
+Zap,
+Flame,
+Swords,
+Database,
+Shield,Star,
+Medal,
+Radio,
+Globe,
+Landmark,
+Sparkles,
+Calendar,
+Crown,
+TrendingUp
 } from 'lucide-react';
 import { LeaderboardEntry, SeasonHistoryEntry } from '../types/leaderboard';
 import { isStaffMember, extractLevel100Pioneers } from '../utils/leaderboardUtils';
@@ -34,17 +32,14 @@ import { formatBytes } from '../utils/formatting';
 import { StudentAvatarRenderer } from './vectors/StudentAvatarRenderer';
 import { ALL_LEVELS } from '../data/levels';
 import {
-  SERIES_CONFIG,
-  SerieId,
-  getSerieIdFromTurma,
-  getSerieLabelFromTurma,
-  SCHOOL_CLASSES_CONFIG
+SERIES_CONFIG,
+SerieId,
+getSerieIdFromTurma,
+getSerieLabelFromTurma
 } from '../constants/school';
 import {
-  aggregateClassStats,
-  sortClassStats,
-  ClassStats,
-  ClassRankingSortMetric
+aggregateClassStats,
+sortClassStats,ClassRankingSortMetric
 } from '../utils/turmasAggregator';
 
 export type LeaderboardMetric = 'level' | 'wpm' | 'combo' | 'bytes' | 'radar' | 'pvp' | 'races' | 'dash';

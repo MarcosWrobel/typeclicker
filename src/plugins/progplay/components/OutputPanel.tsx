@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
-import { 
-  Terminal as TerminalIcon, 
-  AlertCircle, 
-  Trash2, 
-  X, 
-  Maximize2, 
-  Minimize2,
-  CheckCircle2
+import React,{ useState } from 'react';
+import {
+Terminal as TerminalIcon,
+AlertCircle,
+Trash2,
+X,
+Maximize2,
+Minimize2,
+CheckCircle2
 } from 'lucide-react';
 import { EditorSettings } from '../types';
 import { THEMES } from '../constants/themes';

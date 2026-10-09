@@ -4,6 +4,7 @@ export interface AppRuntimeEnv {
   VITE_SUPABASE_URL?: string;
   VITE_SUPABASE_ANON_KEY?: string;
   VITE_DB_PROVIDER?: string;
+  VITE_SUPABASE_FIREBASE_AUTH?: string;
 }
 
 declare global {
@@ -37,8 +38,26 @@ export const isSupabaseConfigured: boolean = Boolean(
   !supabaseUrl.includes('placeholder')
 );
 
+/**
+ * Quando true, envia o ID token do Firebase ao PostgREST (Supabase Third-Party Auth: Firebase),
+ * dando identidade ao Postgres para as policies RLS (`auth.jwt()->>'sub'`).
+ * Só habilitar depois de configurar o provedor no painel do Supabase e aplicar
+ * `supabase/migrations/secure_rls_firebase_jwt.sql`; caso contrário o token é rejeitado.
+ */
+export const useFirebaseJwtForSupabase: boolean =
+  resolveEnvVar('VITE_SUPABASE_FIREBASE_AUTH').toLowerCase() === 'true';
+
 // Fallback seguro para evitar exceção síncrona no carregamento do módulo caso as variáveis não estejam definidas
 export const supabase: SupabaseClient = createClient(
   isSupabaseConfigured ? supabaseUrl : 'https://placeholder.supabase.co',
-  isSupabaseConfigured ? supabaseKey : 'placeholder-anon-key'
+  isSupabaseConfigured ? supabaseKey : 'placeholder-anon-key',
+  useFirebaseJwtForSupabase
+    ? {
+        // import dinâmico evita dependência circular com firebaseService
+        accessToken: async () => {
+          const { auth } = await import('./firebaseService');
+          return (await auth.currentUser?.getIdToken()) ?? null;
+        }
+      }
+    : undefined
 );

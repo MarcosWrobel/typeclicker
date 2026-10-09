@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { GraduationCap, X, Laptop, Keyboard, Save, HelpCircle } from 'lucide-react';
+import React,{ useEffect } from 'react';
+import { GraduationCap, X, Laptop, Keyboard, HelpCircle } from 'lucide-react';
 
 interface HelpModalProps {
   isOpen: boolean;

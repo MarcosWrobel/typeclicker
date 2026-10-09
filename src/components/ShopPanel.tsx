@@ -1,19 +1,19 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React,{ useState, useEffect, useRef, useCallback } from 'react';
 import {
-  Keyboard,
-  Zap,
-  Sparkles,
-  Cpu,
-  Terminal,
-  Bot,
-  Server,
-  HardDrive,
-  Activity,
-  Layers,
-  RotateCcw,
-  HandMetal,
-  ShoppingBag,
-  Coins
+Keyboard,
+Zap,
+Sparkles,
+Cpu,
+Terminal,
+Bot,
+Server,
+HardDrive,
+Activity,
+Layers,
+RotateCcw,
+HandMetal,
+ShoppingBag,
+Coins
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { GameState, UpgradeDef } from '../types';

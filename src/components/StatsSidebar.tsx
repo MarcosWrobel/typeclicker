@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React,{ useMemo } from 'react';
 import { Cpu, Trophy, ChevronRight, Users, Shield, Crown, GraduationCap, Medal, Sparkles, Coins } from 'lucide-react';
 import { StudentAvatarRenderer } from './vectors/StudentAvatarRenderer';
 import { RpgClassIcon } from './vectors/rpg/RpgClassIcon';

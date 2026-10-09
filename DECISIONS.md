@@ -104,3 +104,26 @@
 ## Bugs / Débitos Técnicos
 - O Baú Criptográfico escrevia num campo fantasma `hackTokens`. Substituído por `cosmetics.levelTokens`.
 - `TypeRadarGame` ainda usa o contrato antigo e precisa ser migrado para `GameExitPayload`.
+
+## Auditoria de Segurança de 06/10/2026
+- **Supabase RLS aberto foi rejeitado**: a migração `fix_rls_for_hybrid_auth.sql` (policies `user_id IS NOT NULL` + `GRANT` a `anon`) permitia que qualquer portador da chave pública alterasse bytes/`role` e apagasse dados. Foi removida e substituída por `secure_rls_firebase_jwt.sql`, baseada em **Third-Party Auth (Firebase)**; alternativa descartada por ora: escrita via `service_role` no `server.ts`.
+- **Ativação desacoplada do deploy**: o front só envia o token do Firebase com `VITE_SUPABASE_FIREBASE_AUTH=true`, evitando quebra do app antes da configuração no painel.
+- **RPCs `SECURITY DEFINER`** validam o chamador (`fb_uid()`/`is_staff()`), fixam `search_path` e têm `EXECUTE` revogado de `anon`.
+- **"Modo ADM local" removido**: privilégios de UI nunca derivam de `localStorage`. Admin = e-mail verificado, sem diferenciar maiúsculas, em fonte única (`isSuperAdminEmail`).
+- **Arenas 1x1**: `update` restrito a criador, desafiante ou entrada na vaga livre (apenas `player2`).
+- **Sem CSP por ora**: um CSP estrito exige mapear Monaco, Firebase e Supabase e pode quebrar o ProgPlay; registrado no backlog.
+- **`previewSnippet` do ProgPlay** (`dangerouslySetInnerHTML`) vem de dados estáticos do repositório, não de entrada do aluno; risco baixo, mantido. O `new Function` no Playground permanece como risco pendente.
+- **ByteQuest** mantido como trabalho em andamento fora do catálogo (não removido).
+
+## Eliminação do FirebaseAdapter e Contingência Legada de Saves (Fase A - 06/10/2026)
+- **Supabase como Provedor Único de Persistência (`dbFactory.ts`)**: O `FirebaseAdapter` foi descontinuado e completamente removido da árvore de código. O `dbService` agora instancia exclusivamente o `SupabaseAdapter`.
+- **Expurgo do Código Legado do Firestore**: Foram removidas mais de 1.300 linhas de código inativo em `firebaseService.ts` correspondentes a coleções legadas que já migraram para o PostgreSQL do Supabase (`saves`, `leaderboard`, `backups` legados, migração antiga de schemas).
+- **Desacoplamento de Serviços**: `raceService.ts` foi atualizado para consumir diretamente `dbService.getGlobalLeaderboard(false)`, integrando as vitórias de corrida ao banco oficial do Supabase em vez de tentar ler do Firestore legado.
+
+## Migração Total de Multiplayer e Configurações para Supabase (Fase B - 06/10/2026)
+- **Fim da Dependência do Firestore para Dados e Realtime**: O banco Firestore foi **100% desativado** na aplicação. Não há mais leituras, gravações ou listeners no Firestore.
+- **Configurações Globais no Supabase (`system_settings`)**: Criada a tabela `public.system_settings` no PostgreSQL com RLS protegida (leitura pública para alunos/professores, gravação restrita a `is_staff()`) e canal WebSockets `system_settings_realtime` para atualização instantânea de códigos de aula, textos curriculares e travas de laboratório. O serviço `src/services/systemSettingsService.ts` substituiu integralmente os acessos legados.
+- **Salas Multiplayer no Supabase (`arena_rooms`)**: Criada a tabela `public.arena_rooms` no PostgreSQL com publicação em `supabase_realtime` para sincronização em tempo real de Duelos 1v1 (`arenaService.ts`), Raids Coletivas (`raidService.ts`) e Corridas da Turma (`raceService.ts`), com RLS granular.
+- **Expurgo do SDK Firebase Admin e Cloud Monitoring**: Removidas as dependências `@google-cloud/monitoring` e `firebase-admin` do `package.json` e do `server.ts`. O endpoint `/api/admin/firestore-metrics` foi descontinuado, já que o monitoramento do painel administrativo é 100% nativo do PostgreSQL via `supabaseMetricsService.ts`.
+- **Papel Remanescente do Firebase**: O Firebase SDK client-side (`firebase/auth`) permanece estritamente como **provedor de identidade (Firebase Auth)** para viabilizar o login institucional do Google (`@escola.pr.gov.br`) sem necessidade de retrabalho na federação de identidade.
+

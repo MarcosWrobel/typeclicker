@@ -9,7 +9,7 @@
  * Regra de Ouro: nenhuma função deste módulo chama o Firestore.
  */
 
-import type { LeaderboardEntry } from './firebaseService';
+import type { LeaderboardEntry } from '../types/leaderboard';
 
 // ─────────────────────────────────────────────────────────────
 // Tipos de saída

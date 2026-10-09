@@ -81,7 +81,9 @@ async function loadData(): Promise<LoadedData> {
 
   // Modo B: Conexão direta ao Firestore via Firebase Admin SDK
   console.log('📥 Conectando ao Cloud Firestore via Firebase Admin SDK...');
+  // @ts-ignore
   const { initializeApp, getApps } = await import('firebase-admin/app');
+  // @ts-ignore
   const { getFirestore } = await import('firebase-admin/firestore');
 
   let firebaseConfig: any = {};

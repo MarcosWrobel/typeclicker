@@ -1,28 +1,25 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Lock, 
-  Unlock, 
-  ArrowRight, 
-  RotateCcw, 
-  Volume2, 
-  VolumeX, 
-  Sparkles, 
-  Trophy, 
-  CheckCircle2, 
-  AlertCircle,
-  Lightbulb,
-  ChevronDown,
-  ChevronUp,
-  Layout,
-  Globe,
-  DoorOpen,
-  Monitor,
-  Smartphone,
-  Tablet,
-  RefreshCw,
-  Terminal,
-  Database,
-  ExternalLink
+import React,{ useState, useEffect } from 'react';
+import {
+Lock,
+Unlock,
+ArrowRight,
+RotateCcw,
+Volume2,
+VolumeX,
+Sparkles,
+Trophy,
+CheckCircle2,
+AlertCircle,
+Lightbulb,
+ChevronDown,
+ChevronUp,
+Layout,
+Globe,
+DoorOpen,
+Monitor,
+Smartphone,
+Tablet,Terminal,
+Database
 } from 'lucide-react';
 import { GameLevel } from '../constants/levels';
 import { sounds } from '../utils/sound';

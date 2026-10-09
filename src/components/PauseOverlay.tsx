@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Pause, Play, Shield, Timer, Keyboard, ShoppingBag, Gauge, Lock, LayoutGrid } from 'lucide-react';
+import { Pause, Play, Shield, Timer, ShoppingBag, Gauge, LayoutGrid } from 'lucide-react';
 import { CategoryId } from '../types';
 import { WORD_CATEGORIES } from '../data/words';
 import { isCategoryAllowed } from '../utils/difficulty';

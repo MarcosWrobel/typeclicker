@@ -1,21 +1,21 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  Rocket, 
-  X, 
-  Shield, 
-  Cpu, 
-  Zap, 
-  BatteryCharging, 
-  Flame, 
-  Check, 
-  Sparkles,
-  RotateCcw,
-  Settings
+import {
+Rocket,
+X,
+Shield,
+Cpu,
+Zap,
+BatteryCharging,
+Flame,
+Check,
+Sparkles,
+RotateCcw,
+Settings
 } from 'lucide-react';
-import { 
-  HANGAR_UPGRADES, 
-  RadarPermanentUpgrades 
+import {
+HANGAR_UPGRADES,
+RadarPermanentUpgrades
 } from '../../../services/radarEngine';
 import { radarAudio } from '../../../services/radarAudio';
 

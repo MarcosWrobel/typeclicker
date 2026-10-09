@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React,{ useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { BytezinhoSkinId } from '../types/cosmetics';
 

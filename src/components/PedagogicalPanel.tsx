@@ -1,53 +1,53 @@
-import React, { useState, useEffect } from 'react';
+import React,{ useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  Key,
-  X,
-  Clock,
-  AlertTriangle,
-  Users,
-  Search,
-  RefreshCw,
-  BarChart,
-  Download,
-  CheckCircle2,
-  FileText,
-  Sliders,
-  Battery,
-  EyeOff,
-  Filter,
-  Swords,
-  Sparkles,
-  Flag,
-  BookOpen,
-  Flame,
-  GraduationCap,
-  Eye,
-  Trash2,
-  Plus,
-  Gamepad2,
-  Keyboard,
-  Radio,
-  Timer,
-  Trophy,
-  Rocket,
-  Medal,
-  School
+Key,
+X,
+Clock,
+AlertTriangle,
+Users,
+Search,
+RefreshCw,
+BarChart,
+Download,
+CheckCircle2,
+FileText,
+Sliders,
+Battery,
+EyeOff,
+Filter,
+Swords,
+Sparkles,
+Flag,
+BookOpen,
+Flame,
+GraduationCap,
+Eye,
+Trash2,
+Plus,
+Gamepad2,
+Keyboard,
+Radio,
+Timer,
+Trophy,
+Rocket,
+Medal,
+School
 } from 'lucide-react';
 import { dbService } from '../services/dbFactory';
 import { LeaderboardEntry } from '../types/leaderboard';
 import {
-  auth,
-  generateSessionCode,
-  clearSessionCode,
-  SystemSettings,
-  getSystemSettings,
-  updateAccessibilitySettings,
-  saveCustomCurricularText,
-  deleteCustomCurricularText,
-  updateActiveSessionTrack,
-  updateHubConfig,
-  HubConfig
+auth,
+generateSessionCode,
+clearSessionCode,
+SystemSettings,
+getSystemSettings,
+updateAccessibilitySettings,
+saveCustomCurricularText,
+deleteCustomCurricularText,
+updateActiveSessionTrack,
+updateHubConfig,
+HubConfig
 } from '../services/firebaseService';
 import { exportToCsv, downloadCsv } from '../services/turmasAggregator';
 import { CurricularTrackId, CustomCurricularText } from '../types';
@@ -55,15 +55,15 @@ import { CURRICULAR_TRACKS, getCurricularTrack, suggestTrackForTurma } from '../
 import { TrackIconRenderer } from './vectors';
 import { RpgClassType } from '../types/rpgClass';
 import {
-  launchClassroomRace,
-  cancelClassroomRace,
-  subscribeToActiveRace,
-  PRESET_RACE_TEXTS
+launchClassroomRace,
+cancelClassroomRace,
+subscribeToActiveRace,
+PRESET_RACE_TEXTS
 } from '../services/raceService';
 import {
-  launchClassroomRaid,
-  cancelClassroomRaid,
-  subscribeToActiveRaid
+launchClassroomRaid,
+cancelClassroomRaid,
+subscribeToActiveRaid
 } from '../services/raidService';
 import { ClassroomRace, PresetRaceText } from '../types/race';
 import { ClassroomRaid, PRESET_RAID_BOSSES, PresetRaidBoss } from '../types/raid';

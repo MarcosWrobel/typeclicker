@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React,{ useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Sparkles, Check, CheckCheck, Lock, Volume2, Palette, Bot, Coins, LayoutGrid, Flame, Swords, Play, Award, Database, Crown, Skull, MessageSquare, Paperclip, Disc, Film, Atom, Settings, PenTool, Heart, Moon, ShoppingBag, Music, ShoppingCart, Keyboard, Trophy, ArrowRight } from 'lucide-react';
+import { X, Sparkles, Check, CheckCheck, Lock, Volume2, Palette, Bot, Coins, LayoutGrid, Flame, Swords, Play, Database, Crown, Skull, MessageSquare, Paperclip, Disc, Film, Atom, Settings, PenTool, Heart, Moon, ShoppingBag, Music, ShoppingCart, Keyboard, Trophy, ArrowRight } from 'lucide-react';
 import { PlayerCosmetics, TerminalThemeId, BytezinhoSkinId, KeySoundThemeId, LayoutSkinId, AnimationEffectId, CosmeticCurrency } from '../types/cosmetics';
 import { TERMINAL_THEMES, BYTEZINHO_SKINS, KEY_SOUNDS } from '../constants/themes';
 import { LAYOUT_CONFIGS, ANIMATION_CONFIGS, getAllUnlockedCosmetics } from '../constants/cosmeticsCatalog';

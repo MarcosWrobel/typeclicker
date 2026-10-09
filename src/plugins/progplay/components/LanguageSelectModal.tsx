@@ -1,17 +1,15 @@
 import React from 'react';
-import { 
-  Code2, 
-  Sparkles, 
-  CheckCircle2, 
-  ArrowRight, 
-  X, 
-  Layers, 
-  FileCode, 
-  Terminal, 
-  Palette, 
-  Database,
-  Globe,
-  DoorOpen
+import {
+Code2,
+Sparkles,
+CheckCircle2,
+ArrowRight,
+X,
+Layers,
+FileCode,
+Terminal,
+Palette,
+Database,DoorOpen
 } from 'lucide-react';
 import { GAME_LANGUAGES, GameLanguageCard, GameLanguageId } from '../constants/levels';
 

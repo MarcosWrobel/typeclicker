@@ -1,5 +1,5 @@
 import { CurricularTrackId } from '../types';
-import { getRandomRadarWord, getRandomBossSequence, RADAR_COMMANDS } from '../data/radarWords';
+import { getRandomRadarWord, getRandomBossSequence } from '../data/radarWords';
 
 export type RadarEnemyType = 'scout' | 'drone' | 'tank' | 'glitch' | 'boss';
 

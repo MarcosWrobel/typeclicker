@@ -3,8 +3,8 @@ export type ArenaRoomStatus = 'waiting' | 'countdown' | 'in_progress' | 'finishe
 export interface ArenaPlayer {
   uid: string;
   name: string;
-  nickname: string;
-  turma: string;
+  nickname?: string;
+  turma?: string;
   avatar: string;
   ready: boolean;
   progress: number; // 0 a 100%
@@ -13,6 +13,7 @@ export interface ArenaPlayer {
   wordsCompleted: number;
   finishedAt?: number;
   isBot?: boolean;
+  botDifficulty?: ArenaAiDifficulty;
 }
 
 export interface ArenaRoom {
@@ -27,6 +28,7 @@ export interface ArenaRoom {
   player1: ArenaPlayer;
   player2?: ArenaPlayer;
   winnerUid?: string | 'draw';
+  finishedAt?: number;
 }
 
 export interface ArenaStats {

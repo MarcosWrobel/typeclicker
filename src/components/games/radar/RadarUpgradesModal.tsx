@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sparkles, ArrowRight, ShieldCheck, Zap } from 'lucide-react';
+import { Sparkles, ArrowRight } from 'lucide-react';
 import { RadarUpgrade } from '../../../services/radarEngine';
 import { radarAudio } from '../../../services/radarAudio';
 import { HexBadge, getRadarIcon } from './RadarIcons';

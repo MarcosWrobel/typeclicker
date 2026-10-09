@@ -1,16 +1,16 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { 
-  Bot, 
-  Send, 
-  Sparkles, 
-  ChevronRight, 
-  ChevronLeft, 
-  CheckCircle2, 
-  HelpCircle, 
-  Lightbulb,
-  X,
-  BookOpen,
-  Loader2
+import React,{ useState, useRef, useEffect } from 'react';
+import {
+Bot,
+Send,
+Sparkles,
+ChevronRight,
+ChevronLeft,
+CheckCircle2,
+HelpCircle,
+Lightbulb,
+X,
+BookOpen,
+Loader2
 } from 'lucide-react';
 import { AiGeneratedCourse, AiGeneratedModule } from './AiCourseModal';
 import { sounds } from '../utils/sound';

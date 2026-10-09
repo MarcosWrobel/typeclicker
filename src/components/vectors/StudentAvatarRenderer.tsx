@@ -1,24 +1,24 @@
 import React from 'react';
 import {
-  TuxVector,
-  RobotVector,
-  NinjaVector,
-  GamerVector,
-  LightningVector,
-  CatCoderVector,
-  FoxVector,
-  RocketVector,
-  WizardVector,
-  LionTechVector,
-  PixelAlienVector,
-  CyberDragonVector,
-  PandaVector,
-  TigerVector,
-  TRexVector,
-  UnicornVector,
-  DevGirlVector,
-  TeacherVector,
-  AvatarVectorProps
+TuxVector,
+RobotVector,
+NinjaVector,
+GamerVector,
+LightningVector,
+CatCoderVector,
+FoxVector,
+RocketVector,
+WizardVector,
+LionTechVector,
+PixelAlienVector,
+CyberDragonVector,
+PandaVector,
+TigerVector,
+TRexVector,
+UnicornVector,
+DevGirlVector,
+TeacherVector,
+AvatarVectorProps
 } from './avatars';
 
 export interface CanonicalAvatarOption {

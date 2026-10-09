@@ -1,6 +1,6 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Trophy, X, CheckCircle2, Lock, Sparkles, Search, ArrowRight, Target, ChevronRight, Award, GraduationCap, Crown, Medal } from 'lucide-react';
-import { ALL_LEVELS, LEVEL_TIERS, LevelDef, PlayerRank } from '../data/levels';
+import React,{ useState, useMemo, useRef, useEffect } from 'react';
+import { Trophy, X, CheckCircle2, Lock, Sparkles, Search, Target, GraduationCap, Crown, Medal } from 'lucide-react';
+import { ALL_LEVELS, LEVEL_TIERS, PlayerRank } from '../data/levels';
 import { formatBytes } from '../utils/formatting';
 import { StudentAvatarRenderer, LevelBadgeRenderer } from './vectors';
 import { Level100PioneerSlot } from '../types/leaderboard';

@@ -312,7 +312,6 @@ export class SupabaseAdapter implements IDatabaseService {
       nickname: state.studentNickname,
       avatar: state.studentAvatar,
       turma: state.studentClass,
-      role: state.studentClass === 'Professor' ? 'teacher' : undefined,
       bytes: state.bytes,
       totalBytesEarned: state.totalBytesEarned,
       level: state.level || 1,
@@ -333,7 +332,7 @@ export class SupabaseAdapter implements IDatabaseService {
         .upsert({
           user_id: userId,
           game_id: 'typeclicker',
-          high_score: state.totalBytesEarned || 0,
+          high_score: Math.round(Number(state.totalBytesEarned) || 0),
           state_payload: state,
           updated_at: new Date().toISOString()
         }, { onConflict: 'user_id, game_id' });

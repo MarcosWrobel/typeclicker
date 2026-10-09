@@ -1,30 +1,28 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React,{ useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  Sparkles, 
-  ShieldCheck, 
-  Smile, 
-  LogOut, 
-  Download, 
-  Upload, 
-  ArrowRight, 
-  Check, 
-  User as UserIcon, 
-  GraduationCap, 
-  Tag, 
-  LogIn,
-  Shield,
-  Settings,
-  Sword,
-  Lock,
-  AlertCircle,
-  Crown,
-  Clock
+import {
+Sparkles,
+ShieldCheck,
+Smile,
+LogOut,
+Download,
+Upload,
+ArrowRight,
+Check,
+User as UserIcon,
+GraduationCap,
+Tag,
+LogIn,
+Shield,
+Settings,
+Sword,
+Lock,Clock
 } from 'lucide-react';
 import { sound } from '../utils/audio';
 import { GameState } from '../types';
 import { RPG_CLASSES, RpgClassType } from '../types/rpgClass';
-import { logoutUser, loginWithGoogle, isDevAdminModeActive, toggleDevAdminMode } from '../services/firebaseService';
+import { logoutUser, loginWithGoogle } from '../services/firebaseService';
+import { isSuperAdminEmail } from '../utils/leaderboardUtils';
 import { StudentAvatarRenderer, CANONICAL_AVATAR_LIST } from './vectors/StudentAvatarRenderer';
 import { RpgClassIcon, RpgPassiveIcon } from './vectors/rpg/RpgClassIcon';
 
@@ -40,7 +38,7 @@ export const AVATAR_OPTIONS: AvatarOption[] = CANONICAL_AVATAR_LIST.map((a) => (
   name: a.name
 }));
 
-import { SchoolGradeGroup, SCHOOL_CLASSES_CONFIG, ALL_STANDARD_CLASSES } from '../constants/school';
+import { SchoolGradeGroup, SCHOOL_CLASSES_CONFIG } from '../constants/school';
 export type { SchoolGradeGroup };
 export { SCHOOL_CLASSES_CONFIG };
 
@@ -84,7 +82,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
   const isTeacher = Boolean(
     isAdmin || 
     state.studentClass === 'Professor' || 
-    (user?.email && ['wrobel.marcos@gmail.com', 'marcos.wrobel@escola.pr.gov.br'].includes(user.email.toLowerCase()))
+    isSuperAdminEmail(user?.email, user?.emailVerified)
   );
   
   const hasAssignedClass = Boolean(state.rpgClass);
@@ -764,29 +762,6 @@ export const StudentModal: React.FC<StudentModalProps> = ({
                       <span>Dúvidas ou dificuldades? Chame o <strong>Professor Marcos Wrobel</strong>!</span>
                     </div>
                   </div>
-
-                  {/* Simulação ADM (quando deslogado) */}
-                  {!user && (
-                    <div className="bg-purple-950/20 border border-purple-500/30 p-2.5 rounded-xl flex items-center justify-between gap-2 text-xs font-mono">
-                      <div className="text-zinc-300">
-                        <span className="font-bold text-amber-300 inline-flex items-center gap-1">
-                          <Crown className="w-3.5 h-3.5 text-amber-400" />
-                          Administrador: 
-                        </span>
-                        <span className="text-zinc-400 ml-1">Conecte com <strong className="text-white">wrobel.marcos@gmail.com</strong></span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          toggleDevAdminMode();
-                          window.location.reload();
-                        }}
-                        className="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-[10px] text-amber-300 border border-amber-500/30 font-bold transition cursor-pointer flex-shrink-0"
-                      >
-                        {isDevAdminModeActive() ? 'Desativar ADM Local' : 'Simular ADM Local'}
-                      </button>
-                    </div>
-                  )}
                 </div>
               )}
             </div>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { GraduationCap, Keyboard, HelpCircle, Sparkles, BookOpen } from 'lucide-react';
+import { GraduationCap, Keyboard, HelpCircle } from 'lucide-react';
 
 interface FooterHelpBarProps {
   onOpenHelp: () => void;

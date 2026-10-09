@@ -1,14 +1,14 @@
 import React from 'react';
-import { 
-  Flag, 
-  ArrowUp, 
-  RotateCcw, 
-  RotateCw, 
-  Repeat, 
-  Diamond, 
-  Trash2,
-  Plus,
-  X
+import {
+Flag,
+ArrowUp,
+RotateCcw,
+RotateCw,
+Repeat,
+Diamond,
+Trash2,
+Plus,
+X
 } from 'lucide-react';
 import { ScratchBlock, BlockType } from '../../../types/scratchBot';
 

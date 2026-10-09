@@ -1,4 +1,4 @@
-import { LeaderboardEntry } from './firebaseService';
+import { LeaderboardEntry } from '../types/leaderboard';
 import { GameState } from '../types';
 import { RPG_CLASSES } from '../types/rpgClass';
 import { calculatePlayerRank, calculatePPM, calculateAccuracy } from '../utils/formatting';

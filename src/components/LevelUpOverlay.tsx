@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react';
+import React,{ useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowUp, Sparkles } from 'lucide-react';
+import { ArrowUp } from 'lucide-react';
 import { AnimationEffectId } from '../types/cosmetics';
 import { ANIMATION_CONFIGS } from '../constants/cosmeticsCatalog';
 import { LevelBadgeRenderer } from './vectors/LevelBadgeRenderer';

@@ -79,7 +79,8 @@ export const INITIAL_STATE: GameState = {
   bestRaceWpm: 0,
   accessibility: { ...DEFAULT_ACCESSIBILITY },
   isClassLocked: false,
-  isRpgClassLocked: false
+  isRpgClassLocked: false,
+  claimedGrantIds: []
 };
 
 export function sanitizeAchievements(raw?: Record<string, any> | null): Record<string, number> {
@@ -510,7 +511,8 @@ export function loadSavedState(userId?: string | null): GameState {
       bossBuffExpiresAt: Number.isFinite(parsed.bossBuffExpiresAt) ? parsed.bossBuffExpiresAt : 0,
       bossBuffMultiplier: Number.isFinite(parsed.bossBuffMultiplier) ? parsed.bossBuffMultiplier : 0,
       reachedLevel100At: typeof parsed.reachedLevel100At === 'string' ? parsed.reachedLevel100At : undefined,
-      arcadeHistory: sanitizeArcadeHistory(parsed.arcadeHistory)
+      arcadeHistory: sanitizeArcadeHistory(parsed.arcadeHistory),
+      claimedGrantIds: Array.isArray(parsed.claimedGrantIds) ? parsed.claimedGrantIds : []
     };
   } catch (e) {
     console.warn('Falha ao carregar estado salvo:', e);

@@ -1,13 +1,13 @@
 import React from 'react';
-import { 
-  GitBranch, 
-  RefreshCw, 
-  XCircle, 
-  AlertTriangle, 
-  Terminal, 
-  Check, 
-  Bell, 
-  ChevronUp
+import {
+GitBranch,
+RefreshCw,
+XCircle,
+AlertTriangle,
+Terminal,
+Check,
+Bell,
+ChevronUp
 } from 'lucide-react';
 import { EditorSettings, CursorPosition } from '../types';
 import { THEMES } from '../constants/themes';

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Volume2, VolumeX, BarChart3, RefreshCw, Trophy, Cloud, Pause, Play, Shield, Eye, Timer, LayoutGrid, GraduationCap, Keyboard } from 'lucide-react';
+import { Volume2, VolumeX, BarChart3, RefreshCw, Trophy, Cloud, Pause, Play, Shield, Eye, LayoutGrid, GraduationCap, Keyboard } from 'lucide-react';
 import { GameState } from '../types';
 import { calculatePlayerRank } from '../utils/formatting';
 

@@ -28,6 +28,12 @@
 | **[SCRATCHBOT/UX]** Layout de 3 colunas otimizado, suporte a aninhamento em loops e skin oficial do Bytezinho | `user_cosmetics` / `equippedSkin` | `ScratchBotGame.tsx`, `ScratchBlockItem.tsx`, `ScratchBoardCanvas.tsx` | M | **Concluído** |
 | **[DESIGN/VETORIAL]** Padronização de Diretriz Vetorial (Zero Emojis + SVGs Icônicos/Originais) | Sem alterações de banco | Global (`ARCHITECTURE.md`, `DECISIONS.md`, `EducationalMascotVector.tsx`) | M | **Concluído** |
 | **[VETORIAL]** Migração Integral para Arquitetura Vetorial & Iconografia Canônica | nenhum (preservação estrita de chaves e dados legados) | Toda a UI, Hub, Modais, Arenas, Jogos (`Radar`, `TyperDash`, `ScratchBot`), HUDs e Layouts | G | **Concluído (`a60eaf9`)** |
+| **[ARQUITETURA]** Fase A: Eliminação do `FirebaseAdapter`, remoção de ~1.300 linhas de código legado do Firestore (`saves`, `leaderboard`, backups legados) e unificação do `dbFactory` 100% no Supabase | `public.profiles`, `public.game_progress` | `dbFactory.ts`, `firebaseService.ts`, `raceService.ts`, `supabaseTestService.ts` | G | **Concluído** |
+| **[ARQUITETURA]** Fase B: Migração total de Multiplayer (Duelo 1v1, Raid, Corrida) e `system_settings` para Supabase + Realtime WebSockets; remoção de `firebase-admin` e Cloud Monitoring | `public.system_settings`, `public.arena_rooms` | `systemSettingsService.ts`, `arenaService.ts`, `raidService.ts`, `raceService.ts`, `server.ts`, `package.json` | G | **Concluído** |
+| **[SEGURANÇA]** Auditoria 06/10/2026: remoção do "Modo ADM local", `isSuperAdminEmail` unificado, rules de `arena_rooms` restritas, headers de segurança, RLS/RPCs seguros escritos (pendentes de ativação) | `firestore.rules`, `supabase/*` | `firebaseService.ts`, `StudentModal.tsx`, `server.ts`, `supabaseClient.ts` | M | **Concluído (ativação do RLS pendente)** |
+| **[LIMPEZA]** Remoção de 184 imports/símbolos não usados, de `Cube3D`, `LanguageQuickPick`, `adminMetricsService` e `scripts/debug` | nenhum | vários | P | **Concluído** |
+| **[UX/DIGITAÇÃO]** Bloqueio momentâneo de digitação após erro (`isTypingLocked`, 400–650 ms) | nenhum | `App.tsx`, `TypingArena.tsx` | P | **Concluído** |
+| **[ADMIN/TESTES]** Concessões de teste por `userId` ou e-mail, com `claimedGrantIds` anti-duplicação | `saves/{uid}`, `system/settings` | `AdminPanel.tsx`, `firebaseService.ts`, `supabaseTestService.ts` | M | **Concluído** |
 | **[VETORIAL]** Renderizadores Canônicos com Retrocompatibilidade (`TrackIconRenderer`, `RpgClassIcon`, `StudentAvatarRenderer`, `LevelBadgeRenderer`, `AchievementIconRenderer`, `CardFrameIcon`) | nenhum (preservação de chave id) | `src/components/vectors/*`, `StudentModal.tsx`, `StudentProfileCard.tsx`, `CosmeticsShopModal.tsx`, `AchievementsModal.tsx`, `LevelsModal.tsx` | M | **Concluído (`235865c` / `a60eaf9`)** |
 
 ---
@@ -37,18 +43,24 @@
 ### P1 — Integridade & Segurança
 | Feature | Dados DB (Supabase / Legado Firestore) | Telas afetadas | Complexidade | Status |
 |---|---|---|---|---|
-| *(Nenhuma pendência crítica imediata em P1)* | - | - | - | Em dia |
+| **[SEGURANÇA]** Ativar RLS por identidade Firebase: configurar Third-Party Auth, aplicar `secure_rls_firebase_jwt.sql`, popular `staff_users`, ligar `VITE_SUPABASE_FIREBASE_AUTH` | `profiles`, `game_progress`, `user_cosmetics`, `user_achievements`, `season_history`, `staff_users` | `schema.sql`, `supabaseClient.ts` | M | **Pendente (ação manual no painel)** |
+| **[SEGURANÇA]** Promoção a professor via RPC `set_user_role` + tabela `staff_users` (escrita; ativa junto com o RLS seguro) | `profiles.role`, `staff_users` | `AdminPanel.tsx`, `supabaseAdapter.ts`, `schema.sql` | P | **Concluído (código); ativação pendente** |
+| **[SEGURANÇA]** Executar código do aluno do ProgPlay em Web Worker/iframe `sandbox` | nenhum | `PlaygroundView.tsx`, `pythonRunner.ts` | M | Pendente |
+| **[SEGURANÇA]** Mover `pendingTestGrants`/`testerEmails`/`testGrantsHistory` para documento só de staff e resgatar concessões via RPC | `system/settings` | `firebaseService.ts`, `supabaseTestService.ts`, `firestore.rules` | M | Pendente |
+| **[SEGURANÇA]** CSP e rate-limit no `server.ts` | nenhum | `server.ts` | P | Pendente |
 
 ### P2 — Débitos Técnicos e Trilhas Curriculares
 | Feature | Dados DB (Supabase / Legado Firestore) | Telas afetadas | Complexidade | Status |
 |---|---|---|---|---|
-| *(Nenhum débito prioritário pendente — arquitetura vetorial e trilhas curriculares 100% integradas)* | - | - | - | Em dia |
+| **[DÉBITO]** Unificar a lógica de concessão de teste (Firebase/Supabase duplicadas) em `testGrantEngine.ts` | `game_progress.state_payload.claimedGrantIds` | `firebaseService.ts`, `supabaseTestService.ts` | M | Pendente |
+| **[DÉBITO]** Remover os 23 símbolos locais não usados restantes (`tsc --noUnusedLocals`) e reduzir `console.log` | nenhum | vários | P | Pendente |
+| **[DÉBITO]** Dividir `AdminPanel.tsx` (>2.500 linhas) | nenhum | `AdminPanel.tsx` | G | Pendente |
+| **[JOGO]** `ByteQuest`: arquivos-base criados (`ByteQuestHeroCanvas.tsx`, `byteQuestItems.ts`, `byteQuest.ts`), ainda sem integração ao catálogo/`GameId`/`App.tsx` | `public.game_progress` | `src/components/games/bytequest/*` | G | Em andamento (não integrado) |
 
 ### P3 — Novos Jogos e Expansão do Hub
 | Feature | Dados DB (Supabase / Legado Firestore) | Telas afetadas | Complexidade | Status |
 |---|---|---|---|---|
-| **[PROFESSOR]** Implementar `math_storm` | `public.game_progress` (Supabase) | `GameSelectionScreen`, `App.tsx` | M | Pendente |
-| **[PROFESSOR]** Implementar `syntax_maze` | `public.game_progress` (Supabase) | `GameSelectionScreen`, `App.tsx` | M | Pendente |
+| **[PROFESSOR]** `math_storm` e `syntax_maze` — ideias futuras; ainda não existem no catálogo (`GameId` os reserva) | `public.game_progress` | `GameSelectionScreen`, `App.tsx` | M | Ideia |
 | Scheduler automático de backups | `backups/{backupId}` | Admin panel | G | Ideia |
 
 ---

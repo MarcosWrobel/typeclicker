@@ -1,17 +1,7 @@
-import {
-  doc,
-  setDoc,
-  updateDoc,
-  onSnapshot,
-  runTransaction,
-  collection,
-  query,
-  orderBy,
-  limit,
-  getDocs
-} from 'firebase/firestore';
-import { User } from 'firebase/auth';
-import { db, getGlobalLeaderboard, LeaderboardEntry, isStaffMember, ADMIN_EMAILS, getSystemSettings } from './firebaseService';
+import { supabase, isSupabaseConfigured } from './supabaseClient';
+import { dbService } from './dbFactory';
+import { LeaderboardEntry } from '../types/leaderboard';
+import { isStaffMember } from '../utils/leaderboardUtils';
 import {
   ClassroomRace,
   ClassroomRaceConfig,
@@ -70,7 +60,7 @@ export const PRESET_RACE_TEXTS: PresetRaceText[] = [
 ];
 
 /**
- * Lança uma nova corrida em tempo real através do painel do professor
+ * Lança uma nova corrida em tempo real através do painel do professor no Supabase
  */
 export async function launchClassroomRace(
   config: ClassroomRaceConfig,
@@ -98,8 +88,22 @@ export async function launchClassroomRace(
     finishers: []
   };
 
-  const raceRef = doc(db, 'arena_rooms', ACTIVE_RACE_DOC_ID);
-  await setDoc(raceRef, newRace);
+  if (isSupabaseConfigured) {
+    const { error } = await supabase.from('arena_rooms').upsert({
+      id: ACTIVE_RACE_DOC_ID,
+      room_type: 'race',
+      created_by: teacherUser.uid,
+      status: 'countdown',
+      data: newRace,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'id' });
+
+    if (error) {
+      console.error('Erro ao lançar corrida no Supabase:', error);
+    }
+  }
+
   return newRace;
 }
 
@@ -107,34 +111,68 @@ export async function launchClassroomRace(
  * Cancela ou encerra a corrida ativa
  */
 export async function cancelClassroomRace(): Promise<void> {
-  const raceRef = doc(db, 'arena_rooms', ACTIVE_RACE_DOC_ID);
-  await updateDoc(raceRef, {
+  if (!isSupabaseConfigured) return;
+
+  const { data } = await supabase.from('arena_rooms').select('data').eq('id', ACTIVE_RACE_DOC_ID).maybeSingle();
+  if (!data?.data) return;
+
+  const race = data.data as ClassroomRace;
+  const updatedRace: ClassroomRace = {
+    ...race,
     status: 'cancelled'
-  });
+  };
+
+  await supabase.from('arena_rooms').update({
+    status: 'cancelled',
+    data: updatedRace,
+    updated_at: new Date().toISOString()
+  }).eq('id', ACTIVE_RACE_DOC_ID);
 }
 
 /**
- * Escuta em tempo real o estado da corrida ativa na sessão escolar
+ * Escuta em tempo real o estado da corrida ativa na sessão escolar via Supabase Realtime
  */
 export function subscribeToActiveRace(
   callback: (race: ClassroomRace | null) => void
 ): () => void {
-  const raceRef = doc(db, 'arena_rooms', ACTIVE_RACE_DOC_ID);
-  return onSnapshot(raceRef, (snapshot) => {
-    if (snapshot.exists()) {
-      const data = snapshot.data() as ClassroomRace;
-      callback(data);
-    } else {
-      callback(null);
-    }
-  }, (err) => {
-    console.warn('Erro ao escutar corrida ativa:', err);
+  if (!isSupabaseConfigured) {
     callback(null);
-  });
+    return () => {};
+  }
+
+  // Snapshot inicial
+  supabase
+    .from('arena_rooms')
+    .select('data')
+    .eq('id', ACTIVE_RACE_DOC_ID)
+    .maybeSingle()
+    .then(({ data }) => {
+      if (data?.data) {
+        callback(data.data as ClassroomRace);
+      } else {
+        callback(null);
+      }
+    });
+
+  const channel = supabase.channel('realtime_classroom_race')
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'arena_rooms',
+      filter: `id=eq.${ACTIVE_RACE_DOC_ID}`
+    }, (payload) => {
+      const raceData = (payload.new as any)?.data as ClassroomRace | undefined;
+      callback(raceData || null);
+    })
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
 }
 
 /**
- * Registra a conclusão da corrida pelo aluno via transação atômica no Firestore.
+ * Registra a conclusão da corrida pelo aluno.
  * O primeiro a concluir é declarado vencedor absoluto da prova.
  */
 export async function claimRaceFinish(
@@ -152,15 +190,15 @@ export async function claimRaceFinish(
     timeMs: number;
   }
 ): Promise<{ isWinner: boolean; position: number }> {
-  const raceRef = doc(db, 'arena_rooms', ACTIVE_RACE_DOC_ID);
+  if (!isSupabaseConfigured) return { isWinner: false, position: 99 };
 
-  return await runTransaction(db, async (transaction) => {
-    const snap = await transaction.get(raceRef);
-    if (!snap.exists()) {
+  try {
+    const { data: snap } = await supabase.from('arena_rooms').select('data').eq('id', ACTIVE_RACE_DOC_ID).maybeSingle();
+    if (!snap?.data) {
       return { isWinner: false, position: 99 };
     }
 
-    const data = snap.data() as ClassroomRace;
+    const data = snap.data as ClassroomRace;
     if (data.id !== raceId) {
       return { isWinner: false, position: 99 };
     }
@@ -168,7 +206,6 @@ export async function claimRaceFinish(
     const currentFinishers = data.finishers || [];
     const existingIndex = currentFinishers.findIndex((f) => f.userId === student.uid);
     if (existingIndex >= 0) {
-      // Já registrado anteriormente
       const existing = currentFinishers[existingIndex];
       return {
         isWinner: data.winner?.userId === student.uid,
@@ -188,36 +225,41 @@ export async function claimRaceFinish(
       wpm: Math.round(stats.wpm),
       accuracy: Math.round(stats.accuracy),
       timeMs: stats.timeMs,
-      finishedAt: Date.now(),
-      position
+      position,
+      finishedAt: Date.now()
     };
 
     const updatedFinishers = [...currentFinishers, newFinisher];
-    const updatePayload: Record<string, any> = {
-      finishers: updatedFinishers
+    const winnerData = isWinner ? newFinisher : data.winner;
+
+    const updatedRace: ClassroomRace = {
+      ...data,
+      finishers: updatedFinishers,
+      winner: winnerData
     };
 
-    if (isWinner) {
-      updatePayload.winner = newFinisher;
-      updatePayload.status = 'finished';
-    }
-
-    transaction.update(raceRef, updatePayload);
+    await supabase.from('arena_rooms').update({
+      data: updatedRace,
+      updated_at: new Date().toISOString()
+    }).eq('id', ACTIVE_RACE_DOC_ID);
 
     return {
       isWinner,
       position
     };
-  });
+  } catch (err) {
+    console.error('Erro ao registrar chegada na corrida:', err);
+    return { isWinner: false, position: 99 };
+  }
 }
 
 /**
- * Consulta o Ranking Geral de Corridas entre todos os alunos,
+ * Retorna o Hall da Fama escolar específico para Corridas Coletivas,
  * ordenado estritamente pelo número de vitórias (raceWins) e excluindo professores/admins.
  */
 export async function getRaceLeaderboard(): Promise<LeaderboardEntry[]> {
   try {
-    const all = await getGlobalLeaderboard(false);
+    const all = await dbService.getGlobalLeaderboard(false);
     
     // Filtro garantido: somente alunos reais (professores/admins expurgados)
     const studentsOnly = all.filter((entry) => !isStaffMember(entry));

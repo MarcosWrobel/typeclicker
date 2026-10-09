@@ -8,16 +8,12 @@ import { getAllUnlockedCosmetics } from '../constants/cosmeticsCatalog';
 import {
   auth,
   getSystemSettings,
+  updateSystemSettings,
+  saveSystemSettings,
   checkIsAdminAsync,
   ADMIN_EMAILS,
-  TestGrantConfig,
-  removeUndefinedFields,
-  db,
-  findUserSaveByEmail,
-  applyTestResourcesToEmail,
-  claimPendingTestGrants as claimPendingTestGrantsFirebase
+  TestGrantConfig
 } from './firebaseService';
-import { doc, setDoc } from 'firebase/firestore';
 import { GameState } from '../types';
 
 export interface TargetAccountData {
@@ -72,45 +68,16 @@ export async function findTargetAccount(
   const isTeacher = ADMIN_EMAILS.some((adm) => adm.toLowerCase() === cleanIdentifier);
 
   if (!isSupabaseConfigured) {
-    try {
-      const legacy = await findUserSaveByEmail(cleanIdentifier);
-      if (!legacy || !legacy.data) {
-        return {
-          exists: false,
-          name: identifier.split('@')[0],
-          turma: 'Sem turma',
-          currentLevel: 1,
-          currentBytes: 0,
-          levelTokens: 0,
-          duelTokens: 0,
-          quantumFragments: 0
-        };
-      }
-      const saveState = legacy.data.saveState || ({} as any);
-      return {
-        exists: true,
-        userId: legacy.docId,
-        name: saveState.studentName || identifier.split('@')[0],
-        turma: legacy.data.turma || saveState.studentClass || 'Sem turma',
-        email: legacy.data.email,
-        currentLevel: legacy.data.level || 1,
-        currentBytes: saveState.bytes || 0,
-        levelTokens: saveState.cosmetics?.levelTokens || 0,
-        duelTokens: saveState.cosmetics?.duelTokens || 0,
-        quantumFragments: saveState.cosmetics?.quantumFragments || 0
-      };
-    } catch {
-      return {
-        exists: false,
-        name: identifier.split('@')[0],
-        turma: 'Sem turma',
-        currentLevel: 1,
-        currentBytes: 0,
-        levelTokens: 0,
-        duelTokens: 0,
-        quantumFragments: 0
-      };
-    }
+    return {
+      exists: false,
+      name: identifier.split('@')[0],
+      turma: 'Sem turma',
+      currentLevel: 1,
+      currentBytes: 0,
+      levelTokens: 0,
+      duelTokens: 0,
+      quantumFragments: 0
+    };
   }
 
   try {
@@ -213,27 +180,7 @@ export async function applyTestGrantToSupabase(
   }
 
   if (!isSupabaseConfigured) {
-    const legacyRes = await applyTestResourcesToEmail({
-      email: grant.email || grant.identifier,
-      addLevelTokens: grant.addLevelTokens,
-      addDuelTokens: grant.addDuelTokens,
-      addQuantumFragments: grant.addQuantumFragments,
-      levelAction: grant.levelAction,
-      levelAmount: grant.levelAmount,
-      unlockAllCosmetics: grant.unlockAllCosmetics,
-      maxUpgrades: grant.maxUpgrades,
-      resetToLevel1: grant.resetToLevel1,
-      notes: grant.notes
-    });
-    return {
-      success: legacyRes.success,
-      message: legacyRes.message,
-      record: legacyRes.record,
-      updatedSaveState: legacyRes.updatedSaveState,
-      resultingLevel: legacyRes.record.levelAmount || 1,
-      resultingTokens: legacyRes.record.addLevelTokens || 0,
-      resultingDuelTokens: legacyRes.record.addDuelTokens || 0
-    };
+    throw new Error('Supabase não está configurado.');
   }
 
   // 1. Localiza a conta no Supabase
@@ -378,7 +325,7 @@ export async function applyTestGrantToSupabase(
         .upsert({
           user_id: targetUserId,
           game_id: 'typeclicker',
-          high_score: resultingTotalBytes,
+          high_score: Math.round(Number(resultingTotalBytes) || 0),
           state_payload: currentPayload,
           updated_at: new Date().toISOString()
         }, { onConflict: 'user_id, game_id' });
@@ -421,15 +368,11 @@ export async function applyTestGrantToSupabase(
       pendingGrants[cleanEmail] = grantRecord;
     }
 
-    await setDoc(
-      doc(db, 'system', 'settings'),
-      removeUndefinedFields({
-        testerEmails: currentTesters,
-        pendingTestGrants: pendingGrants,
-        testGrantsHistory: updatedHistory
-      }),
-      { merge: true }
-    );
+    await updateSystemSettings({
+      testerEmails: currentTesters,
+      pendingTestGrants: pendingGrants,
+      testGrantsHistory: updatedHistory
+    });
   } catch (settingsErr) {
     console.warn('Aviso: falha ao registrar auditoria em system/settings:', settingsErr);
   }
@@ -463,60 +406,123 @@ export async function claimPendingTestGrantsSupabase(
   if (!userId && !userEmail) return { claimed: false, updatedState: currentState };
 
   if (!isSupabaseConfigured) {
-    try {
-      const legacyRes = await claimPendingTestGrantsFirebase(userEmail, currentState);
-      return {
-        claimed: legacyRes.claimed,
-        updatedState: legacyRes.updatedState || currentState,
-        message: legacyRes.message
-      };
-    } catch (e) {
-      console.warn('Erro ao resgatar concessões pendentes no Firebase legado:', e);
-      return { claimed: false, updatedState: currentState };
-    }
+    return { claimed: false, updatedState: currentState };
   }
 
   const cleanEmail = (userEmail || '').trim().toLowerCase();
+  const cleanUserId = (userId || '').trim();
 
   try {
     const settings = await getSystemSettings();
-    const grant = settings?.pendingTestGrants?.[cleanEmail] || (userId ? settings?.pendingTestGrants?.[userId] : undefined);
+    const pendingGrants = settings?.pendingTestGrants || {};
+    const grant = (cleanEmail && pendingGrants[cleanEmail]) || (cleanUserId && pendingGrants[cleanUserId]);
     if (!grant) return { claimed: false, updatedState: currentState };
 
-    // Executa a concessão no Supabase agora que a conta está ativa
-    const res = await applyTestGrantToSupabase({
-      userId,
-      email: cleanEmail,
-      identifier: cleanEmail || userId,
-      addLevelTokens: grant.addLevelTokens,
-      addDuelTokens: grant.addDuelTokens,
-      addQuantumFragments: grant.addQuantumFragments,
-      levelAction: grant.levelAction,
-      levelAmount: grant.levelAmount,
-      unlockAllCosmetics: grant.unlockAllCosmetics,
-      maxUpgrades: grant.maxUpgrades,
-      resetToLevel1: grant.resetToLevel1,
-      notes: `Resgate automático ao logar (agendado em ${new Date(grant.grantedAt).toLocaleDateString('pt-BR')})`
-    });
+    const claimedGrantIds: string[] = Array.isArray(currentState.claimedGrantIds)
+      ? currentState.claimedGrantIds
+      : [];
 
-    // Remove das pendências
-    const pendingGrants = { ...(settings?.pendingTestGrants || {}) };
-    delete pendingGrants[cleanEmail];
-    if (userId) delete pendingGrants[userId];
+    if (grant.id && claimedGrantIds.includes(grant.id)) {
+      return { claimed: false, updatedState: currentState };
+    }
 
+    const updatedState: GameState = {
+      ...currentState,
+      claimedGrantIds: grant.id ? [...claimedGrantIds, grant.id] : claimedGrantIds,
+      cosmetics: currentState.cosmetics ? { ...currentState.cosmetics } : { ...DEFAULT_COSMETICS }
+    };
+
+    let modified = false;
+
+    // Tokens
+    if (grant.addLevelTokens && grant.addLevelTokens > 0) {
+      updatedState.cosmetics!.levelTokens = (updatedState.cosmetics!.levelTokens || 0) + grant.addLevelTokens;
+      modified = true;
+    }
+    if (grant.addDuelTokens && grant.addDuelTokens > 0) {
+      updatedState.cosmetics!.duelTokens = (updatedState.cosmetics!.duelTokens || 0) + grant.addDuelTokens;
+      modified = true;
+    }
+    if (grant.addQuantumFragments && grant.addQuantumFragments > 0) {
+      updatedState.cosmetics!.quantumFragments = (updatedState.cosmetics!.quantumFragments || 0) + grant.addQuantumFragments;
+      modified = true;
+    }
+
+    // Nível
+    if (grant.levelAction === 'add_levels') {
+      const currentRank = calculatePlayerRank(updatedState.totalBytesEarned || 0);
+      const targetLevel = Math.min(100, currentRank.level + (grant.levelAmount || 1));
+      const requiredBytes = calculateMinBytesForLevel(targetLevel);
+      updatedState.level = targetLevel;
+      updatedState.totalBytesEarned = Math.max(updatedState.totalBytesEarned || 0, requiredBytes);
+      updatedState.bytes = Math.max(updatedState.bytes || 0, requiredBytes);
+      modified = true;
+    } else if (grant.levelAction === 'set_level') {
+      const targetLevel = Math.min(100, Math.max(1, grant.levelAmount || 1));
+      const requiredBytes = calculateMinBytesForLevel(targetLevel);
+      updatedState.level = targetLevel;
+      updatedState.totalBytesEarned = Math.max(updatedState.totalBytesEarned || 0, requiredBytes);
+      updatedState.bytes = Math.max(updatedState.bytes || 0, requiredBytes);
+      modified = true;
+    }
+
+    if (grant.resetToLevel1) {
+      updatedState.level = 1;
+      updatedState.totalBytesEarned = 0;
+      updatedState.bytes = 0;
+      updatedState.cosmetics = { ...DEFAULT_COSMETICS };
+      modified = true;
+    }
+
+    // Cosméticos
+    if (grant.unlockAllCosmetics && !grant.resetToLevel1) {
+      updatedState.cosmetics = getAllUnlockedCosmetics(updatedState.cosmetics);
+      modified = true;
+    }
+
+    // Upgrades
+    if (grant.maxUpgrades && !grant.resetToLevel1) {
+      const maxUpgrades: Record<string, number> = {};
+      for (const u of UPGRADES) {
+        maxUpgrades[u.id] = 50;
+      }
+      updatedState.upgrades = maxUpgrades;
+      modified = true;
+    }
+
+    // Persiste no Supabase caso userId esteja disponível
+    if (cleanUserId) {
+      try {
+        await supabase
+          .from('game_progress')
+          .upsert({
+            user_id: cleanUserId,
+            game_id: 'typeclicker',
+            high_score: Math.round(Number(updatedState.totalBytesEarned) || 0),
+            state_payload: updatedState,
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'user_id, game_id' });
+      } catch (errSupabase) {
+        console.warn('Aviso: save de game_progress no Supabase falhou:', errSupabase);
+      }
+    }
+
+    // Remove das pendências se tiver permissão
     try {
-      await setDoc(
-        doc(db, 'system', 'settings'),
-        { pendingTestGrants: pendingGrants },
-        { merge: true }
-      );
+      const updatedPending = { ...(settings?.pendingTestGrants || {}) };
+      if (cleanEmail) delete updatedPending[cleanEmail];
+      if (cleanUserId) delete updatedPending[cleanUserId];
+
+      await saveSystemSettings({
+        pendingTestGrants: updatedPending
+      });
     } catch {
-      // Ignora erro de permissão caso o usuário conectado seja aluno ou professor sem privilégio de SuperAdmin
+      // Ignora erro de permissão caso o usuário conectado seja aluno sem privilégio de SuperAdmin
     }
 
     return {
-      claimed: true,
-      updatedState: res.updatedSaveState || currentState,
+      claimed: modified,
+      updatedState,
       message: `Recursos de teste atribuídos pelo professor foram ativados na sua conta!`
     };
   } catch (err) {

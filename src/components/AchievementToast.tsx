@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React,{ useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Trophy, Sparkles, X, Coins, Layers } from 'lucide-react';
 import { AchievementDef } from '../types/achievements';

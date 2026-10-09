@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { Timer, Zap, Trophy, Flame, Play, RotateCcw, X, Target, Award, Sparkles, CheckCircle2, ChevronRight, Gauge, Gem, Medal, Swords, Type, MessageSquare, Code2 } from 'lucide-react';
+import React,{ useState, useEffect, useRef, useCallback } from 'react';
+import { motion } from 'motion/react';
+import { Timer, Trophy, Flame, Play, RotateCcw, X, Award, Sparkles, Gem, Medal, Swords, Type, MessageSquare, Code2 } from 'lucide-react';
 import { sound } from '../utils/audio';
 import { CurricularTrackId, TypingMode } from '../types';
 import { getTextForMode } from '../data/words';

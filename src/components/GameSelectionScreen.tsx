@@ -1,45 +1,33 @@
-import React, { useState, useMemo } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { 
-  Play, 
-  Gamepad2, 
-  Keyboard, 
-  Timer, 
-  Swords, 
-  Flag, 
-  Trophy, 
-  Shield, 
-  LogOut, 
-  Sparkles, 
-  ChevronRight, 
-  User, 
-  Flame, 
-  Zap, 
-  ArrowRight,
-  Sparkle,
-  Cpu,
-  Compass,
-  Boxes,
-  Search,
-  Filter,
-  BookOpen,
-  Layers,
-  Lock,
-  RotateCcw,
-  Code,
-  Calculator,
-  GraduationCap,
-  Briefcase,
-  Palette,
-  Award,
-  Target,
-  Radio,
-  KeyRound,
-  Gauge,
-  Skull,
-  Puzzle,
-  X,
-  Coins,
+import React,{ useState, useMemo } from 'react';
+import { motion } from 'motion/react';
+import {
+Play,
+Gamepad2,
+Keyboard,
+Timer,
+Swords,
+Flag,
+Trophy,
+Shield,
+LogOut,
+Sparkles,Cpu,Search,BookOpen,
+Layers,
+Lock,
+RotateCcw,
+Code,
+Calculator,
+GraduationCap,
+Briefcase,
+Palette,
+Award,
+Target,
+Radio,
+KeyRound,
+Gauge,
+Skull,
+Puzzle,
+X,
+Coins
 } from 'lucide-react';
 import { GameState, CurricularTrackId } from '../types';
 import { RPG_CLASSES } from '../types/rpgClass';
@@ -54,7 +42,7 @@ import { RpgClassIcon } from './vectors/rpg/RpgClassIcon';
 import { TrackIconRenderer } from './vectors';
 import { sound } from '../utils/audio';
 import { LeaderboardMetric } from './LeaderboardModal';
-import { useGameCatalog, GameMetadata, GameSubject, GameGenre } from '../data/gameCatalog';
+import { useGameCatalog } from '../data/gameCatalog';
 
 export interface GameSelectionScreenProps {
   user: any;

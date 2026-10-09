@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { X, Cpu, RotateCcw, AlertTriangle, Sparkles, Check } from 'lucide-react';
+import React,{ useEffect } from 'react';
+import { X, Cpu, RotateCcw, AlertTriangle, Sparkles } from 'lucide-react';
 import { GameState } from '../types';
 import { formatBytes } from '../utils/formatting';
 

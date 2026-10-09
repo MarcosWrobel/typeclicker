@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React,{ useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Terminal, CheckCircle2, Zap, Keyboard, X, Target, Sparkles, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { sound } from '../utils/audio';

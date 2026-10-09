@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React,{ useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Lock, Unlock, Key, Sparkles, Coins, Clock, X, CheckCircle2 } from 'lucide-react';
 import { sound } from '../utils/audio';

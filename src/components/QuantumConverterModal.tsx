@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React,{ useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Sparkles, Zap, Lock, ArrowRight, ShieldCheck, RefreshCw, Cpu, Award, Atom, Gem, Shield } from 'lucide-react';
 import { formatBytes, formatNumber } from '../utils/formatting';

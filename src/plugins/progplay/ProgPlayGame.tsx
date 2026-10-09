@@ -1,11 +1,11 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { BaseGameProps, GameExitPayload, StudentRpgClass } from '../../types/gamePlugin';
+import React,{ useState, useRef, useEffect, useCallback } from 'react';
+import { BaseGameProps, GameExitPayload } from '../../types/gamePlugin';
 import { EditorSettings, CursorPosition } from './types';
-import { 
-  GAME_LANGUAGES, 
-  LEVELS_BY_LANGUAGE, 
-  GameLanguageId, 
-  GameLevel 
+import {
+GAME_LANGUAGES,
+LEVELS_BY_LANGUAGE,
+GameLanguageId,
+GameLevel
 } from './constants/levels';
 import { THEMES } from './constants/themes';
 import { EditorHeader } from './components/EditorHeader';
