@@ -16,7 +16,9 @@ import {
   Flag,
   Target,
   Timer,
-  Award
+  Award,
+  Users,
+  Globe
 } from 'lucide-react';
 import { GamePluginProps, GameExitPayload } from '../../../types/gamePlugin';
 import { BytezinhoSkinId } from '../../../types/cosmetics';
@@ -34,8 +36,11 @@ import {
   DashParticle,
   DashFloatingText,
   DashGhostTrail,
-  DashDenshaPopup
+  DashDenshaPopup,
+  DashRemotePlayerRender
 } from './TyperDashCanvas';
+import { createPrng, stringToSeed } from './typerDashPrng';
+import { typerDashNet, TyperDashNetPlayer } from './typerDashNetService';
 
 // Teclas Pedagógicas: Mão Esquerda (Solo/Espinhos)
 const LEFT_HAND_KEYS = ['A', 'S', 'D', 'F'];
@@ -92,6 +97,10 @@ export interface TyperDashGameProps extends GamePluginProps {
   onEquipSkin?: (skin: BytezinhoSkinId) => void;
   onOpenLeaderboardTab?: (metric: LeaderboardMetric) => void;
   dashStats?: TyperDashStats;
+  multiplayerRoomCode?: string;
+  trackSeed?: number;
+  playerName?: string;
+  playerId?: string;
 }
 
 export const TyperDashGame: React.FC<TyperDashGameProps> = ({
@@ -102,7 +111,11 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
   unlockedSkins = ['classic'],
   onEquipSkin,
   onOpenLeaderboardTab,
-  dashStats
+  dashStats,
+  multiplayerRoomCode,
+  trackSeed,
+  playerName,
+  playerId
 }) => {
   // Cosmético equipado do Bytezinho (sincronizado com perfil e selecionável na partida)
   const [activeSkin, setActiveSkin] = useState<BytezinhoSkinId>(equippedSkin);
@@ -116,6 +129,18 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
     onEquipSkin?.(skinId);
     typerDashAudio.playHitSound(true, 1);
   };
+
+  // Configuração Multiplayer P2P em Tempo Real (Supabase Broadcast)
+  const [multiplayerMode, setMultiplayerMode] = useState<boolean>(!!multiplayerRoomCode);
+  const [roomCode, setRoomCode] = useState<string>(multiplayerRoomCode || '');
+  const [netPlayersCount, setNetPlayersCount] = useState<number>(1);
+  const remotePlayersRef = useRef<Map<string, TyperDashNetPlayer>>(new Map());
+  const effectiveUserIdRef = useRef<string>(playerId || `usr_${Math.random().toString(36).slice(2, 9)}`);
+  const effectivePlayerName = playerName || 'Corredor';
+  const prngRef = useRef<() => number>(
+    createPrng(trackSeed || (multiplayerRoomCode ? stringToSeed(multiplayerRoomCode) : Date.now()))
+  );
+  const lastTickBroadcastRef = useRef<number>(0);
 
   // Estados de Jogo (Lobby Direto ao Ponto sem Classes)
   const [gameState, setGameState] = useState<'lobby' | 'countdown' | 'playing' | 'paused' | 'game_over'>('lobby');
@@ -253,6 +278,47 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
     gameStateRef.current = gameState;
   }, [gameState]);
 
+  // Conectar e gerenciar sala Multiplayer P2P em tempo real (Supabase Broadcast)
+  useEffect(() => {
+    if (!multiplayerMode || !roomCode.trim()) {
+      typerDashNet.disconnect();
+      setNetPlayersCount(1);
+      remotePlayersRef.current.clear();
+      return;
+    }
+
+    typerDashNet.connect(
+      roomCode.trim(),
+      {
+        userId: effectiveUserIdRef.current,
+        nickname: effectivePlayerName,
+        skin: activeSkin
+      },
+      (players) => {
+        remotePlayersRef.current = players;
+        setNetPlayersCount(players.size + 1);
+      },
+      (remoteUserId, _crashDist) => {
+        const victim = remotePlayersRef.current.get(remoteUserId);
+        const vNick = victim ? victim.nickname : 'Um competidor';
+        floatingTextsRef.current.push({
+          id: `crash_${Date.now()}_${Math.random()}`,
+          x: JUDGMENT_LINE_X + 120,
+          y: GROUND_Y - 140,
+          text: `💀 ${vNick} bateu!`,
+          color: '#f87171',
+          alpha: 1.0,
+          scale: 1.2,
+          vy: -0.6
+        });
+      }
+    );
+
+    return () => {
+      typerDashNet.disconnect();
+    };
+  }, [multiplayerMode, roomCode, effectivePlayerName, activeSkin]);
+
   // Função pura de desenho na tela em 60 FPS
   const drawCurrentFrame = useCallback((paused: boolean = false) => {
     const canvas = canvasRef.current;
@@ -261,9 +327,23 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
     if (!ctx) return;
 
     try {
+      const remotePlayersRender: DashRemotePlayerRender[] = Array.from(remotePlayersRef.current.values()).map((p) => ({
+        userId: p.userId,
+        nickname: p.nickname,
+        skin: p.skin,
+        distance: p.distance,
+        y: p.y,
+        rotation: p.rotation,
+        isJumping: p.isJumping,
+        isAlive: p.isAlive,
+        progressRatio: p.progressRatio,
+        score: p.score
+      }));
+
       renderTyperDash(ctx, 960, 540, {
         cube: cubeRef.current,
         ghostTrail: ghostTrailRef.current,
+        remotePlayers: remotePlayersRender,
         speedLinesActive: speedLinesActiveRef.current,
         zoomPulse: zoomPulseRef.current,
         stageName: stageNameRef.current,
@@ -303,6 +383,10 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
 
   // Iniciar corrida com contagem rápida ou início imediato
   const handleStartRun = useCallback(() => {
+    // Resetar PRNG para semente determinística na largada
+    const currentSeed = trackSeed || (multiplayerMode && roomCode.trim() ? stringToSeed(roomCode.trim()) : Date.now());
+    prngRef.current = createPrng(currentSeed);
+
     setGameState('countdown');
     setCountdown(3);
     setScore(0);
@@ -326,7 +410,7 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
     cubeRef.current.rotation = 0;
     cubeRef.current.targetRotation = 0;
     typerDashAudio.playHitSound(true, 1);
-  }, []);
+  }, [trackSeed, multiplayerMode, roomCode]);
 
   // Helper para adicionar popups no estilo quadrinho urbano (Denshattack!)
   const addDenshaPopup = useCallback((title: string, subtitle?: string, color: string = '#facc15') => {
@@ -429,8 +513,11 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
     typerDashAudio.stopMetronome();
     screenShakeRef.current = 12;
     spawnCubeShatter(cubeRef.current.x + CUBE_SIZE / 2, cubeRef.current.y + CUBE_SIZE / 2);
+    if (multiplayerMode && roomCode.trim()) {
+      typerDashNet.broadcastCrash(distanceRef.current);
+    }
     setGameState('game_over');
-  }, [spawnCubeShatter]);
+  }, [spawnCubeShatter, multiplayerMode, roomCode]);
 
   // ─────────────────────────────────────────────────────────────
   // Captura de Teclas & Timing Windows
@@ -532,6 +619,14 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const key = e.key;
+
+      // Não interceptar comandos caso o usuário esteja digitando em um input (ex: código de sala)
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        if (key === 'Enter') {
+          (e.target as HTMLElement).blur();
+        }
+        return;
+      }
 
       // 0. Iniciar a partir do Lobby ou reiniciar após Game Over
       if ((gameStateRef.current === 'lobby' || gameStateRef.current === 'game_over') && (key === 'Enter' || key === ' ')) {
@@ -714,6 +809,7 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
     const meters = Math.floor(distanceRef.current / 40);
     if (distanceRef.current < nextSpawnDistanceRef.current || meters >= TARGET_STAGE_METERS - 40) return;
 
+    const rng = prngRef.current;
     const speedMult = speedMultiplierRef.current;
     const beatDistance = (SPEED_PIXELS_PER_SEC * speedMult) * BEAT_DURATION_SEC;
 
@@ -723,7 +819,7 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
       nextSpawnDistanceRef.current = distanceRef.current + beatDistance * nextItem.spacing;
 
       obstaclesRef.current.push({
-        id: `obs_${Date.now()}_${Math.random()}`,
+        id: `obs_${Date.now()}_${Math.floor(rng() * 10000)}`,
         x: canvasWidth + 50,
         y: nextItem.type === 'orb' ? GROUND_Y - 95 : GROUND_Y - 36,
         type: nextItem.type,
@@ -735,20 +831,20 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
       return;
     }
 
-    // ── GERAÇÃO POR FASE ──
+    // ── GERAÇÃO POR FASE DETERMINÍSTICA ──
     if (meters < 300) {
       // FASE 1: ENTRADA SOLO (0-300m) - Mão esquerda pura (A, S, D, F)
-      const beatMult = Math.random() > 0.6 ? 2.4 : 1.8;
+      const beatMult = rng() > 0.6 ? 2.4 : 1.8;
       nextSpawnDistanceRef.current = distanceRef.current + beatDistance * beatMult;
 
-      const letter = LEFT_HAND_KEYS[Math.floor(Math.random() * LEFT_HAND_KEYS.length)];
-      const rand = Math.random();
+      const letter = LEFT_HAND_KEYS[Math.floor(rng() * LEFT_HAND_KEYS.length)];
+      const rand = rng();
       const type: DashObstacle['type'] = rand > 0.75 ? 'double' : rand > 0.45 ? 'tall' : 'single';
       const width = type === 'double' ? 64 : 36;
       const height = type === 'tall' ? 48 : 36;
 
       obstaclesRef.current.push({
-        id: `obs_${Date.now()}_${Math.random()}`,
+        id: `obs_${Date.now()}_${Math.floor(rng() * 10000)}`,
         x: canvasWidth + 50,
         y: GROUND_Y - height,
         type,
@@ -778,14 +874,14 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
         return;
       }
 
-      const roll2 = Math.random();
+      const roll2 = rng();
       if (roll2 > 0.65) {
         // Trilho de Deslize (Hold-to-Grind Denshattack!)
-        const railKey = GRIND_KEYS[Math.floor(Math.random() * GRIND_KEYS.length)];
+        const railKey = GRIND_KEYS[Math.floor(rng() * GRIND_KEYS.length)];
         const railWidth = 260;
         nextSpawnDistanceRef.current = distanceRef.current + beatDistance * 3.6;
         obstaclesRef.current.push({
-          id: `rail_${Date.now()}_${Math.random()}`,
+          id: `rail_${Date.now()}_${Math.floor(rng() * 10000)}`,
           x: canvasWidth + 50,
           y: GROUND_Y - 64,
           type: 'rail',
@@ -796,10 +892,10 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
           cleared: false
         });
       } else if (roll2 > 0.3) {
-        const letter = AIR_KEYS[Math.floor(Math.random() * AIR_KEYS.length)];
+        const letter = AIR_KEYS[Math.floor(rng() * AIR_KEYS.length)];
         nextSpawnDistanceRef.current = distanceRef.current + beatDistance * 1.8;
         obstaclesRef.current.push({
-          id: `orb_${Date.now()}_${Math.random()}`,
+          id: `orb_${Date.now()}_${Math.floor(rng() * 10000)}`,
           x: canvasWidth + 50,
           y: GROUND_Y - 95,
           type: 'orb',
@@ -809,10 +905,10 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
           cleared: false
         });
       } else {
-        const letter = LEFT_HAND_KEYS[Math.floor(Math.random() * LEFT_HAND_KEYS.length)];
+        const letter = LEFT_HAND_KEYS[Math.floor(rng() * LEFT_HAND_KEYS.length)];
         nextSpawnDistanceRef.current = distanceRef.current + beatDistance * 1.6;
         obstaclesRef.current.push({
-          id: `obs_${Date.now()}_${Math.random()}`,
+          id: `obs_${Date.now()}_${Math.floor(rng() * 10000)}`,
           x: canvasWidth + 50,
           y: GROUND_Y - 36,
           type: 'single',
@@ -824,14 +920,14 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
       }
     } else if (meters < 1200) {
       // FASE 3: DROP SUPERSÔNICO (2X SPEED, CASCADES & TRICK RAMPS) (700-1200m)
-      const roll3 = Math.random();
+      const roll3 = rng();
       if (roll3 > 0.7) {
         // Rampa de Manobras Aéreas (Trick Ramp)
         const rampWidth = 64;
         const rampHeight = 44;
         nextSpawnDistanceRef.current = distanceRef.current + beatDistance * 3.6;
         obstaclesRef.current.push({
-          id: `ramp_${Date.now()}_${Math.random()}`,
+          id: `ramp_${Date.now()}_${Math.floor(rng() * 10000)}`,
           x: canvasWidth + 50,
           y: GROUND_Y - rampHeight,
           type: 'ramp',
@@ -841,15 +937,15 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
           cleared: false
         });
       } else {
-        const pattern = CASCADE_PATTERNS[Math.floor(Math.random() * CASCADE_PATTERNS.length)];
+        const pattern = CASCADE_PATTERNS[Math.floor(rng() * CASCADE_PATTERNS.length)];
         cascadeQueueRef.current = [
           { type: 'single', letter: pattern[1], spacing: 0.65 },
-          { type: 'orb', letter: AIR_KEYS[Math.floor(Math.random() * AIR_KEYS.length)], spacing: 1.3 }
+          { type: 'orb', letter: AIR_KEYS[Math.floor(rng() * AIR_KEYS.length)], spacing: 1.3 }
         ];
 
         nextSpawnDistanceRef.current = distanceRef.current + beatDistance * 0.65;
         obstaclesRef.current.push({
-          id: `obs_${Date.now()}_${Math.random()}`,
+          id: `obs_${Date.now()}_${Math.floor(rng() * 10000)}`,
           x: canvasWidth + 50,
           y: GROUND_Y - 36,
           type: 'single',
@@ -861,15 +957,15 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
       }
     } else if (meters < 1800) {
       // FASE 4: PLATAFORMAS SUSPENSAS, TRILHOS E RAMPAS (1200-1800m)
-      const roll4 = Math.random();
+      const roll4 = rng();
       if (roll4 > 0.65) {
-        const letter = AIR_KEYS[Math.floor(Math.random() * AIR_KEYS.length)];
+        const letter = AIR_KEYS[Math.floor(rng() * AIR_KEYS.length)];
         const platWidth = 160;
         const platHeight = 80;
         nextSpawnDistanceRef.current = distanceRef.current + beatDistance * 2.8;
 
         obstaclesRef.current.push({
-          id: `plat_${Date.now()}_${Math.random()}`,
+          id: `plat_${Date.now()}_${Math.floor(rng() * 10000)}`,
           x: canvasWidth + 50,
           y: GROUND_Y - platHeight,
           type: 'platform',
@@ -880,11 +976,11 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
         });
       } else if (roll4 > 0.35) {
         // Trilho de Deslize Elevado
-        const railKey = GRIND_KEYS[Math.floor(Math.random() * GRIND_KEYS.length)];
+        const railKey = GRIND_KEYS[Math.floor(rng() * GRIND_KEYS.length)];
         const railWidth = 280;
         nextSpawnDistanceRef.current = distanceRef.current + beatDistance * 3.6;
         obstaclesRef.current.push({
-          id: `rail_${Date.now()}_${Math.random()}`,
+          id: `rail_${Date.now()}_${Math.floor(rng() * 10000)}`,
           x: canvasWidth + 50,
           y: GROUND_Y - 75,
           type: 'rail',
@@ -895,11 +991,11 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
           cleared: false
         });
       } else {
-        const isRamp = Math.random() > 0.5;
+        const isRamp = rng() > 0.5;
         if (isRamp) {
           nextSpawnDistanceRef.current = distanceRef.current + beatDistance * 3.5;
           obstaclesRef.current.push({
-            id: `ramp_${Date.now()}_${Math.random()}`,
+            id: `ramp_${Date.now()}_${Math.floor(rng() * 10000)}`,
             x: canvasWidth + 50,
             y: GROUND_Y - 44,
             type: 'ramp',
@@ -909,10 +1005,10 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
             cleared: false
           });
         } else {
-          const letter = AIR_KEYS[Math.floor(Math.random() * AIR_KEYS.length)];
+          const letter = AIR_KEYS[Math.floor(rng() * AIR_KEYS.length)];
           nextSpawnDistanceRef.current = distanceRef.current + beatDistance * 1.8;
           obstaclesRef.current.push({
-            id: `orb_${Date.now()}_${Math.random()}`,
+            id: `orb_${Date.now()}_${Math.floor(rng() * 10000)}`,
             x: canvasWidth + 50,
             y: GROUND_Y - 95,
             type: 'orb',
@@ -925,15 +1021,15 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
       }
     } else {
       // FASE 5: OVERDRIVE CLIMAX (1800m+)
-      const choice = Math.random();
+      const choice = rng();
       if (choice > 0.65) {
-        const pattern = CASCADE_PATTERNS[Math.floor(Math.random() * CASCADE_PATTERNS.length)];
+        const pattern = CASCADE_PATTERNS[Math.floor(rng() * CASCADE_PATTERNS.length)];
         cascadeQueueRef.current = [
-          { type: 'orb', letter: AIR_KEYS[Math.floor(Math.random() * AIR_KEYS.length)], spacing: 1.1 }
+          { type: 'orb', letter: AIR_KEYS[Math.floor(rng() * AIR_KEYS.length)], spacing: 1.1 }
         ];
         nextSpawnDistanceRef.current = distanceRef.current + beatDistance * 0.6;
         obstaclesRef.current.push({
-          id: `obs_${Date.now()}_${Math.random()}`,
+          id: `obs_${Date.now()}_${Math.floor(rng() * 10000)}`,
           x: canvasWidth + 50,
           y: GROUND_Y - 36,
           type: 'single',
@@ -943,10 +1039,10 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
           cleared: false
         });
       } else if (choice > 0.4) {
-        const railKey = GRIND_KEYS[Math.floor(Math.random() * GRIND_KEYS.length)];
+        const railKey = GRIND_KEYS[Math.floor(rng() * GRIND_KEYS.length)];
         nextSpawnDistanceRef.current = distanceRef.current + beatDistance * 3.2;
         obstaclesRef.current.push({
-          id: `rail_${Date.now()}_${Math.random()}`,
+          id: `rail_${Date.now()}_${Math.floor(rng() * 10000)}`,
           x: canvasWidth + 50,
           y: GROUND_Y - 70,
           type: 'rail',
@@ -959,7 +1055,7 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
       } else if (choice > 0.2) {
         nextSpawnDistanceRef.current = distanceRef.current + beatDistance * 3.2;
         obstaclesRef.current.push({
-          id: `ramp_${Date.now()}_${Math.random()}`,
+          id: `ramp_${Date.now()}_${Math.floor(rng() * 10000)}`,
           x: canvasWidth + 50,
           y: GROUND_Y - 44,
           type: 'ramp',
@@ -969,10 +1065,10 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
           cleared: false
         });
       } else {
-        const letter = AIR_KEYS[Math.floor(Math.random() * AIR_KEYS.length)];
+        const letter = AIR_KEYS[Math.floor(rng() * AIR_KEYS.length)];
         nextSpawnDistanceRef.current = distanceRef.current + beatDistance * 1.6;
         obstaclesRef.current.push({
-          id: `orb_${Date.now()}_${Math.random()}`,
+          id: `orb_${Date.now()}_${Math.floor(rng() * 10000)}`,
           x: canvasWidth + 50,
           y: GROUND_Y - 95,
           type: 'orb',
@@ -1336,6 +1432,23 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
       }
       denshaPopupsRef.current = remainingPopups;
 
+      // 8.8 Telemetria Multiplayer P2P (100ms throttle via Supabase Broadcast)
+      if (multiplayerMode && roomCode.trim()) {
+        const currentMs = Date.now();
+        if (currentMs - lastTickBroadcastRef.current >= 100) {
+          lastTickBroadcastRef.current = currentMs;
+          typerDashNet.broadcastTick({
+            distance: distanceRef.current,
+            y: cube.y,
+            rotation: cube.rotation,
+            isJumping: cube.isJumping,
+            isAlive: true,
+            progressRatio: Math.min(1, (distanceRef.current / 40) / TARGET_STAGE_METERS),
+            score: scoreRef.current
+          });
+        }
+      }
+
       // 9. Renderizar no Canvas em 60 FPS real
       drawCurrentFrame(false);
 
@@ -1357,7 +1470,9 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
     handleCrash,
     addFloatingText,
     spawnSparks,
-    drawCurrentFrame
+    drawCurrentFrame,
+    multiplayerMode,
+    roomCode
   ]);
 
   // Renderizar o frame estático inicial ou durante a pausa / lobby
@@ -1808,6 +1923,76 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
                     >
                       Ranking
                     </button>
+                  )}
+                </div>
+
+                {/* Seletor de Modo: Solo vs Sala Multiplayer */}
+                <div className="w-full flex flex-col gap-2.5 p-3 rounded-2xl bg-zinc-950/85 border border-zinc-800 shadow-md font-mono">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setMultiplayerMode(false)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase transition-all cursor-pointer flex items-center gap-1.5 ${
+                          !multiplayerMode
+                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/60 shadow-[0_0_12px_rgba(16,185,129,0.3)]'
+                            : 'bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-zinc-800'
+                        }`}
+                      >
+                        <Zap className="w-3.5 h-3.5" />
+                        <span>Treino Solo</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMultiplayerMode(true);
+                          if (!roomCode.trim()) setRoomCode('TURMA-A');
+                        }}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase transition-all cursor-pointer flex items-center gap-1.5 ${
+                          multiplayerMode
+                            ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/60 shadow-[0_0_12px_rgba(6,182,212,0.3)]'
+                            : 'bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-zinc-800'
+                        }`}
+                      >
+                        <Users className="w-3.5 h-3.5" />
+                        <span>Sala Coletiva (Multiplayer)</span>
+                      </button>
+                    </div>
+
+                    {multiplayerMode && (
+                      <div className="flex items-center gap-1.5 text-[11px] text-cyan-300 font-bold">
+                        <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping inline-block" />
+                        <span>{netPlayersCount} {netPlayersCount === 1 ? 'corredor' : 'corredores'}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {multiplayerMode && (
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-2 border-t border-zinc-800/80">
+                      <div className="flex items-center gap-2 w-full sm:w-auto flex-1">
+                        <span className="text-[11px] text-zinc-400 uppercase font-black shrink-0">Código da Sala:</span>
+                        <input
+                          type="text"
+                          maxLength={12}
+                          value={roomCode}
+                          onChange={(e) => setRoomCode(e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ''))}
+                          placeholder="TURMA-A"
+                          className="w-full sm:w-36 px-2.5 py-1 rounded-lg bg-zinc-900 border border-cyan-500/50 text-cyan-200 font-mono font-black text-xs text-center focus:outline-none focus:ring-1 focus:ring-cyan-400 uppercase tracking-wider"
+                        />
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {['TURMA-A', 'SALA-1', 'DESAFIO'].map((preset) => (
+                          <button
+                            key={preset}
+                            type="button"
+                            onClick={() => setRoomCode(preset)}
+                            className="px-2 py-0.5 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-[10px] text-zinc-300 hover:text-white cursor-pointer font-bold"
+                          >
+                            {preset}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   )}
                 </div>
 

@@ -118,9 +118,23 @@ export interface DashActiveTrickState {
   timeRemainingRatio: number;
 }
 
+export interface DashRemotePlayerRender {
+  userId: string;
+  nickname: string;
+  skin?: string;
+  distance: number;
+  y: number;
+  rotation: number;
+  isJumping?: boolean;
+  isAlive: boolean;
+  progressRatio: number;
+  score?: number;
+}
+
 export interface DashRenderState {
   cube: DashCubeState;
   ghostTrail?: DashGhostTrail[];
+  remotePlayers?: DashRemotePlayerRender[];
   speedLinesActive?: boolean;
   zoomPulse?: number;
   stageName?: string;
@@ -159,6 +173,7 @@ export function renderTyperDash(
   const {
     cube,
     ghostTrail = [],
+    remotePlayers = [],
     speedLinesActive = false,
     zoomPulse = 0,
     stageName,
@@ -995,6 +1010,87 @@ export function renderTyperDash(
   }
 
   // ─────────────────────────────────────────────────────────
+  // 8.5 Corredores Remotos (Multiplayer Ghost Runners Holográficos)
+  // ─────────────────────────────────────────────────────────
+  if (remotePlayers && remotePlayers.length > 0) {
+    for (let r = 0; r < remotePlayers.length; r++) {
+      const rp = remotePlayers[r];
+      const ghostX = (rp.distance - parallaxOffset) + cube.x;
+      const ghostY = rp.y;
+
+      if (ghostX < -120 || ghostX > width + 120) continue;
+
+      const ghostCenterX = ghostX + cube.size / 2;
+      const ghostCenterY = ghostY + cube.size / 2;
+
+      ctx.save();
+      ctx.translate(ghostCenterX, ghostCenterY);
+      ctx.rotate(rp.rotation);
+
+      if (!rp.isAlive) {
+        // Marcador de Queda / Derrota
+        ctx.globalAlpha = 0.4;
+        ctx.fillStyle = '#ef4444';
+        ctx.beginPath();
+        ctx.roundRect(-cube.size / 2, -cube.size / 2, cube.size, cube.size, 6);
+        ctx.fill();
+
+        ctx.font = 'bold 16px "JetBrains Mono", monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('💀', 0, 0);
+      } else {
+        // Holograma translúcido suave (45% opacidade para foco total)
+        ctx.globalAlpha = 0.45;
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = '#06b6d4';
+
+        const ghostSkin = rp.skin || 'classic';
+        const ghostSprite = getBytezinhoCanvasSprite(ghostSkin, rp.isJumping ? 'happy' : 'normal', false, false);
+        const drawSize = cube.size * 1.35;
+
+        if (ghostSprite) {
+          ctx.drawImage(ghostSprite, -drawSize / 2, -drawSize / 2, drawSize, drawSize);
+        } else {
+          ctx.fillStyle = '#0e7490';
+          ctx.strokeStyle = '#22d3ee';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.roundRect(-cube.size / 2, -cube.size / 2, cube.size, cube.size, 6);
+          ctx.fill();
+          ctx.stroke();
+        }
+      }
+      ctx.restore();
+
+      // Tag flutuante com apelido do competidor
+      ctx.save();
+      ctx.globalAlpha = rp.isAlive ? 0.75 : 0.4;
+      const badgeY = ghostY - 14;
+      const nickText = (rp.nickname || 'Corredor').slice(0, 10);
+      ctx.font = '900 10px "JetBrains Mono", monospace';
+      const textMetrics = ctx.measureText(nickText);
+      const tagW = textMetrics.width + 12;
+      const tagH = 16;
+      const tagX = ghostCenterX - tagW / 2;
+
+      ctx.fillStyle = rp.isAlive ? 'rgba(15, 23, 42, 0.85)' : 'rgba(69, 10, 10, 0.85)';
+      ctx.strokeStyle = rp.isAlive ? '#06b6d4' : '#ef4444';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(tagX, badgeY - tagH / 2, tagW, tagH, 4);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = rp.isAlive ? '#e0f2fe' : '#fca5a5';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(nickText, ghostCenterX, badgeY);
+      ctx.restore();
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────
   // 9. Escudo de Força do Guerreiro (se ativo)
   // ─────────────────────────────────────────────────────────
   if (hasShield) {
@@ -1513,6 +1609,49 @@ export function renderTyperDash(
   ctx.fillRect(miniSize * 0.15, -miniSize * 0.2, 2, 2);
 
   ctx.restore();
+
+  // 5.5 MINI CORREDORES REMOTOS NA BARRA DE PROGRESSO
+  if (remotePlayers && remotePlayers.length > 0) {
+    const miniGhostSize = 14;
+    for (let r = 0; r < remotePlayers.length; r++) {
+      const rp = remotePlayers[r];
+      const rProgress = Math.max(0, Math.min(1, rp.progressRatio));
+      const rTrackX = barX + barW * rProgress;
+      const rTrackY = barY + barH / 2;
+
+      ctx.save();
+      ctx.translate(rTrackX, rTrackY);
+
+      if (!rp.isAlive) {
+        // Marcador de derrota (Crânio vermelho onde o oponente colidiu)
+        ctx.fillStyle = '#ef4444';
+        ctx.font = 'bold 11px "JetBrains Mono", monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('💀', 0, 0);
+      } else {
+        // Mini Cubo Holográfico do oponente
+        ctx.shadowBlur = 6;
+        ctx.shadowColor = '#06b6d4';
+        ctx.fillStyle = 'rgba(14, 165, 233, 0.9)';
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.roundRect(-miniGhostSize / 2, -miniGhostSize / 2, miniGhostSize, miniGhostSize, 3);
+        ctx.fill();
+        ctx.stroke();
+
+        // Inicial do oponente dentro do cubo
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '900 8px "JetBrains Mono", monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText((rp.nickname[0] || '?').toUpperCase(), 0, 0);
+      }
+
+      ctx.restore();
+    }
+  }
 
   // 6. Badges de Porcentagem (%) e Metas (0% e 100%)
   // 0% à esquerda

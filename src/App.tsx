@@ -2779,6 +2779,8 @@ export default function App() {
             });
           }}
           dashStats={state.dashStats}
+          playerName={state.studentNickname || state.studentName || user?.displayName || 'Corredor'}
+          playerId={user?.uid}
           onOpenLeaderboardTab={handleOpenLeaderboardTab}
           onExitToHub={(payload) => handleGamePluginExit('typerdash', payload)}
         />
