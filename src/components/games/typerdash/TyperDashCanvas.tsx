@@ -423,25 +423,25 @@ export function renderTyperDash(
       const distToCube = obs.x - (cube.x + cube.size);
       const inJumpZone = distToCube >= -20 && distToCube <= 260 && !obs.cleared;
 
-      const badgeY = cy - r - 22;
-      const badgeW = inJumpZone ? 32 : 28;
-      const badgeH = inJumpZone ? 32 : 28;
+      const badgeY = cy - r - 25;
+      const badgeW = inJumpZone ? 38 : 32;
+      const badgeH = inJumpZone ? 38 : 32;
 
       ctx.save();
       if (inJumpZone) {
-        ctx.shadowBlur = 14;
+        ctx.shadowBlur = 18;
         ctx.shadowColor = '#f472b6';
       }
-      ctx.fillStyle = obs.cleared ? 'rgba(6, 78, 59, 0.95)' : inJumpZone ? 'rgba(88, 28, 135, 0.95)' : 'rgba(15, 23, 42, 0.95)';
+      ctx.fillStyle = obs.cleared ? 'rgba(6, 78, 59, 0.98)' : inJumpZone ? 'rgba(88, 28, 135, 0.98)' : 'rgba(10, 14, 26, 0.98)';
       ctx.strokeStyle = obs.cleared ? '#34d399' : inJumpZone ? '#f472b6' : '#ec4899';
-      ctx.lineWidth = inJumpZone ? 2.5 : 2;
+      ctx.lineWidth = inJumpZone ? 3 : 2.2;
       ctx.beginPath();
-      ctx.roundRect(cx - badgeW / 2, badgeY - badgeH / 2, badgeW, badgeH, 8);
+      ctx.roundRect(cx - badgeW / 2, badgeY - badgeH / 2, badgeW, badgeH, 9);
       ctx.fill();
       ctx.stroke();
 
       ctx.fillStyle = obs.cleared ? '#6ee7b7' : inJumpZone ? '#ffffff' : '#fbcfe8';
-      ctx.font = inJumpZone ? '900 18px "JetBrains Mono", monospace' : '900 16px "JetBrains Mono", monospace';
+      ctx.font = inJumpZone ? '900 22px "JetBrains Mono", monospace' : '900 18px "JetBrains Mono", monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(obs.letter.toUpperCase(), cx, badgeY);
@@ -506,21 +506,21 @@ export function renderTyperDash(
       ctx.restore();
 
       // Badge de salto na entrada da plataforma
-      const badgeCenterX = obs.x + 28;
-      const badgeY = obs.y - 22;
-      const badgeW = 28;
-      const badgeH = 28;
+      const badgeCenterX = obs.x + 30;
+      const badgeY = obs.y - 25;
+      const badgeW = 34;
+      const badgeH = 34;
 
-      ctx.fillStyle = obs.cleared ? 'rgba(6, 78, 59, 0.95)' : 'rgba(10, 14, 23, 0.96)';
+      ctx.fillStyle = obs.cleared ? 'rgba(6, 78, 59, 0.98)' : 'rgba(10, 14, 26, 0.98)';
       ctx.strokeStyle = obs.cleared ? '#34d399' : '#38bdf8';
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 2.2;
       ctx.beginPath();
-      ctx.roundRect(badgeCenterX - badgeW / 2, badgeY - badgeH / 2, badgeW, badgeH, 7);
+      ctx.roundRect(badgeCenterX - badgeW / 2, badgeY - badgeH / 2, badgeW, badgeH, 8);
       ctx.fill();
       ctx.stroke();
 
       ctx.fillStyle = obs.cleared ? '#6ee7b7' : '#ffffff';
-      ctx.font = '900 16px "JetBrains Mono", monospace';
+      ctx.font = '900 19px "JetBrains Mono", monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(obs.letter.toUpperCase(), badgeCenterX, badgeY);
@@ -783,20 +783,20 @@ export function renderTyperDash(
     const distToCube = obs.x - (cube.x + cube.size);
     const inJumpZone = distToCube >= -15 && distToCube <= 260 && !obs.cleared;
 
-    const badgeY = groundY - obs.height - 24;
+    const badgeY = groundY - obs.height - 26;
     const badgeCenterX = obs.x + obs.width / 2;
-    const badgeW = inJumpZone ? 32 : 28;
-    const badgeH = inJumpZone ? 32 : 28;
-    const badgeRadius = 8;
+    const badgeW = inJumpZone ? 38 : 32;
+    const badgeH = inJumpZone ? 38 : 32;
+    const badgeRadius = 9;
 
     ctx.save();
     if (inJumpZone) {
-      ctx.shadowBlur = 15;
+      ctx.shadowBlur = 18;
       ctx.shadowColor = '#facc15';
     }
-    ctx.fillStyle = obs.cleared ? 'rgba(6, 78, 59, 0.95)' : inJumpZone ? 'rgba(120, 53, 15, 0.95)' : 'rgba(10, 14, 23, 0.96)';
+    ctx.fillStyle = obs.cleared ? 'rgba(6, 78, 59, 0.98)' : inJumpZone ? 'rgba(120, 53, 15, 0.98)' : 'rgba(8, 12, 22, 0.98)';
     ctx.strokeStyle = obs.cleared ? '#34d399' : inJumpZone ? '#fde047' : '#f59e0b';
-    ctx.lineWidth = inJumpZone ? 2.5 : 2;
+    ctx.lineWidth = inJumpZone ? 3 : 2.2;
 
     ctx.beginPath();
     ctx.roundRect(badgeCenterX - badgeW / 2, badgeY - badgeH / 2, badgeW, badgeH, badgeRadius);
@@ -805,7 +805,7 @@ export function renderTyperDash(
 
     // Letra
     ctx.fillStyle = obs.cleared ? '#6ee7b7' : inJumpZone ? '#ffffff' : '#fef08a';
-    ctx.font = inJumpZone ? '900 18px "JetBrains Mono", monospace' : '900 16px "JetBrains Mono", monospace';
+    ctx.font = inJumpZone ? '900 22px "JetBrains Mono", monospace' : '900 18px "JetBrains Mono", monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(obs.letter.toUpperCase(), badgeCenterX, badgeY);
@@ -1160,6 +1160,189 @@ export function renderTyperDash(
     }
 
     ctx.restore();
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // 10.6 Moldura Estilizada Central da Próxima Tecla (Target Key HUD)
+  // ─────────────────────────────────────────────────────────
+  if (!activeTrick && obstacles.length > 0) {
+    const cubeFront = cube.x + cube.size;
+    let targetObs: DashObstacle | null = null;
+    let minTargetDist = Infinity;
+
+    for (let i = 0; i < obstacles.length; i++) {
+      const obs = obstacles[i];
+      if (obs.cleared || obs.type === 'portal') continue;
+      const dist = obs.x - cubeFront;
+      if (dist >= -25 && dist < 680) {
+        if (dist < minTargetDist) {
+          minTargetDist = dist;
+          targetObs = obs;
+        }
+      }
+    }
+
+    if (targetObs) {
+      ctx.save();
+      const inJumpZone = minTargetDist >= -20 && minTargetDist <= 260;
+      const isOrb = targetObs.type === 'orb';
+      const isRail = targetObs.type === 'rail';
+
+      const hudCenterX = width / 2;
+      const hudCenterY = stageName ? 86 : 72;
+      const frameW = 138;
+      const frameH = 94;
+
+      // Animação de pulso rítmico quando estiver na Jump Zone
+      const pulseScale = inJumpZone ? 1.0 + Math.sin(Date.now() / 60) * 0.05 : 1.0;
+      ctx.translate(hudCenterX, hudCenterY);
+      ctx.scale(pulseScale, pulseScale);
+
+      // 1. Sombra Cel-Shaded Mangá (Offset +4px)
+      ctx.fillStyle = '#000000';
+      ctx.beginPath();
+      ctx.roundRect(-frameW / 2 + 4, -frameH / 2 + 4, frameW, frameH, 12);
+      ctx.fill();
+
+      // 2. Fundo da Moldura Principal com Gradiente Tecnológico
+      const frameGrad = ctx.createLinearGradient(0, -frameH / 2, 0, frameH / 2);
+      if (inJumpZone) {
+        frameGrad.addColorStop(0, isOrb ? 'rgba(88, 28, 135, 0.96)' : 'rgba(120, 53, 15, 0.96)');
+        frameGrad.addColorStop(1, 'rgba(8, 12, 22, 0.98)');
+      } else {
+        frameGrad.addColorStop(0, 'rgba(15, 23, 42, 0.95)');
+        frameGrad.addColorStop(1, 'rgba(5, 7, 14, 0.98)');
+      }
+      ctx.fillStyle = frameGrad;
+
+      // Borda Neon Glow
+      const neonColor = inJumpZone
+        ? isOrb ? '#f472b6' : '#facc15'
+        : isOrb ? '#ec4899' : '#38bdf8';
+      ctx.shadowBlur = inJumpZone ? 24 : 10;
+      ctx.shadowColor = neonColor;
+      ctx.strokeStyle = neonColor;
+      ctx.lineWidth = inJumpZone ? 3.2 : 2.2;
+
+      ctx.beginPath();
+      ctx.roundRect(-frameW / 2, -frameH / 2, frameW, frameH, 12);
+      ctx.fill();
+      ctx.stroke();
+
+      // 3. Cantoneiras Táticas de Mira (Target Brackets)
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = inJumpZone ? '#ffffff' : 'rgba(255, 255, 255, 0.7)';
+      ctx.lineWidth = 2;
+      const bLen = 9;
+      const bx = frameW / 2 - 3;
+      const by = frameH / 2 - 3;
+
+      // Top-Left
+      ctx.beginPath();
+      ctx.moveTo(-bx + bLen, -by);
+      ctx.lineTo(-bx, -by);
+      ctx.lineTo(-bx, -by + bLen);
+      ctx.stroke();
+
+      // Top-Right
+      ctx.beginPath();
+      ctx.moveTo(bx - bLen, -by);
+      ctx.lineTo(bx, -by);
+      ctx.lineTo(bx, -by + bLen);
+      ctx.stroke();
+
+      // Bottom-Left
+      ctx.beginPath();
+      ctx.moveTo(-bx, by - bLen);
+      ctx.lineTo(-bx, by);
+      ctx.lineTo(-bx + bLen, by);
+      ctx.stroke();
+
+      // Bottom-Right
+      ctx.beginPath();
+      ctx.moveTo(bx, by - bLen);
+      ctx.lineTo(bx, by);
+      ctx.lineTo(bx - bLen, by);
+      ctx.stroke();
+
+      // 4. Etiqueta Superior do Tipo de Obstáculo
+      const tagText = isOrb
+        ? '▲ JUMP ORB'
+        : isRail
+        ? '⚡ HOLD RAIL'
+        : targetObs.type === 'platform'
+        ? '◄ PLATAFORMA'
+        : '◄ SALTO SOLO';
+
+      ctx.font = '900 9.5px "JetBrains Mono", monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = inJumpZone
+        ? isOrb ? '#fbcfe8' : '#fef08a'
+        : isOrb ? '#f472b6' : '#38bdf8';
+      ctx.fillText(tagText, 0, -frameH / 2 + 13);
+
+      // 5. Letra GIGANTE Central com Contorno Cel-Shaded de Alto Contraste
+      const letter = targetObs.letter.toUpperCase();
+      ctx.font = inJumpZone
+        ? '900 48px "JetBrains Mono", monospace'
+        : '900 44px "JetBrains Mono", monospace';
+
+      // Contorno preto pesado (stroke cel-shaded) para leitura instantânea
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 6;
+      ctx.lineJoin = 'miter';
+      ctx.strokeText(letter, 0, 1);
+
+      // Preenchimento de alto contraste
+      ctx.fillStyle = inJumpZone
+        ? '#ffffff'
+        : isOrb ? '#fbcfe8' : '#fde047';
+      ctx.fillText(letter, 0, 1);
+
+      // 6. Rodapé: Pílula "SALTE AGORA!" ou Barra de Aproximação
+      if (inJumpZone) {
+        // Pílula Dourada/Rosa Neon Pulsante
+        const pillW = 100;
+        const pillH = 17;
+        const pillY = frameH / 2 - 14;
+
+        ctx.fillStyle = isOrb ? '#ec4899' : '#facc15';
+        ctx.beginPath();
+        ctx.roundRect(-pillW / 2, pillY - pillH / 2, pillW, pillH, 5);
+        ctx.fill();
+
+        ctx.fillStyle = '#000000';
+        ctx.font = '900 10px "JetBrains Mono", monospace';
+        ctx.fillText(isRail ? 'SEGURE TECLA!' : '⚡ SALTE AGORA!', 0, pillY);
+      } else {
+        // Barra de Aproximação Progressiva até a Jump Zone (dist: 680px -> 260px)
+        const approachRatio = Math.max(0, Math.min(1, (680 - minTargetDist) / (680 - 260)));
+        const barW = 88;
+        const barH = 5;
+        const barY = frameH / 2 - 17;
+
+        // Fundo da barra
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+        ctx.beginPath();
+        ctx.roundRect(-barW / 2, barY - barH / 2, barW, barH, 2.5);
+        ctx.fill();
+
+        // Preenchimento
+        const fillW = Math.max(3, barW * approachRatio);
+        ctx.fillStyle = isOrb ? '#ec4899' : '#38bdf8';
+        ctx.beginPath();
+        ctx.roundRect(-barW / 2, barY - barH / 2, fillW, barH, 2.5);
+        ctx.fill();
+
+        // Texto "APROXIMANDO..."
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '900 8.5px "JetBrains Mono", monospace';
+        ctx.fillText('APROXIMANDO...', 0, frameH / 2 - 8);
+      }
+
+      ctx.restore();
+    }
   }
 
   // ─────────────────────────────────────────────────────────
