@@ -134,6 +134,7 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
   const [multiplayerMode, setMultiplayerMode] = useState<boolean>(!!multiplayerRoomCode);
   const [roomCode, setRoomCode] = useState<string>(multiplayerRoomCode || '');
   const [netPlayersCount, setNetPlayersCount] = useState<number>(1);
+  const [remoteLobbyPlayers, setRemoteLobbyPlayers] = useState<TyperDashNetPlayer[]>([]);
   const remotePlayersRef = useRef<Map<string, TyperDashNetPlayer>>(new Map());
   const effectiveUserIdRef = useRef<string>(playerId || `usr_${Math.random().toString(36).slice(2, 9)}`);
   const effectivePlayerName = playerName || 'Corredor';
@@ -162,6 +163,11 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
       return 0;
     }
   });
+
+  const scoreRef = useRef<number>(0);
+  useEffect(() => {
+    scoreRef.current = score;
+  }, [score]);
 
   // Sincronizar com estatísticas do Hub
   useEffect(() => {
@@ -283,6 +289,7 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
     if (!multiplayerMode || !roomCode.trim()) {
       typerDashNet.disconnect();
       setNetPlayersCount(1);
+      setRemoteLobbyPlayers([]);
       remotePlayersRef.current.clear();
       return;
     }
@@ -297,6 +304,7 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
       (players) => {
         remotePlayersRef.current = players;
         setNetPlayersCount(players.size + 1);
+        setRemoteLobbyPlayers(Array.from(players.values()));
       },
       (remoteUserId, _crashDist) => {
         const victim = remotePlayersRef.current.get(remoteUserId);
@@ -311,6 +319,43 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
           scale: 1.2,
           vy: -0.6
         });
+      },
+      (synchronizedSeed, starterNickname) => {
+        // Largada Coletiva Sincronizada disparada por alguém da sala!
+        prngRef.current = createPrng(synchronizedSeed);
+        setGameState('countdown');
+        setCountdown(3);
+        setScore(0);
+        setCombo(0);
+        comboRef.current = 0;
+        distanceRef.current = 0;
+        lastMetersRef.current = 0;
+        obstaclesRef.current = [];
+        particlesRef.current = [];
+        floatingTextsRef.current = [];
+        denshaPopupsRef.current = [];
+        activeGrindRef.current = null;
+        activeTrickRef.current = null;
+        nextSpawnDistanceRef.current = 500;
+        speedMultiplierRef.current = 1.0;
+        cascadeQueueRef.current = [];
+        cubeVyRef.current = 0;
+        cubeRef.current.y = GROUND_Y - CUBE_SIZE;
+        cubeRef.current.isGrounded = true;
+        cubeRef.current.isJumping = false;
+        cubeRef.current.rotation = 0;
+        cubeRef.current.targetRotation = 0;
+        typerDashAudio.playHitSound(true, 1);
+        floatingTextsRef.current.push({
+          id: `start_${Date.now()}`,
+          x: JUDGMENT_LINE_X + 120,
+          y: GROUND_Y - 140,
+          text: `🏁 LARGADA: ${starterNickname}`,
+          color: '#38bdf8',
+          alpha: 1.0,
+          scale: 1.3,
+          vy: -0.5
+        });
       }
     );
 
@@ -318,6 +363,19 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
       typerDashNet.disconnect();
     };
   }, [multiplayerMode, roomCode, effectivePlayerName, activeSkin]);
+
+  // Sincronizar status do jogador na rede quando o estado do jogo mudar
+  useEffect(() => {
+    if (multiplayerMode && roomCode.trim()) {
+      if (gameState === 'playing') {
+        typerDashNet.setStatus('racing');
+      } else if (gameState === 'lobby') {
+        typerDashNet.setStatus('lobby');
+      } else if (gameState === 'game_over') {
+        typerDashNet.setStatus('crashed');
+      }
+    }
+  }, [gameState, multiplayerMode, roomCode]);
 
   // Função pura de desenho na tela em 60 FPS
   const drawCurrentFrame = useCallback((paused: boolean = false) => {
@@ -381,11 +439,17 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
     }
   }, [activeSkin]);
 
-  // Iniciar corrida com contagem rápida ou início imediato
+  // Iniciar corrida com contagem rápida ou início imediato (dispara para toda a sala se multiplayer)
   const handleStartRun = useCallback(() => {
-    // Resetar PRNG para semente determinística na largada
-    const currentSeed = trackSeed || (multiplayerMode && roomCode.trim() ? stringToSeed(roomCode.trim()) : Date.now());
-    prngRef.current = createPrng(currentSeed);
+    let currentSeed: number;
+    if (multiplayerMode && roomCode.trim()) {
+      currentSeed = trackSeed || stringToSeed(`${roomCode.trim()}_${Date.now()}`);
+      prngRef.current = createPrng(currentSeed);
+      typerDashNet.broadcastStartRace(currentSeed);
+    } else {
+      currentSeed = trackSeed || Date.now();
+      prngRef.current = createPrng(currentSeed);
+    }
 
     setGameState('countdown');
     setCountdown(3);
@@ -1968,29 +2032,80 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
                   </div>
 
                   {multiplayerMode && (
-                    <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-2 border-t border-zinc-800/80">
-                      <div className="flex items-center gap-2 w-full sm:w-auto flex-1">
-                        <span className="text-[11px] text-zinc-400 uppercase font-black shrink-0">Código da Sala:</span>
-                        <input
-                          type="text"
-                          maxLength={12}
-                          value={roomCode}
-                          onChange={(e) => setRoomCode(e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ''))}
-                          placeholder="TURMA-A"
-                          className="w-full sm:w-36 px-2.5 py-1 rounded-lg bg-zinc-900 border border-cyan-500/50 text-cyan-200 font-mono font-black text-xs text-center focus:outline-none focus:ring-1 focus:ring-cyan-400 uppercase tracking-wider"
-                        />
+                    <div className="flex flex-col gap-2 pt-2 border-t border-zinc-800/80">
+                      <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 w-full sm:w-auto flex-1">
+                          <span className="text-[11px] text-zinc-400 uppercase font-black shrink-0">Código da Sala:</span>
+                          <input
+                            type="text"
+                            maxLength={12}
+                            value={roomCode}
+                            onChange={(e) => setRoomCode(e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ''))}
+                            placeholder="TURMA-A"
+                            className="w-full sm:w-36 px-2.5 py-1 rounded-lg bg-zinc-900 border border-cyan-500/50 text-cyan-200 font-mono font-black text-xs text-center focus:outline-none focus:ring-1 focus:ring-cyan-400 uppercase tracking-wider"
+                          />
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {['TURMA-A', 'SALA-1', 'DESAFIO'].map((preset) => (
+                            <button
+                              key={preset}
+                              type="button"
+                              onClick={() => setRoomCode(preset)}
+                              className="px-2 py-0.5 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-[10px] text-zinc-300 hover:text-white cursor-pointer font-bold"
+                            >
+                              {preset}
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        {['TURMA-A', 'SALA-1', 'DESAFIO'].map((preset) => (
-                          <button
-                            key={preset}
-                            type="button"
-                            onClick={() => setRoomCode(preset)}
-                            className="px-2 py-0.5 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-[10px] text-zinc-300 hover:text-white cursor-pointer font-bold"
-                          >
-                            {preset}
-                          </button>
-                        ))}
+
+                      {/* Lista Visual de Participantes Conectados */}
+                      <div className="w-full flex flex-col gap-2 p-2.5 rounded-xl bg-zinc-900/90 border border-cyan-500/30 text-left mt-1">
+                        <div className="flex items-center justify-between text-[11px] font-mono font-black text-cyan-300">
+                          <span className="flex items-center gap-1.5">
+                            <Users className="w-3.5 h-3.5 text-cyan-400" />
+                            <span>PARTICIPANTES NA SALA ({remoteLobbyPlayers.length + 1}):</span>
+                          </span>
+                          <span className="text-[10px] text-zinc-400 font-normal">
+                            {remoteLobbyPlayers.length > 0 ? 'Conectados em tempo real' : 'Aguardando colegas entrarem...'}
+                          </span>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {/* Jogador Local */}
+                          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-cyan-950/80 border border-cyan-400/60 text-cyan-200 text-xs font-mono font-black shadow-sm">
+                            <div className="w-4 h-4 flex items-center justify-center">
+                              <BytezinhoAvatar skin={activeSkin} size="xs" />
+                            </div>
+                            <span>{effectivePlayerName}</span>
+                            <span className="text-[9px] px-1 py-0.5 rounded bg-cyan-400 text-black uppercase font-black ml-1">Você</span>
+                          </div>
+
+                          {/* Jogadores Remotos Conectados */}
+                          {remoteLobbyPlayers.map((p) => (
+                            <div
+                              key={p.userId}
+                              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-800/95 border border-zinc-700 text-zinc-200 text-xs font-mono font-bold shadow-sm"
+                            >
+                              <div className="w-4 h-4 flex items-center justify-center">
+                                <BytezinhoAvatar skin={p.skin as any} size="xs" />
+                              </div>
+                              <span>{p.nickname}</span>
+                              <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block ml-0.5 animate-pulse" title="Conectado" />
+                              {p.status === 'racing' && (
+                                <span className="text-[9px] px-1 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 font-mono">
+                                  Correndo
+                                </span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+
+                        {remoteLobbyPlayers.length === 0 && (
+                          <p className="text-[10px] text-zinc-400 font-mono italic">
+                            Dica: Para correrem juntos, peça para outros alunos abrirem o TyperDash e digitarem o código <strong className="text-cyan-300 font-mono">{roomCode || 'TURMA-A'}</strong>!
+                          </p>
+                        )}
                       </div>
                     </div>
                   )}
@@ -2004,10 +2119,12 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
                     className="w-full sm:w-auto px-10 sm:px-14 py-4 rounded-2xl bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 hover:from-emerald-300 hover:to-cyan-300 text-black font-mono font-black text-base sm:text-lg uppercase tracking-wider shadow-[0_5px_0_#065f46] active:translate-y-1 active:shadow-none transition-all flex items-center justify-center gap-3 cursor-pointer hover:scale-[1.02]"
                   >
                     <Play className="w-5 h-5 fill-black" />
-                    <span>INICIAR CORRIDA [ESPAÇO]</span>
+                    <span>{multiplayerMode ? 'LARGADA COLETIVA [ESPAÇO]' : 'INICIAR CORRIDA [ESPAÇO]'}</span>
                   </button>
                   <p className="text-[11px] font-mono text-zinc-400">
-                    Pressione <strong className="text-white">[ESPAÇO]</strong> ou <strong className="text-white">[ENTER]</strong> para começar a correr
+                    {multiplayerMode
+                      ? 'Pressione [ESPAÇO] para disparar a contagem regressiva para TODOS na sala'
+                      : 'Pressione [ESPAÇO] ou [ENTER] para começar a correr'}
                   </p>
                 </div>
               </div>
