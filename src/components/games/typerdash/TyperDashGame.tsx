@@ -260,41 +260,45 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    renderTyperDash(ctx, 960, 540, {
-      cube: cubeRef.current,
-      ghostTrail: ghostTrailRef.current,
-      speedLinesActive: speedLinesActiveRef.current,
-      zoomPulse: zoomPulseRef.current,
-      stageName: stageNameRef.current,
-      obstacles: obstaclesRef.current,
-      particles: particlesRef.current,
-      floatingTexts: floatingTextsRef.current,
-      denshaPopups: denshaPopupsRef.current,
-      activeGrind: activeGrindRef.current ? {
-        x: cubeRef.current.x + CUBE_SIZE / 2,
-        y: cubeRef.current.y,
-        progress: activeGrindRef.current.progress,
-        key: activeGrindRef.current.key,
-        inSweetSpot: activeGrindRef.current.inSweetSpot
-      } : null,
-      activeTrick: activeTrickRef.current ? {
-        sequence: activeTrickRef.current.sequence,
-        currentIndex: activeTrickRef.current.currentIndex,
-        name: activeTrickRef.current.name,
-        timeRemainingRatio: Math.max(0, (activeTrickRef.current.expiresAt - Date.now()) / activeTrickRef.current.durationMs)
-      } : null,
-      judgmentLineX: JUDGMENT_LINE_X,
-      currentHue: hueRef.current,
-      groundY: GROUND_Y,
-      parallaxOffset: distanceRef.current,
-      isInvulnerable: Date.now() < invulnerableUntilRef.current,
-      combo: comboRef.current,
-      screenShake: screenShakeRef.current,
-      metronomePulse: metronomePulseRef.current,
-      isPaused: paused,
-      bytezinhoSkin: activeSkin,
-      progressRatio: Math.min(1, (distanceRef.current / 40) / TARGET_STAGE_METERS)
-    });
+    try {
+      renderTyperDash(ctx, 960, 540, {
+        cube: cubeRef.current,
+        ghostTrail: ghostTrailRef.current,
+        speedLinesActive: speedLinesActiveRef.current,
+        zoomPulse: zoomPulseRef.current,
+        stageName: stageNameRef.current,
+        obstacles: obstaclesRef.current,
+        particles: particlesRef.current,
+        floatingTexts: floatingTextsRef.current,
+        denshaPopups: denshaPopupsRef.current,
+        activeGrind: activeGrindRef.current ? {
+          x: cubeRef.current.x + CUBE_SIZE / 2,
+          y: cubeRef.current.y,
+          progress: activeGrindRef.current.progress,
+          key: activeGrindRef.current.key,
+          inSweetSpot: activeGrindRef.current.inSweetSpot
+        } : null,
+        activeTrick: activeTrickRef.current ? {
+          sequence: activeTrickRef.current.sequence,
+          currentIndex: activeTrickRef.current.currentIndex,
+          name: activeTrickRef.current.name,
+          timeRemainingRatio: Math.max(0, (activeTrickRef.current.expiresAt - Date.now()) / activeTrickRef.current.durationMs)
+        } : null,
+        judgmentLineX: JUDGMENT_LINE_X,
+        currentHue: hueRef.current,
+        groundY: GROUND_Y,
+        parallaxOffset: distanceRef.current,
+        isInvulnerable: Date.now() < invulnerableUntilRef.current,
+        combo: comboRef.current,
+        screenShake: screenShakeRef.current,
+        metronomePulse: metronomePulseRef.current,
+        isPaused: paused,
+        bytezinhoSkin: activeSkin,
+        progressRatio: Math.min(1, (distanceRef.current / 40) / TARGET_STAGE_METERS)
+      });
+    } catch (err) {
+      console.error('[TyperDash] Erro ao renderizar frame:', err);
+    }
   }, [activeSkin]);
 
   // Iniciar corrida com contagem rápida ou início imediato

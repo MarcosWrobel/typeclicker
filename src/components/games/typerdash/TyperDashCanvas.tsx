@@ -180,7 +180,8 @@ export function renderTyperDash(
     screenShake,
     metronomePulse,
     isPaused,
-    bytezinhoSkin = 'classic'
+    bytezinhoSkin = 'classic',
+    progressRatio = 0
   } = state;
 
   ctx.save();
