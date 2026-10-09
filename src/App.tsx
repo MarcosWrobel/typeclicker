@@ -504,13 +504,17 @@ export default function App() {
           (state.studentClass && state.studentClass.trim().toLowerCase() === race.targetTurma.trim().toLowerCase());
 
         if (isTarget && race.id !== dismissedRaceId) {
+          if (!selectedGame) {
+            modalSourceRef.current = 'hub';
+            setSelectedGame('typeclicker');
+          }
           setIsRaceArenaOpen(true);
         }
       }
     });
 
     return () => unsubRace();
-  }, [user, state.studentClass, dismissedRaceId, isAdmin, isAdminOpen, isPedagogicalOpen]);
+  }, [user, state.studentClass, dismissedRaceId, isAdmin, isAdminOpen, isPedagogicalOpen, selectedGame]);
 
   // Escuta Raids Coletivas em tempo real disparadas pelo professor
   useEffect(() => {
@@ -542,13 +546,17 @@ export default function App() {
           (state.studentClass && state.studentClass.trim().toLowerCase() === raid.targetTurma.trim().toLowerCase());
 
         if (isTarget && raid.id !== dismissedRaidId) {
+          if (!selectedGame) {
+            modalSourceRef.current = 'hub';
+            setSelectedGame('typeclicker');
+          }
           setIsRaidArenaOpen(true);
         }
       }
     });
 
     return () => unsubRaid();
-  }, [user, state.studentClass, dismissedRaidId, isAdmin, isAdminOpen, isPedagogicalOpen]);
+  }, [user, state.studentClass, dismissedRaidId, isAdmin, isAdminOpen, isPedagogicalOpen, selectedGame]);
 
   const [pendingAccent, setPendingAccent] = useState<string | null>(null);
   const [recentWordComplete, setRecentWordComplete] = useState<boolean>(false);
@@ -611,6 +619,9 @@ export default function App() {
 
   const selectedGameRef = useRef<GameId | null>(selectedGame);
   selectedGameRef.current = selectedGame;
+
+  // Rastreia se um minijogo/modal foi acionado a partir do Hub ou de dentro do TypeClicker
+  const modalSourceRef = useRef<'hub' | 'typeclicker'>('typeclicker');
 
   const maxFocusBufferRef = useRef<number>(5.0);
   maxFocusBufferRef.current = maxFocusBuffer;
@@ -897,6 +908,7 @@ export default function App() {
     if (currentKeys <= 0 && !isAdmin) {
       spawnFloatingText('⚠️ Sem chaves restantes! Retorne ao terminal.', 'error');
       setActiveRpgFloor(null);
+      setIsDungeonOpen(true);
       return;
     }
 
@@ -2392,6 +2404,9 @@ export default function App() {
     if (activeRace) {
       setDismissedRaceId(activeRace.id);
     }
+    if (modalSourceRef.current === 'hub') {
+      setSelectedGame(null);
+    }
   }, [activeRace]);
 
   // Handlers para a Raid Coletiva contra Chefe
@@ -2428,6 +2443,9 @@ export default function App() {
     if (activeRaid) {
       setDismissedRaidId(activeRaid.id);
     }
+    if (modalSourceRef.current === 'hub') {
+      setSelectedGame(null);
+    }
   }, [activeRaid]);
 
   const handleOpenRaceLeaderboard = useCallback(() => {
@@ -2445,12 +2463,49 @@ export default function App() {
     setIsLeaderboardOpen(true);
   }, []);
 
-  const handleOpenTimeAttack = useCallback(() => setIsTimeAttackOpen(true), []);
+  const handleCloseTimeAttack = useCallback(() => {
+    setIsTimeAttackOpen(false);
+    if (modalSourceRef.current === 'hub') {
+      setSelectedGame(null);
+    }
+  }, []);
+
+  const handleCloseDungeon = useCallback(() => {
+    setIsDungeonOpen(false);
+    setActiveRpgFloor(null);
+    setIsChestMinigameOpen(false);
+    if (modalSourceRef.current === 'hub') {
+      setSelectedGame(null);
+    }
+  }, []);
+
+  const handleCloseRpgFloor = useCallback(() => {
+    setActiveRpgFloor(null);
+    setIsDungeonOpen(true);
+  }, []);
+
+  const handleCloseArena = useCallback(() => {
+    setIsArenaOpen(false);
+    if (modalSourceRef.current === 'hub') {
+      setSelectedGame(null);
+    }
+  }, []);
+
+  const handleOpenTimeAttack = useCallback(() => {
+    modalSourceRef.current = 'typeclicker';
+    setIsTimeAttackOpen(true);
+  }, []);
   const handleOpenCosmetics = useCallback(() => setIsCosmeticsOpen(true), []);
   const handleOpenAchievements = useCallback(() => setIsAchievementsOpen(true), []);
   const handleOpenQuests = useCallback(() => setIsQuestsOpen(true), []);
-  const handleOpenDungeon = useCallback(() => setIsDungeonOpen(true), []);
-  const handleOpenArena = useCallback(() => setIsArenaOpen(true), []);
+  const handleOpenDungeon = useCallback(() => {
+    modalSourceRef.current = 'typeclicker';
+    setIsDungeonOpen(true);
+  }, []);
+  const handleOpenArena = useCallback(() => {
+    modalSourceRef.current = 'typeclicker';
+    setIsArenaOpen(true);
+  }, []);
   const handleOpenConverter = useCallback(() => setIsConverterOpen(true), []);
 
   const achievementsCountMemo = useMemo(() => {
@@ -2537,6 +2592,7 @@ export default function App() {
           hubConfig={systemSettingsState?.hubConfig ?? null}
           onSelectGame={(gameId) => {
             if (gameId === 'typeclicker') {
+              modalSourceRef.current = 'typeclicker';
               setSelectedGame('typeclicker');
             } else if (gameId === 'type_radar') {
               setSelectedGame('type_radar');
@@ -2547,9 +2603,11 @@ export default function App() {
             } else if (gameId === 'scratchbot') {
               setSelectedGame('scratchbot');
             } else if (gameId === 'time_attack') {
+              modalSourceRef.current = 'hub';
               setSelectedGame('typeclicker');
               setIsTimeAttackOpen(true);
             } else if (gameId === 'dungeon') {
+              modalSourceRef.current = 'hub';
               setSelectedGame('typeclicker');
               setIsDungeonOpen(true);
             }
@@ -2561,10 +2619,12 @@ export default function App() {
           onOpenLeaderboardTab={handleOpenLeaderboardTab}
           onOpenCosmetics={() => setIsCosmeticsOpen(true)}
           onOpenRaceArena={() => {
+            modalSourceRef.current = 'hub';
             setSelectedGame('typeclicker');
             setIsRaceArenaOpen(true);
           }}
           onOpenRaidArena={() => {
+            modalSourceRef.current = 'hub';
             setSelectedGame('typeclicker');
             setIsRaidArenaOpen(true);
           }}
@@ -2633,10 +2693,12 @@ export default function App() {
             userEmail={user?.email}
             activeClass={state.studentClass || systemSettingsState?.activeTurma}
             onOpenRaceArena={() => {
+              modalSourceRef.current = 'hub';
               setSelectedGame('typeclicker');
               setIsRaceArenaOpen(true);
             }}
             onOpenRaidArena={() => {
+              modalSourceRef.current = 'hub';
               setSelectedGame('typeclicker');
               setIsRaidArenaOpen(true);
             }}
@@ -2652,7 +2714,11 @@ export default function App() {
             gameState={state}
             onUpdateGameState={handleAdminUpdateGameState}
             userEmail={user?.email}
-            onOpenArena={() => setIsArenaOpen(true)}
+            onOpenArena={() => {
+              modalSourceRef.current = 'hub';
+              setSelectedGame('typeclicker');
+              setIsArenaOpen(true);
+            }}
             onOpenCosmetics={() => setIsCosmeticsOpen(true)}
             onTriggerChallenge={(lvl) => setActiveChallengeLevel(lvl || 10)}
           />
@@ -2814,8 +2880,8 @@ export default function App() {
             onOpenPedagogical={() => setIsPedagogicalOpen(true)}
             onOpenAdmin={() => setIsAdminOpen(true)}
             onOpenCosmetics={() => setIsCosmeticsOpen(true)}
-            onOpenArena={() => setIsArenaOpen(true)}
-            onOpenTimeAttack={() => setIsTimeAttackOpen(true)}
+            onOpenArena={handleOpenArena}
+            onOpenTimeAttack={handleOpenTimeAttack}
             onResetGame={handleResetGame}
             isSaving={isSyncing}
             isOnline={isOnline}
@@ -3121,13 +3187,13 @@ export default function App() {
         onClose={() => setIsQuestsOpen(false)}
         state={state}
         onClaimWeeklyQuest={handleClaimWeeklyQuest}
-        onOpenDungeon={() => setIsDungeonOpen(true)}
+        onOpenDungeon={handleOpenDungeon}
       />
 
       {/* Modal Dedicado da Masmorra de Digitação (Crônicas RPG) */}
       <RpgDungeonModal
         isOpen={isDungeonOpen}
-        onClose={() => setIsDungeonOpen(false)}
+        onClose={handleCloseDungeon}
         state={state}
         playerRankLevel={playerRank.level}
         onStartBattle={handleStartRpgChronicle}
@@ -3156,14 +3222,14 @@ export default function App() {
           isAdmin={isAdmin}
           onVictory={handleVictoryRpgFloor}
           onNextFloor={handleNextRpgFloor}
-          onClose={() => setActiveRpgFloor(null)}
+          onClose={handleCloseRpgFloor}
         />
       )}
 
       {/* Time Attack Arcade Sprint Modal */}
       <TimeAttackModal
         isOpen={isTimeAttackOpen}
-        onClose={() => setIsTimeAttackOpen(false)}
+        onClose={handleCloseTimeAttack}
         onSuccessReward={handleTimeAttackReward}
         activeTrack={activeCurricularTrack}
         playerLevel={playerRank.level}
@@ -3172,7 +3238,7 @@ export default function App() {
       {/* Arena 1x1 Multiplayer Modal (Nível 100 ou Administrador) */}
       <ArenaModal
         isOpen={isArenaOpen}
-        onClose={() => setIsArenaOpen(false)}
+        onClose={handleCloseArena}
         currentLevel={playerRank.level}
         isMaxLevel={playerRank.isMaxLevel}
         playerRank={playerRank}
@@ -3209,11 +3275,11 @@ export default function App() {
           userEmail={user?.email}
           activeClass={state.studentClass || systemSettingsState?.activeTurma}
           onOpenRaceArena={() => {
-            setSelectedGame('typeclicker');
+            modalSourceRef.current = 'typeclicker';
             setIsRaceArenaOpen(true);
           }}
           onOpenRaidArena={() => {
-            setSelectedGame('typeclicker');
+            modalSourceRef.current = 'typeclicker';
             setIsRaidArenaOpen(true);
           }}
         />
@@ -3228,7 +3294,7 @@ export default function App() {
           gameState={state}
           onUpdateGameState={handleAdminUpdateGameState}
           userEmail={user?.email}
-          onOpenArena={() => setIsArenaOpen(true)}
+          onOpenArena={handleOpenArena}
           onOpenCosmetics={() => setIsCosmeticsOpen(true)}
           onTriggerChallenge={(lvl) => setActiveChallengeLevel(lvl || 10)}
         />
