@@ -707,9 +707,9 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
   // Geração Procedural de Obstáculos e Fases Rítmicas
   // ─────────────────────────────────────────────────────────────
   const maybeSpawnObstacle = useCallback((canvasWidth: number) => {
-    if (distanceRef.current < nextSpawnDistanceRef.current) return;
-
     const meters = Math.floor(distanceRef.current / 40);
+    if (distanceRef.current < nextSpawnDistanceRef.current || meters >= TARGET_STAGE_METERS - 40) return;
+
     const speedMult = speedMultiplierRef.current;
     const beatDistance = (SPEED_PIXELS_PER_SEC * speedMult) * BEAT_DURATION_SEC;
 
@@ -1009,37 +1009,46 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
         lastMetersRef.current = newMeters;
         setDistanceMeters(newMeters);
 
+        // Conclusão Vitoriosa do Percurso (100% Geometry Dash Clear)
+        if (newMeters >= TARGET_STAGE_METERS) {
+          typerDashAudio.stopMetronome();
+          typerDashAudio.playHitSound(true, 10);
+          setScore((s) => s + 5000);
+          setGameState('game_over');
+          return;
+        }
+
         // Atualização da Máquina de Fases
         let stage: TyperDashMusicStage = 'intro';
         let stageTitle = 'Fase 1: Entrada Solo';
         let nextSpeedMult = 1.0;
         let speedLinesOn = false;
 
-        if (newMeters < 300) {
+        if (newMeters < 250) {
           stage = 'intro';
           stageTitle = 'Fase 1: Entrada Solo';
           nextSpeedMult = 1.0;
           speedLinesOn = false;
-        } else if (newMeters < 700) {
+        } else if (newMeters < 550) {
           stage = 'bass';
           stageTitle = 'Fase 2: Esferas Aéreas (Jump Orbs)';
-          nextSpeedMult = 1.05;
+          nextSpeedMult = 1.08;
           speedLinesOn = false;
-        } else if (newMeters < 1200) {
+        } else if (newMeters < 800) {
           stage = 'drop';
-          stageTitle = 'Fase 3: Drop Supersônico (2X)';
-          nextSpeedMult = 1.45;
+          stageTitle = 'Fase 3: Trilhos e Plataformas';
+          nextSpeedMult = 1.25;
           speedLinesOn = true;
-        } else if (newMeters < 1800) {
+        } else if (newMeters < TARGET_STAGE_METERS) {
           stage = 'climax';
-          stageTitle = 'Fase 4: Plataformas Suspensas';
-          nextSpeedMult = 1.15;
-          speedLinesOn = false;
+          stageTitle = 'Fase 4: Reta Final (Meta)';
+          nextSpeedMult = 1.4;
+          speedLinesOn = true;
         } else {
           stage = 'climax';
-          stageTitle = 'Fase 5: Overdrive Climax';
-          nextSpeedMult = 1.5;
-          speedLinesOn = true;
+          stageTitle = '🏁 100% CONCLUÍDO!';
+          nextSpeedMult = 1.0;
+          speedLinesOn = false;
         }
 
         speedMultiplierRef.current = nextSpeedMult;

@@ -298,6 +298,57 @@ export function renderTyperDash(
   }
 
   // ─────────────────────────────────────────────────────────
+  // 3.8 Linha de Chegada / Portal 100% (Geometry Dash Finish Line)
+  // ─────────────────────────────────────────────────────────
+  const totalTrackDistance = 40000; // 1000m * 40px
+  const finishX = totalTrackDistance - parallaxOffset + judgmentLineX;
+
+  if (finishX > -150 && finishX < width + 150) {
+    ctx.save();
+    // Portal / Arco Neon da Chegada
+    ctx.shadowBlur = 24;
+    ctx.shadowColor = '#facc15';
+    ctx.strokeStyle = '#facc15';
+    ctx.lineWidth = 4;
+
+    // Coluna esquerda e direita do arco de vitória
+    ctx.beginPath();
+    ctx.moveTo(finishX - 35, groundY);
+    ctx.lineTo(finishX - 35, groundY - 150);
+    ctx.arcTo(finishX - 35, groundY - 175, finishX, groundY - 175, 25);
+    ctx.arcTo(finishX + 35, groundY - 175, finishX + 35, groundY - 150, 25);
+    ctx.lineTo(finishX + 35, groundY);
+    ctx.stroke();
+
+    // Faixa quadriculada no arco
+    const bannerW = 100;
+    const bannerH = 28;
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(finishX - bannerW / 2, groundY - 165, bannerW, bannerH);
+    ctx.strokeStyle = '#fde047';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(finishX - bannerW / 2, groundY - 165, bannerW, bannerH);
+
+    ctx.fillStyle = '#fde047';
+    ctx.font = '900 12px "JetBrains Mono", monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🏁 100% META 🏁', finishX, groundY - 151);
+
+    // Quadriculado no solo da linha de chegada
+    const checkerW = 12;
+    const checkerH = 12;
+    for (let row = 0; row < 2; row++) {
+      for (let col = -3; col <= 3; col++) {
+        const isWhite = (row + col) % 2 === 0;
+        ctx.fillStyle = isWhite ? '#ffffff' : '#000000';
+        ctx.fillRect(finishX + col * checkerW, groundY + row * checkerH, checkerW, checkerH);
+      }
+    }
+    ctx.restore();
+  }
+
+  // ─────────────────────────────────────────────────────────
   // 4. Judgment Line (Linha de Mira Neon em X = 140)
   // ─────────────────────────────────────────────────────────
   const aimGlow = isArcher ? '#38bdf8' : '#f59e0b';
@@ -1189,7 +1240,7 @@ export function renderTyperDash(
       const isRail = targetObs.type === 'rail';
 
       const hudCenterX = width / 2;
-      const hudCenterY = stageName ? 86 : 72;
+      const hudCenterY = 96;
       const frameW = 138;
       const frameH = 94;
 
@@ -1366,27 +1417,139 @@ export function renderTyperDash(
   }
 
   // ─────────────────────────────────────────────────────────
-  // 12. HUD Indicador de Fase / Stage
+  // 12. Barra de Progresso e Localização na Fase (Geometry Dash Authentic Style)
   // ─────────────────────────────────────────────────────────
-  if (stageName) {
-    ctx.save();
-    ctx.fillStyle = 'rgba(10, 15, 30, 0.88)';
-    ctx.strokeStyle = `hsl(${currentHue}, 85%, 60%)`;
-    ctx.lineWidth = 1.5;
-    const badgeW = 230;
-    const badgeH = 26;
-    ctx.beginPath();
-    ctx.roundRect(width / 2 - badgeW / 2, 8, badgeW, badgeH, 6);
-    ctx.fill();
-    ctx.stroke();
+  const progress = Math.max(0, Math.min(1, progressRatio ?? (parallaxOffset / 40000)));
+  const progressPercent = Math.min(100, Math.floor(progress * 100));
+  const currentMeters = Math.floor(parallaxOffset / 40);
 
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '900 11px "JetBrains Mono", monospace';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(stageName.toUpperCase(), width / 2, 21);
+  ctx.save();
+  const barW = 580;
+  const barH = 11;
+  const barX = width / 2 - barW / 2;
+  const barY = 14;
+
+  // 1. Sombra Cel-Shaded Mangá da Barra (Offset +2px)
+  ctx.fillStyle = '#000000';
+  ctx.beginPath();
+  ctx.roundRect(barX + 2, barY + 2, barW, barH, 5);
+  ctx.fill();
+
+  // 2. Trilho / Fundo Escuro da Barra
+  ctx.fillStyle = 'rgba(8, 12, 22, 0.94)';
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.roundRect(barX, barY, barW, barH, 5);
+  ctx.fill();
+  ctx.stroke();
+
+  // 3. Preenchimento de Progresso Luminoso (Gradiente Emerald/Cyan -> Gold)
+  const fillW = Math.max(0, barW * progress);
+  if (fillW > 0) {
+    const fillGrad = ctx.createLinearGradient(barX, 0, barX + fillW, 0);
+    fillGrad.addColorStop(0, '#06b6d4'); // Ciano
+    fillGrad.addColorStop(0.5, '#10b981'); // Esmeralda clássico GD
+    fillGrad.addColorStop(1, progress >= 0.8 ? '#facc15' : '#34d399'); // Dourado perto da meta
+
+    ctx.save();
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = progress >= 0.8 ? '#facc15' : '#10b981';
+    ctx.fillStyle = fillGrad;
+    ctx.beginPath();
+    ctx.roundRect(barX + 1, barY + 1, fillW, barH - 2, 4);
+    ctx.fill();
     ctx.restore();
   }
+
+  // 4. Marcadores de Fases (Checkpoints visuais ao longo da pista)
+  const checkpoints = [
+    { ratio: 0.25, label: 'F2' },
+    { ratio: 0.55, label: 'F3' },
+    { ratio: 0.80, label: 'F4' }
+  ];
+  for (const cp of checkpoints) {
+    const cpX = barX + barW * cp.ratio;
+    ctx.fillStyle = progress >= cp.ratio ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.25)';
+    ctx.fillRect(cpX - 1, barY - 2, 2, barH + 4);
+  }
+
+  // 5. MINI PERSONAGEM DESLIZANTE (Geometry Dash Character Tracker)
+  const playerTrackX = barX + fillW;
+  const playerTrackY = barY + barH / 2;
+  const miniSize = 18;
+
+  ctx.save();
+  ctx.translate(playerTrackX, playerTrackY);
+
+  // Sombra do mini cubo
+  ctx.fillStyle = '#000000';
+  ctx.beginPath();
+  ctx.roundRect(-miniSize / 2 + 1.5, -miniSize / 2 + 1.5, miniSize, miniSize, 4);
+  ctx.fill();
+
+  // Mini Cubo Rotativo
+  const miniRot = (parallaxOffset / 28) % (Math.PI * 2);
+  ctx.rotate(miniRot);
+
+  // Corpo do mini cubo
+  ctx.shadowBlur = 8;
+  ctx.shadowColor = '#38bdf8';
+  ctx.fillStyle = '#38bdf8';
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.roundRect(-miniSize / 2, -miniSize / 2, miniSize, miniSize, 4);
+  ctx.fill();
+  ctx.stroke();
+
+  // Olhos do Mini Bytezinho
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(-miniSize * 0.3, -miniSize * 0.25, 3.5, 3.5);
+  ctx.fillRect(miniSize * 0.1, -miniSize * 0.25, 3.5, 3.5);
+  ctx.fillStyle = '#0f172a';
+  ctx.fillRect(-miniSize * 0.25, -miniSize * 0.2, 2, 2);
+  ctx.fillRect(miniSize * 0.15, -miniSize * 0.2, 2, 2);
+
+  ctx.restore();
+
+  // 6. Badges de Porcentagem (%) e Metas (0% e 100%)
+  // 0% à esquerda
+  ctx.font = '900 9.5px "JetBrains Mono", monospace';
+  ctx.fillStyle = '#64748b';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('0%', barX - 6, barY + barH / 2);
+
+  // Porcentagem atual à direita (Destaque Neon)
+  const percentBadgeX = barX + barW + 8;
+  const percentBadgeW = 46;
+  const percentBadgeH = 18;
+  ctx.fillStyle = 'rgba(10, 15, 26, 0.95)';
+  ctx.strokeStyle = progress >= 0.8 ? '#facc15' : '#34d399';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.roundRect(percentBadgeX, barY + barH / 2 - percentBadgeH / 2, percentBadgeW, percentBadgeH, 5);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = progress >= 0.8 ? '#fef08a' : '#ffffff';
+  ctx.font = '900 11px "JetBrains Mono", monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(`${progressPercent}%`, percentBadgeX + percentBadgeW / 2, barY + barH / 2);
+
+  // 7. Subtítulo: Nome da Fase e Metragem Percorrida
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.font = '900 9.5px "JetBrains Mono", monospace';
+  ctx.fillStyle = `hsl(${currentHue}, 80%, 70%)`;
+  const stageInfoText = stageName 
+    ? `${stageName.toUpperCase()} • ${currentMeters}m / 1000m`
+    : `${currentMeters}m / 1000m`;
+  ctx.fillText(stageInfoText, width / 2, barY + barH + 4);
+
+  ctx.restore();
 
   ctx.restore();
 }
