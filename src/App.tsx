@@ -83,6 +83,7 @@ import { useGameSync } from './hooks/useGameSync';
 import { Loader2 } from 'lucide-react';
 const ProgPlayGame = React.lazy(() => import('./plugins/progplay/ProgPlayGame'));
 const ScratchBotGame = React.lazy(() => import('./components/games/scratchbot/ScratchBotGame'));
+const ByteQuestGame = React.lazy(() => import('./components/games/bytequest/ByteQuestGame'));
 
 export default function App() {
   const suppressLevelUpRef = useRef<boolean>(true);
@@ -2643,6 +2644,8 @@ export default function App() {
               setSelectedGame('progplay');
             } else if (gameId === 'scratchbot') {
               setSelectedGame('scratchbot');
+            } else if (gameId === 'bytequest') {
+              setSelectedGame('bytequest');
             } else if (gameId === 'time_attack') {
               modalSourceRef.current = 'hub';
               setSelectedGame('typeclicker');
@@ -2863,6 +2866,26 @@ export default function App() {
           difficultyMultiplier={1.0}
           equippedSkin={currentCosmetics.equippedSkin || 'classic'}
           onExitToHub={(payload) => handleGamePluginExit('scratchbot', payload)}
+        />
+      </React.Suspense>
+    );
+  }
+
+  // Jogo Standalone: ByteQuest: Masmorra Mágica de Sobrevivência (Prof. Marcos Wrobel)
+  if (selectedGame === 'bytequest') {
+    return (
+      <React.Suspense
+        fallback={
+          <div className="min-h-screen bg-[#07080c] flex flex-col items-center justify-center text-white gap-3">
+            <Loader2 className="w-8 h-8 animate-spin text-violet-500" />
+            <span className="font-mono text-xs text-neutral-400">Carregando ByteQuest...</span>
+          </div>
+        }
+      >
+        <ByteQuestGame
+          studentClass={state.rpgClass}
+          difficultyMultiplier={1.0}
+          onExitToHub={(payload) => handleGamePluginExit('bytequest', payload)}
         />
       </React.Suspense>
     );

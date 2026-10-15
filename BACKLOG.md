@@ -35,6 +35,7 @@
 | **[UX/DIGITAÇÃO]** Bloqueio momentâneo de digitação após erro (`isTypingLocked`, 400–650 ms) | nenhum | `App.tsx`, `TypingArena.tsx` | P | **Concluído** |
 | **[ADMIN/TESTES]** Concessões de teste por `userId` ou e-mail, com `claimedGrantIds` anti-duplicação | `saves/{uid}`, `system/settings` | `AdminPanel.tsx`, `firebaseService.ts`, `supabaseTestService.ts` | M | **Concluído** |
 | **[VETORIAL]** Renderizadores Canônicos com Retrocompatibilidade (`TrackIconRenderer`, `RpgClassIcon`, `StudentAvatarRenderer`, `LevelBadgeRenderer`, `AchievementIconRenderer`, `CardFrameIcon`) | nenhum (preservação de chave id) | `src/components/vectors/*`, `StudentModal.tsx`, `StudentProfileCard.tsx`, `CosmeticsShopModal.tsx`, `AchievementsModal.tsx`, `LevelsModal.tsx` | M | **Concluído (`235865c` / `a60eaf9`)** |
+| **[JOGO/RPG]** Implementação Completa do `ByteQuest` (Roguelite Combat Runner com hordas, ataques automáticos, digitação de acertos críticos, feitiços de comando, forja com Bytes e Canvas 60 FPS) | `public.game_progress` (Supabase) | `ByteQuestGame.tsx`, `ByteQuestArenaCanvas.tsx`, `ByteQuestHUD.tsx`, `ByteQuestLobby.tsx`, `byteQuestEngine.ts`, `byteQuestAudio.ts`, `gameCatalog.ts`, `App.tsx` | G | **Concluído** |
 
 ---
 
@@ -55,7 +56,6 @@
 | **[DÉBITO]** Unificar a lógica de concessão de teste (Firebase/Supabase duplicadas) em `testGrantEngine.ts` | `game_progress.state_payload.claimedGrantIds` | `firebaseService.ts`, `supabaseTestService.ts` | M | Pendente |
 | **[DÉBITO]** Remover os 23 símbolos locais não usados restantes (`tsc --noUnusedLocals`) e reduzir `console.log` | nenhum | vários | P | Pendente |
 | **[DÉBITO]** Dividir `AdminPanel.tsx` (>2.500 linhas) | nenhum | `AdminPanel.tsx` | G | Pendente |
-| **[JOGO]** `ByteQuest`: arquivos-base criados (`ByteQuestHeroCanvas.tsx`, `byteQuestItems.ts`, `byteQuest.ts`), ainda sem integração ao catálogo/`GameId`/`App.tsx` | `public.game_progress` | `src/components/games/bytequest/*` | G | Em andamento (não integrado) |
 
 ### P3 — Novos Jogos e Expansão do Hub
 | Feature | Dados DB (Supabase / Legado Firestore) | Telas afetadas | Complexidade | Status |

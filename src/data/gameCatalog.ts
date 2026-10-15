@@ -192,6 +192,23 @@ export const INITIAL_GAME_CATALOG: GameMetadata[] = [
     tags: ['Blocos Visuais', 'Algoritmos & Loops', 'Modo Infinito', 'Desafio Pedagógico']
   },
   {
+    id: 'bytequest',
+    title: 'ByteQuest',
+    description: 'Roguelite Combat Runner! Sobreviva a hordas no castelo sombrio com ataques automáticos, digitação de acertos críticos e feitiços de área devastadores.',
+    author: 'Prof. Marcos Wrobel',
+    category: 'Oficiais',
+    subject: 'Educação Digital',
+    genre: 'RPG',
+    coverGradient: 'from-violet-600/30 via-indigo-950/20 to-transparent',
+    borderColor: 'border-violet-500/50 hover:border-violet-400',
+    glowColor: 'bg-violet-500/10 group-hover:bg-violet-500/20',
+    badgeTag: 'NOVO • COMBAT RUNNER',
+    icon: 'Swords',
+    isNew: true,
+    status: 'playable',
+    tags: ['Vampire Survivors', 'Ação em Tempo Real', 'Feitiços /Comandos', 'Forja de Equipamentos']
+  },
+  {
     id: 'math_storm',
     title: 'Math Storm',
     description: 'Tempestade de cálculos matemáticos! Resolva equações, frações e desafios numéricos antes que a sobrecarga atinja 100%.',
