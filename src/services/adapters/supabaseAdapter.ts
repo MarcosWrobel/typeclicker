@@ -1,5 +1,5 @@
 import { SupabaseClient } from '@supabase/supabase-js';
-import { supabase } from '../supabaseClient';
+import { supabase, isSupabaseConfigured } from '../supabaseClient';
 import { IDatabaseService, UserProfile, GameSessionPayload } from '../dbInterface';
 import { GameState } from '../../types';
 import { DEFAULT_COSMETICS } from '../../types/cosmetics';
@@ -44,6 +44,7 @@ export class SupabaseAdapter implements IDatabaseService {
   }
 
   async getUserProfile(userId: string): Promise<UserProfile | null> {
+    if (!isSupabaseConfigured) return null;
     const { data, error } = await this.client
       .from('profiles')
       .select('*')
@@ -56,6 +57,7 @@ export class SupabaseAdapter implements IDatabaseService {
 
   async saveUserProfile(profile: Partial<UserProfile>): Promise<void> {
     if (!profile.id) throw new Error('UserProfile ID is required for saving.');
+    if (!isSupabaseConfigured) return;
 
     const payload: Record<string, any> = { updated_at: new Date().toISOString() };
     if (profile.displayName !== undefined) payload.display_name = profile.displayName;
@@ -94,6 +96,7 @@ export class SupabaseAdapter implements IDatabaseService {
 
   async recordGameSession(userId: string, gameId: string, bytesEarned: number, session: GameSessionPayload): Promise<void> {
     if (!userId) throw new Error('User ID is required for recordGameSession');
+    if (!isSupabaseConfigured) return;
     const safeBytes = Math.max(0, Math.floor(bytesEarned || 0));
 
     const { error } = await this.client.rpc('record_game_session', {
@@ -111,6 +114,7 @@ export class SupabaseAdapter implements IDatabaseService {
   }
 
   async getLeaderboard(limitCount: number = 100): Promise<UserProfile[]> {
+    if (!isSupabaseConfigured) return [];
     const { data, error } = await this.client
       .from('profiles')
       .select('*')
@@ -122,6 +126,7 @@ export class SupabaseAdapter implements IDatabaseService {
   }
 
   async getGlobalLeaderboard(forceRefresh: boolean = false): Promise<LeaderboardEntry[]> {
+    if (!isSupabaseConfigured) return [];
     const { data, error } = await this.client
       .from('profiles')
       .select('*')
@@ -152,6 +157,7 @@ export class SupabaseAdapter implements IDatabaseService {
   }
 
   async getSeasonLeaderboard(forceRefresh: boolean = false): Promise<LeaderboardEntry[]> {
+    if (!isSupabaseConfigured) return [];
     const { data, error } = await this.client
       .from('profiles')
       .select('*')
@@ -182,6 +188,7 @@ export class SupabaseAdapter implements IDatabaseService {
   }
 
   async getSeasonHistory(seasonId: string): Promise<SeasonHistoryEntry[]> {
+    if (!isSupabaseConfigured) return [];
     const { data, error } = await this.client
       .from('season_history')
       .select('*')
@@ -203,6 +210,7 @@ export class SupabaseAdapter implements IDatabaseService {
   }
 
   async getArchivedSeasonsList(): Promise<{ seasonId: string; seasonName: string; closedAt: string }[]> {
+    if (!isSupabaseConfigured) return [];
     const { data, error } = await this.client
       .from('season_history')
       .select('season_id, season_name, closed_at')
@@ -225,6 +233,7 @@ export class SupabaseAdapter implements IDatabaseService {
   }
 
   async closeCurrentSeason(seasonId: string, seasonName: string): Promise<number> {
+    if (!isSupabaseConfigured) return 0;
     const { data, error } = await this.client.rpc('close_current_season', {
       p_season_id: seasonId,
       p_season_name: seasonName
@@ -239,6 +248,7 @@ export class SupabaseAdapter implements IDatabaseService {
   }
 
   async getClassroomRanking(turma: string): Promise<UserProfile[]> {
+    if (!isSupabaseConfigured) return [];
     const { data, error } = await this.client
       .from('profiles')
       .select('*')
@@ -251,6 +261,7 @@ export class SupabaseAdapter implements IDatabaseService {
   }
 
   async unlockCosmetic(userId: string, itemId: string, category: string): Promise<void> {
+    if (!isSupabaseConfigured) return;
     const { error } = await this.client
       .from('user_cosmetics')
       .upsert({
@@ -265,54 +276,60 @@ export class SupabaseAdapter implements IDatabaseService {
 
   async loadGameState(userId: string): Promise<CloudLoadResponse> {
     try {
-      // 1. Tenta carregar o estado persistido completo da tabela game_progress
-      const { data: progressData, error: progressErr } = await this.client
-        .from('game_progress')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('game_id', 'typeclicker')
-        .single();
+      let progressData: any = null;
+      let profile: UserProfile | null = null;
 
-      const progressBytes = Number(progressData?.state_payload?.totalBytesEarned || progressData?.high_score || 0);
+      if (isSupabaseConfigured) {
+        // 1. Tenta carregar o estado persistido completo da tabela game_progress
+        const { data: pData, error: progressErr } = await this.client
+          .from('game_progress')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('game_id', 'typeclicker')
+          .single();
 
-      if (!progressErr && progressData?.state_payload && Object.keys(progressData.state_payload).length > 0 && progressBytes > 0) {
-        return {
-          success: true,
-          message: 'Save carregado do Supabase com sucesso!',
-          saveState: progressData.state_payload,
-          savedAt: new Date(progressData.updated_at).toLocaleString('pt-BR'),
-          points: progressBytes
-        };
-      }
+        progressData = pData;
+        const progressBytes = Number(progressData?.state_payload?.totalBytesEarned || progressData?.high_score || 0);
 
-      // 2. Fallback: carrega os dados principais da tabela profiles
-      const profile = await this.getUserProfile(userId);
-      const profileBytes = Number(profile?.totalBytesEarned || profile?.bytes || 0);
-      if (profile && profileBytes > 0) {
-        const fallbackSaveState: Partial<GameState> = {
-          studentName: profile.displayName,
-          studentNickname: profile.nickname,
-          studentClass: profile.turma,
-          bytes: profile.bytes,
-          totalBytesEarned: profile.totalBytesEarned,
-          rpgClass: profile.rpgClass as any,
-          cosmetics: {
-            ...DEFAULT_COSMETICS,
-            levelTokens: profile.levelTokens,
-            duelTokens: profile.duelTokens,
-            quantumFragments: profile.quantumFragments,
-            equippedSkin: (profile.equippedSkin as any) || DEFAULT_COSMETICS.equippedSkin,
-            equippedCardFrame: (profile.equippedFrame as any) || DEFAULT_COSMETICS.equippedCardFrame,
-            equippedTheme: (profile.equippedTheme as any) || DEFAULT_COSMETICS.equippedTheme
-          }
-        };
+        if (!progressErr && progressData?.state_payload && Object.keys(progressData.state_payload).length > 0 && progressBytes > 0) {
+          return {
+            success: true,
+            message: 'Save carregado do Supabase com sucesso!',
+            saveState: progressData.state_payload,
+            savedAt: new Date(progressData.updated_at).toLocaleString('pt-BR'),
+            points: progressBytes
+          };
+        }
 
-        return {
-          success: true,
-          message: 'Perfil Supabase carregado!',
-          saveState: fallbackSaveState,
-          points: profile.totalBytesEarned
-        };
+        // 2. Fallback: carrega os dados principais da tabela profiles
+        profile = await this.getUserProfile(userId);
+        const profileBytes = Number(profile?.totalBytesEarned || profile?.bytes || 0);
+        if (profile && profileBytes > 0) {
+          const fallbackSaveState: Partial<GameState> = {
+            studentName: profile.displayName,
+            studentNickname: profile.nickname,
+            studentClass: profile.turma,
+            bytes: profile.bytes,
+            totalBytesEarned: profile.totalBytesEarned,
+            rpgClass: profile.rpgClass as any,
+            cosmetics: {
+              ...DEFAULT_COSMETICS,
+              levelTokens: profile.levelTokens,
+              duelTokens: profile.duelTokens,
+              quantumFragments: profile.quantumFragments,
+              equippedSkin: (profile.equippedSkin as any) || DEFAULT_COSMETICS.equippedSkin,
+              equippedCardFrame: (profile.equippedFrame as any) || DEFAULT_COSMETICS.equippedCardFrame,
+              equippedTheme: (profile.equippedTheme as any) || DEFAULT_COSMETICS.equippedTheme
+            }
+          };
+
+          return {
+            success: true,
+            message: 'Perfil Supabase carregado!',
+            saveState: fallbackSaveState,
+            points: profile.totalBytesEarned
+          };
+        }
       }
 
       // 3. Fallback Resiliente de Migração: se não encontrou no Supabase ou se o save estava com 0 bytes,
@@ -326,10 +343,12 @@ export class SupabaseAdapter implements IDatabaseService {
           const rawSave = (fsData?.saveState || {}) as Partial<GameState>;
           const fsTotalBytes = Math.round(Number(rawSave.totalBytesEarned || fsData?.points || 0));
           if (fsTotalBytes > 0) {
-            console.log(`[SupabaseAdapter] Save legado recuperado do Firestore para ${userId}: ${fsTotalBytes} bytes. Sincronizando para Supabase...`);
-            this.saveLegacyGameState(userId, rawSave as GameState).catch((err) => {
-              console.warn('Erro ao salvar no Supabase após recuperar do Firestore:', err);
-            });
+            if (isSupabaseConfigured) {
+              console.log(`[SupabaseAdapter] Save legado recuperado do Firestore para ${userId}: ${fsTotalBytes} bytes. Sincronizando para Supabase...`);
+              this.saveLegacyGameState(userId, rawSave as GameState).catch((err) => {
+                console.warn('Erro ao salvar no Supabase após recuperar do Firestore:', err);
+              });
+            }
             return {
               success: true,
               message: 'Save recuperado da nuvem legada com sucesso!',
@@ -390,6 +409,7 @@ export class SupabaseAdapter implements IDatabaseService {
   }
 
   async saveLegacyGameState(userId: string, state: GameState): Promise<void> {
+    if (!isSupabaseConfigured) return;
     const totalBytes = Math.round(Number(state.totalBytesEarned) || 0);
     const computedLevel = calculatePlayerRank(totalBytes).level;
     const effectiveLevel = Math.max(Number(state.level) || 1, computedLevel);

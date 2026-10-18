@@ -6,9 +6,22 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { BaseGameProps, GameExitPayload } from '../../../types/gamePlugin';
-import { HeroLoadout, RpgItem, EquipmentSlot, RunUpgradeCard } from '../../../types/byteQuest';
+import {
+  HeroLoadout,
+  RpgItem,
+  EquipmentSlot,
+  RunUpgradeCard,
+  HeroSubclassId,
+  TalentId,
+  TALENT_DEFS,
+  AiChipId,
+  AI_CHIP_DEFS,
+  CORRUPTION_TIERS,
+  ACHIEVEMENT_DEFS,
+  BiomeId
+} from '../../../types/byteQuest';
 import { RpgClassType } from '../../../types/rpgClass';
-import { getStarterLoadout, BYTE_QUEST_ITEMS } from '../../../data/byteQuestItems';
+import { getStarterLoadout, forgeWeightedRandomItem, getItemDismantleValue } from '../../../data/byteQuestItems';
 import { ByteQuestSimulation, EngineStats } from './byteQuestEngine';
 import { ByteQuestArenaCanvas } from './ByteQuestArenaCanvas';
 import { ByteQuestHUD } from './ByteQuestHUD';
@@ -16,52 +29,98 @@ import { ByteQuestUpgradeModal } from './ByteQuestUpgradeModal';
 import { ByteQuestRewardModal } from './ByteQuestRewardModal';
 import { ByteQuestLobby } from './ByteQuestLobby';
 import { byteQuestAudio } from './byteQuestAudio';
+import { isAccentKey, resolveDeadKey, combineAccent } from '../../../utils/keyboardAccents';
 
 const SAVE_KEY = 'bytequest_progress_v1';
 
 export interface ByteQuestSavedData {
   equipped: HeroLoadout;
   inventory: RpgItem[];
+  bytesBalance?: number;
   highScore: number;
   maxTimeSurvived: number;
   totalBossesDefeated: number;
+  subclassByClass?: Record<RpgClassType, HeroSubclassId>;
+  talents?: Partial<Record<TalentId, number>>;
+  unlockedAiChips?: AiChipId[];
+  activeAiChips?: AiChipId[];
+  corruptionTier?: number;
+  startingBiome?: BiomeId;
+  unlockedAchievements?: string[];
 }
+
+const DEFAULT_SUBCLASSES: Record<RpgClassType, HeroSubclassId> = {
+  warrior: 'warrior_berserker',
+  archer: 'archer_sniper',
+  mage: 'mage_archmage'
+};
 
 export const ByteQuestGame: React.FC<BaseGameProps> = ({
   studentClass = 'warrior',
   difficultyMultiplier = 1.0,
   onExitToHub
 }) => {
-  // ─── CLASSE SELECIONADA NO MENU PRÉ-JOGO ───
-  // Permite selecionar livremente no lobby, independente da classe do Hub
   const [selectedClass, setSelectedClass] = useState<RpgClassType>(studentClass || 'warrior');
-
-  // ─── ESTADOS DE TELA ───
   const [screen, setScreen] = useState<'lobby' | 'playing' | 'reward'>('lobby');
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [isMuted, setIsMuted] = useState<boolean>(false);
+  const [pendingAccent, setPendingAccent] = useState<string | null>(null);
+  const pendingAccentRef = useRef<string | null>(null);
 
-  // ─── DADOS SALVOS DO JOGADOR ───
   const [playerData, setPlayerData] = useState<ByteQuestSavedData>(() => {
+    const starter = getStarterLoadout(studentClass || 'warrior');
     try {
       const stored = localStorage.getItem(SAVE_KEY);
-      if (stored) return JSON.parse(stored);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        const equipped: HeroLoadout = {
+          weapon: parsed.equipped?.weapon || starter.weapon,
+          chest: parsed.equipped?.chest || starter.chest,
+          head: parsed.equipped?.head || starter.head,
+          boots: parsed.equipped?.boots || starter.boots,
+          accessory: parsed.equipped?.accessory || starter.accessory,
+          relic: parsed.equipped?.relic || starter.relic
+        };
+        const inv: RpgItem[] = Array.isArray(parsed.inventory) ? [...parsed.inventory] : [];
+        [starter.weapon, starter.chest, starter.head, starter.boots, starter.accessory, starter.relic].forEach((st) => {
+          if (!inv.some((i) => i.id === st.id)) inv.push(st);
+        });
+        return {
+          ...parsed,
+          equipped,
+          inventory: inv,
+          bytesBalance: typeof parsed.bytesBalance === 'number' ? parsed.bytesBalance : 1200,
+          subclassByClass: parsed.subclassByClass || DEFAULT_SUBCLASSES,
+          talents: parsed.talents || {},
+          unlockedAiChips: parsed.unlockedAiChips || ['chip_auto_shield_low_hp', 'chip_auto_ult_full_energy'],
+          activeAiChips: parsed.activeAiChips || ['chip_auto_shield_low_hp'],
+          corruptionTier: parsed.corruptionTier ?? 0,
+          startingBiome: parsed.startingBiome || 'crypt',
+          unlockedAchievements: parsed.unlockedAchievements || []
+        };
+      }
     } catch {}
 
-    const starter = getStarterLoadout(studentClass || 'warrior');
     return {
       equipped: starter,
-      inventory: [starter.weapon, starter.chest, starter.head, starter.accessory],
+      inventory: [starter.weapon, starter.chest, starter.head, starter.boots, starter.accessory, starter.relic],
+      bytesBalance: 1200,
       highScore: 0,
       maxTimeSurvived: 0,
-      totalBossesDefeated: 0
+      totalBossesDefeated: 0,
+      subclassByClass: DEFAULT_SUBCLASSES,
+      talents: {},
+      unlockedAiChips: ['chip_auto_shield_low_hp', 'chip_auto_ult_full_energy'],
+      activeAiChips: ['chip_auto_shield_low_hp'],
+      corruptionTier: 0,
+      startingBiome: 'crypt',
+      unlockedAchievements: []
     };
   });
 
-  // Saldo simulado para a forja no lobby
-  const [sessionBytes, setSessionBytes] = useState<number>(1200);
+  const sessionBytes = playerData.bytesBalance ?? 1200;
+  const activeSubclass = (playerData.subclassByClass || DEFAULT_SUBCLASSES)[selectedClass] || DEFAULT_SUBCLASSES[selectedClass];
 
-  // ─── INSTÂNCIA DA SIMULAÇÃO ───
   const simRef = useRef<ByteQuestSimulation | null>(null);
   const [upgradeModalOpen, setUpgradeModalOpen] = useState<boolean>(false);
   const [currentLevelForUpgrade, setCurrentLevelForUpgrade] = useState<number>(1);
@@ -71,24 +130,23 @@ export const ByteQuestGame: React.FC<BaseGameProps> = ({
     bytesEarned: number;
   } | null>(null);
 
-  // Troca de classe no menu pré-jogo com validação de equipamentos e inventário
   const handleSelectClass = (newClass: RpgClassType) => {
     setSelectedClass(newClass);
     const starter = getStarterLoadout(newClass);
 
     setPlayerData((prev) => {
-      // Se a arma atual for restrita a outra classe, troca pela arma do novo arquétipo
       const currentWeapon = prev.equipped.weapon;
       const isWeaponValid = currentWeapon && (!currentWeapon.requiredClass || currentWeapon.requiredClass === newClass);
 
-      const newEquipped = {
+      const newEquipped: HeroLoadout = {
         ...prev.equipped,
-        weapon: isWeaponValid ? currentWeapon : starter.weapon
+        weapon: isWeaponValid ? currentWeapon : starter.weapon,
+        boots: prev.equipped.boots || starter.boots,
+        relic: prev.equipped.relic || starter.relic
       };
 
-      // Garante que o inventário possua os itens básicos do novo arquétipo
       const newInventory = [...prev.inventory];
-      [starter.weapon, starter.chest, starter.head, starter.accessory].forEach((item) => {
+      [starter.weapon, starter.chest, starter.head, starter.boots, starter.accessory, starter.relic].forEach((item) => {
         if (!newInventory.some((inv) => inv.id === item.id)) {
           newInventory.push(item);
         }
@@ -102,25 +160,90 @@ export const ByteQuestGame: React.FC<BaseGameProps> = ({
     });
   };
 
-  // Salva no localStorage quando o inventário ou equipamento muda
+  const handleSelectSubclass = (subclass: HeroSubclassId) => {
+    setPlayerData((prev) => ({
+      ...prev,
+      subclassByClass: {
+        ...(prev.subclassByClass || DEFAULT_SUBCLASSES),
+        [selectedClass]: subclass
+      }
+    }));
+  };
+
+  const handleUpgradeTalent = (talentId: TalentId) => {
+    const def = TALENT_DEFS.find((t) => t.id === talentId);
+    if (!def) return;
+    const curLvl = playerData.talents?.[talentId] || 0;
+    if (curLvl >= def.maxLevel) return;
+    const cost = def.baseCost + curLvl * def.costStep;
+    if (sessionBytes < cost) return;
+
+    setPlayerData((prev) => ({
+      ...prev,
+      bytesBalance: (prev.bytesBalance ?? 1200) - cost,
+      talents: {
+        ...(prev.talents || {}),
+        [talentId]: curLvl + 1
+      }
+    }));
+    byteQuestAudio.playLevelUp();
+  };
+
+  const handleToggleAiChip = (chipId: AiChipId) => {
+    const def = AI_CHIP_DEFS.find((c) => c.id === chipId);
+    if (!def) return;
+    const unlocked = playerData.unlockedAiChips || [];
+    const active = playerData.activeAiChips || [];
+
+    if (!unlocked.includes(chipId)) {
+      if (sessionBytes < def.unlockCost) return;
+      setPlayerData((prev) => ({
+        ...prev,
+        bytesBalance: (prev.bytesBalance ?? 1200) - def.unlockCost,
+        unlockedAiChips: [...(prev.unlockedAiChips || []), chipId],
+        activeAiChips: (prev.activeAiChips || []).length < 2 ? [...(prev.activeAiChips || []), chipId] : prev.activeAiChips
+      }));
+      byteQuestAudio.playLevelUp();
+      return;
+    }
+
+    if (active.includes(chipId)) {
+      setPlayerData((prev) => ({
+        ...prev,
+        activeAiChips: (prev.activeAiChips || []).filter((id) => id !== chipId)
+      }));
+    } else {
+      setPlayerData((prev) => {
+        const cur = prev.activeAiChips || [];
+        const next = cur.length >= 2 ? [cur[1], chipId] : [...cur, chipId];
+        return {
+          ...prev,
+          activeAiChips: next
+        };
+      });
+    }
+  };
+
   useEffect(() => {
     try {
       localStorage.setItem(SAVE_KEY, JSON.stringify(playerData));
     } catch {}
   }, [playerData]);
 
-  // Cleanup de áudio ao desmontar
   useEffect(() => {
     return () => {
       byteQuestAudio.destroy();
     };
   }, []);
 
-  /**
-   * Inicia uma nova partida na arena com o arquétipo e loadout selecionados
-   */
   const handleStartRun = useCallback(() => {
-    const sim = new ByteQuestSimulation(selectedClass, playerData.equipped);
+    const sim = new ByteQuestSimulation(selectedClass, playerData.equipped, {
+      subclass: activeSubclass,
+      talents: playerData.talents || {},
+      activeAiChips: playerData.activeAiChips || [],
+      corruptionTier: playerData.corruptionTier ?? 0,
+      startingBiome: playerData.startingBiome || 'crypt'
+    });
 
     sim.onLevelUp = () => {
       setIsPaused(true);
@@ -141,29 +264,66 @@ export const ByteQuestGame: React.FC<BaseGameProps> = ({
     setIsPaused(false);
     setRewardData(null);
     byteQuestAudio.startBgm();
-  }, [selectedClass, playerData.equipped]);
+  }, [selectedClass, playerData.equipped, activeSubclass, playerData.talents, playerData.activeAiChips, playerData.corruptionTier, playerData.startingBiome]);
 
-  /**
-   * Conclusão da corrida (Vitória ou Derrota)
-   */
   const finishRun = (isVictory: boolean, sim: ByteQuestSimulation) => {
     byteQuestAudio.stopBgm();
     setIsPaused(true);
 
     const stats = sim.stats;
-    const baseBytes = stats.enemiesDefeated * 12 + stats.wordsTypedCount * 22;
+    const corruptionMult = CORRUPTION_TIERS[sim.corruptionTier || 0]?.bytesMultiplier || 1.0;
+    const bountyTalentMult = 1 + ((playerData.talents?.bounty_hunter || 0) * 0.15);
+    const baseBytes = stats.enemiesDefeated * 12 + stats.wordsTypedCount * 22 + (stats.bonusBytesEarned || 0);
     const victoryBonus = isVictory ? 600 : 80;
-    const earned = Math.round((baseBytes + victoryBonus) * difficultyMultiplier);
+    const earned = Math.round((baseBytes + victoryBonus) * difficultyMultiplier * corruptionMult * bountyTalentMult);
 
-    setSessionBytes((prev) => prev + earned);
+    setPlayerData((prev) => {
+      const currentAchievements = new Set(prev.unlockedAchievements || []);
+      let achievementRewardBytes = 0;
 
-    // Atualiza recordes
-    setPlayerData((prev) => ({
-      ...prev,
-      highScore: Math.max(prev.highScore, stats.damageDealt),
-      maxTimeSurvived: Math.max(prev.maxTimeSurvived, stats.timeSurvivedSeconds),
-      totalBossesDefeated: prev.totalBossesDefeated + (isVictory ? 1 : 0)
-    }));
+      const checkUnlock = (id: string, condition: boolean) => {
+        if (condition && !currentAchievements.has(id)) {
+          currentAchievements.add(id);
+          const def = ACHIEVEMENT_DEFS.find((a) => a.id === id);
+          if (def) achievementRewardBytes += def.rewardBytes;
+        }
+      };
+
+      const hasSupremeEvo =
+        sim.upgrades.weaponBoomerangLevel >= 5 ||
+        sim.upgrades.weaponTurretLevel >= 5 ||
+        sim.upgrades.weaponFireAuraLevel >= 5 ||
+        sim.upgrades.weaponHomingMissilesLevel >= 5;
+
+      checkUnlock('ach_first_boss', isVictory || prev.totalBossesDefeated > 0);
+      checkUnlock('ach_combo_30', sim.maxTypingCombo >= 30);
+      checkUnlock('ach_supreme_weapon', hasSupremeEvo);
+      checkUnlock('ach_goblin_hunter', (stats.goblinsDefeated || 0) >= 1);
+      checkUnlock('ach_torment_1', isVictory && (sim.corruptionTier || 0) >= 1);
+      checkUnlock('ach_torment_3', isVictory && (sim.corruptionTier || 0) >= 3);
+      checkUnlock('ach_endless_10m', stats.timeSurvivedSeconds >= 600);
+
+      // Se coletou baús na arena, converte cada baú em um item aleatório adicional no inventário
+      const newInv = [...prev.inventory];
+      const chestsCount = stats.chestsCollected || 0;
+      for (let c = 0; c < chestsCount; c++) {
+        const ownedIds = newInv.map((i) => i.id);
+        const { item: chestLoot } = forgeWeightedRandomItem(selectedClass, ownedIds);
+        if (!newInv.some((i) => i.id === chestLoot.id)) {
+          newInv.push(chestLoot);
+        }
+      }
+
+      return {
+        ...prev,
+        inventory: newInv,
+        bytesBalance: (prev.bytesBalance ?? 1200) + earned + achievementRewardBytes,
+        highScore: Math.max(prev.highScore, stats.damageDealt),
+        maxTimeSurvived: Math.max(prev.maxTimeSurvived, stats.timeSurvivedSeconds),
+        totalBossesDefeated: prev.totalBossesDefeated + (isVictory ? 1 : 0),
+        unlockedAchievements: Array.from(currentAchievements)
+      };
+    });
 
     setRewardData({
       isVictory,
@@ -173,21 +333,68 @@ export const ByteQuestGame: React.FC<BaseGameProps> = ({
     setScreen('reward');
   };
 
-  /**
-   * Captura global de teclado durante a batalha
-   */
   useEffect(() => {
-    if (screen !== 'playing' || isPaused) return;
+    if (screen !== 'playing') return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignora atalhos de sistema com Control / Alt / Meta
       if (e.ctrlKey || e.altKey || e.metaKey) return;
       if (e.key === 'Tab') return;
 
       const sim = simRef.current;
       if (!sim) return;
 
-      // Previne a ativação do Quick Find (Pesquisa Rápida) no Zen Browser / Firefox
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        if (sim.spellBuffer.length > 0 || sim.lockedEnemyId || sim.lockedShrineId) {
+          sim.handleKeyPress('Escape');
+        } else {
+          setIsPaused((prev) => {
+            const next = !prev;
+            if (next) {
+              byteQuestAudio.stopBgm();
+            } else {
+              byteQuestAudio.startBgm();
+            }
+            return next;
+          });
+        }
+        return;
+      }
+
+      if (isPaused || upgradeModalOpen) return;
+
+      // 1. Teclas mortas (Dead) e acentos isolados (~, ´, ^, `, etc.)
+      if (e.key === 'Dead' || isAccentKey(e.key)) {
+        e.preventDefault();
+        let expectedChar: string | undefined;
+        if (sim.lockedEnemyId) {
+          const target = sim.enemies.find((en) => en.id === sim.lockedEnemyId);
+          if (target) expectedChar = target.word[target.wordTyped.length];
+        } else if (sim.lockedShrineId) {
+          const targetS = sim.shrines.find((s) => s.id === sim.lockedShrineId);
+          if (targetS) expectedChar = targetS.word[targetS.wordTyped.length];
+        }
+        const resolved = resolveDeadKey(e, expectedChar) || (e.key === '~' ? '~' : e.key === '^' ? '^' : '´');
+        setPendingAccent(resolved);
+        pendingAccentRef.current = resolved;
+        return;
+      }
+
+      // Backspace ou Escape: se houver acento pendente, cancela o acento
+      if (e.key === 'Escape' || e.key === 'Backspace') {
+        if (pendingAccentRef.current) {
+          e.preventDefault();
+          setPendingAccent(null);
+          pendingAccentRef.current = null;
+          return;
+        }
+        if (e.key === 'Backspace') {
+          e.preventDefault();
+          sim.handleKeyPress('Backspace');
+          return;
+        }
+      }
+
       if (e.key === '/') {
         e.preventDefault();
         e.stopPropagation();
@@ -195,40 +402,27 @@ export const ByteQuestGame: React.FC<BaseGameProps> = ({
         return;
       }
 
-      // Movimentação do Herói com as Setas do Teclado ou WASD
+      if (e.code === 'Space' || e.key === ' ') {
+        e.preventDefault();
+        sim.executeMobility();
+        return;
+      }
+
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
         e.preventDefault();
         sim.handleDirectionKey(e.key, true);
         return;
       }
 
-      // WASD para movimentação quando não estiver conjurando nem digitando em alvo travado
-      if (['w', 'a', 's', 'd', 'W', 'A', 'S', 'D'].includes(e.key) && !sim.spellBuffer && !sim.lockedEnemyId) {
-        const hasEliteTargetMatch = sim.enemies.some(
-          (en) => en.word && en.word.length > 0 && en.word[0].toLowerCase() === e.key.toLowerCase()
-        );
-        if (!hasEliteTargetMatch) {
-          e.preventDefault();
-          sim.handleDirectionKey(e.key, true);
-          return;
-        }
-      }
-
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        sim.handleKeyPress('Escape');
-        return;
-      }
-
-      if (e.key === 'Backspace') {
-        e.preventDefault();
-        sim.handleKeyPress('Backspace');
-        return;
-      }
-
       if (e.key.length === 1) {
         e.preventDefault();
-        sim.handleKeyPress(e.key);
+        let charToProcess = e.key;
+        if (pendingAccentRef.current) {
+          charToProcess = combineAccent(pendingAccentRef.current, e.key);
+          setPendingAccent(null);
+          pendingAccentRef.current = null;
+        }
+        sim.handleKeyPress(charToProcess);
       }
     };
 
@@ -236,7 +430,7 @@ export const ByteQuestGame: React.FC<BaseGameProps> = ({
       const sim = simRef.current;
       if (!sim) return;
 
-      if (e.key.startsWith('Arrow') || ['w', 'a', 's', 'd', 'W', 'A', 'S', 'D'].includes(e.key)) {
+      if (e.key.startsWith('Arrow')) {
         sim.handleDirectionKey(e.key, false);
       }
     };
@@ -247,22 +441,21 @@ export const ByteQuestGame: React.FC<BaseGameProps> = ({
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [screen, isPaused]);
+  }, [screen, isPaused, upgradeModalOpen]);
 
-  /**
-   * Aplicação do upgrade escolhido
-   */
   const handleSelectUpgrade = (upgrade: RunUpgradeCard) => {
     if (simRef.current) {
       simRef.current.applyUpgrade(upgrade.effectType, upgrade.value);
+      if (upgrade.level === 5 && upgrade.effectType.startsWith('weapon_')) {
+        byteQuestAudio.playSupremeEvolution();
+      } else {
+        byteQuestAudio.playLevelUp();
+      }
     }
     setUpgradeModalOpen(false);
     setIsPaused(false);
   };
 
-  /**
-   * Equipar / Desequipar itens no lobby
-   */
   const handleEquipItem = (item: RpgItem) => {
     setPlayerData((prev) => ({
       ...prev,
@@ -283,38 +476,78 @@ export const ByteQuestGame: React.FC<BaseGameProps> = ({
     }));
   };
 
-  /**
-   * Forja de itens no lobby com Bytes (estritamente restritos ao arquétipo selecionado)
-   */
-  const handleForgeItem = (cost: number): boolean => {
-    if (sessionBytes < cost) return false;
-    setSessionBytes((prev) => prev - cost);
+  const handleUpgradeItem = (slot: EquipmentSlot) => {
+    const item = playerData.equipped[slot];
+    if (!item) return;
+    const currentLvl = item.upgradeLevel || 0;
+    if (currentLvl >= 5) return;
+    const cost = 200 * (currentLvl + 1);
+    if (sessionBytes < cost) return;
 
-    // Sorteia um item exclusivo para o arquétipo atual que o jogador ainda não possua
-    const available = BYTE_QUEST_ITEMS.filter(
-      (i) => (!i.requiredClass || i.requiredClass === selectedClass) && !playerData.inventory.some((inv) => inv.id === i.id)
-    );
-    const pool = available.length > 0
-      ? available
-      : BYTE_QUEST_ITEMS.filter((i) => !i.requiredClass || i.requiredClass === selectedClass);
-    const forged = pool[Math.floor(Math.random() * pool.length)];
+    const upgradedItem: RpgItem = {
+      ...item,
+      upgradeLevel: currentLvl + 1
+    };
 
     setPlayerData((prev) => ({
       ...prev,
-      inventory: [...prev.inventory, forged]
+      bytesBalance: (prev.bytesBalance ?? 1200) - cost,
+      equipped: {
+        ...prev.equipped,
+        [slot]: upgradedItem
+      },
+      inventory: prev.inventory.map((inv) => (inv.id === item.id ? upgradedItem : inv))
     }));
 
-    byteQuestAudio.playChestOpen();
-    return true;
+    byteQuestAudio.playLevelUp();
   };
 
-  /**
-   * Saída normalizada para o Hub
-   */
+  const handleForgeItem = (cost: number): { success: boolean; item?: RpgItem; rarity?: string } => {
+    if (sessionBytes < cost) return { success: false };
+
+    const ownedIds = playerData.inventory.map((inv) => inv.id);
+    const { item: forged, rollRarity } = forgeWeightedRandomItem(selectedClass, ownedIds);
+
+    setPlayerData((prev) => {
+      const currentAchievements = new Set(prev.unlockedAchievements || []);
+      let bonusAch = 0;
+      if (forged.rarity === 'quantum' && !currentAchievements.has('ach_quantum_item')) {
+        currentAchievements.add('ach_quantum_item');
+        bonusAch = 500;
+      }
+      return {
+        ...prev,
+        bytesBalance: (prev.bytesBalance ?? 1200) - cost + bonusAch,
+        inventory: prev.inventory.some((i) => i.id === forged.id) ? prev.inventory : [...prev.inventory, forged],
+        unlockedAchievements: Array.from(currentAchievements)
+      };
+    });
+
+    byteQuestAudio.playChestOpen();
+    return { success: true, item: forged, rarity: rollRarity };
+  };
+
+  const handleDismantleItem = (item: RpgItem) => {
+    const isEquipped = Object.values(playerData.equipped).some((e) => e?.id === item.id);
+    if (isEquipped) {
+      alert('Desequipe o item antes de desmantelá-lo!');
+      return;
+    }
+
+    const refund = getItemDismantleValue(item.rarity);
+
+    setPlayerData((prev) => ({
+      ...prev,
+      bytesBalance: (prev.bytesBalance ?? 1200) + refund,
+      inventory: prev.inventory.filter((i) => i.id !== item.id)
+    }));
+
+    byteQuestAudio.playTypeHit();
+  };
+
   const handleExitToHub = (lootItem?: RpgItem) => {
     byteQuestAudio.destroy();
 
-    // Se ganhou um item no baú de recompensas, adiciona ao inventário permanente
     if (lootItem) {
       setPlayerData((prev) => {
         if (prev.inventory.some((i) => i.id === lootItem.id)) return prev;
@@ -343,6 +576,8 @@ export const ByteQuestGame: React.FC<BaseGameProps> = ({
         extraMetrics: {
           enemiesDefeated: stats ? stats.enemiesDefeated : 0,
           criticalHits: stats ? stats.criticalHits : 0,
+          highestWave: simRef.current ? simRef.current.getCurrentPhase() : 1,
+          timeSurvivedSeconds: stats ? Math.round(stats.timeSurvivedSeconds) : 0,
           isVictory: rewardData?.isVictory ? 1 : 0
         }
       }
@@ -352,7 +587,9 @@ export const ByteQuestGame: React.FC<BaseGameProps> = ({
   };
 
   return (
-    <div className="relative w-full min-h-screen bg-[#07080c] text-white flex flex-col justify-center items-center p-3 sm:p-6 overflow-hidden">
+    <div className={`relative w-full min-h-screen bg-[#07080c] text-white flex flex-col items-center overflow-hidden ${
+      screen === 'playing' ? 'p-1.5 sm:p-2 justify-start' : 'p-3 sm:p-6 justify-center'
+    }`}>
       {/* ─── TELA DO LOBBY ─── */}
       {screen === 'lobby' && (
         <ByteQuestLobby
@@ -360,27 +597,80 @@ export const ByteQuestGame: React.FC<BaseGameProps> = ({
           equipped={playerData.equipped}
           inventory={playerData.inventory}
           availableBytes={sessionBytes}
+          selectedSubclass={activeSubclass}
+          talents={playerData.talents || {}}
+          unlockedAiChips={playerData.unlockedAiChips || []}
+          activeAiChips={playerData.activeAiChips || []}
+          corruptionTier={playerData.corruptionTier ?? 0}
+          startingBiome={playerData.startingBiome || 'crypt'}
+          unlockedAchievements={playerData.unlockedAchievements || []}
           onSelectClass={handleSelectClass}
+          onSelectSubclass={handleSelectSubclass}
+          onUpgradeTalent={handleUpgradeTalent}
+          onToggleAiChip={handleToggleAiChip}
+          onSelectCorruptionTier={(tier) => setPlayerData((p) => ({ ...p, corruptionTier: tier }))}
+          onSelectStartingBiome={(biome) => setPlayerData((p) => ({ ...p, startingBiome: biome }))}
           onEquipItem={handleEquipItem}
           onUnequipSlot={handleUnequipSlot}
+          onUpgradeItem={handleUpgradeItem}
           onForgeItem={handleForgeItem}
+          onDismantleItem={handleDismantleItem}
           onStartRun={handleStartRun}
           onExitToHub={() => handleExitToHub()}
         />
       )}
 
-      {/* ─── TELA DE BATALHA (ARENA 60 FPS) ─── */}
+      {/* ─── TELA DE BATALHA (ARENA 60 FPS EXPANDIDA EM TELA CHEIA) ─── */}
       {screen === 'playing' && simRef.current && (
-        <div className="relative w-full max-w-6xl xl:max-w-7xl h-[640px] max-h-[85vh] flex items-center justify-center">
+        <>
+          <div className="relative w-full max-w-[1720px] 2xl:max-w-[1920px] h-[calc(100vh-68px)] min-h-[640px] max-h-[92vh] flex items-center justify-center">
           <ByteQuestArenaCanvas
             simulation={simRef.current}
             rpgClass={selectedClass}
             loadout={playerData.equipped}
             isPaused={isPaused}
           />
+
+          {/* Overlay de Pausa Visual quando pausado manualmente */}
+          {isPaused && !upgradeModalOpen && (
+            <div className="absolute inset-0 z-40 bg-black/70 backdrop-blur-sm flex flex-col items-center justify-center gap-4 rounded-xl">
+              <div className="px-4 py-1.5 rounded-full bg-amber-950/70 border border-amber-500/50 text-amber-300 font-mono text-xs font-bold tracking-widest uppercase">
+                Jogo Pausado
+              </div>
+              <h2 className="text-3xl font-black font-mono text-white tracking-wider">
+                PARTIDA EM PAUSA
+              </h2>
+              <p className="text-xs font-mono text-zinc-400 max-w-sm text-center">
+                A simulação e o relógio da masmorra estão paralisados. Pressione Continuar para retomar o combate.
+              </p>
+              <button
+                onClick={() => {
+                  setIsPaused(false);
+                  byteQuestAudio.startBgm();
+                }}
+                className="mt-2 flex items-center gap-2 px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-mono font-bold text-sm shadow-lg shadow-amber-950/60 hover:scale-105 transition-all cursor-pointer"
+              >
+                <span>CONTINUAR PARTIDA</span>
+              </button>
+            </div>
+          )}
+
           <ByteQuestHUD
             simulation={simRef.current}
             isMuted={isMuted}
+            isPaused={isPaused}
+            pendingAccent={pendingAccent}
+            onTogglePause={() => {
+              setIsPaused((prev) => {
+                const next = !prev;
+                if (next) {
+                  byteQuestAudio.stopBgm();
+                } else {
+                  byteQuestAudio.startBgm();
+                }
+                return next;
+              });
+            }}
             onToggleMute={() => {
               const muted = byteQuestAudio.toggleMute();
               setIsMuted(muted);
@@ -394,12 +684,21 @@ export const ByteQuestGame: React.FC<BaseGameProps> = ({
             }}
           />
         </div>
+
+        {/* ─── INFORMAÇÕES DE COMO JOGAR FORA DO CANVAS DE JOGO ─── */}
+        <div className="mt-3 flex flex-wrap items-center justify-center gap-2.5 text-xs font-mono text-zinc-400 bg-zinc-950/80 px-4 py-1.5 rounded-xl border border-zinc-800/80 shadow">
+          <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+          <span>Use <kbd className="px-1.5 py-0.5 bg-zinc-800 rounded text-violet-300 border border-zinc-700">Setas</kbd> para andar • <kbd className="px-1.5 py-0.5 bg-zinc-800 rounded text-cyan-300 border border-zinc-700">ESPAÇO</kbd> Mobilidade • Digite para golpear • <kbd className="px-1.5 py-0.5 bg-zinc-800 rounded text-amber-300 border border-zinc-700">/</kbd> Magias</span>
+        </div>
+      </>
       )}
 
       {/* ─── MODAL DE LEVEL UP ─── */}
       {upgradeModalOpen && (
         <ByteQuestUpgradeModal
           currentLevel={currentLevelForUpgrade}
+          rpgClass={selectedClass}
+          upgradeLevels={simRef.current?.upgradeLevels}
           onSelectUpgrade={handleSelectUpgrade}
         />
       )}
@@ -412,7 +711,7 @@ export const ByteQuestGame: React.FC<BaseGameProps> = ({
           bytesEarned={rewardData.bytesEarned}
           onContinueInfinite={() => {
             if (simRef.current) {
-              simRef.current.isEndlessMode = true;
+              simRef.current.continueEndlessMode();
               setScreen('playing');
               setIsPaused(false);
               byteQuestAudio.startBgm();
