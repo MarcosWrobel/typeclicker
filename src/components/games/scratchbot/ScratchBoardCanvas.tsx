@@ -12,6 +12,7 @@ interface ScratchBoardCanvasProps {
   targetPos: GridCoord;
   obstacles: GridCoord[];
   gems?: GridCoord[];
+  optionalGems?: GridCoord[];
   hazards?: GridCoord[];
   teleporters?: TeleporterPair[];
   conveyors?: ConveyorBelt[];
@@ -208,6 +209,29 @@ const CyberGemSprite: React.FC = () => (
   </motion.div>
 );
 
+/** Sprite da Gema Estelar Opcional (Star Gem) */
+const CyberStarGemSprite: React.FC = () => (
+  <motion.div
+    animate={{ scale: [1, 1.15, 1], rotate: [0, 8, -8, 0] }}
+    transition={{ repeat: Infinity, duration: 2.2, ease: 'easeInOut' }}
+    className="relative w-full h-full flex items-center justify-center p-1 pointer-events-none"
+  >
+    <div className="relative w-7 h-7 sm:w-9 sm:h-9 flex items-center justify-center">
+      <svg viewBox="0 0 32 32" className="w-full h-full filter drop-shadow-[0_0_12px_rgba(250,204,21,0.95)]">
+        <defs>
+          <linearGradient id="starGemGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#fef08a" />
+            <stop offset="50%" stopColor="#facc15" />
+            <stop offset="100%" stopColor="#ca8a04" />
+          </linearGradient>
+        </defs>
+        <polygon points="16,2 20.2,11.5 30.5,12.5 22.8,19.3 25,29.5 16,24.2 7,29.5 9.2,19.3 1.5,12.5 11.8,11.5" fill="url(#starGemGrad)" stroke="#ffffff" strokeWidth="1" />
+      </svg>
+      <div className="absolute top-1 left-2 w-1.5 h-1.5 rounded-full bg-white opacity-90 animate-ping" />
+    </div>
+  </motion.div>
+);
+
 export const ScratchBoardCanvas: React.FC<ScratchBoardCanvasProps> = ({
   gridSize,
   robotPos,
@@ -215,6 +239,7 @@ export const ScratchBoardCanvas: React.FC<ScratchBoardCanvasProps> = ({
   targetPos,
   obstacles,
   gems = [],
+  optionalGems = [],
   hazards = [],
   teleporters = [],
   conveyors = [],
@@ -237,6 +262,11 @@ export const ScratchBoardCanvas: React.FC<ScratchBoardCanvasProps> = ({
   const isGem = (x: number, y: number) => {
     const key = `${x},${y}`;
     return gems.some((g) => g.x === x && g.y === y) && !collectedGems.has(key);
+  };
+
+  const isOptionalGem = (x: number, y: number) => {
+    const key = `${x},${y}`;
+    return optionalGems.some((g) => g.x === x && g.y === y) && !collectedGems.has(key);
   };
 
   const isHazard = (x: number, y: number) => {
@@ -289,6 +319,9 @@ export const ScratchBoardCanvas: React.FC<ScratchBoardCanvasProps> = ({
     return gates.find((g) => g.keyCoord.x === x && g.keyCoord.y === y);
   };
 
+  const regularCollectedCount = gems.filter((g) => collectedGems.has(`${g.x},${g.y}`)).length;
+  const optionalCollectedCount = optionalGems.filter((g) => collectedGems.has(`${g.x},${g.y}`)).length;
+
   return (
     <div className="w-full h-full flex flex-col items-center justify-center p-3 sm:p-5 bg-[#0b0d14] rounded-2xl border border-zinc-800 shadow-2xl relative select-none">
       {/* Grid de Células */}
@@ -305,6 +338,7 @@ export const ScratchBoardCanvas: React.FC<ScratchBoardCanvasProps> = ({
             const obstacle = isObstacle(x, y);
             const target = isTarget(x, y);
             const gem = isGem(x, y);
+            const optionalGem = isOptionalGem(x, y);
             const robot = isRobot(x, y);
             const path = isPathTrail(x, y);
             const hazard = isHazard(x, y);
@@ -361,6 +395,9 @@ export const ScratchBoardCanvas: React.FC<ScratchBoardCanvasProps> = ({
 
                 {/* Gema de Dados Coletável */}
                 {gem && !robot && <CyberGemSprite />}
+
+                {/* Gema Estelar Opcional (Star Gem) */}
+                {optionalGem && !robot && <CyberStarGemSprite />}
 
                 {/* Robô Bytezinho com Skin Oficial */}
                 {robot && (
@@ -425,6 +462,12 @@ export const ScratchBoardCanvas: React.FC<ScratchBoardCanvasProps> = ({
           <span className="w-2.5 h-2.5 rounded bg-rose-500/80 border border-rose-400" />
           <span>Firewall</span>
         </div>
+        {optionalGems.length > 0 && (
+          <div className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-yellow-400 shadow-[0_0_6px_#facc15]" />
+            <span className="text-yellow-300 font-bold">Star Gem ({optionalCollectedCount}/{optionalGems.length})</span>
+          </div>
+        )}
         {hazards.length > 0 && (
           <div className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded bg-amber-500/80 text-black flex items-center justify-center">
@@ -458,7 +501,7 @@ export const ScratchBoardCanvas: React.FC<ScratchBoardCanvasProps> = ({
         {gems.length > 0 && (
           <div className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-sm bg-purple-400 shadow-[0_0_6px_#c084fc] rotate-45" />
-            <span>Gemas ({collectedGems.size}/{gems.length})</span>
+            <span>Gemas ({regularCollectedCount}/{gems.length})</span>
           </div>
         )}
       </div>

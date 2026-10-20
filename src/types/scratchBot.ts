@@ -10,7 +10,9 @@ export type BlockType =
   | 'turn_left'
   | 'turn_right'
   | 'repeat'
-  | 'collect_gem';
+  | 'collect_gem'
+  | 'if_path_ahead'
+  | 'if_on_gem';
 
 export interface ScratchBlock {
   id: string;
@@ -68,10 +70,16 @@ export interface ScratchLevelDef {
   maxBlocksFor2Stars: number;
   baseRewardBytes: number;
   availableBlockTypes: BlockType[];
+  blockLimits?: Partial<Record<BlockType, number>>; // Limite de estoque de blocos por tipo nesta fase
+  world?: number; // Módulo temático da fase
+  optionalGems?: GridCoord[]; // Gemas estelares opcionais para desafios avançados
+  initialScript?: ScratchBlock[]; // Script pré-montado com defeito para o modo Bug Hunter
+  bugDescription?: string; // Orientação pedagógica do bug a ser corrigido
 }
 
 export interface ScratchBotSaveData {
   completedLevels: Record<number, { stars: number; bestBlocks: number }>;
+  completedBugLevels?: Record<number, { stars: number; bestBlocks: number }>;
   infiniteBestStreak: number;
   totalGemsCollected: number;
 }

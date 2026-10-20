@@ -13,7 +13,10 @@ ArrowUp,
 RotateCw,
 Repeat,
 Diamond,
-ArrowRight
+ArrowRight,
+StepForward,
+Compass,
+Bug
 } from 'lucide-react';
 import { BaseGameProps, GameExitPayload } from '../../../types/gamePlugin';
 import { BytezinhoSkinId } from '../../../types/cosmetics';
@@ -26,6 +29,7 @@ ScratchLevelDef,
 ScratchBotSaveData
 } from '../../../types/scratchBot';
 import { PEDAGOGICAL_LEVELS } from './levelsData';
+import { BUG_HUNTER_LEVELS } from './bugHunterLevels';
 import { generateProceduralLevel } from './proceduralGenerator';
 import { ScratchBlockItem } from './ScratchBlockItem';
 import { ScratchBoardCanvas } from './ScratchBoardCanvas';
@@ -46,8 +50,9 @@ export const ScratchBotGame: React.FC<ScratchBotGameProps> = ({
   // ─────────────────────────────────────────────────────────────
   // 1. Estado da Trilha e Modo de Jogo
   // ─────────────────────────────────────────────────────────────
-  const [gameMode, setGameMode] = useState<'campaign' | 'infinite'>('campaign');
+  const [gameMode, setGameMode] = useState<'campaign' | 'bughunter' | 'infinite'>('campaign');
   const [currentLevelIndex, setCurrentLevelIndex] = useState<number>(0);
+  const [currentBugLevelIndex, setCurrentBugLevelIndex] = useState<number>(0);
   const [infiniteSeed, setInfiniteSeed] = useState<number>(1);
   const [infiniteStreak, setInfiniteStreak] = useState<number>(0);
 
@@ -59,6 +64,7 @@ export const ScratchBotGame: React.FC<ScratchBotGameProps> = ({
     } catch {}
     return {
       completedLevels: {},
+      completedBugLevels: {},
       infiniteBestStreak: 0,
       totalGemsCollected: 0,
     };
@@ -73,10 +79,14 @@ export const ScratchBotGame: React.FC<ScratchBotGameProps> = ({
 
   // Nível atual com base no modo (memorizado para estabilidade)
   const activeLevel: ScratchLevelDef = useMemo(() => {
-    return gameMode === 'campaign'
-      ? PEDAGOGICAL_LEVELS[currentLevelIndex] || PEDAGOGICAL_LEVELS[0]
-      : generateProceduralLevel(infiniteSeed);
-  }, [gameMode, currentLevelIndex, infiniteSeed]);
+    if (gameMode === 'campaign') {
+      return PEDAGOGICAL_LEVELS[currentLevelIndex] || PEDAGOGICAL_LEVELS[0];
+    }
+    if (gameMode === 'bughunter') {
+      return BUG_HUNTER_LEVELS[currentBugLevelIndex] || BUG_HUNTER_LEVELS[0];
+    }
+    return generateProceduralLevel(infiniteSeed);
+  }, [gameMode, currentLevelIndex, currentBugLevelIndex, infiniteSeed]);
 
   // ─────────────────────────────────────────────────────────────
   // 2. Estado do Tabuleiro e Robô
@@ -89,6 +99,7 @@ export const ScratchBotGame: React.FC<ScratchBotGameProps> = ({
   const [hasCollided, setHasCollided] = useState<boolean>(false);
   const [hasReachedTarget, setHasReachedTarget] = useState<boolean>(false);
   const [feedbackMessage, setFeedbackMessage] = useState<string>('');
+  const [errorBlockId, setErrorBlockId] = useState<string | null>(null);
 
   // ─────────────────────────────────────────────────────────────
   // 3. Área de Scripts (Workspace)
@@ -99,6 +110,8 @@ export const ScratchBotGame: React.FC<ScratchBotGameProps> = ({
 
   const [activeStepBlockId, setActiveStepBlockId] = useState<string | null>(null);
   const [isRunning, setIsRunning] = useState<boolean>(false);
+  const [isStepMode, setIsStepMode] = useState<boolean>(false);
+  const stepResolverRef = useRef<(() => void) | null>(null);
   const [execSpeed, setExecSpeed] = useState<number>(350); // ms por passo
 
   // Métricas acumuladas da sessão
@@ -115,9 +128,28 @@ export const ScratchBotGame: React.FC<ScratchBotGameProps> = ({
   const isExecutingRef = useRef<boolean>(false);
   const stopRequestedRef = useRef<boolean>(false);
 
+  // Contagem de blocos em uso por tipo (para limites de estoque pedagógicos)
+  const usedBlocksByType = useMemo(() => {
+    const counts: Partial<Record<BlockType, number>> = {};
+    const traverse = (blocks: ScratchBlock[]) => {
+      for (const b of blocks) {
+        if (b.type !== 'when_flag_clicked') {
+          counts[b.type] = (counts[b.type] || 0) + 1;
+        }
+        if (b.children) traverse(b.children);
+      }
+    };
+    traverse(scriptBlocks);
+    return counts;
+  }, [scriptBlocks]);
+
   useEffect(() => {
     return () => {
       stopRequestedRef.current = true;
+      if (stepResolverRef.current) {
+        stepResolverRef.current();
+        stepResolverRef.current = null;
+      }
       scratchAudio.cleanup();
     };
   }, []);
@@ -127,8 +159,14 @@ export const ScratchBotGame: React.FC<ScratchBotGameProps> = ({
   // ─────────────────────────────────────────────────────────────
   const resetRobotToStart = useCallback(() => {
     stopRequestedRef.current = true;
+    if (stepResolverRef.current) {
+      stepResolverRef.current();
+      stepResolverRef.current = null;
+    }
     setIsRunning(false);
+    setIsStepMode(false);
     setActiveStepBlockId(null);
+    setErrorBlockId(null);
     setRobotPos(activeLevel.startPos);
     setRobotDir(activeLevel.startDir);
     setCollectedGems(new Set());
@@ -142,13 +180,34 @@ export const ScratchBotGame: React.FC<ScratchBotGameProps> = ({
   // Ao mudar de nível, reinicia
   useEffect(() => {
     resetRobotToStart();
-    setScriptBlocks([{ id: 'flag-start', type: 'when_flag_clicked', category: 'events' }]);
-  }, [currentLevelIndex, gameMode, infiniteSeed, resetRobotToStart]);
+    if (gameMode === 'bughunter' && activeLevel.initialScript) {
+      // Clona o script com novos IDs para permitir manipulação fluida e isolada
+      const cloneScript = (blocks: ScratchBlock[]): ScratchBlock[] =>
+        blocks.map((b) => ({
+          ...b,
+          id: b.id === 'flag-start' ? 'flag-start' : `bug-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+          children: b.children ? cloneScript(b.children) : undefined,
+        }));
+      setScriptBlocks(cloneScript(activeLevel.initialScript));
+    } else {
+      setScriptBlocks([{ id: 'flag-start', type: 'when_flag_clicked', category: 'events' }]);
+    }
+  }, [currentLevelIndex, currentBugLevelIndex, gameMode, infiniteSeed, resetRobotToStart, activeLevel.initialScript]);
 
   // ─────────────────────────────────────────────────────────────
   // 5. Adição e Remoção de Blocos
   // ─────────────────────────────────────────────────────────────
   const addBlockToWorkspace = (type: BlockType, parentId?: string) => {
+    // Validação de estoque pedagógico da fase
+    if (activeLevel.blockLimits && activeLevel.blockLimits[type] !== undefined) {
+      const used = usedBlocksByType[type] || 0;
+      const maxAllowed = activeLevel.blockLimits[type] || 0;
+      if (used >= maxAllowed) {
+        setFeedbackMessage(`Estoque esgotado! Esta fase permite no máximo ${maxAllowed} bloco(s) deste tipo.`);
+        return;
+      }
+    }
+
     scratchAudio.playBlockSnap();
 
     const categoryMap: Record<BlockType, ScratchBlock['category']> = {
@@ -158,25 +217,32 @@ export const ScratchBotGame: React.FC<ScratchBotGameProps> = ({
       turn_right: 'motion',
       repeat: 'control',
       collect_gem: 'actions',
+      if_path_ahead: 'control',
+      if_on_gem: 'control',
     };
 
+    const isContainer = type === 'repeat' || type === 'if_path_ahead' || type === 'if_on_gem';
     const newBlock: ScratchBlock = {
       id: `block-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
       type,
       category: categoryMap[type],
       paramValue: type === 'repeat' ? 2 : undefined,
-      children: type === 'repeat' ? [] : undefined,
+      children: isContainer ? [] : undefined,
     };
 
     if (parentId) {
-      setScriptBlocks((prev) =>
-        prev.map((b) => {
-          if (b.id === parentId && b.type === 'repeat') {
+      const appendChildRecursive = (blocks: ScratchBlock[]): ScratchBlock[] => {
+        return blocks.map((b) => {
+          if (b.id === parentId && (b.type === 'repeat' || b.type === 'if_path_ahead' || b.type === 'if_on_gem')) {
             return { ...b, children: [...(b.children || []), newBlock] };
           }
+          if (b.children) {
+            return { ...b, children: appendChildRecursive(b.children) };
+          }
           return b;
-        })
-      );
+        });
+      };
+      setScriptBlocks((prev) => appendChildRecursive(prev));
     } else {
       setScriptBlocks((prev) => [...prev, newBlock]);
     }
@@ -184,34 +250,266 @@ export const ScratchBotGame: React.FC<ScratchBotGameProps> = ({
 
   const removeBlock = (id: string) => {
     scratchAudio.playBlockSnap();
-    setScriptBlocks((prev) => prev.filter((b) => b.id !== id));
+    setScriptBlocks((prev) => {
+      const { remaining } = extractBlock(prev, id);
+      return remaining;
+    });
   };
 
   const removeChildBlock = (parentId: string, childId: string) => {
     scratchAudio.playBlockSnap();
-    setScriptBlocks((prev) =>
-      prev.map((b) => {
+    const removeRecursive = (list: ScratchBlock[]): ScratchBlock[] => {
+      return list.map((b) => {
         if (b.id === parentId && b.children) {
           return { ...b, children: b.children.filter((c) => c.id !== childId) };
         }
+        if (b.children && b.children.length > 0) {
+          return { ...b, children: removeRecursive(b.children) };
+        }
         return b;
-      })
-    );
+      });
+    };
+    setScriptBlocks((prev) => removeRecursive(prev));
   };
 
   const updateBlockParam = (id: string, value: number) => {
-    setScriptBlocks((prev) =>
-      prev.map((b) => {
+    const updateRecursive = (list: ScratchBlock[]): ScratchBlock[] => {
+      return list.map((b) => {
         if (b.id === id) return { ...b, paramValue: value };
-        if (b.children) {
-          return {
-            ...b,
-            children: b.children.map((c) => (c.id === id ? { ...c, paramValue: value } : c)),
-          };
+        if (b.children && b.children.length > 0) {
+          return { ...b, children: updateRecursive(b.children) };
         }
         return b;
-      })
-    );
+      });
+    };
+    setScriptBlocks((prev) => updateRecursive(prev));
+  };
+
+  // ─────────────────────────────────────────────────────────────
+  // 5.1 Reordenação e Movimentação de Blocos (estilo Scratch)
+  // ─────────────────────────────────────────────────────────────
+
+  // Mover bloco relativo (para cima ou para baixo via botões)
+  const moveBlockRelative = (id: string, direction: -1 | 1, parentId?: string) => {
+    scratchAudio.playBlockSnap();
+    if (!parentId) {
+      setScriptBlocks((prev) => {
+        const index = prev.findIndex((b) => b.id === id);
+        if (index === -1) return prev;
+        const targetIndex = index + direction;
+        // Não pode ir antes da bandeira verde (índice 0) ou fora dos limites
+        if (targetIndex < 1 || targetIndex >= prev.length) return prev;
+        const next = [...prev];
+        const [moved] = next.splice(index, 1);
+        next.splice(targetIndex, 0, moved);
+        return next;
+      });
+    } else {
+      const moveInParentRecursive = (list: ScratchBlock[]): ScratchBlock[] => {
+        return list.map((b) => {
+          if (b.id === parentId && b.children) {
+            const index = b.children.findIndex((c) => c.id === id);
+            if (index === -1) return b;
+            const targetIndex = index + direction;
+            if (targetIndex < 0 || targetIndex >= b.children.length) return b;
+            const nextChildren = [...b.children];
+            const [moved] = nextChildren.splice(index, 1);
+            nextChildren.splice(targetIndex, 0, moved);
+            return { ...b, children: nextChildren };
+          }
+          if (b.children && b.children.length > 0) {
+            return { ...b, children: moveInParentRecursive(b.children) };
+          }
+          return b;
+        });
+      };
+      setScriptBlocks((prev) => moveInParentRecursive(prev));
+    }
+  };
+
+  // Extrai recursivamente um bloco da árvore
+  const extractBlock = (
+    blocks: ScratchBlock[],
+    id: string
+  ): { extracted: ScratchBlock | null; remaining: ScratchBlock[] } => {
+    let extracted: ScratchBlock | null = null;
+    const remaining: ScratchBlock[] = [];
+
+    for (const b of blocks) {
+      if (b.id === id) {
+        extracted = b;
+      } else {
+        if (b.children && b.children.length > 0) {
+          const res = extractBlock(b.children, id);
+          if (res.extracted) {
+            extracted = res.extracted;
+            remaining.push({ ...b, children: res.remaining });
+          } else {
+            remaining.push(b);
+          }
+        } else {
+          remaining.push(b);
+        }
+      }
+    }
+    return { extracted, remaining };
+  };
+
+  // Insere um bloco na árvore relativa a um target
+  const insertBlockIntoTree = (
+    blocks: ScratchBlock[],
+    blockToInsert: ScratchBlock,
+    targetId: string,
+    position: 'before' | 'after' | 'inside',
+    targetParentId?: string
+  ): ScratchBlock[] => {
+    // 1. Caso 'inside': insere como filho direto do bloco contêiner targetId (independente de ter pai)
+    if (position === 'inside') {
+      const insertInsideRecursive = (list: ScratchBlock[]): ScratchBlock[] => {
+        return list.map((b) => {
+          if (b.id === targetId && (b.type === 'repeat' || b.type === 'if_path_ahead' || b.type === 'if_on_gem')) {
+            return { ...b, children: [...(b.children || []), blockToInsert] };
+          }
+          if (b.children && b.children.length > 0) {
+            return {
+              ...b,
+              children: insertInsideRecursive(b.children),
+            };
+          }
+          return b;
+        });
+      };
+      return insertInsideRecursive(blocks);
+    }
+
+    // 2. Caso 'before' ou 'after' com pai específico definido
+    if (targetParentId) {
+      const insertInParentRecursive = (list: ScratchBlock[]): ScratchBlock[] => {
+        return list.map((b) => {
+          if (b.id === targetParentId && b.children) {
+            const idx = b.children.findIndex((c) => c.id === targetId);
+            if (idx !== -1) {
+              const insertIdx = position === 'before' ? idx : idx + 1;
+              const nextChildren = [...b.children];
+              nextChildren.splice(insertIdx, 0, blockToInsert);
+              return { ...b, children: nextChildren };
+            }
+          }
+          if (b.children && b.children.length > 0) {
+            return {
+              ...b,
+              children: insertInParentRecursive(b.children),
+            };
+          }
+          return b;
+        });
+      };
+      return insertInParentRecursive(blocks);
+    }
+
+    // 3. Caso o target esteja na raiz de blocks
+    const rootIdx = blocks.findIndex((b) => b.id === targetId);
+    if (rootIdx !== -1) {
+      let insertIdx = position === 'before' ? rootIdx : rootIdx + 1;
+      if (targetId === 'flag-start' || position === 'before') {
+        insertIdx = Math.max(1, insertIdx);
+      }
+      const next = [...blocks];
+      next.splice(insertIdx, 0, blockToInsert);
+      return next;
+    }
+
+    // 4. Se não encontrou na raiz e não tem targetParentId, procura recursivamente nos filhos
+    return blocks.map((b) => {
+      if (b.children && b.children.length > 0) {
+        const childIdx = b.children.findIndex((c) => c.id === targetId);
+        if (childIdx !== -1) {
+          const insertIdx = position === 'before' ? childIdx : childIdx + 1;
+          const nextChildren = [...b.children];
+          nextChildren.splice(insertIdx, 0, blockToInsert);
+          return { ...b, children: nextChildren };
+        }
+        return {
+          ...b,
+          children: insertBlockIntoTree(b.children, blockToInsert, targetId, position),
+        };
+      }
+      return b;
+    });
+  };
+
+  // Reordenação ou Inserção por Drop em bloco específico
+  const handleDropOnBlock = (
+    e: React.DragEvent,
+    targetId: string,
+    position: 'before' | 'after' | 'inside',
+    targetParentId?: string
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const rawData = e.dataTransfer.getData('text/plain');
+    if (!rawData) return;
+
+    scratchAudio.playBlockSnap();
+
+    let dragData:
+      | { source: 'palette'; type: BlockType }
+      | { source: 'workspace'; blockId: string; parentId?: string };
+
+    try {
+      dragData = JSON.parse(rawData);
+    } catch {
+      dragData = { source: 'palette', type: rawData as BlockType };
+    }
+
+    // Caso 1: Bloco vindo da Paleta inserido exatamente na posição
+    if (dragData.source === 'palette') {
+      if (activeLevel.blockLimits && activeLevel.blockLimits[dragData.type] !== undefined) {
+        const used = usedBlocksByType[dragData.type] || 0;
+        const maxAllowed = activeLevel.blockLimits[dragData.type] || 0;
+        if (used >= maxAllowed) {
+          setFeedbackMessage(`Estoque esgotado! Esta fase permite no máximo ${maxAllowed} bloco(s) deste tipo.`);
+          return;
+        }
+      }
+
+      const categoryMap: Record<BlockType, ScratchBlock['category']> = {
+        when_flag_clicked: 'events',
+        move_forward: 'motion',
+        turn_left: 'motion',
+        turn_right: 'motion',
+        repeat: 'control',
+        collect_gem: 'actions',
+        if_path_ahead: 'control',
+        if_on_gem: 'control',
+      };
+      const isContainer =
+        dragData.type === 'repeat' || dragData.type === 'if_path_ahead' || dragData.type === 'if_on_gem';
+      const newBlock: ScratchBlock = {
+        id: `block-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+        type: dragData.type,
+        category: categoryMap[dragData.type],
+        paramValue: dragData.type === 'repeat' ? 2 : undefined,
+        children: isContainer ? [] : undefined,
+      };
+
+      setScriptBlocks((prev) => insertBlockIntoTree(prev, newBlock, targetId, position, targetParentId));
+      return;
+    }
+
+    // Caso 2: Bloco existente no workspace sendo reposicionado
+    if (dragData.source === 'workspace') {
+      const { blockId: sourceId } = dragData;
+      if (sourceId === targetId) return; // Não faz nada se soltar nele mesmo
+      if (sourceId === 'flag-start') return; // A bandeira verde não se move
+
+      setScriptBlocks((prev) => {
+        const { extracted, remaining } = extractBlock(prev, sourceId);
+        if (!extracted) return prev;
+        return insertBlockIntoTree(remaining, extracted, targetId, position, targetParentId);
+      });
+    }
   };
 
   // Contagem recursiva de blocos para estrelas
@@ -255,24 +553,119 @@ export const ScratchBotGame: React.FC<ScratchBotGameProps> = ({
     }
   };
 
-  const runCode = async () => {
-    if (isRunning) return;
+  // Disparo centralizado de Vitória e Recompensas
+  const triggerVictory = (collectedGemsCount: number) => {
+    setHasReachedTarget(true);
+    scratchAudio.playVictory();
+    confetti({
+      particleCount: 80,
+      spread: 70,
+      origin: { y: 0.6 },
+    });
 
-    resetRobotToStart();
-    await sleep(50);
+    // Cálculo Justo de Estrelas
+    let stars = 1;
+    if (totalUsedBlocks <= activeLevel.maxBlocksFor3Stars) {
+      stars = 3;
+    } else if (totalUsedBlocks <= activeLevel.maxBlocksFor2Stars) {
+      stars = 2;
+    }
+    setEarnedStarsThisLevel(stars);
 
-    setIsRunning(true);
-    isExecutingRef.current = true;
-    stopRequestedRef.current = false;
+    const earnedBytes = Math.round(activeLevel.baseRewardBytes * (stars / 3) * difficultyMultiplier);
+    setTotalEarnedBytes((prev) => prev + earnedBytes);
+    setStagesWonCount((prev) => prev + 1);
+
+    if (gameMode === 'campaign') {
+      const currentBest = saveData.completedLevels[activeLevel.id]?.stars || 0;
+      const updatedLevels = {
+        ...saveData.completedLevels,
+        [activeLevel.id]: {
+          stars: Math.max(currentBest, stars),
+          bestBlocks: Math.min(
+            saveData.completedLevels[activeLevel.id]?.bestBlocks || 999,
+            totalUsedBlocks
+          ),
+        },
+      };
+      saveToStorage({
+        ...saveData,
+        completedLevels: updatedLevels,
+        totalGemsCollected: saveData.totalGemsCollected + collectedGemsCount,
+      });
+    } else if (gameMode === 'bughunter') {
+      const currentBest = saveData.completedBugLevels?.[activeLevel.id]?.stars || 0;
+      const updatedBugLevels = {
+        ...(saveData.completedBugLevels || {}),
+        [activeLevel.id]: {
+          stars: Math.max(currentBest, stars),
+          bestBlocks: Math.min(
+            saveData.completedBugLevels?.[activeLevel.id]?.bestBlocks || 999,
+            totalUsedBlocks
+          ),
+        },
+      };
+      saveToStorage({
+        ...saveData,
+        completedBugLevels: updatedBugLevels,
+        totalGemsCollected: saveData.totalGemsCollected + collectedGemsCount,
+      });
+    } else {
+      const newStreak = infiniteStreak + 1;
+      setInfiniteStreak(newStreak);
+      saveToStorage({
+        ...saveData,
+        infiniteBestStreak: Math.max(saveData.infiniteBestStreak, newStreak),
+        totalGemsCollected: saveData.totalGemsCollected + collectedGemsCount,
+      });
+    }
+
+    setFeedbackMessage('Parabéns! Algoritmo executado com perfeição!');
+    setTimeout(() => {
+      setVictoryModalOpen(true);
+    }, 600);
+  };
+
+  const runCode = async (stepMode: boolean = false) => {
+    if (isRunning && !stepMode) return;
+
+    if (!isRunning) {
+      resetRobotToStart();
+      await sleep(50);
+      setIsRunning(true);
+      setIsStepMode(stepMode);
+      isExecutingRef.current = true;
+      stopRequestedRef.current = false;
+      setErrorBlockId(null);
+    } else if (stepMode) {
+      // Se já está rodando em modo passo, avança o próximo bloco
+      if (stepResolverRef.current) {
+        stepResolverRef.current();
+        stepResolverRef.current = null;
+      }
+      return;
+    }
 
     let curPos = { ...activeLevel.startPos };
     let curDir = activeLevel.startDir;
     let localCollected = new Set<string>();
     let localUnlockedGates = new Set<string>();
+    let victoryAchieved = false;
+
+    const waitStep = async () => {
+      if (stepMode || isStepMode) {
+        await new Promise<void>((resolve) => {
+          stepResolverRef.current = resolve;
+        });
+        stepResolverRef.current = null;
+      } else {
+        await sleep(execSpeed);
+      }
+    };
 
     const executeBlockList = async (blocks: ScratchBlock[]): Promise<boolean> => {
       for (const block of blocks) {
-        if (stopRequestedRef.current) return false;
+        if (stopRequestedRef.current || victoryAchieved) return false;
 
         setActiveStepBlockId(block.id);
 
@@ -288,6 +681,7 @@ export const ScratchBotGame: React.FC<ScratchBotGameProps> = ({
           ) {
             scratchAudio.playCollision();
             setHasCollided(true);
+            setErrorBlockId(block.id);
             setFeedbackMessage('O Bytezinho tentou sair do circuito!');
             setTotalErrors((prev) => prev + 1);
             return false;
@@ -297,6 +691,7 @@ export const ScratchBotGame: React.FC<ScratchBotGameProps> = ({
           if (activeLevel.obstacles.some((o) => o.x === next.x && o.y === next.y)) {
             scratchAudio.playCollision();
             setHasCollided(true);
+            setErrorBlockId(block.id);
             setFeedbackMessage('Colisão com uma parede de firewall!');
             setTotalErrors((prev) => prev + 1);
             return false;
@@ -307,6 +702,7 @@ export const ScratchBotGame: React.FC<ScratchBotGameProps> = ({
           if (hitGate && !localUnlockedGates.has(`${hitGate.gateCoord.x},${hitGate.gateCoord.y}`)) {
             scratchAudio.playCollision();
             setHasCollided(true);
+            setErrorBlockId(block.id);
             setFeedbackMessage('O portão a laser está trancado! Encontre a chave primeiro.');
             setTotalErrors((prev) => prev + 1);
             return false;
@@ -316,9 +712,9 @@ export const ScratchBotGame: React.FC<ScratchBotGameProps> = ({
           setRobotPos({ ...curPos });
           setPathHistory((prev) => [...prev, { ...curPos }]);
           scratchAudio.playStep();
-          await sleep(execSpeed);
+          await waitStep();
 
-          // 1. Interação com Chave Criptográfica
+          // 1. Interação com Chave Criptográfica (Passiva OnTileEnter)
           const hitKey = activeLevel.gates?.find((g) => g.keyCoord.x === curPos.x && g.keyCoord.y === curPos.y);
           if (hitKey) {
             const gateKeyStr = `${hitKey.gateCoord.x},${hitKey.gateCoord.y}`;
@@ -327,11 +723,10 @@ export const ScratchBotGame: React.FC<ScratchBotGameProps> = ({
               setUnlockedGates(new Set(localUnlockedGates));
               scratchAudio.playUnlockGate();
               setFeedbackMessage('Chave de acesso criptográfica ativada! O portão a laser abriu.');
-              await sleep(150);
             }
           }
 
-          // 2. Interação com Teletransportador Quântico (Warp Pad)
+          // 2. Interação com Teletransportador Quântico (Warp Pad) - estritamente unidirecional from -> to
           const hitTeleport = activeLevel.teleporters?.find((t) => t.from.x === curPos.x && t.from.y === curPos.y);
           if (hitTeleport) {
             scratchAudio.playTeleport();
@@ -339,55 +734,179 @@ export const ScratchBotGame: React.FC<ScratchBotGameProps> = ({
             setRobotPos({ ...curPos });
             setPathHistory((prev) => [...prev, { ...curPos }]);
             setFeedbackMessage('Salto quântico realizado com sucesso!');
-            await sleep(execSpeed);
+            await waitStep();
           }
 
-          // 3. Interação com Esteira de Aceleração (Conveyor Belt)
-          const hitConveyor = activeLevel.conveyors?.find((c) => c.coord.x === curPos.x && c.coord.y === curPos.y);
-          if (hitConveyor) {
+          // 3. Interação com Esteira de Aceleração (Conveyor Belt) - OnTileEnter com cascata segura
+          let conveyorHops = 0;
+          while (conveyorHops < 4) {
+            const hitConveyor = activeLevel.conveyors?.find((c) => c.coord.x === curPos.x && c.coord.y === curPos.y);
+            if (!hitConveyor) break;
+
             const pushedNext = getForwardCoord(curPos, hitConveyor.direction);
-            // Verifica limites e obstáculos na saída da esteira
             const isInside = pushedNext.x >= 0 && pushedNext.x < activeLevel.gridSize.width &&
                              pushedNext.y >= 0 && pushedNext.y < activeLevel.gridSize.height;
             const isObstacle = activeLevel.obstacles.some((o) => o.x === pushedNext.x && o.y === pushedNext.y);
-            if (isInside && !isObstacle) {
-              scratchAudio.playConveyor();
-              curPos = pushedNext;
-              setRobotPos({ ...curPos });
-              setPathHistory((prev) => [...prev, { ...curPos }]);
-              setFeedbackMessage('A esteira de aceleração impulsionou o Bytezinho!');
-              await sleep(execSpeed);
+            const isLockedGate = activeLevel.gates?.some((g) => g.gateCoord.x === pushedNext.x && g.gateCoord.y === pushedNext.y && !localUnlockedGates.has(`${g.gateCoord.x},${g.gateCoord.y}`));
+
+            if (!isInside || isObstacle || isLockedGate) {
+              scratchAudio.playCollision();
+              setHasCollided(true);
+              setErrorBlockId(block.id);
+              setFeedbackMessage('A esteira impulsionou o Bytezinho contra um obstáculo!');
+              setTotalErrors((prev) => prev + 1);
+              return false;
+            }
+
+            scratchAudio.playConveyor();
+            curPos = pushedNext;
+            setRobotPos({ ...curPos });
+            setPathHistory((prev) => [...prev, { ...curPos }]);
+            setFeedbackMessage('A esteira de aceleração impulsionou o Bytezinho!');
+            await waitStep();
+            conveyorHops++;
+
+            // Chave atingida via esteira
+            const pushedKey = activeLevel.gates?.find((g) => g.keyCoord.x === curPos.x && g.keyCoord.y === curPos.y);
+            if (pushedKey) {
+              const gateKeyStr = `${pushedKey.gateCoord.x},${pushedKey.gateCoord.y}`;
+              if (!localUnlockedGates.has(gateKeyStr)) {
+                localUnlockedGates.add(gateKeyStr);
+                setUnlockedGates(new Set(localUnlockedGates));
+                scratchAudio.playUnlockGate();
+                setFeedbackMessage('Chave ativada pelo impulso da esteira!');
+              }
             }
           }
 
+          // 4. Verificação de Vitória Imediata OnTileEnter (Interrompe o código restante)
+          const isAtTarget = curPos.x === activeLevel.targetPos.x && curPos.y === activeLevel.targetPos.y;
+          const allGemsGathered =
+            !activeLevel.gems ||
+            activeLevel.gems.length === 0 ||
+            activeLevel.gems.every((g) => localCollected.has(`${g.x},${g.y}`));
+          if (isAtTarget && allGemsGathered) {
+            victoryAchieved = true;
+            triggerVictory(localCollected.size);
+            return true;
+          }
+
         } else if (block.type === 'turn_left') {
+          // Regra Rigorosa EMP: Ação sobre piso de choque causa curto-circuito
+          if (activeLevel.hazards?.some((h) => h.x === curPos.x && h.y === curPos.y)) {
+            scratchAudio.playShock();
+            setHasCollided(true);
+            setErrorBlockId(block.id);
+            setFeedbackMessage('Sobrecarga elétrica! O Bytezinho realizou uma manobra sobre um piso EMP.');
+            setTotalErrors((prev) => prev + 1);
+            return false;
+          }
+
           curDir = turnDirection(curDir, 'left');
           setRobotDir(curDir);
           scratchAudio.playTurn();
-          await sleep(execSpeed);
+          await waitStep();
+
         } else if (block.type === 'turn_right') {
+          // Regra Rigorosa EMP: Ação sobre piso de choque causa curto-circuito
+          if (activeLevel.hazards?.some((h) => h.x === curPos.x && h.y === curPos.y)) {
+            scratchAudio.playShock();
+            setHasCollided(true);
+            setErrorBlockId(block.id);
+            setFeedbackMessage('Sobrecarga elétrica! O Bytezinho realizou uma manobra sobre um piso EMP.');
+            setTotalErrors((prev) => prev + 1);
+            return false;
+          }
+
           curDir = turnDirection(curDir, 'right');
           setRobotDir(curDir);
           scratchAudio.playTurn();
-          await sleep(execSpeed);
+          await waitStep();
+
         } else if (block.type === 'collect_gem') {
+          // Regra Rigorosa EMP: Ação sobre piso de choque causa curto-circuito
+          if (activeLevel.hazards?.some((h) => h.x === curPos.x && h.y === curPos.y)) {
+            scratchAudio.playShock();
+            setHasCollided(true);
+            setErrorBlockId(block.id);
+            setFeedbackMessage('Sobrecarga elétrica! O Bytezinho tentou minerar sobre um piso EMP.');
+            setTotalErrors((prev) => prev + 1);
+            return false;
+          }
+
           const key = `${curPos.x},${curPos.y}`;
-          const isHere = activeLevel.gems?.some((g) => g.x === curPos.x && g.y === curPos.y);
-          if (isHere && !localCollected.has(key)) {
+          const isRegularGem = activeLevel.gems?.some((g) => g.x === curPos.x && g.y === curPos.y);
+          const isOptionalGem = activeLevel.optionalGems?.some((g) => g.x === curPos.x && g.y === curPos.y);
+          if ((isRegularGem || isOptionalGem) && !localCollected.has(key)) {
             localCollected.add(key);
             setCollectedGems(new Set(localCollected));
             scratchAudio.playCollect();
+            if (isOptionalGem) {
+              setFeedbackMessage('⭐ Gema Estelar Coletada!');
+            }
           } else {
             setFeedbackMessage('Não há gema nesta posição para coletar.');
           }
-          await sleep(execSpeed);
+          await waitStep();
+
+          // Checa se coletar a última gema sobre o portal concluiu a fase
+          const isAtTarget = curPos.x === activeLevel.targetPos.x && curPos.y === activeLevel.targetPos.y;
+          const allGemsGathered =
+            !activeLevel.gems ||
+            activeLevel.gems.length === 0 ||
+            activeLevel.gems.every((g) => localCollected.has(`${g.x},${g.y}`));
+          if (isAtTarget && allGemsGathered) {
+            victoryAchieved = true;
+            triggerVictory(localCollected.size);
+            return true;
+          }
+
         } else if (block.type === 'repeat') {
           const times = block.paramValue || 2;
           const children = block.children || [];
           for (let i = 0; i < times; i++) {
-            if (stopRequestedRef.current) return false;
+            if (stopRequestedRef.current || victoryAchieved) return false;
             const ok = await executeBlockList(children);
-            if (!ok) return false;
+            if (!ok || victoryAchieved) return false;
+
+            // Regra Rigorosa EMP: Repouso no final de cada iteração do laço causa curto-circuito
+            if (activeLevel.hazards?.some((h) => h.x === curPos.x && h.y === curPos.y)) {
+              scratchAudio.playShock();
+              setHasCollided(true);
+              setErrorBlockId(block.id);
+              setFeedbackMessage('Sobrecarga elétrica! O Bytezinho repousou sobre um piso EMP no fim da repetição.');
+              setTotalErrors((prev) => prev + 1);
+              return false;
+            }
+          }
+
+        } else if (block.type === 'if_path_ahead') {
+          const next = getForwardCoord(curPos, curDir);
+          const isInside =
+            next.x >= 0 &&
+            next.x < activeLevel.gridSize.width &&
+            next.y >= 0 &&
+            next.y < activeLevel.gridSize.height;
+          const isObstacle = activeLevel.obstacles.some((o) => o.x === next.x && o.y === next.y);
+          const hitGate = activeLevel.gates?.find((g) => g.gateCoord.x === next.x && g.gateCoord.y === next.y);
+          const isLockedGate = hitGate && !localUnlockedGates.has(`${hitGate.gateCoord.x},${hitGate.gateCoord.y}`);
+          const pathClear = isInside && !isObstacle && !isLockedGate;
+
+          if (pathClear && block.children && block.children.length > 0) {
+            const ok = await executeBlockList(block.children);
+            if (!ok || victoryAchieved) return false;
+          }
+
+        } else if (block.type === 'if_on_gem') {
+          const key = `${curPos.x},${curPos.y}`;
+          const isHere =
+            (activeLevel.gems?.some((g) => g.x === curPos.x && g.y === curPos.y) ||
+              activeLevel.optionalGems?.some((g) => g.x === curPos.x && g.y === curPos.y)) &&
+            !localCollected.has(key);
+
+          if (isHere && block.children && block.children.length > 0) {
+            const ok = await executeBlockList(block.children);
+            if (!ok || victoryAchieved) return false;
           }
         }
       }
@@ -399,77 +918,29 @@ export const ScratchBotGame: React.FC<ScratchBotGameProps> = ({
 
     setActiveStepBlockId(null);
     setIsRunning(false);
+    setIsStepMode(false);
     isExecutingRef.current = false;
 
-    if (!stopRequestedRef.current && successExec) {
-      // Checa se Bytezinho parou sobre um piso de sobrecarga elétrica (EMP)
+    if (!stopRequestedRef.current && successExec && !victoryAchieved) {
+      // Checa se Bytezinho encerrou o programa sobre um piso de sobrecarga elétrica (EMP)
       const isOverHazard = activeLevel.hazards?.some((h) => h.x === curPos.x && h.y === curPos.y);
       if (isOverHazard) {
         scratchAudio.playShock();
         setHasCollided(true);
-        setFeedbackMessage('Sobrecarga elétrica! O Bytezinho parou sobre um piso EMP energizado.');
+        setErrorBlockId(scriptToRun[scriptToRun.length - 1]?.id || null);
+        setFeedbackMessage('Sobrecarga elétrica! O Bytezinho encerrou o programa sobre um piso EMP.');
         setTotalErrors((prev) => prev + 1);
         return;
       }
 
-      const isAtTarget =
-        curPos.x === activeLevel.targetPos.x && curPos.y === activeLevel.targetPos.y;
+      const isAtTarget = curPos.x === activeLevel.targetPos.x && curPos.y === activeLevel.targetPos.y;
       const allGemsGathered =
-        !activeLevel.gems || activeLevel.gems.length === 0 || localCollected.size === activeLevel.gems.length;
+        !activeLevel.gems ||
+        activeLevel.gems.length === 0 ||
+        activeLevel.gems.every((g) => localCollected.has(`${g.x},${g.y}`));
 
       if (isAtTarget && allGemsGathered) {
-        // Vitória!
-        setHasReachedTarget(true);
-        scratchAudio.playVictory();
-        confetti({
-          particleCount: 80,
-          spread: 70,
-          origin: { y: 0.6 },
-        });
-
-        // Cálculo de Estrelas
-        let stars = 1;
-        if (totalUsedBlocks <= activeLevel.maxBlocksFor3Stars) {
-          stars = 3;
-        } else if (totalUsedBlocks <= activeLevel.maxBlocksFor2Stars) {
-          stars = 2;
-        }
-        setEarnedStarsThisLevel(stars);
-
-        const earnedBytes = Math.round(activeLevel.baseRewardBytes * (stars / 3) * difficultyMultiplier);
-        setTotalEarnedBytes((prev) => prev + earnedBytes);
-        setStagesWonCount((prev) => prev + 1);
-
-        // Atualiza saveData
-        if (gameMode === 'campaign') {
-          const currentBest = saveData.completedLevels[activeLevel.id]?.stars || 0;
-          const updatedLevels = {
-            ...saveData.completedLevels,
-            [activeLevel.id]: {
-              stars: Math.max(currentBest, stars),
-              bestBlocks: Math.min(
-                saveData.completedLevels[activeLevel.id]?.bestBlocks || 999,
-                totalUsedBlocks
-              ),
-            },
-          };
-          saveToStorage({
-            ...saveData,
-            completedLevels: updatedLevels,
-            totalGemsCollected: saveData.totalGemsCollected + localCollected.size,
-          });
-        } else {
-          const newStreak = infiniteStreak + 1;
-          setInfiniteStreak(newStreak);
-          saveToStorage({
-            ...saveData,
-            infiniteBestStreak: Math.max(saveData.infiniteBestStreak, newStreak),
-            totalGemsCollected: saveData.totalGemsCollected + localCollected.size,
-          });
-        }
-
-        setFeedbackMessage('Parabéns! Algoritmo executado com perfeição!');
-        setVictoryModalOpen(true);
+        triggerVictory(localCollected.size);
       } else if (isAtTarget && !allGemsGathered) {
         setFeedbackMessage('Você alcançou o portal, mas esqueceu de coletar todas as gemas!');
         setTotalErrors((prev) => prev + 1);
@@ -508,16 +979,41 @@ export const ScratchBotGame: React.FC<ScratchBotGameProps> = ({
     onExitToHub(payload);
   };
 
-  // Drag and Drop Nativo
+  // Drag and Drop Nativo da Paleta
   const handleDragStartPalette = (e: React.DragEvent, type: BlockType) => {
-    e.dataTransfer.setData('text/plain', type);
+    const payload = JSON.stringify({ source: 'palette', type });
+    e.dataTransfer.setData('text/plain', payload);
+    e.dataTransfer.effectAllowed = 'copy';
   };
 
   const handleDropWorkspace = (e: React.DragEvent) => {
     e.preventDefault();
-    const type = e.dataTransfer.getData('text/plain') as BlockType;
-    if (type) {
-      addBlockToWorkspace(type);
+    const rawData = e.dataTransfer.getData('text/plain');
+    if (!rawData) return;
+
+    scratchAudio.playBlockSnap();
+
+    let dragData:
+      | { source: 'palette'; type: BlockType }
+      | { source: 'workspace'; blockId: string; parentId?: string };
+
+    try {
+      dragData = JSON.parse(rawData);
+    } catch {
+      dragData = { source: 'palette', type: rawData as BlockType };
+    }
+
+    if (dragData.source === 'palette') {
+      addBlockToWorkspace(dragData.type);
+    } else if (dragData.source === 'workspace') {
+      const { blockId: sourceId } = dragData;
+      if (sourceId === 'flag-start') return;
+
+      setScriptBlocks((prev) => {
+        const { extracted, remaining } = extractBlock(prev, sourceId);
+        if (!extracted) return prev;
+        return [...remaining, extracted];
+      });
     }
   };
 
@@ -543,46 +1039,73 @@ export const ScratchBotGame: React.FC<ScratchBotGameProps> = ({
             <div>
               <h1 className="text-sm font-black text-white tracking-tight flex items-center gap-1.5">
                 <span>ScratchBot: Logic Quest</span>
-                <span className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30 text-[10px] font-mono font-bold">
-                  {gameMode === 'campaign' ? `Fase ${activeLevel.id}` : `Infinito #${infiniteSeed}`}
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold border ${
+                  gameMode === 'campaign'
+                    ? 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+                    : gameMode === 'bughunter'
+                    ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                    : 'bg-purple-500/20 text-purple-400 border-purple-500/30'
+                }`}>
+                  {gameMode === 'campaign'
+                    ? `Fase ${activeLevel.id}`
+                    : gameMode === 'bughunter'
+                    ? `Bug #${activeLevel.id}`
+                    : `Infinito #${infiniteSeed}`}
                 </span>
               </h1>
             </div>
           </div>
         </div>
 
-        {/* Alternador de Modo: Trilha Pedagógica vs Modo Infinito */}
+        {/* Alternador de Modo: Trilha Pedagógica vs Caça aos Bugs vs Modo Infinito */}
         <div className="flex items-center gap-2">
-          <div className="bg-zinc-900/90 border border-zinc-800 p-0.5 rounded-xl flex items-center text-xs font-mono font-bold">
+          <div className="bg-zinc-900/90 border border-zinc-800 p-0.5 rounded-xl flex items-center text-xs font-mono font-bold flex-wrap">
             <button
               type="button"
               onClick={() => {
                 setGameMode('campaign');
                 resetRobotToStart();
               }}
-              className={`px-3 py-1 rounded-lg transition cursor-pointer flex items-center gap-1 ${
+              className={`px-2.5 py-1 rounded-lg transition cursor-pointer flex items-center gap-1 ${
                 gameMode === 'campaign'
                   ? 'bg-blue-600 text-white shadow-sm'
                   : 'text-zinc-400 hover:text-white'
               }`}
             >
               <Layers className="w-3.5 h-3.5" />
-              <span>Trilha (1 a 8)</span>
+              <span>Trilha ({PEDAGOGICAL_LEVELS.length})</span>
             </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setGameMode('bughunter');
+                resetRobotToStart();
+              }}
+              className={`px-2.5 py-1 rounded-lg transition cursor-pointer flex items-center gap-1 ${
+                gameMode === 'bughunter'
+                  ? 'bg-amber-600 text-white shadow-sm'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              <Bug className="w-3.5 h-3.5" />
+              <span>Bugs ({BUG_HUNTER_LEVELS.length})</span>
+            </button>
+
             <button
               type="button"
               onClick={() => {
                 setGameMode('infinite');
                 resetRobotToStart();
               }}
-              className={`px-3 py-1 rounded-lg transition cursor-pointer flex items-center gap-1 ${
+              className={`px-2.5 py-1 rounded-lg transition cursor-pointer flex items-center gap-1 ${
                 gameMode === 'infinite'
                   ? 'bg-purple-600 text-white shadow-sm'
                   : 'text-zinc-400 hover:text-white'
               }`}
             >
               <InfinityIcon className="w-3.5 h-3.5" />
-              <span>Desafio Infinito</span>
+              <span>Infinito</span>
             </button>
           </div>
 
@@ -614,22 +1137,41 @@ export const ScratchBotGame: React.FC<ScratchBotGameProps> = ({
                 turn_right: { title: 'Gire direita', color: 'bg-sky-500', icon: <RotateCw className="w-3 h-3" /> },
                 repeat: { title: 'Repita N vezes', color: 'bg-orange-500', icon: <Repeat className="w-3 h-3" /> },
                 collect_gem: { title: 'Coletar Gema', color: 'bg-purple-500', icon: <Diamond className="w-3 h-3" /> },
+                if_path_ahead: { title: 'Se caminho à frente', color: 'bg-amber-600', icon: <Compass className="w-3 h-3" /> },
+                if_on_gem: { title: 'Se sobre gema', color: 'bg-amber-600', icon: <Diamond className="w-3 h-3" /> },
               };
               const item = labelMap[type];
+              const limit = activeLevel.blockLimits?.[type];
+              const used = usedBlocksByType[type] || 0;
+              const isExhausted = limit !== undefined && used >= limit;
 
               return (
                 <div
                   key={type}
-                  draggable
-                  onDragStart={(e) => handleDragStartPalette(e, type)}
-                  onClick={() => addBlockToWorkspace(type)}
-                  className={`px-2.5 py-2 rounded-xl text-white font-mono text-xs font-bold shadow-md cursor-grab active:cursor-grabbing hover:scale-[1.02] transition-transform flex items-center justify-between border border-white/10 ${item.color}`}
+                  draggable={!isExhausted}
+                  onDragStart={(e) => !isExhausted && handleDragStartPalette(e, type)}
+                  onClick={() => !isExhausted && addBlockToWorkspace(type)}
+                  className={`px-2.5 py-2 rounded-xl text-white font-mono text-xs font-bold shadow-md transition-all flex items-center justify-between border border-white/10 ${
+                    isExhausted
+                      ? 'bg-zinc-800 text-zinc-500 border-zinc-700/50 opacity-50 cursor-not-allowed'
+                      : `cursor-grab active:cursor-grabbing hover:scale-[1.02] ${item.color}`
+                  }`}
+                  title={isExhausted ? `Limite de ${limit} blocos deste tipo atingido nesta fase.` : undefined}
                 >
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 min-w-0">
                     <span>{item.icon}</span>
-                    <span className="text-[11px]">{item.title}</span>
+                    <span className="text-[11px] truncate">{item.title}</span>
                   </div>
-                  <span className="text-white/60 text-xs font-black">+</span>
+                  <div className="flex items-center gap-1">
+                    {limit !== undefined && (
+                      <span className={`text-[9px] px-1.5 py-0.5 rounded font-black ${
+                        isExhausted ? 'bg-rose-950 text-rose-400 border border-rose-500/40' : 'bg-black/30 text-white/90'
+                      }`}>
+                        {limit - used} rest.
+                      </span>
+                    )}
+                    <span className="text-white/60 text-xs font-black">+</span>
+                  </div>
                 </div>
               );
             })}
@@ -658,12 +1200,23 @@ export const ScratchBotGame: React.FC<ScratchBotGameProps> = ({
               {/* Botão Bandeira Verde (Executar) */}
               <button
                 type="button"
-                disabled={isRunning}
-                onClick={runCode}
+                disabled={isRunning && !isStepMode}
+                onClick={() => runCode(false)}
                 className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-black font-black font-mono text-xs flex items-center gap-1.5 shadow-lg transition cursor-pointer active:scale-95"
               >
                 <Flag className="w-3.5 h-3.5 fill-current text-black" />
                 <span>EXECUTAR</span>
+              </button>
+
+              {/* Botão Passo a Passo (Debug) */}
+              <button
+                type="button"
+                onClick={() => runCode(true)}
+                className="px-2.5 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/50 text-amber-300 font-bold font-mono text-xs flex items-center gap-1 transition cursor-pointer active:scale-95"
+                title="Executar próximo bloco (Passo a Passo / Debug)"
+              >
+                <StepForward className="w-3.5 h-3.5" />
+                <span>PASSO</span>
               </button>
 
               {/* Botão Parar / Resetar */}
@@ -699,15 +1252,20 @@ export const ScratchBotGame: React.FC<ScratchBotGameProps> = ({
 
           {/* Pilha de Blocos */}
           <div className="flex-1 p-3 sm:p-4 overflow-y-auto space-y-2">
-            {scriptBlocks.map((block) => (
+            {scriptBlocks.map((block, index) => (
               <ScratchBlockItem
                 key={block.id}
                 block={block}
+                index={index}
+                totalInGroup={scriptBlocks.length}
                 activeBlockId={activeStepBlockId}
+                errorBlockId={errorBlockId}
                 onRemove={removeBlock}
                 onUpdateParam={updateBlockParam}
                 onRemoveChild={removeChildBlock}
                 onAddChild={(parentId, type) => addBlockToWorkspace(type, parentId)}
+                onMoveRelative={moveBlockRelative}
+                onDropOnBlock={handleDropOnBlock}
                 availableBlockTypes={activeLevel.availableBlockTypes}
               />
             ))}
@@ -722,6 +1280,23 @@ export const ScratchBotGame: React.FC<ScratchBotGameProps> = ({
 
         {/* COLUNA 3: STAGE DO BYTEZINHO (PALCO EXPANDIDO - MAIOR ÁREA DA TELA) */}
         <div className="flex-1 min-w-0 bg-[#0d0f17] flex flex-col p-4 sm:p-6 overflow-y-auto">
+          {/* Card Especial de Depuração no Modo Bug Hunter */}
+          {gameMode === 'bughunter' && activeLevel.bugDescription && (
+            <div className="mb-3 p-3 rounded-xl bg-amber-950/40 border border-amber-500/50 flex items-start gap-2.5 shadow-lg animate-fade-in max-w-3xl">
+              <div className="p-2 rounded-lg bg-amber-500/20 text-amber-300 shrink-0 mt-0.5">
+                <Bug className="w-4 h-4" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <span className="text-[11px] font-mono font-bold text-amber-300 uppercase tracking-wide flex items-center gap-1.5">
+                  <span>Missão de Depuração: Encontre e Corrija o Bug</span>
+                </span>
+                <p className="text-xs text-amber-100 font-mono mt-0.5 leading-relaxed">
+                  {activeLevel.bugDescription}
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Descrição da Fase */}
           <div className="mb-3 max-w-3xl">
             <h2 className="text-base font-bold text-white flex items-center justify-between">
@@ -755,6 +1330,7 @@ export const ScratchBotGame: React.FC<ScratchBotGameProps> = ({
               targetPos={activeLevel.targetPos}
               obstacles={activeLevel.obstacles}
               gems={activeLevel.gems}
+              optionalGems={activeLevel.optionalGems}
               hazards={activeLevel.hazards}
               teleporters={activeLevel.teleporters}
               conveyors={activeLevel.conveyors}
@@ -807,6 +1383,47 @@ export const ScratchBotGame: React.FC<ScratchBotGameProps> = ({
               </div>
             </div>
           )}
+
+          {/* Seletor de Níveis do Modo Caça aos Bugs */}
+          {gameMode === 'bughunter' && (
+            <div className="mt-4 pt-3 border-t border-zinc-800/80 max-w-3xl">
+              <span className="text-[11px] font-mono text-amber-400 block mb-2 font-bold uppercase flex items-center gap-1.5">
+                <Bug className="w-3.5 h-3.5" />
+                <span>Níveis de Depuração (Bug Hunter)</span>
+              </span>
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+                {BUG_HUNTER_LEVELS.map((lvl, idx) => {
+                  const isCur = idx === currentBugLevelIndex;
+                  const stars = saveData.completedBugLevels?.[lvl.id]?.stars || 0;
+                  return (
+                    <button
+                      key={lvl.id}
+                      type="button"
+                      onClick={() => setCurrentBugLevelIndex(idx)}
+                      className={`p-1.5 rounded-xl border text-xs font-mono font-bold flex flex-col items-center justify-center transition cursor-pointer ${
+                        isCur
+                          ? 'bg-amber-600 border-amber-400 text-white shadow-md'
+                          : stars > 0
+                          ? 'bg-zinc-800/80 border-amber-500/40 text-amber-300 hover:bg-zinc-700'
+                          : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white'
+                      }`}
+                    >
+                      <span>Bug {lvl.id}</span>
+                      <span className="text-[9px] text-amber-300 flex items-center justify-center gap-0.5">
+                        {stars > 0 ? (
+                          Array.from({ length: stars }).map((_, i) => (
+                            <Star key={i} className="w-2 h-2 fill-amber-400 text-amber-400" />
+                          ))
+                        ) : (
+                          '•'
+                        )}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
       </div>
@@ -821,10 +1438,16 @@ export const ScratchBotGame: React.FC<ScratchBotGameProps> = ({
 
             <div>
               <h3 className="text-2xl font-black text-white font-mono">
-                {gameMode === 'campaign' ? 'FASE CONCLUÍDA!' : 'CIRCUITO SUPERADO!'}
+                {gameMode === 'campaign'
+                  ? 'FASE CONCLUÍDA!'
+                  : gameMode === 'bughunter'
+                  ? 'BUG DEPURADO COM SUCESSO!'
+                  : 'CIRCUITO SUPERADO!'}
               </h3>
               <p className="text-xs text-zinc-400 mt-1">
-                O Bytezinho alcançou o portal de dados com sucesso!
+                {gameMode === 'bughunter'
+                  ? 'Você encontrou e corrigiu a falha lógica no algoritmo!'
+                  : 'O Bytezinho alcançou o portal de dados com sucesso!'}
               </p>
             </div>
 
@@ -866,6 +1489,10 @@ export const ScratchBotGame: React.FC<ScratchBotGameProps> = ({
                   if (gameMode === 'campaign') {
                     if (currentLevelIndex < PEDAGOGICAL_LEVELS.length - 1) {
                       setCurrentLevelIndex((prev) => prev + 1);
+                    }
+                  } else if (gameMode === 'bughunter') {
+                    if (currentBugLevelIndex < BUG_HUNTER_LEVELS.length - 1) {
+                      setCurrentBugLevelIndex((prev) => prev + 1);
                     }
                   } else {
                     setInfiniteSeed((prev) => prev + 1);

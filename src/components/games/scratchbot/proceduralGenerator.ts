@@ -137,6 +137,11 @@ export function generateProceduralLevel(seedNumber: number): ScratchLevelDef {
       const cur = pathCoords[i];
       const nxt = pathCoords[i + 1];
 
+      // Não coloca esteira sobre uma gema ou início/fim
+      const hasGemOnCur = gems.some((g) => coordEquals(g, cur));
+      const visitsCurCount = pathCoords.filter((p) => coordEquals(p, cur)).length;
+      if (hasGemOnCur || visitsCurCount > 1) continue;
+
       // Reta horizontal para a direita: (x-1, y) -> (x, y) -> (x+1, y)
       if (prev.y === cur.y && cur.y === nxt.y && nxt.x === cur.x + 1 && cur.x === prev.x + 1) {
         if (!conveyors.some((c) => coordEquals(c.coord, cur))) {

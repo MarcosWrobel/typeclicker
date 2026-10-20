@@ -6,3 +6,4 @@ export * from './CardFrameIcon';
 export * from './AchievementIconRenderer';
 export * from './LevelBadgeRenderer';
 export * from './TrackIconRenderer';
+export * from './gameCovers';

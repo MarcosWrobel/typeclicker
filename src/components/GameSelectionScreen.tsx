@@ -40,6 +40,7 @@ import { getOverallAchievementsStats } from '../services/achievementEngine';
 import { StudentAvatarRenderer } from './vectors/StudentAvatarRenderer';
 import { RpgClassIcon } from './vectors/rpg/RpgClassIcon';
 import { TrackIconRenderer } from './vectors';
+import { GameCoverArt } from './vectors/gameCovers';
 import { sound } from '../utils/audio';
 import { LeaderboardMetric } from './LeaderboardModal';
 import { useGameCatalog } from '../data/gameCatalog';
@@ -695,6 +696,12 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
                   <div className="absolute top-0 right-0 w-44 h-44 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-emerald-500/20 transition-colors" />
 
                   <div>
+                    {/* Banner Artístico SVG Original */}
+                    <div className="relative w-full aspect-[2/1] rounded-2xl overflow-hidden mb-4 border border-emerald-500/30 bg-zinc-950/80 shadow-inner group-hover:border-emerald-400/60 transition-all">
+                      <GameCoverArt gameId="typeclicker" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#12151c]/60 via-transparent to-transparent pointer-events-none" />
+                    </div>
+
                     <div className="flex items-center justify-between gap-2 mb-3">
                       <span className="px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 font-mono text-[11px] font-black tracking-wider flex items-center gap-1.5">
                         <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
@@ -756,6 +763,12 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
                   <div className="absolute top-0 right-0 w-44 h-44 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-cyan-500/20 transition-colors" />
 
                   <div>
+                    {/* Banner Artístico SVG Original */}
+                    <div className="relative w-full aspect-[2/1] rounded-2xl overflow-hidden mb-4 border border-cyan-500/30 bg-zinc-950/80 shadow-inner group-hover:border-cyan-400/60 transition-all">
+                      <GameCoverArt gameId="type_radar" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#12151c]/60 via-transparent to-transparent pointer-events-none" />
+                    </div>
+
                     <div className="flex items-center justify-between gap-2 mb-3">
                       <span className="px-3 py-1 rounded-full bg-cyan-500/20 border border-cyan-500/50 text-cyan-300 font-mono text-[11px] font-black tracking-wider flex items-center gap-1.5">
                         <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
@@ -828,6 +841,12 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
                   <div className="absolute top-0 right-0 w-44 h-44 bg-amber-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-amber-500/20 transition-colors" />
 
                   <div>
+                    {/* Banner Artístico SVG Original */}
+                    <div className="relative w-full aspect-[2/1] rounded-2xl overflow-hidden mb-4 border border-amber-500/30 bg-zinc-950/80 shadow-inner group-hover:border-amber-400/60 transition-all">
+                      <GameCoverArt gameId="typerdash" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#12151c]/60 via-transparent to-transparent pointer-events-none" />
+                    </div>
+
                     <div className="flex items-center justify-between gap-2 mb-3">
                       <span className="px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/50 text-amber-300 font-mono text-[11px] font-black tracking-wider flex items-center gap-1.5">
                         <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
@@ -900,6 +919,12 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
                   <div className="absolute top-0 right-0 w-36 h-36 bg-amber-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-amber-500/20 transition-colors" />
 
                   <div>
+                    {/* Banner Artístico SVG Original */}
+                    <div className="relative w-full aspect-[2/1] rounded-2xl overflow-hidden mb-4 border border-amber-500/30 bg-zinc-950/80 shadow-inner group-hover:border-amber-400/60 transition-all">
+                      <GameCoverArt gameId="time_attack" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#12151c]/60 via-transparent to-transparent pointer-events-none" />
+                    </div>
+
                     <div className="flex items-center justify-between gap-2 mb-3">
                       <span className="px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-300 font-mono text-[11px] font-black tracking-wider flex items-center gap-1.5">
                         <Timer className="w-3.5 h-3.5 text-amber-400" />
@@ -961,6 +986,12 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
                   <div className="absolute top-0 right-0 w-36 h-36 bg-purple-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-purple-500/20 transition-colors" />
 
                   <div>
+                    {/* Banner Artístico SVG Original */}
+                    <div className="relative w-full aspect-[2/1] rounded-2xl overflow-hidden mb-4 border border-purple-500/30 bg-zinc-950/80 shadow-inner group-hover:border-purple-400/60 transition-all">
+                      <GameCoverArt gameId="dungeon" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#12151c]/60 via-transparent to-transparent pointer-events-none" />
+                    </div>
+
                     <div className="flex items-center justify-between gap-2 mb-3">
                       <span className="px-3 py-1 rounded-full bg-purple-500/15 border border-purple-500/40 text-purple-300 font-mono text-[11px] font-black tracking-wider flex items-center gap-1.5">
                         <Swords className="w-3.5 h-3.5 text-purple-400" />
@@ -1031,6 +1062,12 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
                   }`}
                 >
                   <div>
+                    {/* Banner Artístico SVG Original */}
+                    <div className="relative w-full aspect-[2/1] rounded-2xl overflow-hidden mb-4 border border-amber-500/30 bg-zinc-950/80 shadow-inner group-hover:border-amber-400/60 transition-all">
+                      <GameCoverArt gameId="race" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#12151c]/60 via-transparent to-transparent pointer-events-none" />
+                    </div>
+
                     <div className="flex items-center justify-between gap-2 mb-3">
                       <span className={`px-3 py-1 rounded-full font-mono text-[11px] font-black tracking-wider flex items-center gap-1.5 ${
                         isRaceActive 
@@ -1130,6 +1167,12 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
                   }`}
                 >
                   <div>
+                    {/* Banner Artístico SVG Original */}
+                    <div className="relative w-full aspect-[2/1] rounded-2xl overflow-hidden mb-4 border border-rose-500/30 bg-zinc-950/80 shadow-inner group-hover:border-rose-400/60 transition-all">
+                      <GameCoverArt gameId="raid" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#12151c]/60 via-transparent to-transparent pointer-events-none" />
+                    </div>
+
                     <div className="flex items-center justify-between gap-2 mb-3">
                       <span className={`px-3 py-1 rounded-full font-mono text-[11px] font-black tracking-wider flex items-center gap-1.5 ${
                         isRaidActive 
@@ -1190,7 +1233,7 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
               );
             }
 
-            // CARD GENÉRICO (byte_logic, math_storm, syntax_maze, ou jogos de alunos)
+            // CARD GENÉRICO (scratchbot, bytequest, progplay, math_storm, syntax_maze, ou jogos de alunos)
             return (
               <motion.div
                 key={game.id}
@@ -1200,6 +1243,12 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
                 <div className={`absolute top-0 right-0 w-36 h-36 rounded-full blur-3xl pointer-events-none transition-colors ${game.glowColor}`} />
 
                 <div>
+                  {/* Banner Artístico SVG Original */}
+                  <div className="relative w-full aspect-[2/1] rounded-2xl overflow-hidden mb-4 border border-zinc-800/80 bg-zinc-950/80 shadow-inner group-hover:border-zinc-700 transition-all">
+                    <GameCoverArt gameId={game.id} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#12151c]/60 via-transparent to-transparent pointer-events-none" />
+                  </div>
+
                   <div className="flex items-center justify-between gap-2 mb-3">
                     <span className="px-3 py-1 rounded-full bg-zinc-800/80 border border-zinc-700/80 text-zinc-300 font-mono text-[11px] font-bold tracking-wider flex items-center gap-1.5">
                       {game.isNew && <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />}
@@ -1214,6 +1263,8 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
                         <Code className="w-6 h-6 text-purple-400" />
                       ) : game.icon === 'Puzzle' ? (
                         <Puzzle className="w-6 h-6 text-amber-400" />
+                      ) : game.icon === 'Swords' ? (
+                        <Swords className="w-6 h-6 text-violet-400" />
                       ) : (
                         <Gamepad2 className="w-6 h-6 text-indigo-400" />
                       )}
@@ -1260,7 +1311,15 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
                     <button
                       type="button"
                       onClick={() => handlePlayGenericGame(game.id)}
-                      className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black font-black text-xs font-mono uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer transform group-hover:scale-[1.02] active:scale-95"
+                      className={`w-full py-3.5 rounded-2xl font-black text-xs font-mono uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer transform group-hover:scale-[1.02] active:scale-95 ${
+                        game.id === 'bytequest'
+                          ? 'bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white shadow-violet-500/25'
+                          : game.id === 'scratchbot'
+                          ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black shadow-amber-500/25'
+                          : game.id === 'progplay'
+                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-blue-500/25'
+                          : 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black shadow-emerald-500/25'
+                      }`}
                     >
                       <Play className="w-4 h-4 fill-current" />
                       <span>JOGAR {game.title.toUpperCase()}</span>

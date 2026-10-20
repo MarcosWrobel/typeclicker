@@ -1,6 +1,6 @@
 # 🌌 TypeClicker — Contexto Geral do Projeto & ByteQuest
 
-> **Data de Atualização**: 18 de Outubro de 2026  
+> **Data de Atualização**: 19 de Outubro de 2026  
 > **Branch**: `main`  
 > **Status de Compilação**: ✅ `npm run build` e `npx tsc --noEmit` compilam com **0 erros**  
 > **Objetivo deste documento**: Servir como ponto de sincronização rápido e completo para desenvolvimento multiplataforma (Desktop ↔ Notebook).
@@ -103,7 +103,63 @@ src/
 
 ---
 
-## 💻 4. Guia Rápido de Sincronização (Desktop ↔ Notebook)
+## 🤖 5. Atualizações Recentes do Minigame ScratchBot: Logic Quest
+
+### 1. Reordenação e Encaixe de Blocos Estilo Scratch
+- **Drag-and-Drop Bidirecional**: Encaixe livre antes, depois e dentro de blocos contêineres (`repeat`, `if_path_ahead`, `if_on_gem`).
+- **Botões Acessíveis (▲ / ▼)**: Reordenação precisa linha a linha com 1 clique para notebooks e touchpads.
+- **Blocos Unitários Padronizados**: O bloco `[Mova 1 passo]` é estritamente unitário (sem parâmetro de passos), forçando o pensamento algorítmico e a necessidade de laços.
+- **Contagem Justa de Metas**: O bloco de evento inicial `[Quando bandeira verde]` é contabilizado como 1 bloco em todas as metas de estrelas (3⭐ e 2⭐).
+
+### 2. Correção de Inconsistências de Regras & Físicas do Tabuleiro
+- **Vitória Antecipada (`OnTileEnter`)**: Ao entrar no portal com todas as gemas obrigatórias coletadas, a vitória é acionada imediatamente, interrompendo laços residuais.
+- **Regra Estrita do Piso EMP**: Causa sobrecarga imediata se o robô girar, coletar ou terminar uma repetição/programa sobre a casa condutora.
+- **Esteiras de Aceleração com Cascata**: Ativam apenas no evento `OnTileEnter` e impulsionam o robô em até 4 casas consecutivas sem coletar gemas passivamente.
+- **Chave e Portão a Laser**: Chaves ativam ao pisar passivamente; o portão bloqueia a passagem até a chave ser coletada.
+- **Depuração Visual de Erro**: O bloco causador da colisão ou erro acende um anel pulsante vermelho (`errorBlockId`), facilitando o aprendizado.
+- **Botão PASSO**: Execução linha a linha para depuração e inspeção passo a passo do algoritmo.
+
+### 3. Modos de Jogo & Expansões
+1. **Trilha Pedagógica (16 Fases em 6 Mundos)**:
+   - **Mundo 1**: Fundamentos & Sequenciamento Espacial (Fases 1–3)
+   - **Mundo 2**: O Poder da Repetição / Loops (Fases 4–6 com estoque limitado de blocos)
+   - **Mundo 3**: Sobrecarga Elétrica & Pisos EMP (Fases 7–9)
+   - **Mundo 4**: Mecânicas Espaciais: Esteiras & Warps Quânticos (Fases 10–12)
+   - **Mundo 5**: Integração Total de Sistemas & Desafio Final (Fases 13–14)
+   - **Mundo 6**: Sensores & Condicionais Inteligentes (Fases 15–16 com `if_path_ahead` e `if_on_gem`)
+2. **Modo Caça aos Bugs (Bug Hunter - 6 Níveis)**:
+   - Código pré-carregado com defeito conceitual (giro invertido, loop extrapolado, parada em EMP, gema esquecida, ordem de chave invertida, impulso de esteira não compensado).
+   - O aluno usa a orientação pedagógica da missão e a execução passo a passo para depurar e consertar o algoritmo.
+3. **Gemas Estelares Opcionais (`optionalGems`)**:
+   - Cristais dourados brilhantes fora do caminho principal que oferecem desafios opcionais de otimização de rota.
+
+### 4. Correções de Aninhamento Recursivo & Validação de Gemas
+- **Callbacks Recursivos em Containers**: Corrigido o repasse de `onAddChild` e `onRemoveChild` para nós filhos aninhados em `ScratchBlockItem.tsx`, permitindo inserir e remover ações dentro de condicionais (`se [sobre gema]`, `se [caminho à frente]`) mesmo quando já estão contidos em laços `repita`.
+- **Drag-and-Drop Estável em Profundidade**: Prevenção de perda de hover ao passar sobre subelementos de texto/ícones (`relatedTarget`) e priorização do target `'inside'`.
+- **Validação de Vitória com Star Gems**: Correção da checagem para `activeLevel.gems.every((g) => localCollected.has(...))`, permitindo que gemas opcionais extras não causem falso negativo de vitória.
+- **Auditoria de 16 Fases e 6 Bug Hunters**: Calibração das metas de 3 estrelas e obstáculos em todas as fases da campanha e nos cenários de depuração.
+
+---
+
+## 🎨 6. Revisão Visual da Home do HUB (12 Artes SVG Originais)
+
+Implementada coleção de artes vetoriais originais e responsivas (`src/components/vectors/gameCovers/`), trazendo banners modernos no formato de capa gamer (`aspect-[2/1]`) com animação suave de zoom no hover:
+1. **TyperDash**: Rhythm runner synthwave 130 BPM, cubo saltando espinhos neon e teclas guia (A S D F J K L).
+2. **TypeClicker Classic**: Teclado mecânico futurista RGB, Bytezinho minerando e fluxo de código binário matrix.
+3. **Type: Radar**: Radar militar holográfico ciano/verde, mísseis balísticos travados e comandos `/NUKE` e `/FREEZE`.
+4. **ProgPlay**: Enigma das Portas cósmico, fechaduras `{ ; }` e `</>`, duelo 1x1 e linguagens (JS, Python, SQL, Web).
+5. **Sprint Time Attack**: Cronômetro digital superaquecido com chamas, rotação extrema e pico de 145 WPM.
+6. **Cyber Dungeon RPG**: Masmorra subterrânea, guerreiro com espada laser, baú tech aberto com chave e poções.
+7. **Corrida Sincronizada**: Pista suspensa noturna, hover-karts disputando lado a lado com nitro e troféu dourado.
+8. **Raid Coletiva da Sala**: Mech Titã com chifres e olhos carmesim, barra de HP e raios laser coloridos dos alunos.
+9. **ScratchBot: Logic Quest**: Bytezinho em grid isométrico com esteiras e blocos magnéticos de código Scratch.
+10. **ByteQuest**: Combat runner com herói executando corte de espada violeta, orbes mágicos e hordas de monstros.
+11. **Math Storm**: Vórtice de plasma esmeralda com relâmpagos e símbolos matemáticos iluminados ($\sum, \sqrt{x}, \pi$).
+12. **Syntax Maze**: Labirinto de paredes neon carmesim, alertas de `SyntaxError` e portal de saída com a chave `{ }`.
+
+---
+
+## 💻 7. Guia Rápido de Sincronização (Desktop ↔ Notebook)
 
 ### No Desktop (para enviar as alterações):
 ```bash
@@ -114,7 +170,7 @@ git status
 git add .
 
 # 3. Criar commit descritivo
-git commit -m "feat(bytequest): expand map to 5000x3600, homing boss mechanics, dead key accent fix and lobby overhaul"
+git commit -m "feat(scratchbot): drag-and-drop reordering, bug hunter mode, conditionals, star gems and 16-level pedagogical progression"
 
 # 4. Enviar para o GitHub
 git push origin main
@@ -132,7 +188,7 @@ git pull origin main
 npm install
 
 # 4. Validar compilação do TypeScript
-npx tsc --noEmit
+npm run build
 
 # 5. Iniciar o servidor de desenvolvimento
 npm run dev
@@ -140,14 +196,14 @@ npm run dev
 
 ---
 
-## 🎯 5. Próximos Passos Sugeridos no Notebook
+## 🎯 8. Próximos Passos Sugeridos no Notebook
 
-1. **Sprite Engine e Assets (Opcional/Futuro)**:
-   - Foram iniciados os arquivos de suporte a sprites (`byteQuestSpriteEngine.ts`, `ByteQuestPixiArena.tsx`), que podem ser ativados gradualmente caso se queira testar renderização pixel art além do Canvas 2D procedural atual.
-2. **Novos Padrões de Ataque para o Chefe da Forja e do Núcleo**:
-   - Ajustar e customizar os projéteis específicos de cada bioma (ex: fendas de magma teleguiadas na Forja de Silício).
+1. **Sprite Engine e Assets de ByteQuest (Opcional/Futuro)**:
+   - Suporte a sprites iniciado para eventual uso de pixel art além do Canvas 2D procedural atual.
+2. **Módulos Futuros do ScratchBot**:
+   - Mundo 7 com sub-rotinas/funções simples `defina [Ação]` ou laço indefinido `repita até [saída]`.
 3. **Persistência em Nuvem (Supabase)**:
-   - Expandir a gravação das estatísticas de câmara concluída e tormento no perfil do usuário no Supabase para exibição no ranking de turmas.
+   - Sincronizar o progresso de fases do ScratchBot (`completedLevels` e `completedBugLevels`) com a tabela de perfis de alunos no Supabase.
 
 ---
 *Documento gerado automaticamente para continuidade de desenvolvimento.*
