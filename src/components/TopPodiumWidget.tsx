@@ -65,6 +65,10 @@ export const TopPodiumWidget: React.FC<TopPodiumWidgetProps> = ({
         return `Onda ${player.radarBestWave || 1}`;
       case 'dash':
         return `${(player.dashHighScore || 0).toLocaleString()} pts`;
+      case 'bytequest':
+        return `${(player.byteQuestHighScore || 0).toLocaleString()} pts`;
+      case 'sheetquest':
+        return `${(player.sheetQuestHighScore || 0).toLocaleString()} pts`;
       default:
         return `${player.points || 0}`;
     }

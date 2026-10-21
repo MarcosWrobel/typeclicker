@@ -4,7 +4,7 @@ import { IDatabaseService, UserProfile, GameSessionPayload } from '../dbInterfac
 import { GameState } from '../../types';
 import { DEFAULT_COSMETICS } from '../../types/cosmetics';
 import { CloudLoadResponse, LeaderboardEntry, SeasonHistoryEntry } from '../../types/leaderboard';
-import { calculatePlayerRank } from '../../utils/formatting';
+import { calculatePlayerRank, calculatePPM, calculateAccuracy } from '../../utils/formatting';
 
 export class SupabaseAdapter implements IDatabaseService {
   private client: SupabaseClient;
@@ -125,6 +125,164 @@ export class SupabaseAdapter implements IDatabaseService {
     return data.map(this.mapProfile);
   }
 
+  private async enrichProfilesWithProgress(profiles: any[]): Promise<LeaderboardEntry[]> {
+    if (!profiles || profiles.length === 0) return [];
+
+    const userIds = profiles.map((p: any) => p.id).filter(Boolean);
+    const progressMap = new Map<string, any[]>();
+
+    if (userIds.length > 0) {
+      try {
+        // Busca paralela em lotes de 100 para respeitar limites do PostgREST
+        for (let i = 0; i < userIds.length; i += 100) {
+          const slice = userIds.slice(i, i + 100);
+          const { data: progressRows, error: pErr } = await this.client
+            .from('game_progress')
+            .select('user_id, game_id, high_score, current_floor, highest_floor, metrics, state_payload, updated_at')
+            .in('user_id', slice);
+
+          if (!pErr && progressRows) {
+            for (const row of progressRows) {
+              const list = progressMap.get(row.user_id) || [];
+              list.push(row);
+              progressMap.set(row.user_id, list);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Aviso ao carregar game_progress para leaderboard:', err);
+      }
+    }
+
+    return profiles.map((row: any): LeaderboardEntry => {
+      const points = Number(row.total_bytes_earned) || 0;
+      const computedLevel = calculatePlayerRank(points).level;
+      const level = Math.max(Number(row.level) || 1, computedLevel);
+      const isStaff = row.role === 'teacher' || row.role === 'admin';
+
+      const userProgress = progressMap.get(row.id) || [];
+      const tcRow = userProgress.find((p) => p.game_id === 'typeclicker');
+      const tcState = (tcRow?.state_payload && typeof tcRow.state_payload === 'object') ? tcRow.state_payload : {};
+
+      const correctKeys = Number(tcState.correctKeys) || 0;
+      const wrongKeys = Number(tcState.wrongKeys) || 0;
+      const totalActiveSeconds = Number(tcState.totalActiveSeconds) || 0;
+      const computedPpm = calculatePPM(correctKeys, totalActiveSeconds);
+      const computedAccuracy = calculateAccuracy(correctKeys, wrongKeys);
+      const maxCombo = Number(tcState.maxCombo) || 0;
+
+      const arenaStats = tcState.arenaStats || {};
+      const pvpWins = Number(arenaStats.wins) || 0;
+      const pvpMatches = Number(arenaStats.matchesPlayed) || 0;
+      const pvpPoints = Number(arenaStats.duelPoints) || 0;
+
+      const raceWins = Number(tcState.raceWins) || 0;
+      const racesParticipated = Number(tcState.racesParticipated) || 0;
+      const bestRaceWpm = Number(tcState.bestRaceWpm) || 0;
+      const bestWpm = Math.max(computedPpm, bestRaceWpm, Number(arenaStats.highestWpm) || 0);
+
+      // Métricas do Type: Radar
+      const radarRow = userProgress.find((p) => p.game_id === 'radar' || p.game_id === 'type_radar');
+      const radarStateStats = tcState.radarStats || {};
+      const radarBestWave = Math.max(
+        Number(radarStateStats.bestWave) || 1,
+        Number(radarRow?.metrics?.extraMetrics?.bestWave || radarRow?.metrics?.levelReached || radarRow?.current_floor || 1)
+      );
+      const radarHighScore = Math.max(
+        Number(radarStateStats.highScore) || 0,
+        Number(radarRow?.high_score) || 0,
+        Number(radarRow?.metrics?.score) || 0
+      );
+      const radarMaxWpm = Math.max(
+        Number(radarStateStats.maxWpm) || 0,
+        Number(radarRow?.metrics?.extraMetrics?.maxWpm) || 0
+      );
+
+      // Métricas do TyperDash
+      const dashRow = userProgress.find((p) => p.game_id === 'dash' || p.game_id === 'typerdash');
+      const dashStateStats = tcState.dashStats || {};
+      const dashHighScore = Math.max(
+        Number(dashStateStats.highScore) || 0,
+        Number(dashRow?.high_score) || 0,
+        Number(dashRow?.metrics?.score) || 0
+      );
+      const dashMaxDistance = Math.max(
+        Number(dashStateStats.maxDistance) || 0,
+        Number(dashRow?.metrics?.extraMetrics?.distanceMeters) || 0
+      );
+      const dashMaxCombo = Math.max(
+        Number(dashStateStats.maxCombo) || 0,
+        Number(dashRow?.metrics?.extraMetrics?.maxCombo) || 0
+      );
+      const dashBestClass = dashStateStats.bestClass || dashRow?.metrics?.extraMetrics?.studentClass || undefined;
+
+      // Minijogos Adicionais do Hub (ByteQuest, SheetQuest, ScratchBot, ProgPlay)
+      const bqRow = userProgress.find((p) => p.game_id === 'bytequest');
+      const byteQuestHighScore = Math.max(Number(bqRow?.high_score) || 0, Number(bqRow?.metrics?.score) || 0);
+      const byteQuestMaxFloor = Math.max(
+        Number(bqRow?.highest_floor || bqRow?.current_floor) || 0,
+        Number(bqRow?.metrics?.extraMetrics?.maxFloor || bqRow?.metrics?.levelReached) || 0
+      );
+
+      const sqRow = userProgress.find((p) => p.game_id === 'sheetquest');
+      const sheetQuestHighScore = Math.max(Number(sqRow?.high_score) || 0, Number(sqRow?.metrics?.score) || 0);
+      const sheetQuestCompletedQuests = Number(sqRow?.metrics?.extraMetrics?.completedQuests || sqRow?.metrics?.levelReached) || 0;
+
+      const sbRow = userProgress.find((p) => p.game_id === 'scratchbot');
+      const scratchBotHighScore = Math.max(Number(sbRow?.high_score) || 0, Number(sbRow?.metrics?.score) || 0);
+
+      const ppRow = userProgress.find((p) => p.game_id === 'progplay');
+      const progPlayHighScore = Math.max(Number(ppRow?.high_score) || 0, Number(ppRow?.metrics?.score) || 0);
+
+      // Data de Conquista do Nível 100
+      let reachedLevel100At = tcState.reachedLevel100At;
+      if (!reachedLevel100At && level >= 100) {
+        reachedLevel100At = tcRow?.updated_at || row.updated_at || new Date().toISOString();
+      }
+
+      return {
+        userId: row.id,
+        nome: row.display_name || 'Aluno',
+        email: row.email,
+        apelido: row.nickname,
+        turma: row.turma || '',
+        level,
+        points,
+        seasonBytes: Number(row.season_bytes) || 0,
+        wpm: computedPpm,
+        bestWpm,
+        accuracy: computedAccuracy,
+        maxCombo,
+        raceWins,
+        racesParticipated,
+        bestRaceWpm,
+        pvpWins,
+        pvpMatches,
+        pvpPoints,
+        radarBestWave,
+        radarHighScore,
+        radarMaxWpm,
+        dashHighScore,
+        dashMaxDistance,
+        dashMaxCombo,
+        dashBestClass,
+        byteQuestHighScore,
+        byteQuestMaxFloor,
+        sheetQuestHighScore,
+        sheetQuestCompletedQuests,
+        scratchBotHighScore,
+        progPlayHighScore,
+        reachedLevel100At,
+        achievementsCount: tcState.achievements ? Object.keys(tcState.achievements).length : 0,
+        avatar: row.avatar,
+        updatedAt: row.updated_at || new Date().toISOString(),
+        rpgClass: row.rpg_class,
+        cardFrame: row.equipped_frame,
+        isStaff
+      };
+    });
+  }
+
   async getGlobalLeaderboard(forceRefresh: boolean = false): Promise<LeaderboardEntry[]> {
     if (!isSupabaseConfigured) return [];
     const { data, error } = await this.client
@@ -134,26 +292,7 @@ export class SupabaseAdapter implements IDatabaseService {
       .limit(250);
 
     if (error || !data) return [];
-    return data.map((row: any): LeaderboardEntry => {
-      const points = Number(row.total_bytes_earned) || 0;
-      const computedLevel = calculatePlayerRank(points).level;
-      const level = Math.max(Number(row.level) || 1, computedLevel);
-      return {
-        userId: row.id,
-        nome: row.display_name || 'Aluno',
-        apelido: row.nickname,
-        turma: row.turma || '',
-        level,
-        points,
-        seasonBytes: Number(row.season_bytes) || 0,
-        wpm: 0,
-        avatar: row.avatar,
-        updatedAt: row.updated_at || new Date().toISOString(),
-        rpgClass: row.rpg_class,
-        cardFrame: row.equipped_frame,
-        isStaff: row.role === 'teacher' || row.role === 'admin'
-      };
-    });
+    return this.enrichProfilesWithProgress(data);
   }
 
   async getSeasonLeaderboard(forceRefresh: boolean = false): Promise<LeaderboardEntry[]> {
@@ -165,26 +304,7 @@ export class SupabaseAdapter implements IDatabaseService {
       .limit(250);
 
     if (error || !data) return [];
-    return data.map((row: any): LeaderboardEntry => {
-      const points = Number(row.total_bytes_earned) || 0;
-      const computedLevel = calculatePlayerRank(points).level;
-      const level = Math.max(Number(row.level) || 1, computedLevel);
-      return {
-        userId: row.id,
-        nome: row.display_name || 'Aluno',
-        apelido: row.nickname,
-        turma: row.turma || '',
-        level,
-        points,
-        seasonBytes: Number(row.season_bytes) || 0,
-        wpm: 0,
-        avatar: row.avatar,
-        updatedAt: row.updated_at || new Date().toISOString(),
-        rpgClass: row.rpg_class,
-        cardFrame: row.equipped_frame,
-        isStaff: row.role === 'teacher' || row.role === 'admin'
-      };
-    });
+    return this.enrichProfilesWithProgress(data);
   }
 
   async getSeasonHistory(seasonId: string): Promise<SeasonHistoryEntry[]> {
@@ -436,13 +556,21 @@ export class SupabaseAdapter implements IDatabaseService {
 
     // 2. Persiste snapshot integral do jogo no schema game_progress
     try {
+      let stateToSave = state;
+      if (effectiveLevel >= 100 && !stateToSave.reachedLevel100At) {
+        stateToSave = {
+          ...stateToSave,
+          reachedLevel100At: new Date().toISOString()
+        };
+      }
+
       await this.client
         .from('game_progress')
         .upsert({
           user_id: userId,
           game_id: 'typeclicker',
           high_score: totalBytes,
-          state_payload: state,
+          state_payload: stateToSave,
           updated_at: new Date().toISOString()
         }, { onConflict: 'user_id, game_id' });
     } catch (err) {
@@ -467,29 +595,8 @@ export class SupabaseAdapter implements IDatabaseService {
       return [];
     }
 
-    return data
-      .filter((row: any) => row.role !== 'teacher' && row.role !== 'admin')
-      .map((row: any): LeaderboardEntry => {
-        const points = Number(row.total_bytes_earned) || 0;
-        const computedLevel = calculatePlayerRank(points).level;
-        const level = Math.max(Number(row.level) || 1, computedLevel);
-        return {
-          userId: row.id,
-          nome: row.display_name || 'Aluno',
-          email: row.email,
-          apelido: row.nickname,
-          turma: row.turma || '',
-          level,
-          points,
-          seasonBytes: Number(row.season_bytes) || 0,
-          wpm: 0,
-          avatar: row.avatar,
-          updatedAt: row.updated_at || new Date().toISOString(),
-          rpgClass: row.rpg_class,
-          cardFrame: row.equipped_frame,
-          isStaff: false
-        };
-      });
+    const studentsOnly = data.filter((row: any) => row.role !== 'teacher' && row.role !== 'admin');
+    return this.enrichProfilesWithProgress(studentsOnly);
   }
 
   async adminUpdateStudentProfile(

@@ -241,6 +241,23 @@ export const INITIAL_GAME_CATALOG: GameMetadata[] = [
     isNew: true,
     status: 'coming_soon',
     tags: ['Debug', 'Python & JS', 'Monaco Editor']
+  },
+  {
+    id: 'sheetquest',
+    title: 'SheetQuest',
+    description: 'Domine o Google Planilhas resolvendo demandas reais de e-sports, hardware e streaming com fórmulas dinâmicas brasileiras (SOMA, MÉDIA, SE, PROCV).',
+    author: 'Prof. Marcos Wrobel',
+    category: 'Oficiais',
+    subject: 'Educação Digital',
+    genre: 'Simulação',
+    coverGradient: 'from-emerald-500/20 via-teal-500/10 to-transparent',
+    borderColor: 'border-emerald-500/50 hover:border-emerald-400',
+    glowColor: 'bg-emerald-500/10 group-hover:bg-emerald-500/20',
+    badgeTag: 'NOVO • PLANILHAS',
+    icon: 'FileSpreadsheet',
+    isNew: true,
+    status: 'playable',
+    tags: ['Google Sheets', 'Fórmulas PT-BR', 'fx Point & Click', 'Auditoria de Erros']
   }
 ];
 

@@ -12,7 +12,8 @@ export type GameId =
   | 'syntax_maze'
   | 'progplay'
   | 'scratchbot'
-  | 'bytequest';
+  | 'bytequest'
+  | 'sheetquest';
 
 export type StudentRpgClass = RpgClassType; // alias pedagógico para o guia dos alunos
 export type GamePluginProps = BaseGameProps;

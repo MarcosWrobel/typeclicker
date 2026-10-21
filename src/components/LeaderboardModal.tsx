@@ -21,12 +21,14 @@ Landmark,
 Sparkles,
 Calendar,
 Crown,
-TrendingUp
+TrendingUp,
+Table
 } from 'lucide-react';
-import { LeaderboardEntry, SeasonHistoryEntry } from '../types/leaderboard';
+import { LeaderboardEntry, Level100PioneerSlot, SeasonHistoryEntry } from '../types/leaderboard';
 import { isStaffMember, extractLevel100Pioneers } from '../utils/leaderboardUtils';
 import { dbService } from '../services/dbFactory';
 import { Level100PioneersWidget } from './Level100PioneersWidget';
+import { Level100CelebrationModal } from './Level100CelebrationModal';
 import { StudentProfileCardModal } from './StudentProfileCardModal';
 import { formatBytes, calculatePlayerRank } from '../utils/formatting';
 import { StudentAvatarRenderer } from './vectors/StudentAvatarRenderer';
@@ -42,7 +44,7 @@ aggregateClassStats,
 sortClassStats,ClassRankingSortMetric
 } from '../utils/turmasAggregator';
 
-export type LeaderboardMetric = 'level' | 'wpm' | 'combo' | 'bytes' | 'radar' | 'pvp' | 'races' | 'dash';
+export type LeaderboardMetric = 'level' | 'wpm' | 'combo' | 'bytes' | 'radar' | 'pvp' | 'races' | 'dash' | 'bytequest' | 'sheetquest';
 
 interface MetricTabDef {
   id: LeaderboardMetric;
@@ -180,12 +182,44 @@ export const METRIC_TABS: MetricTabDef[] = [
     title: 'RANKING TYPERDASH (CEL-SHADED MANGA)',
     badgeTag: 'High Score & Distância',
     description: 'Classificação por maior pontuação e metros percorridos no TyperDash'
+  },
+  {
+    id: 'bytequest',
+    label: 'ByteQuest RPG',
+    shortLabel: 'ByteQuest',
+    icon: Shield,
+    color: 'text-violet-400',
+    badgeBg: 'bg-violet-500/20',
+    badgeBorder: 'border-violet-500/40',
+    badgeText: 'text-violet-300',
+    activeBorder: 'border-violet-500/50',
+    activeGlow: 'shadow-[0_0_50px_rgba(139,92,246,0.25)]',
+    title: 'RANKING BYTEQUEST (ROGUE-LITE SURVIVOR)',
+    badgeTag: 'High Score & Andares',
+    description: 'Classificação por maior pontuação e andares explorados na Masmorra dos Bytes'
+  },
+  {
+    id: 'sheetquest',
+    label: 'SheetQuest',
+    shortLabel: 'SheetQuest',
+    icon: Table,
+    color: 'text-emerald-400',
+    badgeBg: 'bg-emerald-500/20',
+    badgeBorder: 'border-emerald-500/40',
+    badgeText: 'text-emerald-300',
+    activeBorder: 'border-emerald-500/50',
+    activeGlow: 'shadow-[0_0_50px_rgba(16,185,129,0.25)]',
+    title: 'RANKING SHEETQUEST (GOOGLE PLANILHAS)',
+    badgeTag: 'High Score & Demandas',
+    description: 'Classificação por pontuação e demandas empresariais concluídas com fórmulas'
   }
 ];
 
 const normalizeTab = (tab?: string): LeaderboardMetric => {
   if (!tab || tab === 'points') return 'level';
   if (tab === 'dash' || tab === 'typerdash') return 'dash';
+  if (tab === 'bytequest') return 'bytequest';
+  if (tab === 'sheetquest') return 'sheetquest';
   if (tab === 'level' || tab === 'wpm' || tab === 'combo' || tab === 'bytes' || tab === 'radar' || tab === 'pvp' || tab === 'races') {
     return tab;
   }
@@ -223,6 +257,9 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
 
   // Aluno selecionado para exibição do Card Colecionável de Perfil
   const [selectedCardPlayer, setSelectedCardPlayer] = useState<LeaderboardEntry | null>(null);
+
+  // Pioneiro selecionado para exibição do Pop-up Comemorativo Nível 100
+  const [celebratingPioneerSlot, setCelebratingPioneerSlot] = useState<Level100PioneerSlot | null>(null);
 
   // Escopo de Temporada: Trimestre Atual (padrão) vs Todos os Tempos vs Hall da Fama
   const [seasonScope, setSeasonScope] = useState<'trimester' | 'all_time' | 'hall_of_fame'>('trimester');
@@ -474,6 +511,28 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
           const distB = b.dashMaxDistance || 0;
           if (distB !== distA) return distB - distA;
           return (b.dashMaxCombo || 0) - (a.dashMaxCombo || 0);
+        });
+
+      case 'bytequest':
+        return list.sort((a, b) => {
+          const scoreA = a.byteQuestHighScore || 0;
+          const scoreB = b.byteQuestHighScore || 0;
+          if (scoreB !== scoreA) return scoreB - scoreA;
+          const floorA = a.byteQuestMaxFloor || 0;
+          const floorB = b.byteQuestMaxFloor || 0;
+          if (floorB !== floorA) return floorB - floorA;
+          return (b.points || 0) - (a.points || 0);
+        });
+
+      case 'sheetquest':
+        return list.sort((a, b) => {
+          const scoreA = a.sheetQuestHighScore || 0;
+          const scoreB = b.sheetQuestHighScore || 0;
+          if (scoreB !== scoreA) return scoreB - scoreA;
+          const questsA = a.sheetQuestCompletedQuests || 0;
+          const questsB = b.sheetQuestCompletedQuests || 0;
+          if (questsB !== questsA) return questsB - questsA;
+          return (b.points || 0) - (a.points || 0);
         });
 
       default:
@@ -1465,6 +1524,9 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                       variant="banner"
                       currentUserId={currentUserId}
                       onSelectPlayer={setSelectedCardPlayer}
+                      onOpenFirstPioneerCelebration={(slot) => {
+                        setCelebratingPioneerSlot(slot || level100Pioneers[0] || null);
+                      }}
                     />
                   )}
 
@@ -1597,6 +1659,16 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                               {activeRankTab === 'dash' && (
                                 <span className="text-[11px] text-amber-300/90 font-mono inline-flex items-center gap-1">
                                   <Zap className="w-3 h-3 text-amber-400" /> {(player.dashHighScore || 0).toLocaleString()} pts • {player.dashMaxDistance || 0}m
+                                </span>
+                              )}
+                              {activeRankTab === 'bytequest' && (
+                                <span className="text-[11px] text-violet-300/90 font-mono inline-flex items-center gap-1">
+                                  <Shield className="w-3 h-3 text-violet-400" /> {(player.byteQuestHighScore || 0).toLocaleString()} pts • Andar {player.byteQuestMaxFloor || 1}
+                                </span>
+                              )}
+                              {activeRankTab === 'sheetquest' && (
+                                <span className="text-[11px] text-emerald-300/90 font-mono inline-flex items-center gap-1">
+                                  <Table className="w-3 h-3 text-emerald-400" /> {(player.sheetQuestHighScore || 0).toLocaleString()} pts • {player.sheetQuestCompletedQuests || 0} demandas
                                 </span>
                               )}
                               {activeRankTab === 'level' && (
@@ -1755,6 +1827,48 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                               <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Combo Max</span>
                               <span className="font-mono font-bold text-emerald-400 text-sm">
                                 {player.dashMaxCombo ? `${player.dashMaxCombo}x` : '-'}
+                              </span>
+                            </div>
+                          </div>
+                        ) : activeRankTab === 'bytequest' ? (
+                          <div className="hidden sm:flex items-center gap-4 sm:gap-6 shrink-0">
+                            <div className="flex flex-col items-end">
+                              <span className="text-[10px] text-violet-400 uppercase font-bold tracking-wider">Pontuação</span>
+                              <span className="font-mono font-black text-violet-300 text-sm flex items-center gap-1">
+                                <Shield className="w-3.5 h-3.5 text-violet-400" /> {(player.byteQuestHighScore || 0).toLocaleString()} pts
+                              </span>
+                            </div>
+                            <div className="flex flex-col items-end">
+                              <span className="text-[10px] text-amber-400 uppercase font-bold tracking-wider">Andar Máx</span>
+                              <span className="font-mono font-bold text-amber-300 text-sm">
+                                Andar {player.byteQuestMaxFloor || 1}
+                              </span>
+                            </div>
+                            <div className="flex flex-col items-end w-20">
+                              <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Nível</span>
+                              <span className="font-mono font-bold text-zinc-300 text-sm">
+                                Nv. {player.level}
+                              </span>
+                            </div>
+                          </div>
+                        ) : activeRankTab === 'sheetquest' ? (
+                          <div className="hidden sm:flex items-center gap-4 sm:gap-6 shrink-0">
+                            <div className="flex flex-col items-end">
+                              <span className="text-[10px] text-emerald-400 uppercase font-bold tracking-wider">Pontuação</span>
+                              <span className="font-mono font-black text-emerald-300 text-sm flex items-center gap-1">
+                                <Table className="w-3.5 h-3.5 text-emerald-400" /> {(player.sheetQuestHighScore || 0).toLocaleString()} pts
+                              </span>
+                            </div>
+                            <div className="flex flex-col items-end">
+                              <span className="text-[10px] text-cyan-400 uppercase font-bold tracking-wider">Demandas</span>
+                              <span className="font-mono font-bold text-cyan-300 text-sm">
+                                {player.sheetQuestCompletedQuests || 0}
+                              </span>
+                            </div>
+                            <div className="flex flex-col items-end w-20">
+                              <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Nível</span>
+                              <span className="font-mono font-bold text-zinc-300 text-sm">
+                                Nv. {player.level}
                               </span>
                             </div>
                           </div>
@@ -1967,6 +2081,19 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
         pioneerRank={selectedCardPlayer?.userId ? pioneerMap[selectedCardPlayer.userId]?.rank : undefined}
         isCurrentPlayer={selectedCardPlayer?.userId === currentUserId}
       />
+
+      {/* Pop-up Comemorativo Triunfal do 1º Nível 100 com Confetes */}
+      {celebratingPioneerSlot && (
+        <Level100CelebrationModal
+          isOpen={true}
+          onClose={() => setCelebratingPioneerSlot(null)}
+          rank={celebratingPioneerSlot.rank}
+          pioneerSlot={celebratingPioneerSlot}
+          studentName={celebratingPioneerSlot.player?.apelido || celebratingPioneerSlot.player?.nome}
+          studentAvatar={celebratingPioneerSlot.player?.avatar}
+          studentClass={celebratingPioneerSlot.player?.turma}
+        />
+      )}
     </AnimatePresence>
   );
 };

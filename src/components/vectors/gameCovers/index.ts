@@ -11,3 +11,4 @@ export * from './ScratchBotArt';
 export * from './ByteQuestArt';
 export * from './MathStormArt';
 export * from './SyntaxMazeArt';
+export * from './SheetQuestArt';

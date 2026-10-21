@@ -11,6 +11,7 @@ import { ScratchBotArt } from './ScratchBotArt';
 import { ByteQuestArt } from './ByteQuestArt';
 import { MathStormArt } from './MathStormArt';
 import { SyntaxMazeArt } from './SyntaxMazeArt';
+import { SheetQuestArt } from './SheetQuestArt';
 
 export interface GameCoverProps extends GameCoverArtProps {
   gameId: string;
@@ -78,6 +79,8 @@ export const GameCoverArt: React.FC<GameCoverProps> = ({ gameId, className, glow
       return <MathStormArt className={className} glow={glow} />;
     case 'syntax_maze':
       return <SyntaxMazeArt className={className} glow={glow} />;
+    case 'sheetquest':
+      return <SheetQuestArt className={className} glow={glow} />;
     default:
       return <GenericGameArt className={className} glow={glow} />;
   }

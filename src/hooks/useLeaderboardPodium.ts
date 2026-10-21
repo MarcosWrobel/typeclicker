@@ -6,7 +6,7 @@ import { auth } from '../services/firebaseService';
 import { LeaderboardMetric } from '../components/LeaderboardModal';
 import { calculatePlayerRank } from '../utils/formatting';
 
-const METRIC_ORDER: LeaderboardMetric[] = ['level', 'wpm', 'combo', 'bytes', 'pvp', 'races', 'dash'];
+const METRIC_ORDER: LeaderboardMetric[] = ['level', 'wpm', 'combo', 'bytes', 'pvp', 'races', 'radar', 'dash', 'bytequest', 'sheetquest'];
 const ROTATION_INTERVAL_SEC = 12; // 12 segundos por ranking (custo zero de banco)
 const CLOUD_SYNC_INTERVAL_SEC = 180; // 3 minutos para nova consulta ao Firestore (Spark-Safe)
 
@@ -138,7 +138,9 @@ export function useLeaderboardPodium(): UseLeaderboardPodiumReturn {
       radar: [],
       pvp: [],
       races: [],
-      dash: []
+      dash: [],
+      bytequest: [],
+      sheetquest: []
     };
 
     if (allPlayers.length === 0) return map;
@@ -222,6 +224,32 @@ export function useLeaderboardPodium(): UseLeaderboardPodiumReturn {
         const distB = b.dashMaxDistance || 0;
         if (distB !== distA) return distB - distA;
         return (b.dashMaxCombo || 0) - (a.dashMaxCombo || 0);
+      })
+      .slice(0, 3);
+
+    // 9. ByteQuest (Masmorra RPG)
+    map.bytequest = [...allPlayers]
+      .sort((a, b) => {
+        const scoreA = a.byteQuestHighScore || 0;
+        const scoreB = b.byteQuestHighScore || 0;
+        if (scoreB !== scoreA) return scoreB - scoreA;
+        const floorA = a.byteQuestMaxFloor || 0;
+        const floorB = b.byteQuestMaxFloor || 0;
+        if (floorB !== floorA) return floorB - floorA;
+        return (b.points || 0) - (a.points || 0);
+      })
+      .slice(0, 3);
+
+    // 10. SheetQuest (Google Planilhas)
+    map.sheetquest = [...allPlayers]
+      .sort((a, b) => {
+        const scoreA = a.sheetQuestHighScore || 0;
+        const scoreB = b.sheetQuestHighScore || 0;
+        if (scoreB !== scoreA) return scoreB - scoreA;
+        const questsA = a.sheetQuestCompletedQuests || 0;
+        const questsB = b.sheetQuestCompletedQuests || 0;
+        if (questsB !== questsA) return questsB - questsA;
+        return (b.points || 0) - (a.points || 0);
       })
       .slice(0, 3);
 

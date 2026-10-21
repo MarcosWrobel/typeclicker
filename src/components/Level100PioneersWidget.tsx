@@ -8,6 +8,7 @@ interface Level100PioneersWidgetProps {
   currentUserId?: string;
   onOpenDetails?: () => void;
   onSelectPlayer?: (player: any) => void;
+  onOpenFirstPioneerCelebration?: (pioneerSlot?: Level100PioneerSlot) => void;
 }
 
 const RANK_BADGES = {
@@ -42,7 +43,8 @@ export const Level100PioneersWidget: React.FC<Level100PioneersWidgetProps> = ({
   variant = 'sidebar',
   currentUserId,
   onOpenDetails,
-  onSelectPlayer
+  onSelectPlayer,
+  onOpenFirstPioneerCelebration
 }) => {
   const formatDate = (isoString?: string) => {
     if (!isoString) return '';
@@ -78,6 +80,23 @@ export const Level100PioneersWidget: React.FC<Level100PioneersWidgetProps> = ({
           </span>
         </div>
 
+        {/* Botão Celebratório de Acesso Rápido ao 1º Nível 100 */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (onOpenFirstPioneerCelebration) {
+              onOpenFirstPioneerCelebration(slots[0]);
+            } else if (onOpenDetails) {
+              onOpenDetails();
+            }
+          }}
+          className="w-full py-1.5 px-2 rounded-xl bg-gradient-to-r from-amber-500/25 via-yellow-400/25 to-amber-500/25 hover:from-amber-500/40 hover:to-yellow-400/35 border border-amber-400/60 text-amber-300 font-mono text-[10px] font-black tracking-wider flex items-center justify-center gap-1.5 shadow-[0_0_12px_rgba(251,191,36,0.25)] transition-all cursor-pointer group/btn"
+        >
+          <Sparkles className="w-3 h-3 text-amber-400 animate-spin" />
+          <span>👑 Ver Celebração do 1º Nível 100</span>
+        </button>
+
         {/* Lista dos 3 Slots */}
         <div className="flex flex-col gap-1.5">
           {slots.map((slot) => {
@@ -90,18 +109,21 @@ export const Level100PioneersWidget: React.FC<Level100PioneersWidgetProps> = ({
                 <div
                   key={slot.rank}
                   onClick={(e) => {
-                    if (onSelectPlayer && slot.player) {
+                    if (slot.rank === 1 && onOpenFirstPioneerCelebration) {
+                      e.stopPropagation();
+                      onOpenFirstPioneerCelebration(slot);
+                    } else if (onSelectPlayer && slot.player) {
                       e.stopPropagation();
                       onSelectPlayer(slot.player);
                     }
                   }}
-                  className={`flex items-center justify-between gap-2 p-1.5 rounded-xl border ${badge.border} ${badge.bg} text-xs font-mono transition-all ${
-                    onSelectPlayer ? 'hover:scale-[1.02] hover:border-amber-400 cursor-pointer' : ''
-                  } ${
+                  className={`flex items-center justify-between gap-2 p-1.5 rounded-xl border ${badge.border} ${badge.bg} text-xs font-mono transition-all hover:scale-[1.02] hover:border-amber-400 cursor-pointer ${
                     isMe ? 'ring-1 ring-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.3)]' : ''
                   }`}
                   title={
-                    onSelectPlayer
+                    slot.rank === 1
+                      ? 'Clique para ver a Celebração do 1º Nível 100'
+                      : onSelectPlayer
                       ? `Clique para ver o Card Colecionável de ${displayName}`
                       : `${badge.title}: ${displayName} (${slot.player.turma}) em ${formatDate(slot.reachedAt)}`
                   }
@@ -178,6 +200,17 @@ export const Level100PioneersWidget: React.FC<Level100PioneersWidgetProps> = ({
             </p>
           </div>
         </div>
+
+        {onOpenFirstPioneerCelebration && (
+          <button
+            type="button"
+            onClick={() => onOpenFirstPioneerCelebration(slots[0])}
+            className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/25 via-yellow-400/25 to-amber-500/25 hover:from-amber-500/40 hover:to-yellow-400/35 border border-amber-400/60 text-amber-300 font-mono text-xs font-black tracking-wider flex items-center gap-1.5 shadow-[0_0_15px_rgba(251,191,36,0.3)] transition cursor-pointer hover:scale-[1.02] active:scale-98"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-spin" />
+            <span>👑 Ver Celebração do 1º Nível 100</span>
+          </button>
+        )}
       </div>
 
       {/* Grid com os 3 Lugares do Pódio */}
@@ -192,16 +225,22 @@ export const Level100PioneersWidget: React.FC<Level100PioneersWidgetProps> = ({
               <div
                 key={slot.rank}
                 onClick={() => {
-                  if (onSelectPlayer && slot.player) {
+                  if (slot.rank === 1 && onOpenFirstPioneerCelebration) {
+                    onOpenFirstPioneerCelebration(slot);
+                  } else if (onSelectPlayer && slot.player) {
                     onSelectPlayer(slot.player);
                   }
                 }}
-                className={`flex flex-col items-center p-3.5 rounded-2xl border ${badge.border} ${badge.bg} ${badge.glow} relative text-center min-w-0 transition-all duration-200 ${
-                  onSelectPlayer ? 'hover:scale-[1.03] hover:border-amber-300 cursor-pointer group' : 'hover:scale-[1.02]'
-                } ${
+                className={`flex flex-col items-center p-3.5 rounded-2xl border ${badge.border} ${badge.bg} ${badge.glow} relative text-center min-w-0 transition-all duration-200 hover:scale-[1.03] hover:border-amber-300 cursor-pointer group ${
                   isMe ? 'ring-2 ring-amber-400' : ''
                 }`}
-                title={onSelectPlayer ? `Clique para ver o Card Colecionável de ${displayName}` : undefined}
+                title={
+                  slot.rank === 1
+                    ? 'Clique para ver a Celebração do 1º Nível 100'
+                    : onSelectPlayer
+                    ? `Clique para ver o Card Colecionável de ${displayName}`
+                    : undefined
+                }
               >
                 {/* Badge de Posição */}
                 <div className={`absolute -top-2.5 px-3 py-0.5 rounded-full text-[10px] font-black font-mono tracking-wider border shadow-md ${badge.text} bg-black/90 ${badge.border} flex items-center gap-1`}>
@@ -241,7 +280,14 @@ export const Level100PioneersWidget: React.FC<Level100PioneersWidgetProps> = ({
           return (
             <div
               key={slot.rank}
-              className="flex flex-col items-center justify-center p-4 rounded-2xl border-2 border-dashed border-amber-500/30 bg-black/50 text-center relative"
+              onClick={() => {
+                if (slot.rank === 1 && onOpenFirstPioneerCelebration) {
+                  onOpenFirstPioneerCelebration(slot);
+                }
+              }}
+              className={`flex flex-col items-center justify-center p-4 rounded-2xl border-2 border-dashed border-amber-500/30 bg-black/50 text-center relative transition ${
+                slot.rank === 1 && onOpenFirstPioneerCelebration ? 'cursor-pointer hover:border-amber-400 hover:bg-black/70 hover:scale-[1.02]' : ''
+              }`}
             >
               <div className="absolute -top-2.5 px-3 py-0.5 rounded-full text-[10px] font-black font-mono tracking-wider border border-amber-500/40 text-amber-400 bg-black/90">
                 VAGA #{slot.rank}

@@ -26,6 +26,7 @@ interface StatsSidebarProps {
   isAdmin?: boolean;
   isSuperAdmin?: boolean;
   pioneers?: Level100PioneerSlot[];
+  onOpenFirstPioneerCelebration?: (pioneerSlot?: Level100PioneerSlot) => void;
 }
 
 export const StatsSidebar: React.FC<StatsSidebarProps> = ({
@@ -42,7 +43,8 @@ export const StatsSidebar: React.FC<StatsSidebarProps> = ({
   currentUserId,
   isAdmin = false,
   isSuperAdmin = false,
-  pioneers
+  pioneers,
+  onOpenFirstPioneerCelebration
 }) => {
   const effectivePioneers = pioneers || [];
   const myPioneerSlot = useMemo(() => {
@@ -218,6 +220,7 @@ export const StatsSidebar: React.FC<StatsSidebarProps> = ({
         variant="sidebar"
         currentUserId={currentUserId}
         onSelectPlayer={onSelectPlayer}
+        onOpenFirstPioneerCelebration={onOpenFirstPioneerCelebration}
         onOpenDetails={() => {
           if (onOpenLeaderboardTab) {
             onOpenLeaderboardTab('level');

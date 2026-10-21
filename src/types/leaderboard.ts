@@ -38,6 +38,12 @@ export interface LeaderboardEntry {
   dashMaxDistance?: number;
   dashMaxCombo?: number;
   dashBestClass?: string;
+  byteQuestHighScore?: number;
+  byteQuestMaxFloor?: number;
+  sheetQuestHighScore?: number;
+  sheetQuestCompletedQuests?: number;
+  scratchBotHighScore?: number;
+  progPlayHighScore?: number;
 }
 
 export interface Level100PioneerSlot {

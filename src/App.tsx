@@ -24,6 +24,7 @@ import { StudentModal } from './components/StudentModal';
 import { LevelsModal } from './components/LevelsModal';
 import { HelpModal } from './components/HelpModal';
 import { LeaderboardModal, LeaderboardMetric } from './components/LeaderboardModal';
+import { LeaderboardEntry, Level100PioneerSlot } from './types/leaderboard';
 import { StudentProfileCardModal } from './components/StudentProfileCardModal';
 import { Level100CelebrationModal } from './components/Level100CelebrationModal';
 import { useLevel100Pioneers } from './hooks/useLeaderboardPodium';
@@ -75,7 +76,6 @@ import { RpgFloorData, QuestEvent } from './types/quests';
 import { calculatePlayerRank, formatBytes } from './utils/formatting';
 import { auth, loginWithGoogle, logoutUser, subscribeToAuthChanges, checkIsAdminAsync, checkIsSuperAdmin, getSystemSettings, subscribeToSystemSettings } from './services/firebaseService';
 import { claimPendingTestGrantsSupabase } from './services/supabaseTestService';
-import { LeaderboardEntry } from './types/leaderboard';
 import { ADMIN_EMAILS } from './utils/leaderboardUtils';
 import { dbService } from './services/dbFactory';
 import { isCategoryAllowed, getMinAllowedCategoryLevel } from './utils/difficulty';
@@ -84,6 +84,7 @@ import { Loader2 } from 'lucide-react';
 const ProgPlayGame = React.lazy(() => import('./plugins/progplay/ProgPlayGame'));
 const ScratchBotGame = React.lazy(() => import('./components/games/scratchbot/ScratchBotGame'));
 const ByteQuestGame = React.lazy(() => import('./components/games/bytequest/ByteQuestGame'));
+const SheetQuestGame = React.lazy(() => import('./components/games/sheetquest/SheetQuestGame'));
 
 export default function App() {
   const suppressLevelUpRef = useRef<boolean>(true);
@@ -141,6 +142,7 @@ export default function App() {
 
   const [leaderboardInitialTab, setLeaderboardInitialTab] = useState<LeaderboardMetric>('level');
   const [celebratingPioneerRank, setCelebratingPioneerRank] = useState<1 | 2 | 3 | null>(null);
+  const [celebratingPioneerSlot, setCelebratingPioneerSlot] = useState<Level100PioneerSlot | null>(null);
 
   // Card Colecionável de Perfil do Aluno
   const [isProfileCardOpen, setIsProfileCardOpen] = useState<boolean>(false);
@@ -187,6 +189,7 @@ export default function App() {
     isRaidArenaOpen ||
     activeChallengeLevel !== null ||
     celebratingPioneerRank !== null ||
+    celebratingPioneerSlot !== null ||
     (isAppLocked && !isAdmin)
   );
 
@@ -2646,6 +2649,8 @@ export default function App() {
               setSelectedGame('scratchbot');
             } else if (gameId === 'bytequest') {
               setSelectedGame('bytequest');
+            } else if (gameId === 'sheetquest') {
+              setSelectedGame('sheetquest');
             } else if (gameId === 'time_attack') {
               modalSourceRef.current = 'hub';
               setSelectedGame('typeclicker');
@@ -2891,6 +2896,27 @@ export default function App() {
     );
   }
 
+  // Jogo Standalone: SheetQuest: Mestre das Planilhas (Prof. Marcos Wrobel)
+  if (selectedGame === 'sheetquest') {
+    return (
+      <React.Suspense
+        fallback={
+          <div className="min-h-screen bg-[#061014] flex flex-col items-center justify-center text-white gap-3">
+            <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
+            <span className="font-mono text-xs text-neutral-400">Carregando SheetQuest: Mestre das Planilhas...</span>
+          </div>
+        }
+      >
+        <SheetQuestGame
+          studentClass={state.rpgClass}
+          difficultyMultiplier={1.0}
+          equippedSkin={currentCosmetics.equippedSkin || 'classic'}
+          onExitToHub={(payload) => handleGamePluginExit('sheetquest', payload)}
+        />
+      </React.Suspense>
+    );
+  }
+
   const activeTheme = TERMINAL_THEMES[currentCosmetics.equippedTheme || 'matrix'] || TERMINAL_THEMES.matrix;
   const effectiveAppBg = state.accessibility?.highContrast ? 'bg-black' : activeTheme.classes.appBg;
   const uiScaleStyle: React.CSSProperties = state.accessibility?.uiScale === 'extra'
@@ -2977,6 +3003,9 @@ export default function App() {
               setIsProfileCardOpen(true);
             }}
             pioneers={podiumPioneers}
+            onOpenFirstPioneerCelebration={(slot) => {
+              setCelebratingPioneerSlot(slot || podiumPioneers[0] || null);
+            }}
           />
         }
         arena={
@@ -3143,15 +3172,27 @@ export default function App() {
         pioneers={podiumPioneers}
       />
 
-      {/* Modal Triunfal de Celebração dos Pioneiros Nível 100 */}
-      {celebratingPioneerRank !== null && (
+      {/* Modal Triunfal de Celebração dos Pioneiros Nível 100 com Confetes */}
+      {(celebratingPioneerRank !== null || celebratingPioneerSlot !== null) && (
         <Level100CelebrationModal
           isOpen={true}
-          onClose={() => setCelebratingPioneerRank(null)}
-          rank={celebratingPioneerRank}
-          studentName={state.studentNickname || state.studentName || 'Digitador Pioneiro'}
-          studentAvatar={state.studentAvatar}
-          studentClass={state.studentClass}
+          onClose={() => {
+            setCelebratingPioneerRank(null);
+            setCelebratingPioneerSlot(null);
+          }}
+          rank={celebratingPioneerRank || (celebratingPioneerSlot?.rank ?? 1)}
+          pioneerSlot={celebratingPioneerSlot || undefined}
+          isSelfCelebration={celebratingPioneerRank !== null}
+          studentName={
+            celebratingPioneerSlot?.player?.apelido ||
+            celebratingPioneerSlot?.player?.nome ||
+            state.studentNickname ||
+            state.studentName ||
+            'Digitador Pioneiro'
+          }
+          studentAvatar={celebratingPioneerSlot?.player?.avatar || state.studentAvatar}
+          studentClass={celebratingPioneerSlot?.player?.turma || state.studentClass}
+          reachedAt={celebratingPioneerSlot?.reachedAt || state.reachedLevel100At}
         />
       )}
 
