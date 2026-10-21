@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { LeaderboardEntry, Level100PioneerSlot } from '../types/leaderboard';
 import { isStaffMember, extractLevel100Pioneers } from '../utils/leaderboardUtils';
 import { dbService } from '../services/dbFactory';
-import { auth } from '../services/firebaseService';
+import { auth, subscribeToAuthChanges } from '../services/firebaseService';
 import { LeaderboardMetric } from '../components/LeaderboardModal';
 import { calculatePlayerRank } from '../utils/formatting';
 
@@ -41,10 +41,6 @@ export function useLeaderboardPodium(): UseLeaderboardPodiumReturn {
 
   // Carregamento de dados com tratamento estrito de staff
   const loadData = useCallback(async (force: boolean = false) => {
-    if (!auth.currentUser) {
-      setIsLoading(false);
-      return;
-    }
     try {
       setIsLoading(true);
       const data = await dbService.getGlobalLeaderboard(force);
@@ -63,9 +59,13 @@ export function useLeaderboardPodium(): UseLeaderboardPodiumReturn {
     }
   }, []);
 
-  // Carga inicial
+  // Carga inicial e sincronização reativa com mudanças de autenticação
   useEffect(() => {
     loadData(false);
+    const unsubscribe = subscribeToAuthChanges(() => {
+      loadData(false);
+    });
+    return () => unsubscribe();
   }, [loadData]);
 
   // Navegação manual de métrica
@@ -292,10 +292,6 @@ export function useLevel100Pioneers(): { pioneers: Level100PioneerSlot[]; isLoad
   useEffect(() => {
     let mounted = true;
     const fetchPioneers = async () => {
-      if (!auth.currentUser) {
-        if (mounted) setIsLoading(false);
-        return;
-      }
       try {
         const data = await dbService.getGlobalLeaderboard(false);
         if (!mounted) return;
@@ -314,6 +310,12 @@ export function useLevel100Pioneers(): { pioneers: Level100PioneerSlot[]; isLoad
     };
 
     fetchPioneers();
+
+    // Revalida dados assim que o Auth inicializar ou alterar
+    const unsubscribe = subscribeToAuthChanges(() => {
+      fetchPioneers();
+    });
+
     // Atualiza a cada 3 minutos (Spark-Safe)
     const interval = setInterval(() => {
       if (typeof document !== 'undefined' && document.hidden) return;
@@ -322,6 +324,7 @@ export function useLevel100Pioneers(): { pioneers: Level100PioneerSlot[]; isLoad
 
     return () => {
       mounted = false;
+      unsubscribe();
       clearInterval(interval);
     };
   }, []);
