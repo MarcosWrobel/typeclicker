@@ -38,6 +38,7 @@ export interface DashObstacle {
   cleared: boolean;
   elevation?: number;
   portalType?: 'speed2x' | 'normal';
+  lockedUntilMs?: number;
   // Propriedades Denshattack!
   railKey?: string;
   railLength?: number;

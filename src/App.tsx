@@ -153,6 +153,7 @@ export default function App() {
 
   const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
   const [isPedagogicalOpen, setIsPedagogicalOpen] = useState<boolean>(false);
+  const [sheetQuestInitialLevelIndex, setSheetQuestInitialLevelIndex] = useState<number>(0);
   const [isAppLocked, setIsAppLocked] = useState<boolean>(true);
   const [isVerifyingLock, setIsVerifyingLock] = useState<boolean>(false);
 
@@ -2386,6 +2387,24 @@ export default function App() {
     }
   }, []);
 
+  const handleLaunchGameLevel = useCallback((gameId: string, levelIndex: number) => {
+    setIsAdminOpen(false);
+    if (gameId === 'sheetquest') {
+      setSheetQuestInitialLevelIndex(levelIndex);
+      setSelectedGame('sheetquest');
+    } else if (gameId === 'scratchbot') {
+      setSelectedGame('scratchbot');
+    } else if (gameId === 'typeclicker') {
+      setSelectedGame('typeclicker');
+    } else if (gameId === 'typerdash') {
+      setSelectedGame('typerdash');
+    } else if (gameId === 'type_radar') {
+      setSelectedGame('type_radar');
+    } else if (gameId === 'bytequest') {
+      setSelectedGame('bytequest');
+    }
+  }, []);
+
   // Handlers para a Corrida Escolar Sincronizada
   const handleClaimRaceWin = useCallback(
     (prizeBytes: number, stats: { wpm: number; timeMs: number }) => {
@@ -2770,6 +2789,7 @@ export default function App() {
             }}
             onOpenCosmetics={() => setIsCosmeticsOpen(true)}
             onTriggerChallenge={(lvl) => setActiveChallengeLevel(lvl || 10)}
+            onLaunchGameLevel={handleLaunchGameLevel}
           />
         )}
       </>
@@ -2912,6 +2932,8 @@ export default function App() {
           difficultyMultiplier={1.0}
           equippedSkin={currentCosmetics.equippedSkin || 'classic'}
           onExitToHub={(payload) => handleGamePluginExit('sheetquest', payload)}
+          isAdmin={isAdmin || checkIsSuperAdmin(user)}
+          initialLevelIndex={sheetQuestInitialLevelIndex}
         />
       </React.Suspense>
     );
@@ -3404,6 +3426,7 @@ export default function App() {
           onOpenArena={handleOpenArena}
           onOpenCosmetics={() => setIsCosmeticsOpen(true)}
           onTriggerChallenge={(lvl) => setActiveChallengeLevel(lvl || 10)}
+          onLaunchGameLevel={handleLaunchGameLevel}
         />
       )}
 

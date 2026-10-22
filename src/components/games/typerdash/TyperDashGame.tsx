@@ -278,6 +278,8 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const lastMetersRef = useRef<number>(0);
   const comboRef = useRef<number>(0);
+  const keyLockoutUntilRef = useRef<number>(0);
+  const recentKeyStrokesRef = useRef<{ key: string; time: number }[]>([]);
 
   // Sincronizar refs com estado para listeners
   useEffect(() => {
@@ -336,6 +338,8 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
         denshaPopupsRef.current = [];
         activeGrindRef.current = null;
         activeTrickRef.current = null;
+        keyLockoutUntilRef.current = 0;
+        recentKeyStrokesRef.current = [];
         nextSpawnDistanceRef.current = 500;
         speedMultiplierRef.current = 1.0;
         cascadeQueueRef.current = [];
@@ -464,6 +468,8 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
     denshaPopupsRef.current = [];
     activeGrindRef.current = null;
     activeTrickRef.current = null;
+    keyLockoutUntilRef.current = 0;
+    recentKeyStrokesRef.current = [];
     nextSpawnDistanceRef.current = 500;
     speedMultiplierRef.current = 1.0;
     cascadeQueueRef.current = [];
@@ -584,16 +590,42 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
   }, [spawnCubeShatter, multiplayerMode, roomCode]);
 
   // ─────────────────────────────────────────────────────────────
-  // Captura de Teclas & Timing Windows
+  // Captura de Teclas & Timing Windows (Com Anti-Mashing e Penalidade na Jump Zone)
   // ─────────────────────────────────────────────────────────────
   const handleKeyPress = useCallback((pressedKey: string) => {
     if (gameStateRef.current !== 'playing') return;
 
+    const now = Date.now();
+
+    // 1. Bloqueio ativo após erro ou detecção de mashing
+    if (now < keyLockoutUntilRef.current) {
+      return;
+    }
+
     const key = pressedKey.toUpperCase();
+
+    // 2. Detecção de acordes / múltiplas teclas simultâneas (< 65ms)
+    recentKeyStrokesRef.current = recentKeyStrokesRef.current.filter((item) => now - item.time <= 65);
+    recentKeyStrokesRef.current.push({ key, time: now });
+
+    const uniqueKeysInBurst = new Set(recentKeyStrokesRef.current.map((k) => k.key));
+    if (uniqueKeysInBurst.size >= 3) {
+      // Jogador pressionou 3+ teclas quase simultâneas (mashing de teclado)
+      keyLockoutUntilRef.current = now + 240;
+      comboRef.current = 0;
+      setCombo(0);
+      setMisses((m) => m + 1);
+      typerDashAudio.playMissSound();
+      addFloatingText('ANTI-MASH!', '#f43f5e', 1.25);
+      screenShakeRef.current = 5;
+      spawnSparks(cubeRef.current.x + CUBE_SIZE / 2, GROUND_Y, '#f43f5e', 8);
+      return;
+    }
+
     const cube = cubeRef.current;
     const cubeFront = cube.x + cube.size;
 
-    // Procurar o obstáculo ativo mais próximo na Jump Zone à frente do cubo (-20px a 270px)
+    // Procurar o obstáculo ativo mais próximo na Jump Zone à frente do cubo (-25px a 270px)
     let closestObstacle: DashObstacle | null = null;
     let closestDist = Infinity;
 
@@ -609,6 +641,11 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
     }
 
     if (!closestObstacle || closestObstacle.type === 'portal') return;
+
+    // 3. Se o obstáculo foi bloqueado temporariamente por erro recente
+    if (closestObstacle.lockedUntilMs && now < closestObstacle.lockedUntilMs) {
+      return;
+    }
 
     // Verificar se a tecla digitada confere com a letra do obstáculo
     const isKeyCorrect = closestObstacle.letter.toUpperCase() === key;
@@ -672,8 +709,14 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
         spawnSparks(closestObstacle.x + closestObstacle.width / 2, closestObstacle.y, '#34d399', 12);
       }
     } else {
-      // Tecla digitada não corresponde ao obstáculo atual: feedback visual sem interromper
-      spawnSparks(cube.x + CUBE_SIZE / 2, GROUND_Y, '#f43f5e', 4);
+      // Tecla errada na Jump Zone: penalidade de MISS e bloqueio momentâneo para neutralizar arrasto de dedos
+      closestObstacle.lockedUntilMs = now + 200;
+      comboRef.current = 0;
+      setCombo(0);
+      setMisses((m) => m + 1);
+      typerDashAudio.playMissSound();
+      addFloatingText('MISS!', '#ef4444', 1.0);
+      spawnSparks(cube.x + CUBE_SIZE / 2, GROUND_Y, '#f43f5e', 6);
     }
   }, [triggerJump, addFloatingText, spawnSparks]);
 
@@ -1608,6 +1651,8 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
     hasTriggeredSnareRollRef.current = false;
     ghostTrailRef.current = [];
     cascadeQueueRef.current = [];
+    keyLockoutUntilRef.current = 0;
+    recentKeyStrokesRef.current = [];
     currentStageRef.current = 'intro';
     stageNameRef.current = 'Fase 1: Entrada Solo';
     typerDashAudio.setStage('intro');

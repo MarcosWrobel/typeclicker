@@ -22,7 +22,8 @@ import {
   TrendingUp,
   Clock,
   Maximize2,
-  ArrowRight
+  ArrowRight,
+  X
 } from 'lucide-react';
 import { BaseGameProps, GameExitPayload } from '../../../types/gamePlugin';
 import { BytezinhoSkinId } from '../../../types/cosmetics';
@@ -55,6 +56,8 @@ export interface SheetQuestSaveData {
 
 export interface SheetQuestGameProps extends BaseGameProps {
   equippedSkin?: BytezinhoSkinId;
+  isAdmin?: boolean;
+  initialLevelIndex?: number;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -79,25 +82,38 @@ export const SheetQuestGame: React.FC<SheetQuestGameProps> = ({
   onExitToHub,
   difficultyMultiplier = 1.0,
   studentClass = 'warrior',
-  equippedSkin = 'classic'
+  equippedSkin = 'classic',
+  isAdmin = false,
+  initialLevelIndex = 0
 }) => {
   // ─────────────────────────────────────────────────────────────
   // 1. Estado de Navegação, Modos de Jogo e Tutorial
   // ─────────────────────────────────────────────────────────────
   const [gameMode, setGameMode] = useState<SheetGameMode>('campaign');
-  const [currentLevelIndex, setCurrentLevelIndex] = useState<number>(0);
+  const [currentLevelIndex, setCurrentLevelIndex] = useState<number>(() => {
+    if (typeof initialLevelIndex === 'number' && initialLevelIndex >= 0 && initialLevelIndex < SHEET_CAMPAIGN_LEVELS.length) {
+      return initialLevelIndex;
+    }
+    return 0;
+  });
   const [currentBugLevelIndex, setCurrentBugLevelIndex] = useState<number>(0);
   const [infiniteSeed, setInfiniteSeed] = useState<number>(1);
   const [infiniteStreak, setInfiniteStreak] = useState<number>(0);
+  const [isAdminLevelPickerOpen, setIsAdminLevelPickerOpen] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (typeof initialLevelIndex === 'number' && initialLevelIndex >= 0 && initialLevelIndex < SHEET_CAMPAIGN_LEVELS.length) {
+      setCurrentLevelIndex(initialLevelIndex);
+    }
+  }, [initialLevelIndex]);
+
+  const isUnlockedByAdmin = isAdmin || (typeof window !== 'undefined' && localStorage.getItem('admin_unlock_all_levels') === 'true');
 
   // Áudio
   const [isMuted, setIsMuted] = useState<boolean>(() => sheetAudio.getMuted());
 
   // Modais de Ajuda
   const [isHelpOpen, setIsHelpOpen] = useState<boolean>(false);
-
-  // Pop-up focado de Demanda (Briefing inicial que desliza para a lateral)
-  const [isDemandModalOpen, setIsDemandModalOpen] = useState<boolean>(true);
 
   // Persistência local
   const [saveData, setSaveData] = useState<SheetQuestSaveData>(() => {
@@ -275,24 +291,6 @@ export const SheetQuestGame: React.FC<SheetQuestGameProps> = ({
   }, [activeLevelDef, gameMode, resetLevelState]);
 
   // Abre o pop-up focado de briefing a cada nova demanda (exceto no tutorial)
-  useEffect(() => {
-    if (!isTutorialActive) {
-      setIsDemandModalOpen(true);
-    }
-  }, [activeLevelDef.id, gameMode, isTutorialActive]);
-
-  // Permite fechar o briefing e começar imediatamente com a tecla Enter
-  useEffect(() => {
-    const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      if (isDemandModalOpen && e.key === 'Enter') {
-        setIsDemandModalOpen(false);
-        sheetAudio.playCellClick();
-      }
-    };
-    window.addEventListener('keydown', handleGlobalKeyDown);
-    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [isDemandModalOpen]);
-
   // Quando o jogador clica em outra célula, sincroniza a barra fx
   const handleSelectCoord = useCallback(
     (coord: string) => {
@@ -580,120 +578,190 @@ export const SheetQuestGame: React.FC<SheetQuestGameProps> = ({
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-emerald-500/30 selection:text-emerald-200">
-      {/* ─── TOPO: BARRA DE NAVEGAÇÃO, CARREIRA & MODOS ───────────── */}
-      <header className="bg-slate-900/95 border-b border-slate-800 px-4 py-3 sticky top-0 z-40 backdrop-blur-md">
-        <div className="max-w-[1680px] mx-auto flex flex-wrap items-center justify-between gap-3">
-          {/* Lado Esquerdo: Voltar & Identificação do Jogo */}
-          <div className="flex items-center gap-3">
+      {/* ─── TOPO: HEADER ULTRA-ENXUTO ───────────── */}
+      <header className="bg-slate-900/95 border-b border-slate-800 px-3 sm:px-4 py-2 sticky top-0 z-40 backdrop-blur-md">
+        <div className="max-w-[1680px] mx-auto flex items-center justify-between gap-3">
+          {/* Lado Esquerdo: HUB + Identificação Limpa */}
+          <div className="flex items-center gap-2.5">
             <button
               onClick={handleExitGame}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 text-xs font-semibold rounded-lg border border-slate-700 transition-all shadow"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 text-xs font-semibold rounded-lg border border-slate-700 transition-all shadow-sm cursor-pointer"
               title="Voltar para o Menu Principal"
             >
               <ArrowLeft className="w-4 h-4 text-emerald-400" />
               <span>HUB</span>
             </button>
 
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shadow-inner">
-                <FileSpreadsheet className="w-5 h-5" />
-              </div>
-              <div>
-                <h1 className="text-sm font-black tracking-wide text-white flex items-center gap-1.5">
-                  SheetQuest <span className="text-emerald-400 font-mono text-xs">2.0</span>
-                </h1>
-                <p className="text-[11px] text-slate-400">ByteCorp Data Studio • Fórmulas PT-BR</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Centro: Modos de Jogo & Tutorial */}
-          <div className="flex items-center bg-slate-950/80 p-1 rounded-xl border border-slate-800 text-xs font-semibold gap-1">
-            <button
-              onClick={() => {
-                setIsTutorialActive(true);
-                setTutorialStep(1);
-              }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
-                isTutorialActive
-                  ? 'bg-amber-500 text-slate-950 font-black shadow-md ring-1 ring-amber-300'
-                  : 'text-amber-300 hover:bg-amber-950/40'
-              }`}
-            >
-              <GraduationCap className="w-4 h-4" />
-              <span>Tutorial Prático</span>
-            </button>
-
-            <button
-              onClick={() => {
-                setIsTutorialActive(false);
-                setGameMode('campaign');
-              }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
-                !isTutorialActive && gameMode === 'campaign'
-                  ? 'bg-emerald-500 text-slate-950 font-bold shadow-md'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-              }`}
-            >
-              <Trophy className="w-3.5 h-3.5" />
-              <span>Demandas ({SHEET_CAMPAIGN_LEVELS.length})</span>
-            </button>
-
-            <button
-              onClick={() => {
-                setIsTutorialActive(false);
-                setGameMode('bug_hunter');
-              }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
-                !isTutorialActive && gameMode === 'bug_hunter'
-                  ? 'bg-rose-500 text-slate-950 font-bold shadow-md'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-              }`}
-            >
-              <Bug className="w-3.5 h-3.5" />
-              <span>Auditoria ({SHEET_BUG_HUNTER_LEVELS.length})</span>
-            </button>
-
-            <button
-              onClick={() => {
-                setIsTutorialActive(false);
-                setGameMode('infinite');
-              }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
-                !isTutorialActive && gameMode === 'infinite'
-                  ? 'bg-cyan-500 text-slate-950 font-bold shadow-md'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-              }`}
-            >
-              <InfinityIcon className="w-3.5 h-3.5" />
-              <span>Infinito</span>
-            </button>
-          </div>
-
-          {/* Lado Direito: Crachá de Carreira & Áudio */}
-          <div className="flex items-center gap-3">
-            {/* Crachá ByteCorp do Aluno */}
-            <div className="hidden md:flex items-center gap-2 bg-slate-950/80 px-3 py-1.5 rounded-xl border border-slate-800 text-xs">
-              <span className="text-base">{currentRank.badge}</span>
-              <div>
-                <span className="text-[10px] text-slate-400 block font-mono">CARGO ATUAL</span>
-                <span className="text-emerald-400 font-bold text-xs truncate max-w-[150px] block">
-                  {currentRank.title}
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+                SheetQuest
+              </span>
+              <span className="text-slate-600">|</span>
+              {gameMode === 'campaign' && !isTutorialActive && (
+                <div className="flex items-center gap-1.5">
+                  <span className="font-mono text-xs font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-800/40 px-1.5 py-0.5 rounded">
+                    TK-{String(activeLevelDef.id).padStart(2, '0')}
+                  </span>
+                  <span className="text-xs text-slate-300 font-medium hidden sm:inline truncate max-w-[200px]">
+                    {activeLevelDef.title}
+                  </span>
+                </div>
+              )}
+              {gameMode === 'bug_hunter' && !isTutorialActive && (
+                <div className="flex items-center gap-1.5">
+                  <span className="font-mono text-xs font-bold text-rose-400 bg-rose-950/60 border border-rose-800/40 px-1.5 py-0.5 rounded">
+                    {bugLevel?.errorCode || 'AUDIT'}
+                  </span>
+                  <span className="text-xs text-slate-300 font-medium hidden sm:inline truncate max-w-[200px]">
+                    {activeLevelDef.title}
+                  </span>
+                </div>
+              )}
+              {gameMode === 'infinite' && !isTutorialActive && (
+                <span className="text-xs text-cyan-300 font-medium">
+                  Sequência: <strong className="text-white font-mono">{infiniteStreak}</strong> (Recorde: {saveData.infiniteBestStreak})
                 </span>
-              </div>
-              <div className="ml-1 pl-2 border-l border-slate-800 flex items-center gap-1 text-amber-400 font-mono font-bold text-xs">
-                <Star className="w-3.5 h-3.5 fill-amber-400" />
-                <span>{totalStars}</span>
-              </div>
+              )}
+            </div>
+          </div>
+
+          {/* Centro: Modos e Navegador de Nível Compacto */}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center bg-slate-950/80 p-0.5 rounded-lg border border-slate-800 text-xs font-semibold">
+              <button
+                onClick={() => {
+                  setIsTutorialActive(false);
+                  setGameMode('campaign');
+                }}
+                className={`px-2.5 py-1 rounded transition-all cursor-pointer ${
+                  !isTutorialActive && gameMode === 'campaign'
+                    ? 'bg-emerald-500 text-slate-950 font-bold shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Demandas
+              </button>
+              <button
+                onClick={() => {
+                  setIsTutorialActive(false);
+                  setGameMode('bug_hunter');
+                }}
+                className={`px-2.5 py-1 rounded transition-all cursor-pointer ${
+                  !isTutorialActive && gameMode === 'bug_hunter'
+                    ? 'bg-rose-500 text-slate-950 font-bold shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Auditoria
+              </button>
+              <button
+                onClick={() => {
+                  setIsTutorialActive(false);
+                  setGameMode('infinite');
+                }}
+                className={`px-2.5 py-1 rounded transition-all cursor-pointer ${
+                  !isTutorialActive && gameMode === 'infinite'
+                    ? 'bg-cyan-500 text-slate-950 font-bold shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Infinito
+              </button>
+              <button
+                onClick={() => {
+                  setIsTutorialActive(true);
+                  setTutorialStep(1);
+                }}
+                className={`px-2.5 py-1 rounded transition-all cursor-pointer ${
+                  isTutorialActive
+                    ? 'bg-amber-500 text-slate-950 font-bold shadow-sm'
+                    : 'text-amber-400 hover:text-amber-300'
+                }`}
+              >
+                Tutorial
+              </button>
             </div>
 
+            {/* Navegador [←] N/Total [→] */}
+            {!isTutorialActive && gameMode === 'campaign' && (
+              <div className="flex items-center bg-slate-950/80 rounded-lg border border-slate-800 p-0.5 text-xs font-mono">
+                <button
+                  disabled={currentLevelIndex <= 0}
+                  onClick={() => setCurrentLevelIndex((prev) => Math.max(0, prev - 1))}
+                  className="px-2 py-1 text-slate-300 hover:text-white disabled:opacity-30 disabled:hover:text-slate-300 cursor-pointer"
+                  title="Demanda anterior"
+                >
+                  ←
+                </button>
+                <span className="px-2 font-bold text-emerald-400">
+                  {String(currentLevelIndex + 1).padStart(2, '0')}/{SHEET_CAMPAIGN_LEVELS.length}
+                </span>
+                <button
+                  disabled={
+                    currentLevelIndex >= SHEET_CAMPAIGN_LEVELS.length - 1 ||
+                    (!isUnlockedByAdmin && !saveData.completedLevels[SHEET_CAMPAIGN_LEVELS[currentLevelIndex].id])
+                  }
+                  onClick={() =>
+                    setCurrentLevelIndex((prev) =>
+                      Math.min(SHEET_CAMPAIGN_LEVELS.length - 1, prev + 1)
+                    )
+                  }
+                  className="px-2 py-1 text-slate-300 hover:text-white disabled:opacity-30 disabled:hover:text-slate-300 cursor-pointer"
+                  title={isUnlockedByAdmin ? "Próxima demanda (Modo ADM: Desbloqueado)" : "Próxima demanda"}
+                >
+                  →
+                </button>
+                {isUnlockedByAdmin && (
+                  <button
+                    onClick={() => setIsAdminLevelPickerOpen(true)}
+                    className="ml-1 px-1.5 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[10px] font-mono font-bold transition cursor-pointer"
+                    title="Menu ADM: Selecionar qualquer fase de 1 a 48"
+                  >
+                    ⚡ Fases
+                  </button>
+                )}
+              </div>
+            )}
+
+            {!isTutorialActive && gameMode === 'bug_hunter' && (
+              <div className="flex items-center bg-slate-950/80 rounded-lg border border-slate-800 p-0.5 text-xs font-mono">
+                <button
+                  disabled={currentBugLevelIndex <= 0}
+                  onClick={() => setCurrentBugLevelIndex((prev) => Math.max(0, prev - 1))}
+                  className="px-2 py-1 text-slate-300 hover:text-white disabled:opacity-30 disabled:hover:text-slate-300 cursor-pointer"
+                  title="Auditoria anterior"
+                >
+                  ←
+                </button>
+                <span className="px-2 font-bold text-rose-400">
+                  {String(currentBugLevelIndex + 1).padStart(2, '0')}/{SHEET_BUG_HUNTER_LEVELS.length}
+                </span>
+                <button
+                  disabled={currentBugLevelIndex >= SHEET_BUG_HUNTER_LEVELS.length - 1}
+                  onClick={() =>
+                    setCurrentBugLevelIndex((prev) =>
+                      Math.min(SHEET_BUG_HUNTER_LEVELS.length - 1, prev + 1)
+                    )
+                  }
+                  className="px-2 py-1 text-slate-300 hover:text-white disabled:opacity-30 disabled:hover:text-slate-300 cursor-pointer"
+                  title="Próxima auditoria"
+                >
+                  →
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Lado Direito: Ações Essenciais */}
+          <div className="flex items-center gap-2">
             <button
               onClick={() => setIsHelpOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/80 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded-lg border border-slate-700 transition-all shadow"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded-lg border border-slate-700 transition-all shadow-sm cursor-pointer"
               title="Guia Rápido de Fórmulas e Atalhos"
             >
               <BookOpen className="w-4 h-4 text-cyan-400" />
-              <span className="hidden sm:inline">Guia Fórmulas</span>
+              <span className="hidden md:inline">Guia</span>
             </button>
 
             <button
@@ -701,7 +769,7 @@ export const SheetQuestGame: React.FC<SheetQuestGameProps> = ({
                 const nextMute = sheetAudio.toggleMute();
                 setIsMuted(nextMute);
               }}
-              className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700 transition-all"
+              className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700 transition-all cursor-pointer"
               title={isMuted ? 'Desmutar Áudio' : 'Mutar Áudio'}
             >
               {isMuted ? <VolumeX className="w-4 h-4 text-rose-400" /> : <Volume2 className="w-4 h-4 text-emerald-400" />}
@@ -710,8 +778,8 @@ export const SheetQuestGame: React.FC<SheetQuestGameProps> = ({
         </div>
       </header>
 
-      {/* ─── CORPO PRINCIPAL EXPANDIDO (WIDESCREEN 1680px) ─────────── */}
-      <main className="max-w-[1680px] w-full mx-auto p-3 sm:p-5 flex-1 flex flex-col gap-4">
+      {/* ─── CORPO PRINCIPAL LIMPO E WIDESCREEN ─────────── */}
+      <main className="max-w-[1680px] w-full mx-auto p-3 sm:p-4 flex-1 flex flex-col gap-3">
         {/* Banner do Tutorial Interativo (quando ativo) */}
         {isTutorialActive && (
           <SheetTutorialOverlay
@@ -724,397 +792,123 @@ export const SheetQuestGame: React.FC<SheetQuestGameProps> = ({
           />
         )}
 
-        {/* Faixa de Seleção de Demandas (Campanha) */}
-        {!isTutorialActive && gameMode === 'campaign' && (
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-slate-800">
-            {SHEET_CAMPAIGN_LEVELS.map((lvl, idx) => {
-              const record = saveData.completedLevels[lvl.id];
-              const isCurrent = idx === currentLevelIndex;
-              const isLocked = idx > 0 && !saveData.completedLevels[SHEET_CAMPAIGN_LEVELS[idx - 1].id];
-
-              return (
-                <button
-                  key={lvl.id}
-                  disabled={isLocked}
-                  onClick={() => setCurrentLevelIndex(idx)}
-                  className={`flex-shrink-0 flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
-                    isCurrent
-                      ? 'bg-emerald-500/20 border-emerald-400 text-white shadow-lg ring-1 ring-emerald-400/50'
-                      : record
-                      ? 'bg-slate-900 border-emerald-800/60 text-slate-300 hover:bg-slate-850'
-                      : isLocked
-                      ? 'bg-slate-950/60 border-slate-900 text-slate-600 cursor-not-allowed opacity-50'
-                      : 'bg-slate-900 border-slate-800 text-slate-400 hover:bg-slate-800'
-                  }`}
-                >
-                  <span className="font-mono text-[11px] font-bold text-emerald-400">
-                    TK-{String(lvl.id).padStart(2, '0')}
-                  </span>
-                  <span className="truncate max-w-[120px]">{lvl.title}</span>
-                  {record && (
-                    <div className="flex items-center text-amber-400">
-                      {Array.from({ length: record.stars }).map((_, i) => (
-                        <Star key={i} className="w-3 h-3 fill-amber-400 text-amber-400" />
-                      ))}
-                    </div>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Faixa de Seleção de Nível (Auditoria de Erros) */}
-        {!isTutorialActive && gameMode === 'bug_hunter' && (
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-slate-800">
-            {SHEET_BUG_HUNTER_LEVELS.map((lvl, idx) => {
-              const isCurrent = idx === currentBugLevelIndex;
-              const isSolved = saveData.completedBugLevels[lvl.id];
-
-              return (
-                <button
-                  key={lvl.id}
-                  onClick={() => setCurrentBugLevelIndex(idx)}
-                  className={`flex-shrink-0 flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
-                    isCurrent
-                      ? 'bg-rose-500/20 border-rose-400 text-white shadow-lg ring-1 ring-rose-400/50'
-                      : isSolved
-                      ? 'bg-slate-900 border-emerald-800/60 text-slate-300'
-                      : 'bg-slate-900 border-slate-800 text-slate-400 hover:bg-slate-800'
-                  }`}
-                >
-                  <span className="font-mono text-[11px] font-bold text-rose-400">
-                    {lvl.errorCode}
-                  </span>
-                  <span className="truncate max-w-[130px]">{lvl.title}</span>
-                  {isSolved && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 ml-1" />}
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Status Modo Infinito */}
-        {!isTutorialActive && gameMode === 'infinite' && (
-          <div className="flex items-center justify-between bg-cyan-950/40 border border-cyan-800/40 px-4 py-2.5 rounded-xl text-xs">
-            <div className="flex items-center gap-2 text-cyan-300">
-              <InfinityIcon className="w-4 h-4 text-cyan-400" />
-              <span>Sequência de Demandas: <strong className="text-white font-mono text-sm">{infiniteStreak}</strong></span>
+        {/* ─── FAIXA INTEGRADA DE OBJETIVO E METAS (ACIMA DA PLANILHA) ─── */}
+        {!isTutorialActive && (
+          <div className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 shadow-md">
+            {/* Lado Esquerdo: Objetivo do Chamado */}
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <span className="text-xs font-bold text-emerald-400 uppercase tracking-wide flex items-center gap-1.5 flex-shrink-0">
+                <Target className="w-4 h-4 text-amber-400" />
+                Objetivo:
+              </span>
+              <p className="text-xs text-slate-200 truncate" title={activeLevelDef.briefing}>
+                {activeLevelDef.briefing}
+              </p>
             </div>
-            <div className="text-slate-400">
-              Recorde Corporativo: <strong className="text-cyan-400 font-mono">{saveData.infiniteBestStreak}</strong>
-            </div>
-          </div>
-        )}
 
-        {/* ─── WORKSPACE EXPANDIDO: PLANILHA LIGHT + PAINEL DO GERENTE ─ */}
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
-          {/* Coluna Principal: Planilha em Fundo Branco (8 de 12 colunas em telas xl) */}
-          <div className="xl:col-span-8 2xl:col-span-9 flex flex-col gap-3">
-            <SheetGridCanvas
-              grid={grid}
-              numColumns={activeLevelDef.numColumns}
-              numRows={activeLevelDef.numRows}
-              selectedCoord={selectedCoord}
-              onSelectCoord={handleSelectCoord}
-              formulaInput={formulaInput}
-              onFormulaInputChange={setFormulaInput}
-              onFormulaSubmit={handleCalculateFormula}
-              targetCoords={targetCoords}
-              solvedCoords={solvedCoords}
-              tutorialHighlightCoord={tutorialHighlightCoord}
-              sheetTabTitle={activeLevelDef.title.replace(/\s+/g, '_').substring(0, 20)}
-            />
+            {/* Centro: Pílulas de Metas Clicáveis */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {activeLevelDef.targets.map((tgt) => {
+                const isSolved = solvedCoords.includes(tgt.coord);
+                const isSelected = selectedCoord === tgt.coord;
 
-            {/* Balão do Assistente Bytezinho */}
-            <div
-              className={`p-3.5 rounded-xl border flex items-start gap-3 transition-all ${
-                byteFeedback.type === 'error'
-                  ? 'bg-rose-950/40 border-rose-500/50 text-rose-200'
-                  : byteFeedback.type === 'success'
-                  ? 'bg-emerald-950/40 border-emerald-500/50 text-emerald-200'
-                  : 'bg-slate-900 border-slate-800 text-slate-300'
-              }`}
-            >
-              <div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center flex-shrink-0 text-xl shadow-inner">
-                🤖
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-bold text-xs text-white flex items-center gap-1.5">
-                    Bytezinho <span className="text-[10px] text-emerald-400 font-normal">Assistente de BI</span>
-                  </span>
-                  {activeLevelDef.tipTitle && (
-                    <span className="text-[11px] text-cyan-300 flex items-center gap-1">
-                      <Lightbulb className="w-3 h-3 text-cyan-400" />
-                      {activeLevelDef.tipTitle}
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs leading-relaxed">{byteFeedback.text}</p>
-                {activeLevelDef.tipContent && byteFeedback.type === 'error' && (
-                  <p className="text-[11px] text-amber-300 mt-1.5 bg-amber-950/40 p-2 rounded border border-amber-800/40">
-                    💡 <strong>Diagnóstico:</strong> {activeLevelDef.tipContent}
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Coluna Lateral: Central de Demandas & Storytelling do Gerente (4 de 12 colunas) */}
-          <div className="xl:col-span-4 2xl:col-span-3 flex flex-col gap-3">
-            {/* Cartão de Ticket Corporativo Docked */}
-            <motion.div
-              layout
-              initial={{ opacity: 0, x: 30 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.35, ease: 'easeOut' }}
-              className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-xl relative"
-            >
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-xs font-mono font-bold text-emerald-400">
-                    #{String(activeLevelDef.id).padStart(2, '0')}
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider block">
-                      Ticket de Demanda
-                    </span>
-                    <span className="text-xs font-bold text-white truncate block">
-                      {activeLevelDef.worldName}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-1.5">
+                return (
                   <button
-                    onClick={() => {
-                      setIsDemandModalOpen(true);
-                      sheetAudio.playCellClick();
-                    }}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-emerald-400 font-semibold border border-slate-700 transition-all cursor-pointer shadow-sm active:scale-95"
-                    title="Expandir chamado em pop-up focado"
+                    key={tgt.coord}
+                    onClick={() => handleSelectCoord(tgt.coord)}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition-all cursor-pointer ${
+                      isSolved
+                        ? 'bg-emerald-950/60 border-emerald-600/60 text-emerald-300'
+                        : isSelected
+                        ? 'bg-amber-950/60 border-amber-400 text-amber-200 ring-1 ring-amber-400'
+                        : 'bg-slate-950/70 border-slate-800 text-slate-300 hover:bg-slate-800/80'
+                    }`}
+                    title={`${tgt.label} - ${tgt.hint}`}
                   >
-                    <Maximize2 className="w-3.5 h-3.5" />
-                    <span>Expandir</span>
-                  </button>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700 flex items-center gap-1">
-                    <Clock className="w-3 h-3 text-emerald-400" />
-                    Alta
-                  </span>
-                </div>
-              </div>
-
-              {/* Solicitante / Cliente */}
-              <div className="flex items-center gap-3 mb-3 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80">
-                <div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-2xl flex-shrink-0 shadow-inner">
-                  {activeLevelDef.clientAvatar}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h3 className="text-xs font-bold text-white truncate">{activeLevelDef.clientName}</h3>
-                  <p className="text-[10px] text-slate-400 truncate">{activeLevelDef.clientRole}</p>
-                  <span className="text-[10px] font-mono text-emerald-400 truncate block">
-                    {activeLevelDef.scenario}
-                  </span>
-                </div>
-              </div>
-
-              {/* Mensagem do Gerente de Operações */}
-              <div className="text-xs text-slate-300 leading-relaxed mb-4 bg-slate-950/80 p-3.5 rounded-xl border border-slate-800">
-                <div className="flex items-center gap-1.5 text-emerald-400 font-bold text-[11px] mb-1">
-                  <span>👔 Gerente Marco:</span>
-                </div>
-                <p className="italic text-slate-300">"{activeLevelDef.briefing}"</p>
-              </div>
-
-              {/* Lista de Metas (Células-Alvo a Calcular) */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <Target className="w-3.5 h-3.5 text-amber-400" />
-                    Metas do Chamado
-                  </h4>
-                  <span className="text-[11px] font-mono font-bold text-emerald-400">
-                    {solvedCoords.length}/{activeLevelDef.targets.length} Concluídas
-                  </span>
-                </div>
-
-                {activeLevelDef.targets.map((tgt) => {
-                  const isSolved = solvedCoords.includes(tgt.coord);
-                  const isSelected = selectedCoord === tgt.coord;
-
-                  return (
-                    <div
-                      key={tgt.coord}
-                      onClick={() => handleSelectCoord(tgt.coord)}
-                      className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
+                    <span
+                      className={`font-mono font-bold text-[11px] px-1 rounded ${
                         isSolved
-                          ? 'bg-emerald-950/30 border-emerald-600/50 text-emerald-200'
+                          ? 'bg-emerald-500 text-slate-950'
                           : isSelected
-                          ? 'bg-amber-950/40 border-amber-500 text-amber-100 shadow-md ring-1 ring-amber-400/40'
-                          : 'bg-slate-950/50 border-slate-800 text-slate-300 hover:bg-slate-800/60'
+                          ? 'bg-amber-400 text-slate-950'
+                          : 'bg-slate-800 text-slate-300'
                       }`}
                     >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div
-                          className={`w-8 h-8 rounded-lg font-mono font-bold text-xs flex items-center justify-center flex-shrink-0 shadow-inner ${
-                            isSolved
-                              ? 'bg-emerald-500 text-slate-950'
-                              : isSelected
-                              ? 'bg-amber-400 text-slate-950'
-                              : 'bg-slate-800 text-slate-300'
-                          }`}
-                        >
-                          {tgt.coord}
-                        </div>
-                        <div className="truncate text-xs">
-                          <span className="font-semibold block truncate">{tgt.label}</span>
-                          <span className="text-[10px] text-slate-400 block truncate">{tgt.hint}</span>
-                        </div>
-                      </div>
-
-                      <div>
-                        {isSolved ? (
-                          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                        ) : (
-                          <Target className="w-4 h-4 text-amber-400 animate-pulse" />
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Botão de Resetar Planilha */}
-              <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between">
-                <button
-                  onClick={() => resetLevelState(activeLevelDef, gameMode === 'bug_hunter')}
-                  className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  <span>Restaurar Planilha</span>
-                </button>
-
-                {activeLevelDef.cheatSheetFormula && (
-                  <span className="text-[10px] font-mono text-slate-500 truncate max-w-[170px]" title={activeLevelDef.cheatSheetFormula}>
-                    Ref: {activeLevelDef.cheatSheetFormula}
-                  </span>
-                )}
-              </div>
-            </motion.div>
-          </div>
-        </div>
-      </main>
-
-      {/* ─── MODAL FOCADO DE DEMANDA (BRIEFING INICIAL COM SLIDE) ─── */}
-      <AnimatePresence>
-        {isDemandModalOpen && !isTutorialActive && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.88, y: 30 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{
-                opacity: 0,
-                scale: 0.65,
-                x: 480,
-                y: -60,
-                transition: { duration: 0.42, ease: [0.16, 1, 0.3, 1] }
-              }}
-              className="bg-gradient-to-b from-slate-900 to-slate-950 border-2 border-emerald-500/60 rounded-2xl max-w-xl w-full p-6 shadow-2xl relative overflow-hidden"
-            >
-              {/* Glow decorativo */}
-              <div className="absolute top-0 right-0 w-80 h-32 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-
-              {/* Cabeçalho do Ticket */}
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3.5 mb-4">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-xs font-mono font-bold text-emerald-400 shadow-inner">
-                    #{String(activeLevelDef.id).padStart(2, '0')}
-                  </div>
-                  <div>
-                    <span className="text-[11px] font-mono text-emerald-400 uppercase tracking-wider block font-bold">
-                      NOVO CHAMADO DE DEMANDA
+                      {tgt.coord}
                     </span>
-                    <h2 className="text-sm font-bold text-white truncate">
-                      {activeLevelDef.worldName} — {activeLevelDef.title}
-                    </h2>
-                  </div>
-                </div>
+                    <span className="truncate max-w-[140px]">{tgt.label}</span>
+                    {isSolved ? (
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                    ) : (
+                      <Target className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
 
-                <span className="text-xs px-2.5 py-1 rounded-full bg-slate-800 text-slate-200 border border-slate-700 flex items-center gap-1.5 font-semibold">
-                  <Clock className="w-3.5 h-3.5 text-emerald-400" />
-                  Prioridade Alta
+            {/* Lado Direito: Ações Úteis */}
+            <div className="flex items-center gap-3">
+              {activeLevelDef.cheatSheetFormula && activeLevelDef.id <= 15 && (
+                <span className="text-[11px] font-mono text-slate-400 bg-slate-950/80 px-2 py-1 rounded border border-slate-800 hidden lg:inline">
+                  Ref: {activeLevelDef.cheatSheetFormula}
                 </span>
-              </div>
-
-              {/* Solicitante / Cliente */}
-              <div className="flex items-center gap-3.5 mb-4 bg-slate-950/80 p-3 rounded-xl border border-slate-800">
-                <div className="w-12 h-12 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-2xl flex-shrink-0 shadow-inner">
-                  {activeLevelDef.clientAvatar}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h3 className="text-sm font-bold text-white truncate">{activeLevelDef.clientName}</h3>
-                  <p className="text-xs text-slate-400 truncate">{activeLevelDef.clientRole}</p>
-                  <span className="text-xs font-mono text-emerald-400 truncate block mt-0.5">
-                    Cenário: {activeLevelDef.scenario}
-                  </span>
-                </div>
-              </div>
-
-              {/* Mensagem do Gerente de Operações */}
-              <div className="text-xs text-slate-200 leading-relaxed mb-4 bg-slate-950/90 p-4 rounded-xl border border-slate-800">
-                <div className="flex items-center gap-1.5 text-emerald-400 font-bold text-xs mb-1.5">
-                  <span>👔 Mensagem do Gerente Marco Silva:</span>
-                </div>
-                <p className="italic text-slate-300 text-xs sm:text-sm">"{activeLevelDef.briefing}"</p>
-              </div>
-
-              {/* Metas da Demanda */}
-              <div className="mb-5 space-y-2">
-                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <Target className="w-4 h-4 text-amber-400" />
-                  Metas a Entregar ({activeLevelDef.targets.length} meta{activeLevelDef.targets.length > 1 ? 's' : ''}):
-                </h4>
-                <div className="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-slate-700">
-                  {activeLevelDef.targets.map((tgt) => (
-                    <div
-                      key={tgt.coord}
-                      className="p-2.5 rounded-lg bg-slate-950/60 border border-slate-800 flex items-center justify-between text-xs"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="w-7 h-7 rounded bg-amber-400 text-slate-950 font-mono font-bold flex items-center justify-center text-xs">
-                          {tgt.coord}
-                        </span>
-                        <div>
-                          <span className="font-semibold text-slate-200 block">{tgt.label}</span>
-                          <span className="text-[11px] text-slate-400 block">{tgt.hint}</span>
-                        </div>
-                      </div>
-                      {tgt.requiredFunction && (
-                        <span className="font-mono text-[10px] text-emerald-300 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-800/60">
-                          ={tgt.requiredFunction}()
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Botão de Ação / Iniciar */}
+              )}
               <button
-                onClick={() => {
-                  setIsDemandModalOpen(false);
-                  sheetAudio.playCellClick();
-                }}
-                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25 active:scale-95 transition-all cursor-pointer"
+                onClick={() => resetLevelState(activeLevelDef, gameMode === 'bug_hunter')}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 hover:text-white border border-slate-700 transition-all cursor-pointer"
+                title="Restaurar a planilha para o estado inicial da fase"
               >
-                <span>Entendido, Iniciar Demanda! 🚀</span>
-                <ArrowRight className="w-4 h-4 stroke-[3]" />
+                <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
+                <span>Restaurar</span>
               </button>
-            </motion.div>
+            </div>
           </div>
         )}
-      </AnimatePresence>
+
+        {/* ─── PLANILHA EXPANDIDA (LARGURA TOTAL) ─── */}
+        <div className="w-full">
+          <SheetGridCanvas
+            grid={grid}
+            numColumns={activeLevelDef.numColumns}
+            numRows={activeLevelDef.numRows}
+            selectedCoord={selectedCoord}
+            onSelectCoord={handleSelectCoord}
+            formulaInput={formulaInput}
+            onFormulaInputChange={setFormulaInput}
+            onFormulaSubmit={handleCalculateFormula}
+            targetCoords={targetCoords}
+            solvedCoords={solvedCoords}
+            tutorialHighlightCoord={tutorialHighlightCoord}
+            sheetTabTitle={activeLevelDef.title.replace(/\s+/g, '_').substring(0, 20)}
+          />
+        </div>
+
+        {/* ─── BARRA DE FEEDBACK CONCISA (APENAS QUANDO RELEVANTE) ─── */}
+        {byteFeedback.text && (
+          <div
+            className={`p-3 rounded-xl border flex items-center justify-between gap-3 transition-all ${
+              byteFeedback.type === 'error'
+                ? 'bg-rose-950/50 border-rose-500/50 text-rose-200'
+                : byteFeedback.type === 'success'
+                ? 'bg-emerald-950/50 border-emerald-500/50 text-emerald-200'
+                : 'bg-slate-900 border-slate-800 text-slate-300'
+            }`}
+          >
+            <div className="flex items-center gap-2.5 text-xs">
+              <span className="text-base">
+                {byteFeedback.type === 'error' ? '❌' : byteFeedback.type === 'success' ? '✅' : '💡'}
+              </span>
+              <p className="leading-snug">{byteFeedback.text}</p>
+              {activeLevelDef.tipContent && byteFeedback.type === 'error' && (
+                <span className="text-amber-300 text-[11px] font-medium hidden md:inline ml-2 pl-2 border-l border-rose-800/60">
+                  Dica: {activeLevelDef.tipContent}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+      </main>
 
       {/* ─── MODAL DE VITÓRIA (LEVEL COMPLETE) ────────────────────── */}
       {victoryModal.isOpen && (
@@ -1261,6 +1055,149 @@ export const SheetQuestGame: React.FC<SheetQuestGameProps> = ({
               >
                 Entendi, voltar à planilha
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL SELETOR RÁPIDO DE FASES (MODO ADM / PROFESSOR) ─── */}
+      {isAdminLevelPickerOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-slate-900 border border-amber-500/50 rounded-2xl max-w-4xl w-full p-5 sm:p-6 shadow-2xl flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 text-base font-bold shadow-inner">
+                  ⚡
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-white flex items-center gap-2">
+                    Sandbox de Fases — Modo Professor / ADM
+                    <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-mono text-[10px] border border-amber-500/40">
+                      Bypass de Progressão
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Selecione qualquer uma das 48 demandas ou 12 auditorias para testar na hora sem restrições.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    const allLevels: Record<number, { stars: number; solvedAt: string }> = {};
+                    SHEET_CAMPAIGN_LEVELS.forEach((lvl) => {
+                      allLevels[lvl.id] = { stars: 3, solvedAt: new Date().toISOString() };
+                    });
+                    const updated = { ...saveData, completedLevels: allLevels };
+                    setSaveData(updated);
+                    localStorage.setItem('sheetquest_save', JSON.stringify(updated));
+                    sheetAudio.playLevelComplete();
+                  }}
+                  className="px-2.5 py-1.5 rounded-lg bg-emerald-950/70 hover:bg-emerald-900/80 text-emerald-300 border border-emerald-600/50 text-[11px] font-bold transition cursor-pointer"
+                  title="Concede 3 estrelas em todas as fases no save local"
+                >
+                  ★ Desbloquear Tudo (3 Estrelas)
+                </button>
+                <button
+                  onClick={() => setIsAdminLevelPickerOpen(false)}
+                  className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Grid de Fases */}
+            <div className="overflow-y-auto pr-1 space-y-4 scrollbar-thin scrollbar-thumb-slate-700 flex-1">
+              <div>
+                <h4 className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <Target className="w-3.5 h-3.5" />
+                  Demandas da Campanha ({SHEET_CAMPAIGN_LEVELS.length} Fases):
+                </h4>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                  {SHEET_CAMPAIGN_LEVELS.map((lvl, idx) => {
+                    const isCur = gameMode === 'campaign' && idx === currentLevelIndex;
+                    const record = saveData.completedLevels[lvl.id];
+
+                    return (
+                      <button
+                        key={lvl.id}
+                        onClick={() => {
+                          setGameMode('campaign');
+                          setCurrentLevelIndex(idx);
+                          setIsAdminLevelPickerOpen(false);
+                          sheetAudio.playCellClick();
+                        }}
+                        className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                          isCur
+                            ? 'bg-emerald-500/30 border-emerald-400 text-white shadow-lg ring-1 ring-emerald-400'
+                            : record
+                            ? 'bg-slate-950/80 border-emerald-800/60 text-slate-200 hover:bg-slate-800'
+                            : 'bg-slate-950/50 border-slate-800 text-slate-400 hover:bg-slate-800 hover:text-white'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-mono font-bold text-xs text-emerald-400">
+                            TK-{String(lvl.id).padStart(2, '0')}
+                          </span>
+                          <span className="text-[10px] text-amber-400 font-mono">
+                            {record ? '★'.repeat(record.stars) : 'M' + lvl.world}
+                          </span>
+                        </div>
+                        <span className="text-[11px] font-semibold leading-tight line-clamp-2">
+                          {lvl.title}
+                        </span>
+                        <span className="text-[9px] text-slate-500 truncate block mt-1">
+                          {lvl.worldName}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-slate-800">
+                <h4 className="text-xs font-bold text-rose-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <Bug className="w-3.5 h-3.5" />
+                  Auditoria de Erros ({SHEET_BUG_HUNTER_LEVELS.length} Fases):
+                </h4>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                  {SHEET_BUG_HUNTER_LEVELS.map((lvl, idx) => {
+                    const isCur = gameMode === 'bug_hunter' && idx === currentBugLevelIndex;
+                    const isSolved = saveData.completedBugLevels[lvl.id];
+
+                    return (
+                      <button
+                        key={lvl.id}
+                        onClick={() => {
+                          setGameMode('bug_hunter');
+                          setCurrentBugLevelIndex(idx);
+                          setIsAdminLevelPickerOpen(false);
+                          sheetAudio.playCellClick();
+                        }}
+                        className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                          isCur
+                            ? 'bg-rose-500/30 border-rose-400 text-white shadow-lg ring-1 ring-rose-400'
+                            : isSolved
+                            ? 'bg-slate-950/80 border-emerald-800/60 text-slate-200 hover:bg-slate-800'
+                            : 'bg-slate-950/50 border-slate-800 text-slate-400 hover:bg-slate-800 hover:text-white'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-mono font-bold text-xs text-rose-400">
+                            {lvl.errorCode}
+                          </span>
+                          {isSolved && <CheckCircle2 className="w-3 h-3 text-emerald-400" />}
+                        </div>
+                        <span className="text-[11px] font-semibold leading-tight line-clamp-2">
+                          {lvl.title}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           </div>
         </div>

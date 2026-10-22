@@ -116,8 +116,13 @@ export function extractReferencedRanges(formula: string): HighlightedRange[] {
 /**
  * Obtém o valor numérico ou textual bruto de uma célula no grid
  */
-export function getCellValue(grid: SheetGridData, coord: string): string | number {
-  const cell = grid[coord.toUpperCase()];
+export function getCellValue(
+  grid: SheetGridData,
+  coord: string,
+  visited: Set<string> = new Set<string>()
+): string | number {
+  const normCoord = coord.toUpperCase();
+  const cell = grid[normCoord];
   if (!cell) return 0;
   if (cell.display !== undefined && cell.display !== '') {
     if (typeof cell.display === 'number') return cell.display;
@@ -125,6 +130,17 @@ export function getCellValue(grid: SheetGridData, coord: string): string | numbe
     return isNaN(num) ? String(cell.display) : num;
   }
   if (typeof cell.raw === 'number') return cell.raw;
+  if (typeof cell.raw === 'string' && cell.raw.trim().startsWith('=')) {
+    if (visited.has(normCoord)) {
+      throw new Error('#REF!: Referência circular detectada.');
+    }
+    visited.add(normCoord);
+    const evalRes = evaluateFormula(cell.raw, grid, normCoord);
+    visited.delete(normCoord);
+    if (!evalRes.error) {
+      return evalRes.value;
+    }
+  }
   const num = parsePtBrNumber(String(cell.raw));
   return isNaN(num) ? String(cell.raw) : num;
 }
@@ -442,25 +458,49 @@ function splitByTopLevelOperators(expr: string, operators: string[]): string[] {
 }
 
 /**
- * Compara valores para testes lógicos
+ * Compara valores para testes lógicos com coerção numérica inteligente
  */
 function compareValues(a: any, op: string, b: any): boolean {
+  const numA = typeof a === 'number' ? a : parsePtBrNumber(String(a));
+  const numB = typeof b === 'number' ? b : parsePtBrNumber(String(b));
+  const bothNumbers = !isNaN(numA) && !isNaN(numB);
+
+  const left = bothNumbers ? numA : a;
+  const right = bothNumbers ? numB : b;
+
   switch (op) {
     case '=':
-      return a == b;
+      return left == right;
     case '<>':
-      return a != b;
+      return left != right;
     case '>':
-      return a > b;
+      return left > right;
     case '<':
-      return a < b;
+      return left < right;
     case '>=':
-      return a >= b;
+      return left >= right;
     case '<=':
-      return a <= b;
+      return left <= right;
     default:
       return false;
   }
+}
+
+/**
+ * Converte um valor avaliado no padrão de planilhas para booleano
+ */
+function isTruthySheets(val: unknown): boolean {
+  if (typeof val === 'boolean') return val;
+  if (typeof val === 'number') return val !== 0 && !isNaN(val);
+  if (typeof val === 'string') {
+    const s = val.trim().toUpperCase();
+    if (s === 'VERDADEIRO' || s === 'TRUE' || s === 'V') return true;
+    if (s === 'FALSO' || s === 'FALSE' || s === 'F' || s === '') return false;
+    const num = parsePtBrNumber(s);
+    if (!isNaN(num)) return num !== 0;
+    return true;
+  }
+  return Boolean(val);
 }
 
 /**
@@ -558,7 +598,7 @@ function executeFunction(
     case 'SE': {
       if (args.length < 2) throw new Error('#ERRO!: SE requer teste_lógico e valor_se_verdadeiro.');
       const test = evaluateNode(args[0], grid, currentCoord, referencedCoords);
-      const isTrue = Boolean(test);
+      const isTrue = isTruthySheets(test);
       if (isTrue) {
         return evaluateNode(args[1], grid, currentCoord, referencedCoords);
       }

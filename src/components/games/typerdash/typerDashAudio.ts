@@ -465,6 +465,30 @@ class TyperDashAudioEngine {
     } catch {}
   }
 
+  public playMissSound(): void {
+    if (this.isMuted) return;
+    const ctx = this.getAudioContext();
+    if (!ctx) return;
+
+    try {
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(140, now);
+      osc.frequency.exponentialRampToValueAtTime(70, now + 0.16);
+
+      gain.gain.setValueAtTime(this.volume * 0.22, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.16);
+    } catch {}
+  }
+
   public playShieldBreakSound(): void {
     if (this.isMuted) return;
     const ctx = this.getAudioContext();

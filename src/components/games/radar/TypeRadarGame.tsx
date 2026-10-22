@@ -166,8 +166,8 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
   const gameStateRef = useRef(gameState);
   gameStateRef.current = gameState;
 
-  const enemiesRef = useRef(enemies);
-  enemiesRef.current = enemies;
+  // enemiesRef é a fonte autoritativa de física a 60 FPS (não deve ser sobrescrito a cada re-render)
+  const enemiesRef = useRef<RadarEnemy[]>([]);
 
   const lastPerimeterAlarmRef = useRef<number>(0);
 
@@ -441,8 +441,8 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
         hasSpawnedBossRef.current = true;
         enemiesSpawnedThisWaveRef.current += 1;
         const bossEnemy = spawnBossEnemy(current.wave, activeTrack);
-        setEnemies((prev) => [bossEnemy, ...prev]);
         enemiesRef.current = [bossEnemy, ...enemiesRef.current];
+        setEnemies([...enemiesRef.current]);
         triggerGlitch(500, true);
         radarAudio.playAlarmSiren();
       } else if (enemiesSpawnedThisWaveRef.current === 0) {
@@ -457,14 +457,14 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
           accEnemies.push(newEnemy);
           initialEnemies.push(newEnemy);
         }
-        setEnemies((prev) => [...prev, ...initialEnemies]);
         enemiesRef.current = [...enemiesRef.current, ...initialEnemies];
+        setEnemies([...enemiesRef.current]);
       } else if (spawnTimer >= spawnInterval && enemiesSpawnedThisWaveRef.current < maxEnemiesPerWave) {
         spawnTimer = 0;
         enemiesSpawnedThisWaveRef.current += 1;
         const newEnemy = spawnRadarEnemy(current.wave, activeTrack, enemiesRef.current, currentAccuracy, isSwarm);
-        setEnemies((prev) => [...prev, newEnemy]);
         enemiesRef.current = [...enemiesRef.current, newEnemy];
+        setEnemies([...enemiesRef.current]);
       }
 
       // Sonar Ping periódico
@@ -749,8 +749,8 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
           ...b,
           deflectActiveUntilMs: Date.now() + 600
         }));
-        setEnemies(updatedBosses);
         enemiesRef.current = updatedBosses;
+        setEnemies([...updatedBosses]);
 
         if (scrapGained > 0) {
           setScrapGainedRun((prev) => prev + scrapGained);
@@ -801,13 +801,12 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
 
       case '/EMP': {
         radarAudio.playFreeze();
-        setEnemies((prev) => {
-          const sorted = [...prev].sort((a, b) => a.distance - b.distance);
-          const paralyzedIds = new Set(sorted.slice(0, 3).map((e) => e.id));
-          return prev.map((e) =>
-            paralyzedIds.has(e.id) ? { ...e, isParalyzedUntilMs: Date.now() + 6000 } : e
-          );
-        });
+        const sorted = [...enemiesRef.current].sort((a, b) => a.distance - b.distance);
+        const paralyzedIds = new Set(sorted.slice(0, 3).map((e) => e.id));
+        enemiesRef.current = enemiesRef.current.map((e) =>
+          paralyzedIds.has(e.id) ? { ...e, isParalyzedUntilMs: Date.now() + 6000 } : e
+        );
+        setEnemies([...enemiesRef.current]);
         setGameState((prev) => ({
           ...prev,
           energy: prev.energy - actualCost
@@ -877,9 +876,10 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
 
       if (current.activeTargetId) {
         const targetId = current.activeTargetId;
-        setEnemies((prev) =>
-          prev.map((enemy) => (enemy.id === targetId ? { ...enemy, typedLength: 0 } : enemy))
+        enemiesRef.current = enemiesRef.current.map((enemy) =>
+          enemy.id === targetId ? { ...enemy, typedLength: 0 } : enemy
         );
+        setEnemies([...enemiesRef.current]);
         setGameState((prev) => ({ ...prev, activeTargetId: null }));
         return;
       }
@@ -1021,19 +1021,18 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
               }
             ]);
 
-            setEnemies((prev) =>
-              prev.map((e) =>
-                e.id === target!.id
-                  ? {
-                      ...e,
-                      word: nextWord,
-                      typedLength: 0,
-                      bossHp: remainingHp,
-                      bossCurrentStageIndex: nextStageIndex
-                    }
-                  : e
-              )
+            enemiesRef.current = enemiesRef.current.map((e) =>
+              e.id === target!.id
+                ? {
+                    ...e,
+                    word: nextWord,
+                    typedLength: 0,
+                    bossHp: remainingHp,
+                    bossCurrentStageIndex: nextStageIndex
+                  }
+                : e
             );
+            setEnemies([...enemiesRef.current]);
 
             setGameState((prev) => ({
               ...prev,
@@ -1115,7 +1114,8 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
             triggerXpFlash(350);
             handleComboMilestone(nextCombo + 3);
 
-            setEnemies((prev) => prev.filter((e) => e.id !== target!.id));
+            enemiesRef.current = enemiesRef.current.filter((e) => e.id !== target!.id);
+            setEnemies([...enemiesRef.current]);
             setGameState((prev) => ({
               ...prev,
               activeTargetId: null,
@@ -1136,9 +1136,10 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
           createExplosion(ex, ey, '#34d399', 4);
           handleComboMilestone(nextCombo);
 
-          setEnemies((prev) =>
-            prev.map((e) => (e.id === target!.id ? { ...e, typedLength: nextTyped } : e))
+          enemiesRef.current = enemiesRef.current.map((e) =>
+            e.id === target!.id ? { ...e, typedLength: nextTyped } : e
           );
+          setEnemies([...enemiesRef.current]);
           setGameState((prev) => ({
             ...prev,
             activeTargetId: target!.id,
@@ -1244,19 +1245,18 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
             }
           ]);
 
-          setEnemies((prev) =>
-            prev.map((e) =>
-              e.id === target!.id
-                ? {
-                    ...e,
-                    word: nextWord,
-                    typedLength: 0,
-                    bossHp: remainingHp,
-                    bossCurrentStageIndex: nextStageIndex
-                  }
-                : e
-            )
+          enemiesRef.current = enemiesRef.current.map((e) =>
+            e.id === target!.id
+              ? {
+                  ...e,
+                  word: nextWord,
+                  typedLength: 0,
+                  bossHp: remainingHp,
+                  bossCurrentStageIndex: nextStageIndex
+                }
+              : e
           );
+          setEnemies([...enemiesRef.current]);
 
           setGameState((prev) => ({
             ...prev,
@@ -1338,7 +1338,8 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
           triggerXpFlash(350);
           handleComboMilestone(nextCombo + 3);
 
-          setEnemies((prev) => prev.filter((e) => e.id !== target!.id));
+          enemiesRef.current = enemiesRef.current.filter((e) => e.id !== target!.id);
+          setEnemies([...enemiesRef.current]);
           setGameState((prev) => ({
             ...prev,
             activeTargetId: null,
@@ -1359,9 +1360,10 @@ export const TypeRadarGame: React.FC<TypeRadarGameProps> = ({
         createExplosion(ex, ey, '#34d399', 4);
         handleComboMilestone(nextCombo);
 
-        setEnemies((prev) =>
-          prev.map((e) => (e.id === target!.id ? { ...e, typedLength: nextTyped } : e))
+        enemiesRef.current = enemiesRef.current.map((e) =>
+          e.id === target!.id ? { ...e, typedLength: nextTyped } : e
         );
+        setEnemies([...enemiesRef.current]);
         setGameState((prev) => ({
           ...prev,
           correctChars: prev.correctChars + 1,

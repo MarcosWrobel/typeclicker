@@ -297,31 +297,13 @@ export const SheetGridCanvas: React.FC<SheetGridCanvasProps> = ({
 
   return (
     <div className="flex flex-col w-full bg-white border border-slate-300 rounded-xl shadow-xl overflow-hidden select-none transition-all">
-      {/* ─── TOPO DA PLANILHA: BARRA DE MENUS & TÍTULO SHEET ────────── */}
-      <div className="bg-[#f8f9fa] border-b border-slate-200 px-4 py-2 flex items-center justify-between text-xs text-slate-600">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 font-bold text-slate-800">
-            <div className="w-5 h-5 rounded bg-emerald-600 text-white flex items-center justify-center text-[11px] font-bold shadow-sm">
-              <FileSpreadsheet className="w-3.5 h-3.5" />
-            </div>
-            <span>Google Planilhas — {sheetTabTitle}</span>
+      {/* ─── TOPO DA PLANILHA: IDENTIFICAÇÃO LIMPA ────────── */}
+      <div className="bg-[#f8f9fa] border-b border-slate-200 px-3.5 py-1.5 flex items-center justify-between text-xs text-slate-700">
+        <div className="flex items-center gap-2 font-semibold">
+          <div className="w-5 h-5 rounded bg-emerald-600 text-white flex items-center justify-center text-[10px] font-bold shadow-sm">
+            <FileSpreadsheet className="w-3.5 h-3.5" />
           </div>
-          <span className="text-slate-300">|</span>
-          <div className="hidden sm:flex items-center gap-3 text-[11px] text-slate-500 font-medium">
-            <span className="hover:text-slate-800 cursor-pointer">Arquivo</span>
-            <span className="hover:text-slate-800 cursor-pointer">Editar</span>
-            <span className="hover:text-slate-800 cursor-pointer">Ver</span>
-            <span className="hover:text-slate-800 cursor-pointer">Inserir</span>
-            <span className="hover:text-slate-800 cursor-pointer">Formatar</span>
-            <span className="hover:text-slate-800 cursor-pointer">Dados</span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200 flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            Online (Salvamento Automático)
-          </span>
+          <span className="font-medium text-slate-800 text-xs">Planilha: <strong className="font-semibold text-slate-900">{sheetTabTitle}</strong></span>
         </div>
       </div>
 

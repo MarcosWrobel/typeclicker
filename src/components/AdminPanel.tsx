@@ -1,4 +1,4 @@
-import React,{ useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
 Shield,
@@ -30,8 +30,20 @@ Swords,
 Crown,
 Medal,
 GraduationCap,
-Clock
+Clock,
+Gamepad2,
+BarChart,
+FileSpreadsheet,
+Eye,
+Play,
+Filter,
+BookOpen
 } from 'lucide-react';
+import { SCHOOL_CLASSES_CONFIG } from '../constants/school';
+import { exportToCsv, downloadCsv, aggregateByTurma, buildPedagogicalCsvRows } from '../services/turmasAggregator';
+import { SHEET_CAMPAIGN_LEVELS } from './games/sheetquest/sheetLevelsData';
+import { SHEET_BUG_HUNTER_LEVELS } from './games/sheetquest/sheetBugHunterLevels';
+import { PEDAGOGICAL_LEVELS } from './games/scratchbot/levelsData';
 import { StudentAvatarRenderer } from './vectors/StudentAvatarRenderer';
 import { fetchSupabaseMetrics, SupabaseMetricsData } from '../services/supabaseMetricsService';
 import { isSupabaseConfigured, supabase } from '../services/supabaseClient';
@@ -76,6 +88,7 @@ export interface AdminPanelProps {
   onOpenArena?: () => void;
   onOpenCosmetics?: () => void;
   onTriggerChallenge?: (level: number) => void;
+  onLaunchGameLevel?: (gameId: string, levelIndex: number) => void;
 }
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({
@@ -87,10 +100,178 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   userEmail,
   onOpenArena,
   onOpenCosmetics,
-  onTriggerChallenge
+  onTriggerChallenge,
+  onLaunchGameLevel
 }) => {
-  const [activeTab, setActiveTab] = useState<'temporadas' | 'backups' | 'monitoramento' | 'testes' | 'professores' | 'wipe'>('temporadas');
+  const [activeTab, setActiveTab] = useState<'metricas' | 'niveis' | 'temporadas' | 'backups' | 'monitoramento' | 'testes' | 'professores' | 'wipe'>('metricas');
   const [testActionMessage, setTestActionMessage] = useState<string | null>(null);
+
+  // ─── Estados para Métricas de Alunos (Multi-Jogos) ───────────
+  const [students, setStudents] = useState<LeaderboardEntry[]>([]);
+  const [isStudentsLoading, setIsStudentsLoading] = useState<boolean>(false);
+  const [selectedClassFilter, setSelectedClassFilter] = useState<string>('todas');
+  const [searchTurma, setSearchTurma] = useState<string>('');
+  const [studentsSortBy, setStudentsSortBy] = useState<'level' | 'bytes' | 'wpm' | 'sheet' | 'dash' | 'nome'>('bytes');
+  const [selectedStudentDetail, setSelectedStudentDetail] = useState<LeaderboardEntry | null>(null);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
+  const [updatingStudentId, setUpdatingStudentId] = useState<string | null>(null);
+
+  // ─── Estados para Sandbox & Teste Irrestrito de Níveis ───────
+  const [adminBypassUnlocked, setAdminBypassUnlocked] = useState<boolean>(() => {
+    return typeof window !== 'undefined' && localStorage.getItem('admin_unlock_all_levels') === 'true';
+  });
+  const [sandboxGame, setSandboxGame] = useState<'sheetquest' | 'typeclicker' | 'scratchbot' | 'radar' | 'typerdash'>('sheetquest');
+  const [sandboxCustomLevel, setSandboxCustomLevel] = useState<number>(gameState?.level || 1);
+  const [sheetWorldFilter, setSheetWorldFilter] = useState<number | 'all'>('all');
+  const [sheetModeTab, setSheetModeTab] = useState<'campaign' | 'bug_hunter'>('campaign');
+
+  const loadStudents = useCallback(async (turmaToFetch = selectedClassFilter) => {
+    setIsStudentsLoading(true);
+    try {
+      const targetTurma = turmaToFetch === 'todas' ? undefined : turmaToFetch;
+      const data = await dbService.getAdminDashboardData(targetTurma);
+      setStudents(data);
+      setLastRefreshedAt(new Date());
+    } catch (e) {
+      console.error('Erro ao carregar métricas dos alunos no AdminPanel:', e);
+    } finally {
+      setIsStudentsLoading(false);
+    }
+  }, [selectedClassFilter]);
+
+  useEffect(() => {
+    if (isOpen && activeTab === 'metricas' && students.length === 0) {
+      loadStudents();
+    }
+  }, [isOpen, activeTab, loadStudents, students.length]);
+
+  const filteredStudents = useMemo(() => {
+    return students
+      .filter((s) => {
+        if (selectedClassFilter !== 'todas' && s.turma !== selectedClassFilter) return false;
+        if (!searchTurma.trim()) return true;
+        const q = searchTurma.toLowerCase();
+        return (
+          (s.nome && s.nome.toLowerCase().includes(q)) ||
+          (s.apelido && s.apelido.toLowerCase().includes(q)) ||
+          (s.email && s.email.toLowerCase().includes(q)) ||
+          (s.userId && s.userId.toLowerCase().includes(q))
+        );
+      })
+      .sort((a, b) => {
+        if (studentsSortBy === 'level') return (b.level || 0) - (a.level || 0);
+        if (studentsSortBy === 'bytes') return (b.points || 0) - (a.points || 0);
+        if (studentsSortBy === 'wpm') return (b.wpm || 0) - (a.wpm || 0);
+        if (studentsSortBy === 'sheet') return (b.sheetQuestCompletedQuests || 0) - (a.sheetQuestCompletedQuests || 0);
+        if (studentsSortBy === 'dash') return (b.dashHighScore || 0) - (a.dashHighScore || 0);
+        if (studentsSortBy === 'nome') return (a.nome || '').localeCompare(b.nome || '');
+        return (b.points || 0) - (a.points || 0);
+      });
+  }, [students, selectedClassFilter, searchTurma, studentsSortBy]);
+
+  const studentMetricsSummary = useMemo(() => {
+    if (students.length === 0) return { total: 0, avgWpm: 0, avgAcc: 0, level100Count: 0, totalBytes: 0 };
+    const total = students.length;
+    const avgWpm = Math.round(students.reduce((acc, s) => acc + (s.wpm || 0), 0) / total);
+    const avgAcc = Math.round(students.reduce((acc, s) => acc + (s.accuracy || 100), 0) / total);
+    const level100Count = students.filter((s) => (s.level || 1) >= 100).length;
+    const totalBytes = students.reduce((acc, s) => acc + (s.points || 0), 0);
+    return { total, avgWpm, avgAcc, level100Count, totalBytes };
+  }, [students]);
+
+  const handleExportCSV = () => {
+    if (filteredStudents.length === 0) return;
+    const csvData = exportToCsv(filteredStudents);
+    downloadCsv(csvData, `metricas_alunos_${selectedClassFilter}_${new Date().toISOString().slice(0, 10)}.csv`);
+  };
+
+  const handleExportTurmasSummary = () => {
+    if (students.length === 0) return;
+    const rows = buildPedagogicalCsvRows(students);
+    if (rows.length === 0) return;
+    const headers = Object.keys(rows[0]).join(';');
+    const body = rows.map((r) => Object.values(r).map(v => typeof v === 'number' ? String(v).replace('.', ',') : `"${v}"`).join(';')).join('\n');
+    downloadCsv(`${headers}\n${body}`, `resumo_turmas_${new Date().toISOString().slice(0, 10)}.csv`);
+  };
+
+  const handleUpdateStudentProfile = async (studentUserId: string, updates: { turma?: string; rpgClass?: any }) => {
+    setUpdatingStudentId(studentUserId);
+    try {
+      await dbService.adminUpdateStudentProfile(studentUserId, updates);
+      setStudents((prev) =>
+        prev.map((s) => (s.userId === studentUserId ? { ...s, ...updates } : s))
+      );
+      sound.playUpgrade();
+    } catch (err) {
+      console.error('Falha ao atualizar perfil do aluno:', err);
+    } finally {
+      setUpdatingStudentId(null);
+    }
+  };
+
+  const toggleAdminBypass = () => {
+    const nextVal = !adminBypassUnlocked;
+    setAdminBypassUnlocked(nextVal);
+    localStorage.setItem('admin_unlock_all_levels', String(nextVal));
+    sound.playUpgrade();
+    setTestActionMessage(
+      nextVal
+        ? '🔓 Modo Teste ADM ATIVADO: Todas as fases de todos os jogos estão desbloqueadas!'
+        : '🔒 Modo Teste ADM DESATIVADO: Progressão normal restabelecida.'
+    );
+    setTimeout(() => setTestActionMessage(null), 5000);
+  };
+
+  const handleUnlockAllSheetQuest = () => {
+    try {
+      const allLevels: Record<number, { stars: number; solvedAt: string }> = {};
+      SHEET_CAMPAIGN_LEVELS.forEach((lvl) => {
+        allLevels[lvl.id] = { stars: 3, solvedAt: new Date().toISOString() };
+      });
+      const allBugLevels: Record<number, boolean> = {};
+      SHEET_BUG_HUNTER_LEVELS.forEach((lvl) => {
+        allBugLevels[lvl.id] = true;
+      });
+      const saveObj = {
+        completedLevels: allLevels,
+        completedBugLevels: allBugLevels,
+        infiniteBestStreak: 99
+      };
+      localStorage.setItem('sheetquest_save', JSON.stringify(saveObj));
+      sound.playPrestige();
+      setTestActionMessage('📊 Todas as 48 demandas e 12 auditorias do SheetQuest foram desbloqueadas localmente com 3 estrelas!');
+      setTimeout(() => setTestActionMessage(null), 5000);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleResetSheetQuest = () => {
+    localStorage.removeItem('sheetquest_save');
+    sound.playClick();
+    setTestActionMessage('Planilha do SheetQuest resetada para o Nível 1!');
+    setTimeout(() => setTestActionMessage(null), 5000);
+  };
+
+  const handleApplyCustomLevel = async (lvl: number) => {
+    if (!onUpdateGameState || !gameState) return;
+    const clamped = Math.max(1, Math.min(100, lvl));
+    const targetBytes = calculateMinBytesForLevel(clamped);
+    const updatedState: GameState = {
+      ...gameState,
+      level: clamped,
+      bytes: Math.max(gameState.bytes, targetBytes),
+      totalBytesEarned: Math.max(gameState.totalBytesEarned, targetBytes)
+    };
+    onUpdateGameState(updatedState);
+    saveState(updatedState, auth.currentUser?.uid);
+    if (auth.currentUser) {
+      await dbService.saveLegacyGameState(auth.currentUser.uid, updatedState);
+    }
+    sound.playUpgrade();
+    setTestActionMessage(`Nível ajustado para ${clamped} (${formatBytes(targetBytes)} Bytes)!`);
+    setTimeout(() => setTestActionMessage(null), 4000);
+  };
 
   // Estados para Gestão de Trimestres e Temporadas (Supabase / Hall da Fama)
   const [seasonStudents, setSeasonStudents] = useState<LeaderboardEntry[]>([]);
@@ -671,7 +852,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   return (
-    <AnimatePresence>
+    <>
+      <AnimatePresence>
       {isOpen && (
         <motion.div
           initial={{ opacity: 0 }}
@@ -722,6 +904,32 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
               {/* Linha de Navegação Dedicada para Abas Administrativas */}
               <div className="flex items-center gap-1.5 p-1.5 bg-zinc-900/90 rounded-xl border border-zinc-800/90 overflow-x-auto custom-scrollbar flex-wrap sm:flex-nowrap">
+                <button
+                  onClick={() => setActiveTab('metricas')}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+                    activeTab === 'metricas'
+                      ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30 font-black'
+                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
+                  }`}
+                  title="Métricas de Alunos, Desempenho e Turmas"
+                >
+                  <Users className="w-4 h-4 text-emerald-400" />
+                  <span>Métricas de Alunos</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('niveis')}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+                    activeTab === 'niveis'
+                      ? 'bg-amber-600 text-white shadow-md shadow-amber-600/30 font-black'
+                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
+                  }`}
+                  title="Sandbox de Teste de Níveis: SheetQuest, TypeClicker e Bypass de Fases"
+                >
+                  <Gamepad2 className="w-4 h-4 text-amber-400" />
+                  <span>Sandbox de Fases</span>
+                </button>
+
                 <button
                   onClick={() => setActiveTab('temporadas')}
                   className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
@@ -806,6 +1014,673 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
             {/* Conteúdo com Scroll */}
             <div className="flex-1 overflow-y-auto p-4 sm:p-6 custom-scrollbar space-y-6">
+              {/* ABA: MÉTRICAS DE ALUNOS (DASHBOARD MULTI-JOGOS) */}
+              {activeTab === 'metricas' && (
+                <section className="space-y-6">
+                  {/* Cabeçalho e KPIs Globais */}
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-zinc-800 pb-3">
+                    <div>
+                      <div className="flex items-center gap-2 text-emerald-400 font-bold text-lg">
+                        <Users className="w-5 h-5 text-emerald-400" />
+                        <h3>Painel de Métricas e Desempenho dos Alunos</h3>
+                      </div>
+                      <p className="text-xs text-zinc-400 mt-0.5">
+                        Acompanhe o rendimento escolar em tempo real nos 7 jogos da plataforma, PPM, acurácia e progressão de turmas.
+                      </p>
+                    </div>
+
+                    {lastRefreshedAt && (
+                      <span className="text-[11px] font-mono text-zinc-400 bg-zinc-900 px-2.5 py-1 rounded-lg border border-zinc-800 flex items-center gap-1.5 shadow-sm">
+                        <Clock className="w-3.5 h-3.5 text-emerald-400" />
+                        Atualizado às {lastRefreshedAt.toLocaleTimeString('pt-BR')}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Cards de KPIs Rápidos */}
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                    <div className="p-3.5 rounded-xl bg-zinc-900/90 border border-zinc-800 flex flex-col justify-between">
+                      <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400">Total Alunos</span>
+                      <div className="flex items-baseline gap-2 mt-1">
+                        <span className="text-2xl font-black text-white">{studentMetricsSummary.total}</span>
+                        <span className="text-xs text-emerald-400 font-bold">ativos</span>
+                      </div>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl bg-zinc-900/90 border border-zinc-800 flex flex-col justify-between">
+                      <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400">Média de PPM</span>
+                      <div className="flex items-baseline gap-2 mt-1">
+                        <span className="text-2xl font-black text-emerald-400 font-mono">{studentMetricsSummary.avgWpm}</span>
+                        <span className="text-xs text-zinc-400">PPM</span>
+                      </div>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl bg-zinc-900/90 border border-zinc-800 flex flex-col justify-between">
+                      <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400">Precisão Média</span>
+                      <div className="flex items-baseline gap-2 mt-1">
+                        <span className="text-2xl font-black text-cyan-400 font-mono">{studentMetricsSummary.avgAcc}%</span>
+                        <span className="text-xs text-zinc-400">geral</span>
+                      </div>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl bg-zinc-900/90 border border-zinc-800 flex flex-col justify-between">
+                      <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400">Pioneiros Nv. 100</span>
+                      <div className="flex items-baseline gap-2 mt-1">
+                        <span className="text-2xl font-black text-amber-400 font-mono">{studentMetricsSummary.level100Count}</span>
+                        <span className="text-xs text-amber-300">aluno{studentMetricsSummary.level100Count !== 1 ? 's' : ''}</span>
+                      </div>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl bg-zinc-900/90 border border-zinc-800 flex flex-col justify-between col-span-2 sm:col-span-1">
+                      <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400">Bytes Totais</span>
+                      <div className="flex items-baseline gap-2 mt-1">
+                        <span className="text-lg font-black text-purple-400 font-mono truncate">{formatBytes(studentMetricsSummary.totalBytes)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Barra de Filtros, Pesquisa e Exportações */}
+                  <div className="flex flex-wrap items-center justify-between gap-3 bg-zinc-900/80 p-3 rounded-xl border border-zinc-800">
+                    <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[280px]">
+                      {/* Seletor de Turma */}
+                      <div className="flex items-center gap-1.5 bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 py-1.5">
+                        <Filter className="w-3.5 h-3.5 text-emerald-400" />
+                        <select
+                          value={selectedClassFilter}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setSelectedClassFilter(val);
+                            loadStudents(val);
+                          }}
+                          className="bg-transparent text-xs font-semibold text-zinc-200 focus:outline-none cursor-pointer"
+                          title="Filtrar por Turma"
+                        >
+                          <option value="todas" className="bg-zinc-900 text-white">Todas as Turmas</option>
+                          {SCHOOL_CLASSES_CONFIG.map((group) => (
+                            <optgroup key={group.grade} label={group.grade} className="bg-zinc-900 text-zinc-400">
+                              {group.classes.map((cls) => (
+                                <option key={cls} value={cls} className="bg-zinc-900 text-white font-medium">
+                                  {cls}
+                                </option>
+                              ))}
+                            </optgroup>
+                          ))}
+                          <option value="Professor" className="bg-zinc-900 text-amber-300">Professores / ADM</option>
+                        </select>
+                      </div>
+
+                      {/* Busca por Nome/Apelido/Email */}
+                      <div className="relative flex-1 min-w-[180px]">
+                        <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="text"
+                          placeholder="Buscar por nome, apelido ou e-mail..."
+                          value={searchTurma}
+                          onChange={(e) => setSearchTurma(e.target.value)}
+                          className="w-full bg-zinc-950 border border-zinc-800 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
+                        />
+                      </div>
+
+                      {/* Ordenação */}
+                      <div className="flex items-center gap-1.5 bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 py-1.5">
+                        <span className="text-[10px] font-mono text-zinc-500 uppercase">Ordem:</span>
+                        <select
+                          value={studentsSortBy}
+                          onChange={(e) => setStudentsSortBy(e.target.value as any)}
+                          className="bg-transparent text-xs font-semibold text-zinc-300 focus:outline-none cursor-pointer"
+                        >
+                          <option value="bytes" className="bg-zinc-900 text-white">Mais Bytes</option>
+                          <option value="level" className="bg-zinc-900 text-white">Maior Nível</option>
+                          <option value="wpm" className="bg-zinc-900 text-white">Maior PPM</option>
+                          <option value="sheet" className="bg-zinc-900 text-white">Mais SheetQuest</option>
+                          <option value="dash" className="bg-zinc-900 text-white">Mais TyperDash</option>
+                          <option value="nome" className="bg-zinc-900 text-white">Nome A-Z</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => loadStudents(selectedClassFilter)}
+                        disabled={isStudentsLoading}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-950/60 hover:bg-emerald-900/80 border border-emerald-600/40 rounded-lg text-emerald-200 text-xs font-bold transition disabled:opacity-50 cursor-pointer shadow-sm"
+                        title="Recarregar dados do banco"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 text-emerald-400 ${isStudentsLoading ? 'animate-spin' : ''}`} />
+                        <span>{isStudentsLoading ? 'Carregando...' : 'Atualizar'}</span>
+                      </button>
+
+                      <button
+                        onClick={handleExportCSV}
+                        disabled={isStudentsLoading || filteredStudents.length === 0}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-950/60 hover:bg-sky-900/80 border border-sky-600/40 rounded-lg text-sky-200 text-xs font-bold transition disabled:opacity-50 cursor-pointer shadow-sm"
+                        title="Baixar planilha CSV com o desempenho dos alunos filtrados"
+                      >
+                        <Download className="w-3.5 h-3.5 text-sky-300" />
+                        <span>Boletim CSV</span>
+                      </button>
+
+                      <button
+                        onClick={handleExportTurmasSummary}
+                        disabled={isStudentsLoading || students.length === 0}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-950/60 hover:bg-indigo-900/80 border border-indigo-600/40 rounded-lg text-indigo-200 text-xs font-bold transition disabled:opacity-50 cursor-pointer shadow-sm"
+                        title="Exportar dados consolidados agrupados por turma"
+                      >
+                        <BarChart className="w-3.5 h-3.5 text-indigo-300" />
+                        <span>Resumo Turmas</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Tabela de Alunos e Multi-Jogos */}
+                  <div className="overflow-x-auto rounded-xl border border-zinc-800 bg-zinc-900/50 shadow-inner">
+                    <table className="w-full text-left text-xs text-zinc-400">
+                      <thead className="bg-zinc-900/90 text-zinc-300 uppercase font-mono font-bold text-[11px] border-b border-zinc-800">
+                        <tr>
+                          <th className="px-3.5 py-3">Aluno</th>
+                          <th className="px-3 py-3">Turma</th>
+                          <th className="px-3 py-3">Classe</th>
+                          <th className="px-3 py-3 text-right">Nv. Geral</th>
+                          <th className="px-3 py-3 text-right">Bytes</th>
+                          <th className="px-3 py-3 text-right">PPM Médio</th>
+                          <th className="px-3 py-3 text-right">Precisão</th>
+                          <th className="px-3 py-3 text-center">SheetQuest</th>
+                          <th className="px-3 py-3 text-center">TyperDash</th>
+                          <th className="px-3 py-3 text-center">Radar</th>
+                          <th className="px-3 py-3 text-center">Ações</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-zinc-800/60 font-sans">
+                        {isStudentsLoading ? (
+                          <tr>
+                            <td colSpan={11} className="px-4 py-12 text-center text-zinc-500">
+                              <div className="flex items-center justify-center gap-2">
+                                <RefreshCw className="w-5 h-5 animate-spin text-emerald-400" />
+                                <span>Carregando métricas dos alunos no Supabase...</span>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : filteredStudents.length === 0 ? (
+                          <tr>
+                            <td colSpan={11} className="px-4 py-12 text-center text-zinc-500">
+                              Nenhum aluno encontrado para os critérios selecionados.
+                            </td>
+                          </tr>
+                        ) : (
+                          filteredStudents.map((s) => {
+                            const isLvl100 = (s.level || 1) >= 100;
+                            return (
+                              <tr key={s.userId} className="hover:bg-zinc-800/40 transition-colors">
+                                {/* Aluno */}
+                                <td className="px-3.5 py-2.5">
+                                  <div className="flex items-center gap-2.5">
+                                    <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                      <StudentAvatarRenderer
+                                        avatar={s.avatar || 'robot'}
+                                        size={28}
+                                      />
+                                    </div>
+                                    <div className="min-w-0">
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="font-bold text-white truncate max-w-[150px]">
+                                          {s.nome}
+                                        </span>
+                                        {isLvl100 && (
+                                          <span title="Alcançou o Nível 100!" className="text-amber-400 text-xs">👑</span>
+                                        )}
+                                        {s.flaggedForReview && (
+                                          <span
+                                            title={s.flagReason || 'Valores anormais detectados'}
+                                            className="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-400 text-[10px] font-bold border border-amber-500/40 cursor-help"
+                                          >
+                                            Revisar
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="text-[10px] text-zinc-500 font-mono truncate max-w-[160px]">
+                                        {s.apelido ? `"${s.apelido}" • ` : ''}{s.email || s.userId.slice(0, 8)}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </td>
+
+                                {/* Turma (com seletor rápido) */}
+                                <td className="px-3 py-2.5 font-mono">
+                                  <select
+                                    value={s.turma || ''}
+                                    disabled={updatingStudentId === s.userId}
+                                    onChange={(e) => handleUpdateStudentProfile(s.userId, { turma: e.target.value })}
+                                    className="bg-zinc-950 border border-zinc-800 hover:border-emerald-500/50 text-emerald-300 text-xs font-bold rounded px-1.5 py-0.5 focus:outline-none cursor-pointer disabled:opacity-50"
+                                    title="Clique para reatribuir a turma deste aluno"
+                                  >
+                                    <option value="">Sem Turma</option>
+                                    {SCHOOL_CLASSES_CONFIG.flatMap((g) => g.classes).map((c) => (
+                                      <option key={c} value={c} className="bg-zinc-900 text-white font-medium">
+                                        {c}
+                                      </option>
+                                    ))}
+                                    <option value="Professor" className="bg-zinc-900 text-amber-300">Professor</option>
+                                  </select>
+                                </td>
+
+                                {/* Classe RPG */}
+                                <td className="px-3 py-2.5">
+                                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono uppercase ${
+                                    s.rpgClass === 'mage'
+                                      ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40'
+                                      : s.rpgClass === 'archer'
+                                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                                      : 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                                  }`}>
+                                    {s.rpgClass || 'warrior'}
+                                  </span>
+                                </td>
+
+                                {/* Nível Geral */}
+                                <td className="px-3 py-2.5 text-right font-mono font-bold">
+                                  <span className={isLvl100 ? 'text-amber-400 font-black' : 'text-white'}>
+                                    Nv. {s.level || 1}
+                                  </span>
+                                </td>
+
+                                {/* Bytes */}
+                                <td className="px-3 py-2.5 text-right font-mono text-zinc-300">
+                                  {formatBytes(s.points || 0)}
+                                </td>
+
+                                {/* PPM */}
+                                <td className="px-3 py-2.5 text-right font-mono font-bold text-emerald-400">
+                                  {s.wpm || 0} <span className="text-[10px] text-zinc-500 font-normal">PPM</span>
+                                </td>
+
+                                {/* Precisão */}
+                                <td className="px-3 py-2.5 text-right font-mono text-cyan-300">
+                                  {s.accuracy !== undefined ? `${s.accuracy}%` : '-'}
+                                </td>
+
+                                {/* SheetQuest */}
+                                <td className="px-3 py-2.5 text-center font-mono">
+                                  {s.sheetQuestCompletedQuests ? (
+                                    <span className="text-emerald-400 font-bold bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-800/40">
+                                      {s.sheetQuestCompletedQuests}/48
+                                    </span>
+                                  ) : (
+                                    <span className="text-zinc-600">-</span>
+                                  )}
+                                </td>
+
+                                {/* TyperDash */}
+                                <td className="px-3 py-2.5 text-center font-mono">
+                                  {s.dashHighScore ? (
+                                    <span className="text-purple-300 font-bold">
+                                      {s.dashHighScore.toLocaleString()}
+                                    </span>
+                                  ) : (
+                                    <span className="text-zinc-600">-</span>
+                                  )}
+                                </td>
+
+                                {/* Radar */}
+                                <td className="px-3 py-2.5 text-center font-mono">
+                                  {s.radarBestWave ? (
+                                    <span className="text-cyan-300 font-bold">
+                                      Onda {s.radarBestWave}
+                                    </span>
+                                  ) : (
+                                    <span className="text-zinc-600">-</span>
+                                  )}
+                                </td>
+
+                                {/* Ações */}
+                                <td className="px-3 py-2.5 text-center">
+                                  <button
+                                    onClick={() => setSelectedStudentDetail(s)}
+                                    className="px-2 py-1 rounded bg-zinc-800 hover:bg-emerald-950/70 hover:text-emerald-300 hover:border-emerald-500/40 border border-zinc-700 text-zinc-300 font-bold text-[10px] transition cursor-pointer flex items-center gap-1 mx-auto"
+                                    title="Ver Raio-X completo do Aluno"
+                                  >
+                                    <Eye className="w-3 h-3" />
+                                    <span>Raio-X</span>
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              )}
+
+              {/* ABA: SANDBOX DE FASES & TESTE DE NÍVEIS IRRESTRITO */}
+              {activeTab === 'niveis' && (
+                <section className="space-y-6">
+                  {/* Cabeçalho do Sandbox com Toggle Global */}
+                  <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-amber-950/50 via-zinc-900 to-black border-2 border-amber-500/50 shadow-xl space-y-4">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                      <div className="flex items-center gap-3.5">
+                        <div className="w-11 h-11 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 text-xl shadow-inner flex-shrink-0">
+                          ⚡
+                        </div>
+                        <div>
+                          <h3 className="text-base font-black text-white flex items-center gap-2">
+                            Sandbox & Teste de Níveis Irrestrito
+                            <span className="px-2 py-0.5 rounded-full bg-red-500/20 border border-red-500/40 text-red-400 font-mono text-[10px] font-bold">
+                              MODO ADM
+                            </span>
+                          </h3>
+                          <p className="text-xs text-zinc-300 mt-0.5">
+                            Permite testar qualquer demanda do SheetQuest (1 a 48), simular qualquer nível do TypeClicker (1 a 100) e auditar mecânicas sem travas.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Master Switch ADM Bypass */}
+                      <button
+                        onClick={toggleAdminBypass}
+                        className={`px-4 py-2.5 rounded-xl border font-bold text-xs flex items-center gap-2.5 transition-all cursor-pointer shadow-lg ${
+                          adminBypassUnlocked
+                            ? 'bg-emerald-500 text-slate-950 border-emerald-400 shadow-emerald-500/25 ring-2 ring-emerald-400/50'
+                            : 'bg-zinc-800 text-zinc-300 border-zinc-700 hover:bg-zinc-700 hover:text-white'
+                        }`}
+                        title="Ativa ou desativa a liberação de todas as fases na plataforma"
+                      >
+                        <span className="text-base">{adminBypassUnlocked ? '🔓' : '🔒'}</span>
+                        <div className="text-left">
+                          <span className="block font-black text-xs">
+                            {adminBypassUnlocked ? 'MODO TESTE: ATIVADO' : 'MODO TESTE: DESATIVADO'}
+                          </span>
+                          <span className="block text-[10px] opacity-80 font-normal">
+                            {adminBypassUnlocked ? 'Fases 100% Desbloqueadas' : 'Clique para Liberar Fases'}
+                          </span>
+                        </div>
+                      </button>
+                    </div>
+
+                    {testActionMessage && (
+                      <div className="p-3 rounded-lg bg-emerald-950/70 border border-emerald-500/50 text-emerald-300 text-xs font-mono flex items-center gap-2.5 animate-fadeIn">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                        <span>{testActionMessage}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Seletor de Minijogo do Sandbox */}
+                  <div className="flex items-center gap-1.5 p-1 bg-zinc-900 rounded-xl border border-zinc-800 text-xs font-bold overflow-x-auto">
+                    <button
+                      onClick={() => setSandboxGame('sheetquest')}
+                      className={`px-3.5 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-2 ${
+                        sandboxGame === 'sheetquest'
+                          ? 'bg-emerald-500 text-slate-950 font-black shadow-md'
+                          : 'text-zinc-400 hover:text-white'
+                      }`}
+                    >
+                      <FileSpreadsheet className="w-4 h-4" />
+                      <span>SheetQuest (48 Demandas + 12 Auditorias)</span>
+                    </button>
+
+                    <button
+                      onClick={() => setSandboxGame('typeclicker')}
+                      className={`px-3.5 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-2 ${
+                        sandboxGame === 'typeclicker'
+                          ? 'bg-cyan-500 text-slate-950 font-black shadow-md'
+                          : 'text-zinc-400 hover:text-white'
+                      }`}
+                    >
+                      <Trophy className="w-4 h-4" />
+                      <span>TypeClicker (Níveis 1 a 100 & Chefões)</span>
+                    </button>
+
+                    <button
+                      onClick={() => setSandboxGame('scratchbot')}
+                      className={`px-3.5 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-2 ${
+                        sandboxGame === 'scratchbot'
+                          ? 'bg-blue-500 text-white font-black shadow-md'
+                          : 'text-zinc-400 hover:text-white'
+                      }`}
+                    >
+                      <Gamepad2 className="w-4 h-4" />
+                      <span>ScratchBot (16 Fases)</span>
+                    </button>
+                  </div>
+
+                  {/* ─── PAINEL SHEETQUEST NO SANDBOX ─── */}
+                  {sandboxGame === 'sheetquest' && (
+                    <div className="space-y-4">
+                      {/* Ações Globais do SheetQuest */}
+                      <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-xl bg-zinc-900/80 border border-zinc-800">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setSheetModeTab('campaign')}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                              sheetModeTab === 'campaign'
+                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/50'
+                                : 'text-zinc-400 hover:text-white'
+                            }`}
+                          >
+                            Campanha ({SHEET_CAMPAIGN_LEVELS.length} Fases)
+                          </button>
+                          <button
+                            onClick={() => setSheetModeTab('bug_hunter')}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                              sheetModeTab === 'bug_hunter'
+                                ? 'bg-rose-500/20 text-rose-300 border border-rose-500/50'
+                                : 'text-zinc-400 hover:text-white'
+                            }`}
+                          >
+                            Auditoria de Erros ({SHEET_BUG_HUNTER_LEVELS.length} Fases)
+                          </button>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={handleUnlockAllSheetQuest}
+                            className="px-3 py-1.5 rounded-lg bg-emerald-950/70 hover:bg-emerald-900/80 text-emerald-300 border border-emerald-600/50 text-xs font-bold transition cursor-pointer flex items-center gap-1.5 shadow-sm"
+                            title="Desbloqueia todas as 48 demandas e 12 auditorias com 3 estrelas localmente"
+                          >
+                            <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>Desbloquear 100% Demandas</span>
+                          </button>
+
+                          <button
+                            onClick={handleResetSheetQuest}
+                            className="px-3 py-1.5 rounded-lg bg-red-950/60 hover:bg-red-900/70 text-red-300 border border-red-500/40 text-xs font-bold transition cursor-pointer flex items-center gap-1.5"
+                            title="Reinicia o progresso local do SheetQuest"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5 text-red-400" />
+                            <span>Resetar Fases</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Grade de Níveis da Campanha */}
+                      {sheetModeTab === 'campaign' && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 max-h-[500px] overflow-y-auto pr-1 custom-scrollbar">
+                          {SHEET_CAMPAIGN_LEVELS.map((lvl) => (
+                            <div
+                              key={lvl.id}
+                              className="p-3 rounded-xl bg-zinc-900/90 border border-zinc-800 hover:border-emerald-500/50 transition flex flex-col justify-between gap-2.5"
+                            >
+                              <div>
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="font-mono text-xs font-black text-emerald-400 bg-emerald-950/60 border border-emerald-800/50 px-1.5 py-0.5 rounded">
+                                    TK-{String(lvl.id).padStart(2, '0')}
+                                  </span>
+                                  <span className="text-[10px] text-zinc-500 font-mono">
+                                    Mundo {lvl.world}
+                                  </span>
+                                </div>
+                                <h5 className="font-bold text-xs text-white truncate" title={lvl.title}>
+                                  {lvl.title}
+                                </h5>
+                                <p className="text-[10px] text-zinc-400 mt-1 line-clamp-2" title={lvl.briefing}>
+                                  {lvl.briefing}
+                                </p>
+                              </div>
+
+                              <div className="pt-2 border-t border-zinc-800/80 flex items-center justify-between gap-2">
+                                <span className="text-[10px] font-mono text-zinc-500 truncate">
+                                  Metas: {lvl.targets.map((t) => t.coord).join(', ')}
+                                </span>
+                                <button
+                                  onClick={() => {
+                                    onClose();
+                                    onLaunchGameLevel?.('sheetquest', lvl.id - 1);
+                                  }}
+                                  className="px-2.5 py-1 rounded bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-[11px] transition cursor-pointer flex items-center gap-1 shadow flex-shrink-0"
+                                  title="Iniciar o SheetQuest diretamente nesta fase"
+                                >
+                                  <Play className="w-3 h-3 fill-slate-950" />
+                                  <span>Testar</span>
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Grade de Níveis de Auditoria de Erros */}
+                      {sheetModeTab === 'bug_hunter' && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 max-h-[500px] overflow-y-auto pr-1 custom-scrollbar">
+                          {SHEET_BUG_HUNTER_LEVELS.map((lvl) => (
+                            <div
+                              key={lvl.id}
+                              className="p-3 rounded-xl bg-zinc-900/90 border border-zinc-800 hover:border-rose-500/50 transition flex flex-col justify-between gap-2.5"
+                            >
+                              <div>
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="font-mono text-xs font-black text-rose-400 bg-rose-950/60 border border-rose-800/50 px-1.5 py-0.5 rounded">
+                                    {lvl.errorCode}
+                                  </span>
+                                  <span className="text-[10px] text-zinc-500 font-mono">
+                                    Fase {lvl.id}
+                                  </span>
+                                </div>
+                                <h5 className="font-bold text-xs text-white truncate" title={lvl.title}>
+                                  {lvl.title}
+                                </h5>
+                                <p className="text-[10px] text-zinc-400 mt-1 line-clamp-2">
+                                  {lvl.briefing}
+                                </p>
+                              </div>
+
+                              <div className="pt-2 border-t border-zinc-800/80 flex items-center justify-end">
+                                <button
+                                  onClick={() => {
+                                    onClose();
+                                    onLaunchGameLevel?.('sheetquest', 0);
+                                  }}
+                                  className="px-2.5 py-1 rounded bg-rose-500 hover:bg-rose-400 text-slate-950 font-black text-[11px] transition cursor-pointer flex items-center gap-1 shadow"
+                                >
+                                  <Play className="w-3 h-3 fill-slate-950" />
+                                  <span>Testar Erro</span>
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ─── PAINEL TYPECLICKER NO SANDBOX ─── */}
+                  {sandboxGame === 'typeclicker' && (
+                    <div className="space-y-4">
+                      {/* Ajuste Direto de Nível 1 a 100 */}
+                      <div className="p-4 rounded-xl bg-zinc-900 border border-zinc-800 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5 font-mono">
+                            <Trophy className="w-4 h-4 text-cyan-400" />
+                            Simular Nível do Jogador (1 a 100):
+                          </h4>
+                          <span className="text-sm font-black text-cyan-400 font-mono">
+                            Nível {sandboxCustomLevel}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-4">
+                          <input
+                            type="range"
+                            min={1}
+                            max={100}
+                            value={sandboxCustomLevel}
+                            onChange={(e) => setSandboxCustomLevel(Number(e.target.value))}
+                            className="flex-1 accent-cyan-400 cursor-pointer"
+                          />
+                          <button
+                            onClick={() => handleApplyCustomLevel(sandboxCustomLevel)}
+                            className="px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs transition cursor-pointer shadow-md"
+                          >
+                            Definir Nível {sandboxCustomLevel}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Disparo Imediato de Desafios Boss (A cada 10 Níveis) */}
+                      {onTriggerChallenge && (
+                        <div className="p-4 rounded-xl bg-gradient-to-r from-red-950/40 via-zinc-900 to-black border border-red-500/30 space-y-3">
+                          <div>
+                            <div className="text-xs font-bold text-red-400 flex items-center gap-1.5 font-mono">
+                              <Terminal className="w-4 h-4" />
+                              <span>TESTE IMEDIATO DE DESAFIOS (BOSS FIGHTS A CADA 10 NÍVEIS)</span>
+                            </div>
+                            <p className="text-[11px] text-zinc-400 mt-1">
+                              Dispare o desafio na hora para testar o cronômetro, a mecânica de digitação sob pressão e as recompensas.
+                            </p>
+                          </div>
+
+                          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                            {[10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map((lvl) => (
+                              <button
+                                key={lvl}
+                                onClick={() => {
+                                  onClose();
+                                  onTriggerChallenge(lvl);
+                                }}
+                                className="p-2.5 rounded-lg bg-red-500/20 hover:bg-red-500 text-red-300 hover:text-white border border-red-500/40 text-xs font-mono font-bold transition cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
+                              >
+                                <Swords className="w-3.5 h-3.5" />
+                                <span>Chefe Nv. {lvl}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ─── PAINEL SCRATCHBOT NO SANDBOX ─── */}
+                  {sandboxGame === 'scratchbot' && (
+                    <div className="space-y-3">
+                      <h4 className="text-xs font-bold text-blue-400 uppercase tracking-wider flex items-center gap-1.5 font-mono">
+                        <Gamepad2 className="w-4 h-4" />
+                        Fases do ScratchBot: Logic Quest ({PEDAGOGICAL_LEVELS.length} Fases):
+                      </h4>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
+                        {PEDAGOGICAL_LEVELS.map((lvl) => (
+                          <button
+                            key={lvl.id}
+                            onClick={() => {
+                              onClose();
+                              onLaunchGameLevel?.('scratchbot', lvl.id - 1);
+                            }}
+                            className="p-3 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-blue-500/50 hover:bg-zinc-800 text-center transition cursor-pointer"
+                          >
+                            <span className="font-mono text-sm font-black text-blue-400 block">
+                              Fase {lvl.id}
+                            </span>
+                            <span className="text-[10px] text-zinc-400 truncate block mt-1">
+                              {lvl.title}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </section>
+              )}
+
               {/* ABA: GESTÃO DE TRIMESTRES & TEMPORADAS (SUPABASE / HALL DA FAMA) */}
               {activeTab === 'temporadas' && (
                 <section className="space-y-6">
@@ -2549,5 +3424,137 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         </motion.div>
       )}
     </AnimatePresence>
+      {/* ─── MODAL RAIO-X COMPLETO DO ALUNO ────────────────────────── */}
+      {selectedStudentDetail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-zinc-900 border border-emerald-500/40 rounded-2xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3 mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-xl bg-zinc-800 border border-zinc-700 flex items-center justify-center overflow-hidden flex-shrink-0">
+                  <StudentAvatarRenderer
+                    avatar={selectedStudentDetail.avatar || 'robot'}
+                    size={40}
+                  />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    {selectedStudentDetail.nome}
+                    {selectedStudentDetail.apelido && (
+                      <span className="text-xs text-emerald-400 font-normal">
+                        ({selectedStudentDetail.apelido})
+                      </span>
+                    )}
+                  </h3>
+                  <p className="text-xs text-zinc-400 font-mono">
+                    Turma: <strong className="text-emerald-300">{selectedStudentDetail.turma || 'Sem turma'}</strong> • Classe: <strong className="text-purple-300 uppercase">{selectedStudentDetail.rpgClass || 'Guerreiro'}</strong>
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setSelectedStudentDetail(null)}
+                className="p-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Corpo com Grid de Estatísticas por Jogo */}
+            <div className="overflow-y-auto pr-1 space-y-4 custom-scrollbar text-xs">
+              {/* TypeClicker */}
+              <div className="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800 space-y-2">
+                <div className="flex items-center justify-between text-emerald-400 font-bold font-mono">
+                  <span>⌨️ TYPECLICKER</span>
+                  <span>Nível {selectedStudentDetail.level || 1}</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+                  <div>
+                    <span className="text-zinc-500 block">Bytes Totais:</span>
+                    <strong className="text-white font-mono">{formatBytes(selectedStudentDetail.points || 0)}</strong>
+                  </div>
+                  <div>
+                    <span className="text-zinc-500 block">PPM Médio:</span>
+                    <strong className="text-emerald-400 font-mono">{selectedStudentDetail.wpm || 0} PPM</strong>
+                  </div>
+                  <div>
+                    <span className="text-zinc-500 block">Precisão:</span>
+                    <strong className="text-cyan-300 font-mono">{selectedStudentDetail.accuracy || 100}%</strong>
+                  </div>
+                  <div>
+                    <span className="text-zinc-500 block">Combo Máximo:</span>
+                    <strong className="text-amber-400 font-mono">{selectedStudentDetail.maxCombo || 0}</strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* SheetQuest */}
+              <div className="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800 space-y-2">
+                <div className="flex items-center justify-between text-emerald-400 font-bold font-mono">
+                  <span>📊 SHEETQUEST (PLANILHAS)</span>
+                  <span>{selectedStudentDetail.sheetQuestCompletedQuests || 0}/48 Concluídas</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-[11px]">
+                  <div>
+                    <span className="text-zinc-500 block">Demandas Resolvidas:</span>
+                    <strong className="text-white font-mono">{selectedStudentDetail.sheetQuestCompletedQuests || 0} de 48</strong>
+                  </div>
+                  <div>
+                    <span className="text-zinc-500 block">Pontuação Recorde:</span>
+                    <strong className="text-emerald-400 font-mono">{selectedStudentDetail.sheetQuestHighScore || 0}</strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* TyperDash & Radar */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800 space-y-1.5">
+                  <span className="font-bold font-mono text-purple-400 block">🏃 TYPERDASH</span>
+                  <div className="text-[11px] space-y-1">
+                    <div>Recorde: <strong className="text-white font-mono">{selectedStudentDetail.dashHighScore || 0}</strong></div>
+                    <div>Combo Máx: <strong className="text-purple-300 font-mono">{selectedStudentDetail.dashMaxCombo || 0}</strong></div>
+                  </div>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800 space-y-1.5">
+                  <span className="font-bold font-mono text-cyan-400 block">📡 TYPE: RADAR</span>
+                  <div className="text-[11px] space-y-1">
+                    <div>Melhor Onda: <strong className="text-white font-mono">{selectedStudentDetail.radarBestWave || 1}</strong></div>
+                    <div>Recorde: <strong className="text-cyan-300 font-mono">{selectedStudentDetail.radarHighScore || 0}</strong></div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Duelo PvP e Corridas */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800 space-y-1.5">
+                  <span className="font-bold font-mono text-rose-400 block">⚔️ ARENA PVP 1x1</span>
+                  <div className="text-[11px] space-y-1">
+                    <div>Vitórias: <strong className="text-white font-mono">{selectedStudentDetail.pvpWins || 0} / {selectedStudentDetail.pvpMatches || 0}</strong></div>
+                    <div>Pontos de Duelo: <strong className="text-rose-300 font-mono">{selectedStudentDetail.pvpPoints || 0}</strong></div>
+                  </div>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800 space-y-1.5">
+                  <span className="font-bold font-mono text-amber-400 block">🏁 CORRIDAS ESCOLARES</span>
+                  <div className="text-[11px] space-y-1">
+                    <div>Vitórias: <strong className="text-white font-mono">{selectedStudentDetail.raceWins || 0}</strong></div>
+                    <div>Melhor PPM em Corrida: <strong className="text-amber-300 font-mono">{selectedStudentDetail.bestRaceWpm || 0} PPM</strong></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-zinc-800 flex justify-end">
+              <button
+                onClick={() => setSelectedStudentDetail(null)}
+                className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-xs rounded-xl transition cursor-pointer"
+              >
+                Fechar Raio-X
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
