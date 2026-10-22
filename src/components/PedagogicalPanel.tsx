@@ -34,8 +34,7 @@ Rocket,
 Medal,
 School
 } from 'lucide-react';
-import { dbService } from '../services/dbFactory';
-import { LeaderboardEntry } from '../types/leaderboard';
+import { ConsolidatedMetricsHub } from './ConsolidatedMetricsHub';
 import {
 auth,
 generateSessionCode,
@@ -49,7 +48,6 @@ updateActiveSessionTrack,
 updateHubConfig,
 HubConfig
 } from '../services/firebaseService';
-import { exportToCsv, downloadCsv } from '../services/turmasAggregator';
 import { CurricularTrackId, CustomCurricularText } from '../types';
 import { CURRICULAR_TRACKS, getCurricularTrack, suggestTrackForTurma } from '../data/tracks';
 import { TrackIconRenderer } from './vectors';
@@ -78,6 +76,8 @@ export interface PedagogicalPanelProps {
   activeClass?: string;
   onOpenRaceArena?: () => void;
   onOpenRaidArena?: () => void;
+  hubConfig?: HubConfig | null;
+  onUpdateHubConfig?: (config: HubConfig) => Promise<void> | void;
 }
 
 export const PedagogicalPanel: React.FC<PedagogicalPanelProps> = ({
@@ -86,7 +86,9 @@ export const PedagogicalPanel: React.FC<PedagogicalPanelProps> = ({
   userEmail,
   activeClass,
   onOpenRaceArena,
-  onOpenRaidArena
+  onOpenRaidArena,
+  hubConfig: propHubConfig,
+  onUpdateHubConfig: propOnUpdateHubConfig
 }) => {
   const [activeTab, setActiveTab] = useState<'locks' | 'dashboard' | 'corrida' | 'raid' | 'textos'>('locks');
 
@@ -128,19 +130,12 @@ export const PedagogicalPanel: React.FC<PedagogicalPanelProps> = ({
   const [selectedPreviewText, setSelectedPreviewText] = useState<CustomCurricularText | null>(null);
   const [textFilterDiscipline, setTextFilterDiscipline] = useState<string>('todas');
 
-  // Estados do Dashboard de Alunos
-  const [students, setStudents] = useState<LeaderboardEntry[]>([]);
-  const [isStudentsLoading, setIsStudentsLoading] = useState(false);
-  const [searchTurma, setSearchTurma] = useState('');
-  const [selectedClassFilter, setSelectedClassFilter] = useState<string>(activeClass || 'todas');
-  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
+  // Estados para Código de Sessão e Trilha
   const [targetTurmaForCode, setTargetTurmaForCode] = useState<string>(activeClass || '');
   const [selectedTrackForCode, setSelectedTrackForCode] = useState<CurricularTrackId>(
     activeClass ? suggestTrackForTurma(activeClass) : 'geral'
   );
   const [isChangingLiveTrack, setIsChangingLiveTrack] = useState<boolean>(false);
-  const [updatingStudentId, setUpdatingStudentId] = useState<string | null>(null);
-  const [isAutoBalancing, setIsAutoBalancing] = useState<boolean>(false);
 
   // Hub de Jogos
   const [hubConfig, setHubConfig] = useState<HubConfig>(
@@ -162,19 +157,6 @@ export const PedagogicalPanel: React.FC<PedagogicalPanelProps> = ({
     }
   };
 
-  const loadStudents = async (turmaToFetch = selectedClassFilter) => {
-    setIsStudentsLoading(true);
-    try {
-      const targetTurma = turmaToFetch === 'todas' ? undefined : turmaToFetch;
-      const data = await dbService.getAdminDashboardData(targetTurma);
-      setStudents(data);
-      setLastRefreshedAt(new Date());
-    } catch (e) {
-      console.error('Error loading students:', e);
-    } finally {
-      setIsStudentsLoading(false);
-    }
-  };
 
   // Atalho ESC
   useEffect(() => {
@@ -192,11 +174,8 @@ export const PedagogicalPanel: React.FC<PedagogicalPanelProps> = ({
   useEffect(() => {
     if (isOpen) {
       loadSettings();
-      if (activeTab === 'dashboard') {
-        loadStudents(selectedClassFilter);
-      }
     }
-  }, [isOpen, activeTab, selectedClassFilter]);
+  }, [isOpen]);
 
   // Inscrição em tempo real na corrida e na raid
   useEffect(() => {
@@ -212,19 +191,6 @@ export const PedagogicalPanel: React.FC<PedagogicalPanelProps> = ({
     };
   }, []);
 
-  // Polling controlado para o dashboard pedagógico (60s)
-  useEffect(() => {
-    if (!isOpen || activeTab !== 'dashboard') return;
-
-    const pollInterval = setInterval(() => {
-      if (typeof document !== 'undefined' && (document.hidden || !document.hasFocus())) {
-        return;
-      }
-      loadStudents(selectedClassFilter);
-    }, 60000);
-
-    return () => clearInterval(pollInterval);
-  }, [isOpen, activeTab, selectedClassFilter]);
 
   const handleToggleGame = async (gameId: string) => {
     const current = Array.isArray(hubConfig.disabledGames) ? hubConfig.disabledGames : [];
@@ -415,136 +381,6 @@ export const PedagogicalPanel: React.FC<PedagogicalPanelProps> = ({
     }
   };
 
-  // Handlers de Exportação
-  const handleExportCSV = () => {
-    const listToExport = filteredStudents.length > 0 ? filteredStudents : students;
-    if (!listToExport || listToExport.length === 0) {
-      alert('Nenhum dado de aluno disponível para exportação no momento.');
-      return;
-    }
-
-    const headers = [
-      'Nome',
-      'Apelido',
-      'Turma',
-      'Nivel',
-      'Total Bytes',
-      'PPM Atual',
-      'Melhor PPM',
-      'Precisao (%)',
-      'Vitorias Corridas',
-      'Participacoes Corridas',
-      'Vitorias PvP',
-      'Pontos PvP',
-      'Maior Combo',
-      'Alerta Anti-Cheat',
-      'Motivo Alerta',
-      'Ultima Atividade'
-    ];
-
-    const rows = listToExport.map((s) => {
-      const escape = (val: any) => `"${String(val ?? '').replace(/"/g, '""')}"`;
-      return [
-        escape(s.nome),
-        escape(s.apelido || ''),
-        escape(s.turma || ''),
-        s.level ?? 1,
-        s.points ?? 0,
-        s.wpm ?? 0,
-        s.bestWpm || s.wpm || 0,
-        s.accuracy ?? 100,
-        s.raceWins ?? 0,
-        s.racesParticipated ?? 0,
-        s.pvpWins ?? 0,
-        s.pvpPoints ?? 0,
-        s.maxCombo ?? 0,
-        s.flaggedForReview ? 'SIM' : 'NAO',
-        escape(s.flagReason || ''),
-        escape(s.updatedAt ? new Date(s.updatedAt).toLocaleString('pt-BR') : '')
-      ].join(';');
-    });
-
-    const csvContent = '\uFEFF' + [headers.join(';'), ...rows].join('\r\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    const turmaSuffix = selectedClassFilter === 'todas' ? 'todas_turmas' : selectedClassFilter.replace(/[^a-zA-Z0-9]/g, '_');
-    const dateSuffix = new Date().toISOString().slice(0, 10);
-    link.setAttribute('download', `boletim_typeclicker_${turmaSuffix}_${dateSuffix}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    sound.playWordComplete();
-  };
-
-  const handleExportPedagogicalCSV = (mode: 'pedagogical' | 'turmas' = 'pedagogical') => {
-    const list = filteredStudents.length > 0 ? filteredStudents : students;
-    if (!list || list.length === 0) {
-      alert('Nenhum dado de aluno disponível para exportação.');
-      return;
-    }
-    const csv = exportToCsv(list, mode, selectedClassFilter);
-    const turmaSuffix = selectedClassFilter === 'todas' ? 'todas_turmas' : selectedClassFilter.replace(/[^a-zA-Z0-9]/g, '_');
-    const dateSuffix = new Date().toISOString().slice(0, 10);
-    const label = mode === 'turmas' ? 'resumo_turmas' : 'pedagogico_multigame';
-    downloadCsv(csv, `typeclicker_${label}_${turmaSuffix}_${dateSuffix}.csv`);
-    sound.playWordComplete();
-  };
-
-  // Gerenciamento de Alunos & Classes
-  const handleUpdateStudentProfile = async (
-    studentUserId: string,
-    updates: { turma?: string; rpgClass?: RpgClassType }
-  ) => {
-    setUpdatingStudentId(studentUserId);
-    try {
-      await dbService.adminUpdateStudentProfile(studentUserId, updates);
-      setStudents((prev) =>
-        prev.map((s) => {
-          if (s.userId === studentUserId) {
-            return {
-              ...s,
-              ...(updates.turma !== undefined ? { turma: updates.turma } : {}),
-              ...(updates.rpgClass !== undefined ? { rpgClass: updates.rpgClass } : {})
-            };
-          }
-          return s;
-        })
-      );
-      sound.playUpgrade();
-    } catch (e: any) {
-      alert(`Erro ao atualizar aluno: ${e.message || e}`);
-    } finally {
-      setUpdatingStudentId(null);
-    }
-  };
-
-  const handleAutoBalanceRpg = async () => {
-    if (!selectedClassFilter || selectedClassFilter === 'todas') {
-      alert('Selecione uma turma específica no filtro para balancear as classes.');
-      return;
-    }
-    const confirmed = window.confirm(
-      `Deseja distribuir automaticamente as classes RPG para os alunos da turma ${selectedClassFilter}? (1/3 Guerreiro, 1/3 Arqueiro, 1/3 Mago)`
-    );
-    if (!confirmed) return;
-    setIsAutoBalancing(true);
-    try {
-      const res = await dbService.adminAutoBalanceRpgClasses(selectedClassFilter);
-      await loadStudents(selectedClassFilter);
-      sound.playPrestige();
-      alert(
-        `Balanceamento concluído para ${res.updatedCount} alunos da turma ${selectedClassFilter}!\nGuerreiros: ${res.distribution.warrior} | Arqueiros: ${res.distribution.archer} | Magos: ${res.distribution.mage}`
-      );
-    } catch (err: any) {
-      alert(`Erro ao balancear classes: ${err.message || err}`);
-    } finally {
-      setIsAutoBalancing(false);
-    }
-  };
-
   // Biblioteca de Textos Curriculares
   const handleSaveCustomText = async () => {
     if (!newTextTitle.trim()) {
@@ -602,16 +438,6 @@ export const PedagogicalPanel: React.FC<PedagogicalPanelProps> = ({
   };
 
   const isActive = settings?.activeCode && settings?.expiresAt && new Date(settings.expiresAt) > new Date();
-
-  const filteredStudents = students.filter((s) => {
-    if (!searchTurma.trim()) return true;
-    const term = searchTurma.toLowerCase().trim();
-    return (
-      (s.nome || '').toLowerCase().includes(term) ||
-      (s.apelido || '').toLowerCase().includes(term) ||
-      (s.turma || '').toLowerCase().includes(term)
-    );
-  });
 
   return (
     <AnimatePresence>
@@ -1066,247 +892,35 @@ export const PedagogicalPanel: React.FC<PedagogicalPanelProps> = ({
                         );
                       })}
                     </div>
+                    <div className="pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('dashboard')}
+                        className="w-full py-2 px-3 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-200 text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+                      >
+                        <BarChart className="w-4 h-4 text-emerald-400" />
+                        <span>Abrir Gestor Completo do Hub (13 Jogos e Ordem de Exibição)</span>
+                      </button>
+                    </div>
                   </section>
                 </>
               )}
 
-              {/* ABA 2: DASHBOARD & DESEMPENHO DOS ALUNOS */}
+              {/* ABA 2: DASHBOARD CONSOLIDADO & MÉTRICAS DE ALUNOS */}
               {activeTab === 'dashboard' && (
-                <section className="space-y-4">
-                  <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 border-b border-zinc-800 pb-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                      <div className="flex items-center gap-2 text-zinc-300 font-bold">
-                        <Users className="w-5 h-5 text-emerald-400" />
-                        <h3>Desempenho dos Alunos</h3>
-                      </div>
-                      {lastRefreshedAt && (
-                        <span className="text-[11px] font-mono text-zinc-400 bg-zinc-900 px-2 py-0.5 rounded border border-zinc-800 flex items-center gap-1">
-                          <Clock className="w-3 h-3 text-emerald-400" />
-                          Atualizado às {lastRefreshedAt.toLocaleTimeString('pt-BR')}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
-                      {/* Seletor de Turma */}
-                      <div className="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5">
-                        <Filter className="w-3.5 h-3.5 text-emerald-400" />
-                        <select
-                          value={selectedClassFilter}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setSelectedClassFilter(val);
-                            loadStudents(val);
-                          }}
-                          className="bg-transparent text-xs font-semibold text-zinc-200 focus:outline-none cursor-pointer"
-                          title="Filtrar por Turma"
-                        >
-                          <option value="todas" className="bg-zinc-900 text-white">Todas as Turmas</option>
-                          {SCHOOL_CLASSES_CONFIG.map((group) => (
-                            <optgroup key={group.grade} label={group.grade} className="bg-zinc-900 text-zinc-400">
-                              {group.classes.map((cls) => (
-                                <option key={cls} value={cls} className="bg-zinc-900 text-white font-medium">
-                                  {cls}
-                                </option>
-                              ))}
-                            </optgroup>
-                          ))}
-                        </select>
-                      </div>
-
-                      {/* Busca por Nome/Apelido */}
-                      <div className="relative flex-1 sm:w-48">
-                        <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
-                        <input
-                          type="text"
-                          placeholder="Buscar aluno..."
-                          value={searchTurma}
-                          onChange={(e) => setSearchTurma(e.target.value)}
-                          className="w-full bg-zinc-900 border border-zinc-800 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
-                        />
-                      </div>
-
-                      {/* Atualizar */}
-                      <button
-                        onClick={() => loadStudents(selectedClassFilter)}
-                        disabled={isStudentsLoading}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-950/60 hover:bg-emerald-900/80 border border-emerald-600/40 rounded-lg text-emerald-200 text-xs font-bold transition disabled:opacity-50 shadow-sm cursor-pointer"
-                        title="Atualizar Dados da Turma"
-                      >
-                        <RefreshCw className={`w-3.5 h-3.5 text-emerald-300 ${isStudentsLoading ? 'animate-spin' : ''}`} />
-                        <span>{isStudentsLoading ? 'Atualizando...' : 'Atualizar'}</span>
-                      </button>
-
-                      {/* Exportar Boletim CSV */}
-                      <button
-                        onClick={handleExportCSV}
-                        disabled={isStudentsLoading || students.length === 0}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-950/60 hover:bg-emerald-900/80 border border-emerald-600/40 rounded-lg text-emerald-200 text-xs font-bold transition disabled:opacity-50 shadow-sm cursor-pointer"
-                        title="Exportar Boletim Escolar em planilha CSV"
-                      >
-                        <Download className="w-3.5 h-3.5 text-emerald-300" />
-                        <span>Boletim CSV</span>
-                      </button>
-
-                      {/* Exportação Pedagógica Multi-Jogo */}
-                      <button
-                        onClick={() => handleExportPedagogicalCSV('pedagogical')}
-                        disabled={isStudentsLoading || students.length === 0}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-950/60 hover:bg-sky-900/80 border border-sky-600/40 rounded-lg text-sky-200 text-xs font-bold transition disabled:opacity-50 shadow-sm cursor-pointer"
-                        title="Exportar dados pedagógicos consolidados de todos os jogos"
-                      >
-                        <Download className="w-3.5 h-3.5 text-sky-300" />
-                        <span>CSV Pedagógico Multi-Jogo</span>
-                      </button>
-
-                      <button
-                        onClick={() => handleExportPedagogicalCSV('turmas')}
-                        disabled={isStudentsLoading || students.length === 0}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-950/60 hover:bg-indigo-900/80 border border-indigo-600/40 rounded-lg text-indigo-200 text-xs font-bold transition disabled:opacity-50 shadow-sm cursor-pointer"
-                        title="Exportar resumo agregado por turma"
-                      >
-                        <BarChart className="w-3.5 h-3.5 text-indigo-300" />
-                        <span>Resumo por Turma</span>
-                      </button>
-
-                      {/* Equilibrar Classes RPG */}
-                      {selectedClassFilter && selectedClassFilter !== 'todas' && (
-                        <button
-                          onClick={handleAutoBalanceRpg}
-                          disabled={isAutoBalancing || isStudentsLoading || students.length === 0}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-950/60 hover:bg-amber-900/80 border border-amber-600/40 rounded-lg text-amber-200 text-xs font-bold transition disabled:opacity-50 shadow-sm cursor-pointer"
-                          title="Distribuir 1/3 Guerreiro, 1/3 Arqueiro e 1/3 Mago para esta turma"
-                        >
-                          <Swords className={`w-3.5 h-3.5 text-amber-300 ${isAutoBalancing ? 'animate-spin' : ''}`} />
-                          <span>{isAutoBalancing ? 'Equilibrando...' : `Equilibrar RPG (${selectedClassFilter})`}</span>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="overflow-x-auto rounded-xl border border-zinc-800 bg-zinc-900/50">
-                    <table className="w-full text-left text-sm text-zinc-400">
-                      <thead className="bg-zinc-900 text-zinc-300 uppercase font-bold text-xs">
-                        <tr>
-                          <th className="px-4 py-3 border-b border-zinc-800 rounded-tl-xl">Aluno</th>
-                          <th className="px-3 py-3 border-b border-zinc-800">Turma</th>
-                          <th className="px-3 py-3 border-b border-zinc-800">Classe RPG</th>
-                          <th className="px-4 py-3 border-b border-zinc-800 text-right">Nível</th>
-                          <th className="px-4 py-3 border-b border-zinc-800 text-right">Bytes</th>
-                          <th className="px-4 py-3 border-b border-zinc-800 text-right">PPM</th>
-                          <th className="px-4 py-3 border-b border-zinc-800 text-right">Precisão</th>
-                          <th className="px-4 py-3 border-b border-zinc-800 text-center rounded-tr-xl">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {isStudentsLoading ? (
-                          <tr>
-                            <td colSpan={8} className="px-4 py-8 text-center text-zinc-500">
-                              <div className="flex items-center justify-center gap-2">
-                                <RefreshCw className="w-5 h-5 animate-spin text-emerald-400" />
-                                Carregando dados da turma...
-                              </div>
-                            </td>
-                          </tr>
-                        ) : filteredStudents.length === 0 ? (
-                          <tr>
-                            <td colSpan={8} className="px-4 py-8 text-center text-zinc-500">
-                              Nenhum aluno encontrado para este filtro.
-                            </td>
-                          </tr>
-                        ) : (
-                          filteredStudents.map((s, idx) => (
-                            <tr
-                              key={s.userId}
-                              className={`hover:bg-zinc-800/50 transition-colors ${
-                                idx !== filteredStudents.length - 1 ? 'border-b border-zinc-800/50' : ''
-                              }`}
-                            >
-                              <td className="px-4 py-3 font-medium text-white flex items-center gap-2">
-                                <span className="text-xl leading-none">{s.nome.split(' ')[0] || 'Aluno'}</span>
-                                <div className="flex flex-col">
-                                  <div className="flex items-center gap-1.5">
-                                    <span>{s.apelido || s.nome}</span>
-                                    {s.flaggedForReview && (
-                                      <span
-                                        title={s.flagReason || 'Valores anormais detectados.'}
-                                        className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/40 cursor-help"
-                                      >
-                                        <AlertTriangle className="w-3 h-3" />
-                                        Revisar
-                                      </span>
-                                    )}
-                                  </div>
-                                  <span className="text-xs text-zinc-600 font-mono">{s.userId.slice(0, 8)}</span>
-                                </div>
-                              </td>
-
-                              {/* Turma editável */}
-                              <td className="px-3 py-2.5 font-mono">
-                                <select
-                                  value={s.turma || ''}
-                                  disabled={updatingStudentId === s.userId}
-                                  onChange={(e) => handleUpdateStudentProfile(s.userId, { turma: e.target.value })}
-                                  className="bg-zinc-950/90 border border-emerald-500/40 text-emerald-300 text-xs font-bold font-mono rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-emerald-400 cursor-pointer disabled:opacity-50"
-                                  title="Alterar Turma do Aluno"
-                                >
-                                  <option value="">Sem Turma</option>
-                                  {SCHOOL_CLASSES_CONFIG.map((group) => (
-                                    <optgroup key={group.grade} label={group.grade}>
-                                      {group.classes.map((cls) => (
-                                        <option key={cls} value={cls}>
-                                          {cls}
-                                        </option>
-                                      ))}
-                                    </optgroup>
-                                  ))}
-                                </select>
-                              </td>
-
-                              {/* Classe RPG editável */}
-                              <td className="px-3 py-2.5 font-mono">
-                                <select
-                                  value={s.rpgClass || ''}
-                                  disabled={updatingStudentId === s.userId}
-                                  onChange={(e) =>
-                                    handleUpdateStudentProfile(s.userId, {
-                                      rpgClass: (e.target.value as RpgClassType) || undefined
-                                    })
-                                  }
-                                  className="bg-zinc-950/90 border border-amber-500/40 text-amber-300 text-xs font-bold font-mono rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-amber-400 cursor-pointer disabled:opacity-50"
-                                  title="Alterar Classe RPG do Aluno"
-                                >
-                                  <option value="">Sem Classe</option>
-                                  <option value="warrior">Guerreiro</option>
-                                  <option value="archer">Arqueiro</option>
-                                  <option value="mage">Mago</option>
-                                </select>
-                              </td>
-
-                              <td className="px-4 py-3 text-right font-bold text-emerald-400">{s.level}</td>
-                              <td className="px-4 py-3 text-right font-mono text-zinc-300">{formatBytes(s.points)}</td>
-                              <td className={`px-4 py-3 text-right font-mono font-bold ${s.wpm > 200 ? 'text-amber-400' : ''}`}>
-                                {s.wpm}
-                              </td>
-                              <td className="px-4 py-3 text-right font-mono">{s.accuracy}%</td>
-                              <td className="px-4 py-3 text-center">
-                                {s.flaggedForReview ? (
-                                  <span className="inline-block px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-red-500/20 text-red-400 border border-red-500/30">
-                                    Suspeito
-                                  </span>
-                                ) : (
-                                  <span className="inline-block px-2 py-0.5 rounded text-[11px] font-mono font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                                    Normal
-                                  </span>
-                                )}
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </section>
+                <ConsolidatedMetricsHub
+                  userEmail={userEmail}
+                  isAdmin={true}
+                  activeTurmaFilter={activeClass}
+                  hubConfig={propHubConfig || hubConfig}
+                  onUpdateHubConfig={async (cfg) => {
+                    setHubConfig(cfg);
+                    if (propOnUpdateHubConfig) {
+                      await propOnUpdateHubConfig(cfg);
+                    }
+                    await updateHubConfig(cfg);
+                  }}
+                />
               )}
 
               {/* ABA 3: CORRIDA DA TURMA */}

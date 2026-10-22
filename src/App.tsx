@@ -75,6 +75,7 @@ import { AchievementDef, AchievementContext } from './types/achievements';
 import { RpgFloorData, QuestEvent } from './types/quests';
 import { calculatePlayerRank, formatBytes } from './utils/formatting';
 import { auth, loginWithGoogle, logoutUser, subscribeToAuthChanges, checkIsAdminAsync, checkIsSuperAdmin, getSystemSettings, subscribeToSystemSettings } from './services/firebaseService';
+import { HubConfig } from './services/systemSettingsService';
 import { claimPendingTestGrantsSupabase } from './services/supabaseTestService';
 import { ADMIN_EMAILS } from './utils/leaderboardUtils';
 import { dbService } from './services/dbFactory';
@@ -471,15 +472,33 @@ export default function App() {
     });
   }, [spawnFloatingText]);
 
-  // Monitora a sessão globalmente em tempo real
+  // Monitora a sessão e as configurações do sistema globalmente em tempo real
   useEffect(() => {
-    if (isAdmin) {
-      setIsAppLocked(false);
-      return;
+    // 1. Carga inicial síncrona do cache do Hub para evitar flash
+    try {
+      const localHubConfigStr = localStorage.getItem('typeclicker_hub_config');
+      if (localHubConfigStr) {
+        const localHub = JSON.parse(localHubConfigStr);
+        setSystemSettingsState((prev: any) => ({ ...(prev || {}), hubConfig: localHub }));
+      }
+    } catch (e) {
+      // ignore
     }
 
+    if (isAdmin) {
+      setIsAppLocked(false);
+    }
+
+    // 2. Assina as configurações do sistema no Supabase (tanto para admin quanto para alunos)
     const unsubSettings = subscribeToSystemSettings((settings) => {
       setSystemSettingsState(settings);
+
+      // Se for admin, o aplicativo nunca fica travado por código de aula
+      if (isAdmin) {
+        setIsAppLocked(false);
+        return;
+      }
+
       const active = settings?.activeCode && settings?.expiresAt && new Date(settings.expiresAt) > new Date();
       
       if (active) {
@@ -504,7 +523,22 @@ export default function App() {
       }
     });
 
-    return () => unsubSettings();
+    // 3. Listener para atualizações locais disparadas por painéis abertos nesta mesma aba
+    const handleLocalHubUpdate = (e: any) => {
+      const newHubConfig = e.detail;
+      if (newHubConfig) {
+        setSystemSettingsState((prev: any) => ({
+          ...(prev || {}),
+          hubConfig: newHubConfig
+        }));
+      }
+    };
+    window.addEventListener('hub_config_updated', handleLocalHubUpdate);
+
+    return () => {
+      unsubSettings();
+      window.removeEventListener('hub_config_updated', handleLocalHubUpdate);
+    };
   }, [isAdmin]);
 
   const stateRef = useRef(state);
@@ -2760,6 +2794,13 @@ export default function App() {
             onClose={() => setIsPedagogicalOpen(false)}
             userEmail={user?.email}
             activeClass={state.studentClass || systemSettingsState?.activeTurma}
+            hubConfig={systemSettingsState?.hubConfig ?? null}
+            onUpdateHubConfig={(config) => {
+              setSystemSettingsState((prev: any) => ({
+                ...(prev || {}),
+                hubConfig: config
+              }));
+            }}
             onOpenRaceArena={() => {
               modalSourceRef.current = 'hub';
               setSelectedGame('typeclicker');
@@ -2782,6 +2823,13 @@ export default function App() {
             gameState={state}
             onUpdateGameState={handleAdminUpdateGameState}
             userEmail={user?.email}
+            hubConfig={systemSettingsState?.hubConfig ?? null}
+            onUpdateHubConfig={(config) => {
+              setSystemSettingsState((prev: any) => ({
+                ...(prev || {}),
+                hubConfig: config
+              }));
+            }}
             onOpenArena={() => {
               modalSourceRef.current = 'hub';
               setSelectedGame('typeclicker');
@@ -3403,6 +3451,13 @@ export default function App() {
           onClose={() => setIsPedagogicalOpen(false)}
           userEmail={user?.email}
           activeClass={state.studentClass || systemSettingsState?.activeTurma}
+          hubConfig={systemSettingsState?.hubConfig ?? null}
+          onUpdateHubConfig={(config) => {
+            setSystemSettingsState((prev: any) => ({
+              ...(prev || {}),
+              hubConfig: config
+            }));
+          }}
           onOpenRaceArena={() => {
             modalSourceRef.current = 'typeclicker';
             setIsRaceArenaOpen(true);
@@ -3423,6 +3478,13 @@ export default function App() {
           gameState={state}
           onUpdateGameState={handleAdminUpdateGameState}
           userEmail={user?.email}
+          hubConfig={systemSettingsState?.hubConfig ?? null}
+          onUpdateHubConfig={(config) => {
+            setSystemSettingsState((prev: any) => ({
+              ...(prev || {}),
+              hubConfig: config
+            }));
+          }}
           onOpenArena={handleOpenArena}
           onOpenCosmetics={() => setIsCosmeticsOpen(true)}
           onTriggerChallenge={(lvl) => setActiveChallengeLevel(lvl || 10)}

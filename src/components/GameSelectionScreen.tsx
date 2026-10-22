@@ -1,4 +1,4 @@
-import React,{ useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'motion/react';
 import {
 Play,
@@ -27,7 +27,10 @@ Gauge,
 Skull,
 Puzzle,
 X,
-Coins
+Coins,
+Sliders,
+Eye,
+Star
 } from 'lucide-react';
 import { GameState, CurricularTrackId } from '../types';
 import { RPG_CLASSES } from '../types/rpgClass';
@@ -95,13 +98,54 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
   const studentClass = state.studentClass || activeTurma || 'Sem turma';
   const currentRpgClass = state.rpgClass ? RPG_CLASSES[state.rpgClass] : null;
 
+  // Modo de simulação para docentes visualizarem o Hub exatamente como os alunos vêem
+  const [simulateStudentView, setSimulateStudentView] = useState<boolean>(false);
+
+  // Escuta local síncrona para atualizações de HubConfig disparadas nesta mesma janela
+  const [localHubConfigOverride, setLocalHubConfigOverride] = useState<HubConfig | null>(null);
+
+  useEffect(() => {
+    const handleHubUpdate = (e: any) => {
+      const updated = e.detail as HubConfig;
+      if (updated) {
+        setLocalHubConfigOverride(updated);
+      }
+    };
+    window.addEventListener('hub_config_updated', handleHubUpdate);
+    return () => window.removeEventListener('hub_config_updated', handleHubUpdate);
+  }, []);
+
+  const effectiveHubConfig = useMemo<HubConfig | null>(() => {
+    if (localHubConfigOverride) return localHubConfigOverride;
+    if (hubConfig && (Array.isArray(hubConfig.gameOrder) || Array.isArray(hubConfig.disabledGames))) {
+      return hubConfig;
+    }
+    if (typeof window !== 'undefined') {
+      try {
+        const localStr = localStorage.getItem('typeclicker_hub_config');
+        if (localStr) return JSON.parse(localStr);
+      } catch (e) {
+        // ignore
+      }
+    }
+    return hubConfig || null;
+  }, [hubConfig, localHubConfigOverride]);
+
   /**
-   * Determina se um jogo deve ser ocultado para alunos não-admin.
-   * Admins/professores sempre vêem todos os jogos.
+   * Determina se um jogo está configurado globalmente para ser oculto para os alunos.
+   */
+  const isGameGloballyDisabled = (gameId: string): boolean => {
+    return Array.isArray(effectiveHubConfig?.disabledGames) && effectiveHubConfig!.disabledGames.includes(gameId);
+  };
+
+  /**
+   * Determina se a execução de um jogo deve ser bloqueada.
    */
   const isGameDisabled = (gameId: string): boolean => {
-    if (isAdmin) return false; // professor vê tudo
-    return Array.isArray(hubConfig?.disabledGames) && hubConfig!.disabledGames.includes(gameId);
+    if (!isAdmin || simulateStudentView) {
+      return isGameGloballyDisabled(gameId);
+    }
+    return false; // Docente sempre pode testar o jogo
   };
 
   const isRaceActive = Boolean(
@@ -173,22 +217,43 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
         if (!matchTitle && !matchDesc && !matchAuthor && !matchTags) return false;
       }
 
-      // 5. Visibilidade do docente
-      if (isGameDisabled(game.id)) return false;
+      // 5. Visibilidade do aluno (quando for aluno real OU quando docente estiver simulando visão do aluno)
+      if ((!isAdmin || simulateStudentView) && isGameGloballyDisabled(game.id)) {
+        return false;
+      }
 
       return true;
+    }).sort((a, b) => {
+      // 6. Destaque prioritário do jogo fixado (featuredGame)
+      if (effectiveHubConfig?.featuredGame) {
+        if (a.id === effectiveHubConfig.featuredGame && b.id !== effectiveHubConfig.featuredGame) return -1;
+        if (b.id === effectiveHubConfig.featuredGame && a.id !== effectiveHubConfig.featuredGame) return 1;
+      }
+
+      // 7. Ordenação personalizada configurada pelo docente/admin
+      if (Array.isArray(effectiveHubConfig?.gameOrder) && effectiveHubConfig.gameOrder.length > 0) {
+        const orderA = effectiveHubConfig.gameOrder.indexOf(a.id);
+        const orderB = effectiveHubConfig.gameOrder.indexOf(b.id);
+        const indexA = orderA !== -1 ? orderA : 999;
+        const indexB = orderB !== -1 ? orderB : 999;
+        if (indexA !== indexB) return indexA - indexB;
+      }
+      return 0;
     });
-  }, [catalog, activeCategory, selectedSubject, selectedGenre, searchQuery, hubConfig, isAdmin]);
+  }, [catalog, activeCategory, selectedSubject, selectedGenre, searchQuery, effectiveHubConfig, isAdmin, simulateStudentView]);
 
   const categoryCounts = useMemo(() => {
-    const visibleCatalog = catalog.filter(g => !isGameDisabled(g.id));
+    const visibleCatalog = catalog.filter(g => {
+      if ((!isAdmin || simulateStudentView) && isGameGloballyDisabled(g.id)) return false;
+      return true;
+    });
     return {
       Todos: visibleCatalog.length,
       Oficiais: visibleCatalog.filter(g => g.category === 'Oficiais').length,
       Alunos: visibleCatalog.filter(g => g.category === 'Alunos').length,
       Novidades: visibleCatalog.filter(g => g.isNew).length,
     };
-  }, [catalog, hubConfig, isAdmin]);
+  }, [catalog, effectiveHubConfig, isAdmin, simulateStudentView]);
 
   const hasActiveFilters = activeCategory !== 'Todos' || selectedSubject !== 'Todas' || selectedGenre !== 'Todos' || searchQuery.trim().length > 0;
 
@@ -659,6 +724,52 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
 
         </section>
 
+        {/* Barra de Controle Docente: Simulação de Visão do Aluno & Status do Hub */}
+        {isAdmin && (
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-zinc-900/90 border border-purple-500/40 shadow-lg flex items-center justify-between gap-3 flex-wrap mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-purple-300 shrink-0">
+                <Sliders className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-black text-white uppercase tracking-wider font-mono">
+                    Painel do Docente
+                  </span>
+                  {effectiveHubConfig?.disabledGames && effectiveHubConfig.disabledGames.length > 0 && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold font-mono bg-red-950/80 text-red-300 border border-red-500/40">
+                      {effectiveHubConfig.disabledGames.length} {effectiveHubConfig.disabledGames.length === 1 ? 'jogo oculto para alunos' : 'jogos ocultos para alunos'}
+                    </span>
+                  )}
+                  {effectiveHubConfig?.featuredGame && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold font-mono bg-amber-950/80 text-amber-300 border border-amber-500/40 hidden sm:inline">
+                      Destaque: {effectiveHubConfig.featuredGame}
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-zinc-400 mt-0.5">
+                  {simulateStudentView
+                    ? '👁️ Visualizando o Hub exatamente como os alunos vêem (jogos desativados foram ocultados).'
+                    : 'Modo Professor: todos os jogos são exibidos para você testar (jogos desativados exibem tarja vermelha).'}
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setSimulateStudentView(!simulateStudentView)}
+              className={`px-4 py-2 rounded-xl font-mono text-xs font-bold transition flex items-center gap-2 cursor-pointer shadow-sm ${
+                simulateStudentView
+                  ? 'bg-amber-400 text-black hover:bg-amber-300 font-black shadow-amber-400/30'
+                  : 'bg-zinc-800 text-zinc-200 hover:bg-zinc-700 border border-zinc-700'
+              }`}
+            >
+              <Eye className="w-3.5 h-3.5" />
+              <span>{simulateStudentView ? 'Sair do Modo Aluno' : '👁️ Ver como Aluno'}</span>
+            </button>
+          </div>
+        )}
+
         {/* Grid de Cards de Jogos da Plataforma */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 
@@ -684,6 +795,8 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
 
           {/* Renderização Dinâmica dos Jogos do Catálogo */}
           {filteredGames.map((game) => {
+            const isGloballyDisabled = isGameGloballyDisabled(game.id);
+            const showAdminDisabledBadge = isAdmin && !simulateStudentView && isGloballyDisabled;
 
             // CARD 1: TYPECLICKER CLÁSSICO
             if (game.id === 'typeclicker') {
@@ -696,6 +809,21 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
                   <div className="absolute top-0 right-0 w-44 h-44 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-emerald-500/20 transition-colors" />
 
                   <div>
+                    {effectiveHubConfig?.featuredGame === game.id && (
+                      <div className="mb-3 px-3 py-1 rounded-xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/50 text-amber-300 text-[11px] font-mono font-bold flex items-center gap-1.5 shadow-sm">
+                        <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                        <span>JOGO EM DESTAQUE NA ESCOLA</span>
+                      </div>
+                    )}
+                    {showAdminDisabledBadge && (
+                      <div className="mb-3 px-3 py-1.5 rounded-xl bg-red-950/90 border border-red-500/70 text-red-300 text-[11px] font-mono font-bold flex items-center justify-between shadow-sm">
+                        <span className="flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
+                          🚫 OCULTO PARA OS ALUNOS
+                        </span>
+                        <span className="text-[10px] text-red-400/80">Modo Teste ADM</span>
+                      </div>
+                    )}
                     {/* Banner Artístico SVG Original */}
                     <div className="relative w-full aspect-[2/1] rounded-2xl overflow-hidden mb-4 border border-emerald-500/30 bg-zinc-950/80 shadow-inner group-hover:border-emerald-400/60 transition-all">
                       <GameCoverArt gameId="typeclicker" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
@@ -763,6 +891,21 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
                   <div className="absolute top-0 right-0 w-44 h-44 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-cyan-500/20 transition-colors" />
 
                   <div>
+                    {effectiveHubConfig?.featuredGame === game.id && (
+                      <div className="mb-3 px-3 py-1 rounded-xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/50 text-amber-300 text-[11px] font-mono font-bold flex items-center gap-1.5 shadow-sm">
+                        <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                        <span>JOGO EM DESTAQUE NA ESCOLA</span>
+                      </div>
+                    )}
+                    {showAdminDisabledBadge && (
+                      <div className="mb-3 px-3 py-1.5 rounded-xl bg-red-950/90 border border-red-500/70 text-red-300 text-[11px] font-mono font-bold flex items-center justify-between shadow-sm">
+                        <span className="flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
+                          🚫 OCULTO PARA OS ALUNOS
+                        </span>
+                        <span className="text-[10px] text-red-400/80">Modo Teste ADM</span>
+                      </div>
+                    )}
                     {/* Banner Artístico SVG Original */}
                     <div className="relative w-full aspect-[2/1] rounded-2xl overflow-hidden mb-4 border border-cyan-500/30 bg-zinc-950/80 shadow-inner group-hover:border-cyan-400/60 transition-all">
                       <GameCoverArt gameId="type_radar" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
@@ -841,6 +984,21 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
                   <div className="absolute top-0 right-0 w-44 h-44 bg-amber-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-amber-500/20 transition-colors" />
 
                   <div>
+                    {effectiveHubConfig?.featuredGame === game.id && (
+                      <div className="mb-3 px-3 py-1 rounded-xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/50 text-amber-300 text-[11px] font-mono font-bold flex items-center gap-1.5 shadow-sm">
+                        <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                        <span>JOGO EM DESTAQUE NA ESCOLA</span>
+                      </div>
+                    )}
+                    {showAdminDisabledBadge && (
+                      <div className="mb-3 px-3 py-1.5 rounded-xl bg-red-950/90 border border-red-500/70 text-red-300 text-[11px] font-mono font-bold flex items-center justify-between shadow-sm">
+                        <span className="flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
+                          🚫 OCULTO PARA OS ALUNOS
+                        </span>
+                        <span className="text-[10px] text-red-400/80">Modo Teste ADM</span>
+                      </div>
+                    )}
                     {/* Banner Artístico SVG Original */}
                     <div className="relative w-full aspect-[2/1] rounded-2xl overflow-hidden mb-4 border border-amber-500/30 bg-zinc-950/80 shadow-inner group-hover:border-amber-400/60 transition-all">
                       <GameCoverArt gameId="typerdash" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
@@ -919,6 +1077,21 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
                   <div className="absolute top-0 right-0 w-36 h-36 bg-amber-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-amber-500/20 transition-colors" />
 
                   <div>
+                    {effectiveHubConfig?.featuredGame === game.id && (
+                      <div className="mb-3 px-3 py-1 rounded-xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/50 text-amber-300 text-[11px] font-mono font-bold flex items-center gap-1.5 shadow-sm">
+                        <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                        <span>JOGO EM DESTAQUE NA ESCOLA</span>
+                      </div>
+                    )}
+                    {showAdminDisabledBadge && (
+                      <div className="mb-3 px-3 py-1.5 rounded-xl bg-red-950/90 border border-red-500/70 text-red-300 text-[11px] font-mono font-bold flex items-center justify-between shadow-sm">
+                        <span className="flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
+                          🚫 OCULTO PARA OS ALUNOS
+                        </span>
+                        <span className="text-[10px] text-red-400/80">Modo Teste ADM</span>
+                      </div>
+                    )}
                     {/* Banner Artístico SVG Original */}
                     <div className="relative w-full aspect-[2/1] rounded-2xl overflow-hidden mb-4 border border-amber-500/30 bg-zinc-950/80 shadow-inner group-hover:border-amber-400/60 transition-all">
                       <GameCoverArt gameId="time_attack" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
@@ -986,6 +1159,21 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
                   <div className="absolute top-0 right-0 w-36 h-36 bg-purple-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-purple-500/20 transition-colors" />
 
                   <div>
+                    {effectiveHubConfig?.featuredGame === game.id && (
+                      <div className="mb-3 px-3 py-1 rounded-xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/50 text-amber-300 text-[11px] font-mono font-bold flex items-center gap-1.5 shadow-sm">
+                        <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                        <span>JOGO EM DESTAQUE NA ESCOLA</span>
+                      </div>
+                    )}
+                    {showAdminDisabledBadge && (
+                      <div className="mb-3 px-3 py-1.5 rounded-xl bg-red-950/90 border border-red-500/70 text-red-300 text-[11px] font-mono font-bold flex items-center justify-between shadow-sm">
+                        <span className="flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
+                          🚫 OCULTO PARA OS ALUNOS
+                        </span>
+                        <span className="text-[10px] text-red-400/80">Modo Teste ADM</span>
+                      </div>
+                    )}
                     {/* Banner Artístico SVG Original */}
                     <div className="relative w-full aspect-[2/1] rounded-2xl overflow-hidden mb-4 border border-purple-500/30 bg-zinc-950/80 shadow-inner group-hover:border-purple-400/60 transition-all">
                       <GameCoverArt gameId="dungeon" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
@@ -1062,6 +1250,21 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
                   }`}
                 >
                   <div>
+                    {effectiveHubConfig?.featuredGame === game.id && (
+                      <div className="mb-3 px-3 py-1 rounded-xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/50 text-amber-300 text-[11px] font-mono font-bold flex items-center gap-1.5 shadow-sm">
+                        <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                        <span>JOGO EM DESTAQUE NA ESCOLA</span>
+                      </div>
+                    )}
+                    {showAdminDisabledBadge && (
+                      <div className="mb-3 px-3 py-1.5 rounded-xl bg-red-950/90 border border-red-500/70 text-red-300 text-[11px] font-mono font-bold flex items-center justify-between shadow-sm">
+                        <span className="flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
+                          🚫 OCULTO PARA OS ALUNOS
+                        </span>
+                        <span className="text-[10px] text-red-400/80">Modo Teste ADM</span>
+                      </div>
+                    )}
                     {/* Banner Artístico SVG Original */}
                     <div className="relative w-full aspect-[2/1] rounded-2xl overflow-hidden mb-4 border border-amber-500/30 bg-zinc-950/80 shadow-inner group-hover:border-amber-400/60 transition-all">
                       <GameCoverArt gameId="race" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
@@ -1167,6 +1370,21 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
                   }`}
                 >
                   <div>
+                    {effectiveHubConfig?.featuredGame === game.id && (
+                      <div className="mb-3 px-3 py-1 rounded-xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/50 text-amber-300 text-[11px] font-mono font-bold flex items-center gap-1.5 shadow-sm">
+                        <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                        <span>JOGO EM DESTAQUE NA ESCOLA</span>
+                      </div>
+                    )}
+                    {showAdminDisabledBadge && (
+                      <div className="mb-3 px-3 py-1.5 rounded-xl bg-red-950/90 border border-red-500/70 text-red-300 text-[11px] font-mono font-bold flex items-center justify-between shadow-sm">
+                        <span className="flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
+                          🚫 OCULTO PARA OS ALUNOS
+                        </span>
+                        <span className="text-[10px] text-red-400/80">Modo Teste ADM</span>
+                      </div>
+                    )}
                     {/* Banner Artístico SVG Original */}
                     <div className="relative w-full aspect-[2/1] rounded-2xl overflow-hidden mb-4 border border-rose-500/30 bg-zinc-950/80 shadow-inner group-hover:border-rose-400/60 transition-all">
                       <GameCoverArt gameId="raid" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
@@ -1243,6 +1461,21 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
                 <div className={`absolute top-0 right-0 w-36 h-36 rounded-full blur-3xl pointer-events-none transition-colors ${game.glowColor}`} />
 
                 <div>
+                  {effectiveHubConfig?.featuredGame === game.id && (
+                    <div className="mb-3 px-3 py-1 rounded-xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/50 text-amber-300 text-[11px] font-mono font-bold flex items-center gap-1.5 shadow-sm">
+                      <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                      <span>JOGO EM DESTAQUE NA ESCOLA</span>
+                    </div>
+                  )}
+                  {showAdminDisabledBadge && (
+                    <div className="mb-3 px-3 py-1.5 rounded-xl bg-red-950/90 border border-red-500/70 text-red-300 text-[11px] font-mono font-bold flex items-center justify-between shadow-sm">
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
+                        🚫 OCULTO PARA OS ALUNOS
+                      </span>
+                      <span className="text-[10px] text-red-400/80">Modo Teste ADM</span>
+                    </div>
+                  )}
                   {/* Banner Artístico SVG Original */}
                   <div className="relative w-full aspect-[2/1] rounded-2xl overflow-hidden mb-4 border border-zinc-800/80 bg-zinc-950/80 shadow-inner group-hover:border-zinc-700 transition-all">
                     <GameCoverArt gameId={game.id} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />

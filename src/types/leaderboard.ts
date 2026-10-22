@@ -42,6 +42,9 @@ export interface LeaderboardEntry {
   byteQuestMaxFloor?: number;
   sheetQuestHighScore?: number;
   sheetQuestCompletedQuests?: number;
+  sheetQuestCurrentLevel?: number;
+  sheetQuestLastPlayedAt?: string;
+  lastLoginAt?: string;
   scratchBotHighScore?: number;
   progPlayHighScore?: number;
 }

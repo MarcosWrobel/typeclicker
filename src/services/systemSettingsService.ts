@@ -26,6 +26,7 @@ export interface TestGrantConfig {
 export interface HubConfig {
   disabledGames?: string[];
   featuredGame?: string;
+  gameOrder?: string[];
 }
 
 export interface SystemSettings {
@@ -55,6 +56,23 @@ export async function getSystemSettings(): Promise<SystemSettings | null> {
   const now = Date.now();
   if (cachedSettings && now - lastFetchTime < CACHE_TTL_MS) {
     return cachedSettings;
+  }
+
+  // Tenta ler do localStorage primeiro para resposta síncrona/imediata
+  if (typeof window !== 'undefined' && (!cachedSettings || !cachedSettings.hubConfig)) {
+    try {
+      const localSettingsStr = localStorage.getItem('typeclicker_system_settings');
+      const localHubStr = localStorage.getItem('typeclicker_hub_config');
+      const localSettings = localSettingsStr ? JSON.parse(localSettingsStr) : {};
+      if (localHubStr) {
+        localSettings.hubConfig = JSON.parse(localHubStr);
+      }
+      if (Object.keys(localSettings).length > 0) {
+        cachedSettings = { ...(cachedSettings || {}), ...localSettings };
+      }
+    } catch (e) {
+      // ignore
+    }
   }
 
   if (!isSupabaseConfigured) {
@@ -141,6 +159,22 @@ export async function saveSystemSettings(updates: Partial<SystemSettings>): Prom
 
   cachedSettings = merged;
   lastFetchTime = Date.now();
+
+  // Cache local síncrono e eventos em tempo real no browser
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem('typeclicker_system_settings', JSON.stringify(merged));
+      if (merged.hubConfig) {
+        localStorage.setItem('typeclicker_hub_config', JSON.stringify(merged.hubConfig));
+      }
+      window.dispatchEvent(new CustomEvent('system_settings_updated', { detail: merged }));
+      if (updates.hubConfig) {
+        window.dispatchEvent(new CustomEvent('hub_config_updated', { detail: updates.hubConfig }));
+      }
+    } catch (e) {
+      console.warn('Erro ao salvar system_settings no localStorage:', e);
+    }
+  }
 
   if (!isSupabaseConfigured) return;
 

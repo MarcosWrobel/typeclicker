@@ -226,7 +226,20 @@ export class SupabaseAdapter implements IDatabaseService {
 
       const sqRow = userProgress.find((p) => p.game_id === 'sheetquest');
       const sheetQuestHighScore = Math.max(Number(sqRow?.high_score) || 0, Number(sqRow?.metrics?.score) || 0);
-      const sheetQuestCompletedQuests = Number(sqRow?.metrics?.extraMetrics?.completedQuests || sqRow?.metrics?.levelReached) || 0;
+      const sheetQuestCompletedQuests = Number(
+        sqRow?.metrics?.extraMetrics?.completedQuests ||
+        sqRow?.metrics?.extraMetrics?.levelsCompleted ||
+        0
+      );
+      const sheetQuestCurrentLevel = Number(
+        sqRow?.current_floor ||
+        sqRow?.highest_floor ||
+        sqRow?.metrics?.levelReached ||
+        sqRow?.metrics?.extraMetrics?.levelReached ||
+        (sheetQuestCompletedQuests > 0 ? sheetQuestCompletedQuests : 0)
+      );
+      const sheetQuestLastPlayedAt = sqRow?.updated_at || undefined;
+      const lastLoginAt = row.updated_at || undefined;
 
       const sbRow = userProgress.find((p) => p.game_id === 'scratchbot');
       const scratchBotHighScore = Math.max(Number(sbRow?.high_score) || 0, Number(sbRow?.metrics?.score) || 0);
@@ -270,6 +283,9 @@ export class SupabaseAdapter implements IDatabaseService {
         byteQuestMaxFloor,
         sheetQuestHighScore,
         sheetQuestCompletedQuests,
+        sheetQuestCurrentLevel,
+        sheetQuestLastPlayedAt,
+        lastLoginAt,
         scratchBotHighScore,
         progPlayHighScore,
         reachedLevel100At,
