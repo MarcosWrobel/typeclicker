@@ -30,7 +30,8 @@ X,
 Coins,
 Sliders,
 Eye,
-Star
+Star,
+Globe
 } from 'lucide-react';
 import { GameState, CurricularTrackId } from '../types';
 import { RPG_CLASSES } from '../types/rpgClass';
@@ -415,9 +416,14 @@ export const GameSelectionScreen: React.FC<GameSelectionScreenProps> = ({
               <span className="text-xs sm:text-sm font-medium text-zinc-300">
                 Sessão em Andamento no Laboratório:
               </span>
-              {activeTurma && (
+              {activeTurma ? (
                 <span className="px-2.5 py-1 rounded-lg bg-purple-500/20 text-purple-300 border border-purple-500/40 text-xs font-mono font-bold">
                   Turma: {activeTurma}
+                </span>
+              ) : (
+                <span className="px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-mono font-bold flex items-center gap-1.5">
+                  <Globe className="w-3.5 h-3.5 text-emerald-400" />
+                  Modo Livre (Múltiplas Turmas)
                 </span>
               )}
               {activeTrack && (

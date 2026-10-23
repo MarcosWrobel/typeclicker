@@ -32,7 +32,8 @@ Timer,
 Trophy,
 Rocket,
 Medal,
-School
+School,
+Globe
 } from 'lucide-react';
 import { ConsolidatedMetricsHub } from './ConsolidatedMetricsHub';
 import {
@@ -131,7 +132,7 @@ export const PedagogicalPanel: React.FC<PedagogicalPanelProps> = ({
   const [textFilterDiscipline, setTextFilterDiscipline] = useState<string>('todas');
 
   // Estados para Código de Sessão e Trilha
-  const [targetTurmaForCode, setTargetTurmaForCode] = useState<string>(activeClass || '');
+  const [targetTurmaForCode, setTargetTurmaForCode] = useState<string>(activeClass || 'livre');
   const [selectedTrackForCode, setSelectedTrackForCode] = useState<CurricularTrackId>(
     activeClass ? suggestTrackForTurma(activeClass) : 'geral'
   );
@@ -213,13 +214,11 @@ export const PedagogicalPanel: React.FC<PedagogicalPanelProps> = ({
   };
 
   const handleGenerateCode = async (hours: number) => {
-    if (!targetTurmaForCode) {
-      alert('Por favor, selecione a Turma antes de gerar o código da sessão.');
-      return;
-    }
     setIsLoading(true);
     try {
-      await generateSessionCode(hours, targetTurmaForCode, selectedTrackForCode);
+      const isFreeMode = !targetTurmaForCode || targetTurmaForCode === 'livre';
+      const turmaToSave = isFreeMode ? null : targetTurmaForCode.trim();
+      await generateSessionCode(hours, turmaToSave, selectedTrackForCode);
       await loadSettings();
       sound.playPrestige();
     } catch (e) {
@@ -586,9 +585,13 @@ export const PedagogicalPanel: React.FC<PedagogicalPanelProps> = ({
                             <div>
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span className="text-3xl font-black text-emerald-400 tracking-widest">{settings?.activeCode}</span>
-                                {settings?.activeTurma && (
+                                {settings?.activeTurma ? (
                                   <span className="text-xs px-2.5 py-1 rounded-full font-mono font-bold bg-sky-950 text-sky-300 border border-sky-500/40 inline-flex items-center gap-1.5">
                                     <School className="w-3.5 h-3.5 text-sky-400" /> Turma: {settings.activeTurma}
+                                  </span>
+                                ) : (
+                                  <span className="text-xs px-2.5 py-1 rounded-full font-mono font-bold bg-emerald-950 text-emerald-300 border border-emerald-500/40 inline-flex items-center gap-1.5 shadow-sm">
+                                    <Globe className="w-3.5 h-3.5 text-emerald-400" /> Modo Livre (Múltiplas Turmas)
                                   </span>
                                 )}
                                 {settings?.activeTrack && (
@@ -657,16 +660,20 @@ export const PedagogicalPanel: React.FC<PedagogicalPanelProps> = ({
                       )}
                     </div>
 
-                    {/* Seletor de Turma Obrigatório */}
+                    {/* Seletor de Turma ou Modo Livre */}
                     <div className="space-y-2 bg-zinc-900/60 p-4 rounded-xl border border-zinc-800">
                       <div className="flex items-center justify-between">
                         <label className="text-xs font-bold text-zinc-200 uppercase tracking-wider font-mono flex items-center gap-1.5">
                           <GraduationCap className="w-4 h-4 text-emerald-400" />
-                          <span>Turma para esta Aula (Obrigatória):</span>
+                          <span>Turma da Sessão / Modo de Operação:</span>
                         </label>
-                        {targetTurmaForCode && (
-                          <span className="text-[10px] font-mono font-bold text-emerald-300 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-500/40">
+                        {targetTurmaForCode && targetTurmaForCode !== 'livre' ? (
+                          <span className="text-[10px] font-mono font-bold text-sky-300 bg-sky-950 px-2 py-0.5 rounded border border-sky-500/40">
                             {targetTurmaForCode}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-mono font-bold text-emerald-300 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-500/40 flex items-center gap-1">
+                            <Globe className="w-3 h-3 text-emerald-400" /> Modo Livre
                           </span>
                         )}
                       </div>
@@ -675,7 +682,7 @@ export const PedagogicalPanel: React.FC<PedagogicalPanelProps> = ({
                         onChange={(e) => {
                           const val = e.target.value;
                           setTargetTurmaForCode(val);
-                          if (val) {
+                          if (val && val !== 'livre') {
                             const suggested = suggestTrackForTurma(val);
                             setSelectedTrackForCode(suggested);
                           }
@@ -683,21 +690,32 @@ export const PedagogicalPanel: React.FC<PedagogicalPanelProps> = ({
                         disabled={isLoading}
                         className="w-full bg-zinc-950 border border-zinc-700 focus:border-emerald-400 rounded-xl px-3.5 py-2.5 text-sm text-zinc-100 focus:outline-none focus:ring-1 focus:ring-emerald-400/50 transition font-mono font-bold cursor-pointer"
                       >
-                        <option value="">-- Selecione a Turma que Terá Aula Agora --</option>
+                        <option value="livre">
+                          🌐 Modo Livre (Sem vincular turma - Múltiplas turmas no laboratório)
+                        </option>
                         {SCHOOL_CLASSES_CONFIG.map((group) => (
                           <optgroup key={group.grade} label={group.grade}>
                             {group.classes.map((cls) => (
                               <option key={cls} value={cls}>
-                                {cls}
+                                {cls} (Vincular e travar turma)
                               </option>
                             ))}
                           </optgroup>
                         ))}
                       </select>
-                      {!targetTurmaForCode && (
-                        <p className="text-[11px] text-amber-400/90 flex items-center gap-1 pt-0.5">
-                          <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
-                          <span>Selecione a turma para vincular e travar automaticamente nos alunos ao desbloquear.</span>
+                      {targetTurmaForCode === 'livre' || !targetTurmaForCode ? (
+                        <p className="text-[11px] text-emerald-400/90 flex items-center gap-1.5 pt-0.5 font-medium">
+                          <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0 text-emerald-400" />
+                          <span>
+                            <strong>Modo Livre:</strong> O código liberará as máquinas sem alterar nem travar a turma dos alunos. Cada aluno usa sua própria turma já cadastrada.
+                          </span>
+                        </p>
+                      ) : (
+                        <p className="text-[11px] text-sky-400/90 flex items-center gap-1.5 pt-0.5 font-medium">
+                          <School className="w-3.5 h-3.5 flex-shrink-0 text-sky-400" />
+                          <span>
+                            <strong>Turma Única:</strong> Todos os alunos que desbloquearem com este código serão vinculados e travados na turma <strong>{targetTurmaForCode}</strong>.
+                          </span>
                         </p>
                       )}
                     </div>
@@ -754,19 +772,27 @@ export const PedagogicalPanel: React.FC<PedagogicalPanelProps> = ({
                     <div className="flex gap-2">
                       <button
                         onClick={() => handleGenerateCode(1)}
-                        disabled={isLoading || !targetTurmaForCode}
+                        disabled={isLoading}
                         className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-zinc-800 disabled:text-zinc-600 disabled:border-zinc-700/50 text-white font-bold rounded-xl transition cursor-pointer disabled:cursor-not-allowed flex items-center justify-center gap-2 border border-emerald-500/30 shadow-md"
                       >
                         <Key className="w-4 h-4" />
-                        <span>Gerar para {targetTurmaForCode || '...'} (1 Hora)</span>
+                        <span>
+                          {targetTurmaForCode && targetTurmaForCode !== 'livre'
+                            ? `Gerar para ${targetTurmaForCode} (1h)`
+                            : 'Gerar Código Livre (1h)'}
+                        </span>
                       </button>
                       <button
                         onClick={() => handleGenerateCode(2)}
-                        disabled={isLoading || !targetTurmaForCode}
+                        disabled={isLoading}
                         className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-zinc-800 disabled:text-zinc-600 disabled:border-zinc-700/50 text-white font-bold rounded-xl transition cursor-pointer disabled:cursor-not-allowed flex items-center justify-center gap-2 border border-emerald-500/30 shadow-md"
                       >
                         <Key className="w-4 h-4" />
-                        <span>Gerar para {targetTurmaForCode || '...'} (2 Horas)</span>
+                        <span>
+                          {targetTurmaForCode && targetTurmaForCode !== 'livre'
+                            ? `Gerar para ${targetTurmaForCode} (2h)`
+                            : 'Gerar Código Livre (2h)'}
+                        </span>
                       </button>
                     </div>
 

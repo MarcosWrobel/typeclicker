@@ -1,6 +1,6 @@
 import React,{ useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Lock, LogOut, Key, ArrowLeft, School, Target } from 'lucide-react';
+import { Lock, LogOut, Key, ArrowLeft, School, Target, Globe } from 'lucide-react';
 import { getSystemSettings, logoutUser } from '../services/firebaseService';
 import { CurricularTrackId } from '../types';
 import { getCurricularTrack } from '../data/tracks';
@@ -75,16 +75,23 @@ export const SessionLockOverlay: React.FC<SessionLockOverlayProps> = ({ isLocked
             
             {isFormVisible ? (
               <>
-                {(activeTurma || activeTrack) && (
+                {(activeTurma || activeTrack || hasActiveClass) && (
                   <div className="mb-3.5 flex flex-wrap items-center justify-center gap-2">
-                    {activeTurma && (
+                    {activeTurma ? (
                       <div className="px-3 py-1.5 rounded-xl bg-purple-950/60 border border-purple-500/40 text-purple-300 text-xs font-mono font-bold flex items-center justify-center gap-1.5 shadow-sm">
                         <span className="flex items-center gap-1.5">
                           <School className="w-3.5 h-3.5 text-purple-400" /> Aula da Turma
                         </span>
                         <span className="text-white bg-purple-800/80 px-2 py-0.5 rounded-md">{activeTurma}</span>
                       </div>
-                    )}
+                    ) : hasActiveClass ? (
+                      <div className="px-3 py-1.5 rounded-xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 text-xs font-mono font-bold flex items-center justify-center gap-1.5 shadow-sm">
+                        <span className="flex items-center gap-1.5">
+                          <Globe className="w-3.5 h-3.5 text-emerald-400" /> Modo Livre
+                        </span>
+                        <span className="text-white bg-emerald-800/80 px-2 py-0.5 rounded-md">Múltiplas Turmas</span>
+                      </div>
+                    ) : null}
                     {activeTrack && (
                       <div className="px-3 py-1.5 rounded-xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 text-xs font-mono font-bold flex items-center justify-center gap-1.5 shadow-sm">
                         <span className="flex items-center gap-1.5">
@@ -100,7 +107,9 @@ export const SessionLockOverlay: React.FC<SessionLockOverlayProps> = ({ isLocked
                 )}
                 <p className="text-zinc-400 text-center text-sm mb-6">
                   {hasActiveClass 
-                    ? "Uma aula está em andamento. Insira o código de 4 dígitos exibido no quadro para liberar seu computador e vincular sua turma."
+                    ? (activeTurma 
+                        ? "Uma aula está em andamento. Insira o código de 4 dígitos exibido no quadro para liberar seu computador e vincular sua turma."
+                        : "Uma sessão do laboratório está em andamento (Modo Livre). Insira o código de 4 dígitos para liberar seu computador mantendo sua turma cadastrada.")
                     : "Insira o código de 4 dígitos informado pelo professor para liberar seu computador."}
                 </p>
                 

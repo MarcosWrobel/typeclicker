@@ -227,6 +227,8 @@ export default function App() {
             return updated;
           });
           spawnFloatingText(`🎒 Vinculado à Turma: ${targetTurma}! 🚀`, 'bonus');
+        } else if (!isAdmin) {
+          spawnFloatingText('🔓 Laboratório Desbloqueado (Modo Livre)! 🚀', 'bonus');
         }
         return true;
       }
