@@ -109,6 +109,33 @@ export class SupabaseAdapter implements IDatabaseService {
 
     if (error) {
       console.error('Supabase recordGameSession error:', error);
+      // Fallback de resiliência caso a RPC no banco falhe por sobrecarga de assinatura (PGRST203)
+      try {
+        console.warn('Aplicando fallback direto de persistência para recordGameSession...');
+        const highScore = Math.max(0, Math.floor(session.score || 0));
+        await this.client.from('game_progress').upsert({
+          user_id: userId,
+          game_id: gameId,
+          high_score: highScore,
+          metrics: session,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'user_id,game_id' });
+
+        if (safeBytes > 0) {
+          const profile = await this.getUserProfile(userId);
+          if (profile) {
+            await this.saveUserProfile({
+              id: userId,
+              bytes: (profile.bytes || 0) + safeBytes,
+              totalBytesEarned: (profile.totalBytesEarned || 0) + safeBytes,
+              seasonBytes: (profile.seasonBytes || 0) + safeBytes
+            });
+          }
+        }
+        return;
+      } catch (fallbackErr) {
+        console.error('Falha também no fallback de recordGameSession:', fallbackErr);
+      }
       throw error;
     }
   }

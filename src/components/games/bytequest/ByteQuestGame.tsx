@@ -357,7 +357,9 @@ export const ByteQuestGame: React.FC<BaseGameProps> = ({
 
   const finishPvPRun = useCallback(
     (isVictory: boolean, winnerUid: string, sim: ByteQuestPvPSimulation, roomId?: string) => {
-      byteQuestAudio.stopBgm();
+      try {
+        byteQuestAudio.stopBgm();
+      } catch (_) {}
       setIsPaused(true);
 
       if (pvpSyncIntervalRef.current) {
@@ -365,12 +367,16 @@ export const ByteQuestGame: React.FC<BaseGameProps> = ({
         pvpSyncIntervalRef.current = null;
       }
       if (pvpBroadcastRef.current) {
-        pvpBroadcastRef.current.disconnect();
+        try {
+          pvpBroadcastRef.current.disconnect();
+        } catch (_) {}
         pvpBroadcastRef.current = null;
       }
 
       if (roomId) {
-        finishByteQuestPvPMatch(roomId, winnerUid);
+        finishByteQuestPvPMatch(roomId, winnerUid).catch((err) => {
+          console.warn('Aviso: término de sala PvP no banco:', err);
+        });
       }
 
       const earned = isVictory ? 750 : 200;
@@ -450,6 +456,11 @@ export const ByteQuestGame: React.FC<BaseGameProps> = ({
         finishPvPRun(false, winnerUid, pvpSim, room.id);
       };
 
+      pvpSim.onGameOver = () => {
+        const winnerUid = isHost ? room.player2?.uid || 'rival' : room.player1.uid;
+        finishPvPRun(false, winnerUid, pvpSim, room.id);
+      };
+
       // Loop de sincronização periódica a 20Hz (50ms)
       if (pvpSyncIntervalRef.current) clearInterval(pvpSyncIntervalRef.current);
       pvpSyncIntervalRef.current = window.setInterval(() => {
@@ -500,6 +511,10 @@ export const ByteQuestGame: React.FC<BaseGameProps> = ({
         if (sim.spellBuffer.length > 0 || sim.lockedEnemyId || sim.lockedShrineId) {
           sim.handleKeyPress('Escape');
         } else {
+          // Partidas multiplayer PvP não podem ser pausadas
+          if ('pvpPhase' in sim) {
+            return;
+          }
           setIsPaused((prev) => {
             const next = !prev;
             if (next) {
@@ -835,6 +850,7 @@ export const ByteQuestGame: React.FC<BaseGameProps> = ({
             isPaused={isPaused}
             pendingAccent={pendingAccent}
             onTogglePause={() => {
+              if (simRef.current && 'pvpPhase' in simRef.current) return;
               setIsPaused((prev) => {
                 const next = !prev;
                 if (next) {

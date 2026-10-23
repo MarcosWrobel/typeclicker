@@ -3976,84 +3976,92 @@ function drawStormRing(ctx: CanvasRenderingContext2D, pvpSim: any) {
 }
 
 function drawRemoteOpponent(ctx: CanvasRenderingContext2D, pvpSim: any, rpgClass: RpgClassType) {
-  const opp = pvpSim.remoteOpponent;
-  if (!opp || opp.hp <= 0) return;
+  try {
+    const opp = pvpSim.remoteOpponent;
+    if (!opp || opp.hp <= 0) return;
 
-  const oppSim = {
-    heroX: opp.x,
-    heroY: opp.y,
-    heroFacing: opp.facing,
-    heroVx: opp.vx,
-    heroVy: opp.vy,
-    runCycle: Date.now() * 0.01,
-    heroAttackTimer: opp.isAttacking ? 0.16 : 0,
-    heroAttackAngle: opp.attackAngle,
-    heroAttackDuration: 0.16,
-    subclass: pvpSim.subclass,
-    rpgClass: rpgClass,
-    stats: {
-      shieldHp: opp.shieldHp,
-      hp: opp.hp,
-      maxHp: opp.maxHp
-    }
-  } as any;
+    const oppSim = {
+      heroX: opp.x,
+      heroY: opp.y,
+      heroRadius: 24,
+      heroFacing: opp.facing,
+      heroVx: opp.vx || 0,
+      heroVy: opp.vy || 0,
+      runCycle: Date.now() * 0.01,
+      heroAttackTimer: opp.isAttacking ? 0.16 : 0,
+      heroAttackAngle: opp.attackAngle || 0,
+      heroAttackDuration: 0.16,
+      heroHurtTimer: 0,
+      mobilitySlideTimer: 0,
+      isDashing: !!opp.isDashing,
+      subclass: pvpSim.subclass,
+      rpgClass: rpgClass,
+      stats: {
+        shieldHp: opp.shieldHp || 0,
+        hp: opp.hp,
+        maxHp: opp.maxHp || 100
+      }
+    } as any;
 
-  // Aura avermelhada sob o oponente
-  ctx.save();
-  ctx.translate(opp.x, opp.y);
-  ctx.strokeStyle = '#EF4444';
-  ctx.lineWidth = 2;
-  ctx.shadowColor = '#EF4444';
-  ctx.shadowBlur = 10;
-  ctx.beginPath();
-  ctx.arc(0, 0, 26, 0, Math.PI * 2);
-  ctx.stroke();
+    // Aura avermelhada sob o oponente
+    ctx.save();
+    ctx.translate(opp.x, opp.y);
+    ctx.strokeStyle = '#EF4444';
+    ctx.lineWidth = 2;
+    ctx.shadowColor = '#EF4444';
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.arc(0, 0, 26, 0, Math.PI * 2);
+    ctx.stroke();
 
-  // Barra de HP sobre a cabeça do oponente
-  const barW = 44;
-  const barH = 5;
-  const barY = -48;
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
-  ctx.fillRect(-barW / 2, barY, barW, barH);
-  const hpRatio = Math.max(0, Math.min(1, opp.hp / opp.maxHp));
-  ctx.fillStyle = hpRatio > 0.4 ? '#EF4444' : '#DC2626';
-  ctx.fillRect(-barW / 2, barY, barW * hpRatio, barH);
-  ctx.strokeStyle = '#FFFFFF';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(-barW / 2, barY, barW, barH);
-
-  // Nome e Nível do Oponente
-  ctx.fillStyle = '#FCA5A5';
-  ctx.font = 'bold 9px monospace';
-  ctx.textAlign = 'center';
-  ctx.fillText(`RIVAL Nv.${opp.level}`, 0, barY - 4);
-
-  // Palavra de Hack de Digitação (na fase PvP)
-  if (pvpSim.pvpPhase === 'pvp' && pvpSim.opponentWord) {
-    const wordY = barY - 14;
-    const typed = pvpSim.opponentWordTyped || '';
-    const remaining = pvpSim.opponentWord.slice(typed.length);
-
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
-    ctx.fillRect(-35, wordY - 11, 70, 15);
-    ctx.strokeStyle = '#38BDF8';
+    // Barra de HP sobre a cabeça do oponente
+    const barW = 44;
+    const barH = 5;
+    const barY = -48;
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+    ctx.fillRect(-barW / 2, barY, barW, barH);
+    const hpRatio = Math.max(0, Math.min(1, opp.hp / (opp.maxHp || 100)));
+    ctx.fillStyle = hpRatio > 0.4 ? '#EF4444' : '#DC2626';
+    ctx.fillRect(-barW / 2, barY, barW * hpRatio, barH);
+    ctx.strokeStyle = '#FFFFFF';
     ctx.lineWidth = 1;
-    ctx.strokeRect(-35, wordY - 11, 70, 15);
+    ctx.strokeRect(-barW / 2, barY, barW, barH);
 
-    ctx.font = 'bold 11px monospace';
-    const totalW = ctx.measureText(pvpSim.opponentWord).width;
-    let startX = -totalW / 2;
+    // Nome e Nível do Oponente
+    ctx.fillStyle = '#FCA5A5';
+    ctx.font = 'bold 9px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(`RIVAL Nv.${opp.level || 1}`, 0, barY - 4);
 
-    if (typed.length > 0) {
-      ctx.fillStyle = '#4ADE80';
-      ctx.fillText(typed, startX, wordY);
-      startX += ctx.measureText(typed).width;
+    // Palavra de Hack de Digitação (na fase PvP)
+    if (pvpSim.pvpPhase === 'pvp' && pvpSim.opponentWord) {
+      const wordY = barY - 14;
+      const typed = pvpSim.opponentWordTyped || '';
+      const remaining = pvpSim.opponentWord.slice(typed.length);
+
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+      ctx.fillRect(-35, wordY - 11, 70, 15);
+      ctx.strokeStyle = '#38BDF8';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(-35, wordY - 11, 70, 15);
+
+      ctx.font = 'bold 11px monospace';
+      const totalW = ctx.measureText(pvpSim.opponentWord).width;
+      let startX = -totalW / 2;
+
+      if (typed.length > 0) {
+        ctx.fillStyle = '#4ADE80';
+        ctx.fillText(typed, startX, wordY);
+        startX += ctx.measureText(typed).width;
+      }
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillText(remaining, startX, wordY);
     }
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillText(remaining, startX, wordY);
+
+    ctx.restore();
+
+    drawHero(ctx, oppSim, rpgClass, {});
+  } catch (err) {
+    console.warn('Erro na renderização do oponente remoto:', err);
   }
-
-  ctx.restore();
-
-  drawHero(ctx, oppSim, rpgClass, {});
 }

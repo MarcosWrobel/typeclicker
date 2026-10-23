@@ -77,7 +77,7 @@ export class ByteQuestPvPSimulation extends ByteQuestSimulation {
   /**
    * Atualização contínua do ciclo de Battle Royale e Duelo PvP
    */
-  public updatePvP(dt: number, viewportWidth: number, viewportHeight: number) {
+  public override update(dt: number, viewportWidth: number, viewportHeight: number) {
     if (this.stats.hp <= 0) return;
 
     // Atualiza a simulação física padrão do ByteQuest
