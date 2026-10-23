@@ -138,9 +138,9 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
   const remotePlayersRef = useRef<Map<string, TyperDashNetPlayer>>(new Map());
   const effectiveUserIdRef = useRef<string>(playerId || `usr_${Math.random().toString(36).slice(2, 9)}`);
   const effectivePlayerName = playerName || 'Corredor';
-  const prngRef = useRef<() => number>(
-    createPrng(trackSeed || (multiplayerRoomCode ? stringToSeed(multiplayerRoomCode) : Date.now()))
-  );
+  const initialSeed = trackSeed || (multiplayerRoomCode ? stringToSeed(multiplayerRoomCode) : Date.now());
+  const lastSeedRef = useRef<number>(initialSeed);
+  const prngRef = useRef<() => number>(createPrng(initialSeed));
   const lastTickBroadcastRef = useRef<number>(0);
 
   // Estados de Jogo (Lobby Direto ao Ponto sem Classes)
@@ -324,6 +324,7 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
       },
       (synchronizedSeed, starterNickname) => {
         // Largada Coletiva Sincronizada disparada por alguém da sala!
+        lastSeedRef.current = synchronizedSeed;
         prngRef.current = createPrng(synchronizedSeed);
         setGameState('countdown');
         setCountdown(3);
@@ -448,10 +449,12 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
     let currentSeed: number;
     if (multiplayerMode && roomCode.trim()) {
       currentSeed = trackSeed || stringToSeed(`${roomCode.trim()}_${Date.now()}`);
+      lastSeedRef.current = currentSeed;
       prngRef.current = createPrng(currentSeed);
       typerDashNet.broadcastStartRace(currentSeed);
     } else {
       currentSeed = trackSeed || Date.now();
+      lastSeedRef.current = currentSeed;
       prngRef.current = createPrng(currentSeed);
     }
 
@@ -459,6 +462,14 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
     setCountdown(3);
     setScore(0);
     setCombo(0);
+    setMaxCombo(0);
+    setPerfectHits(0);
+    setGoodHits(0);
+    setMisses(0);
+    setDistanceMeters(0);
+    lastElapsedSecondRef.current = 0;
+    setElapsedSeconds(0);
+
     comboRef.current = 0;
     distanceRef.current = 0;
     lastMetersRef.current = 0;
@@ -472,8 +483,15 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
     recentKeyStrokesRef.current = [];
     nextSpawnDistanceRef.current = 500;
     speedMultiplierRef.current = 1.0;
+    speedLinesActiveRef.current = false;
+    hasTriggeredSnareRollRef.current = false;
+    ghostTrailRef.current = [];
     cascadeQueueRef.current = [];
+    currentStageRef.current = 'intro';
+    stageNameRef.current = 'Fase 1: Entrada Solo';
+    typerDashAudio.setStage('intro');
     cubeVyRef.current = 0;
+    cubeRef.current.x = JUDGMENT_LINE_X - CUBE_SIZE / 2;
     cubeRef.current.y = GROUND_Y - CUBE_SIZE;
     cubeRef.current.isGrounded = true;
     cubeRef.current.isJumping = false;
@@ -481,6 +499,53 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
     cubeRef.current.targetRotation = 0;
     typerDashAudio.playHitSound(true, 1);
   }, [trackSeed, multiplayerMode, roomCode]);
+
+  // Reiniciar corrida individual (retorna o jogador à arena sem reiniciar para os outros na sala)
+  const handleRestart = useCallback(() => {
+    // Mantém a mesma semente da corrida atual para integridade da pista
+    prngRef.current = createPrng(lastSeedRef.current);
+
+    setGameState('countdown');
+    setCountdown(3);
+    setScore(0);
+    setCombo(0);
+    setMaxCombo(0);
+    setPerfectHits(0);
+    setGoodHits(0);
+    setMisses(0);
+    setDistanceMeters(0);
+    lastElapsedSecondRef.current = 0;
+    setElapsedSeconds(0);
+
+    comboRef.current = 0;
+    distanceRef.current = 0;
+    lastMetersRef.current = 0;
+    obstaclesRef.current = [];
+    particlesRef.current = [];
+    floatingTextsRef.current = [];
+    denshaPopupsRef.current = [];
+    activeGrindRef.current = null;
+    activeTrickRef.current = null;
+    keyLockoutUntilRef.current = 0;
+    recentKeyStrokesRef.current = [];
+    nextSpawnDistanceRef.current = 500;
+    speedMultiplierRef.current = 1.0;
+    speedLinesActiveRef.current = false;
+    hasTriggeredSnareRollRef.current = false;
+    ghostTrailRef.current = [];
+    cascadeQueueRef.current = [];
+    currentStageRef.current = 'intro';
+    stageNameRef.current = 'Fase 1: Entrada Solo';
+    typerDashAudio.setStage('intro');
+    cubeVyRef.current = 0;
+    cubeRef.current.x = JUDGMENT_LINE_X - CUBE_SIZE / 2;
+    cubeRef.current.y = GROUND_Y - CUBE_SIZE;
+    cubeRef.current.isGrounded = true;
+    cubeRef.current.isJumping = false;
+    cubeRef.current.rotation = 0;
+    cubeRef.current.targetRotation = 0;
+    typerDashAudio.playHitSound(true, 1);
+  }, []);
 
   // Helper para adicionar popups no estilo quadrinho urbano (Denshattack!)
   const addDenshaPopup = useCallback((title: string, subtitle?: string, color: string = '#facc15') => {
@@ -723,6 +788,16 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
   // ─────────────────────────────────────────────────────────────
   // Listeners de Teclado
   // ─────────────────────────────────────────────────────────────
+  const handleStartRunRef = useRef(handleStartRun);
+  useEffect(() => {
+    handleStartRunRef.current = handleStartRun;
+  }, [handleStartRun]);
+
+  const handleRestartRef = useRef(handleRestart);
+  useEffect(() => {
+    handleRestartRef.current = handleRestart;
+  }, [handleRestart]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const key = e.key;
@@ -735,11 +810,18 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
         return;
       }
 
-      // 0. Iniciar a partir do Lobby ou reiniciar após Game Over
-      if ((gameStateRef.current === 'lobby' || gameStateRef.current === 'game_over') && (key === 'Enter' || key === ' ')) {
-        e.preventDefault();
-        handleStartRun();
-        return;
+      // 0. Iniciar a partir do Lobby ou reiniciar individualmente após Game Over
+      if (key === 'Enter' || key === ' ') {
+        if (gameStateRef.current === 'game_over') {
+          e.preventDefault();
+          handleRestartRef.current();
+          return;
+        }
+        if (gameStateRef.current === 'lobby') {
+          e.preventDefault();
+          handleStartRunRef.current();
+          return;
+        }
       }
 
       // Pausa e Despausa pelo Teclado
@@ -1622,53 +1704,7 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
     }
   }, [gameState, accuracyPercentage, score]);
 
-  // ─────────────────────────────────────────────────────────────
-  // Reiniciar Partida
-  // ─────────────────────────────────────────────────────────────
-  const handleRestart = () => {
-    obstaclesRef.current = [];
-    particlesRef.current = [];
-    floatingTextsRef.current = [];
-    cubeRef.current = {
-      x: JUDGMENT_LINE_X - CUBE_SIZE / 2,
-      y: GROUND_Y - CUBE_SIZE,
-      size: CUBE_SIZE,
-      rotation: 0,
-      isJumping: false,
-      isGrounded: true,
-      targetRotation: 0
-    };
-    cubeVyRef.current = 0;
-    distanceRef.current = 0;
-    nextSpawnDistanceRef.current = 500;
-    screenShakeRef.current = 0;
-    invulnerableUntilRef.current = 0;
-    comboRef.current = 0;
-    lastMetersRef.current = 0;
 
-    speedMultiplierRef.current = 1.0;
-    speedLinesActiveRef.current = false;
-    hasTriggeredSnareRollRef.current = false;
-    ghostTrailRef.current = [];
-    cascadeQueueRef.current = [];
-    keyLockoutUntilRef.current = 0;
-    recentKeyStrokesRef.current = [];
-    currentStageRef.current = 'intro';
-    stageNameRef.current = 'Fase 1: Entrada Solo';
-    typerDashAudio.setStage('intro');
-
-    setScore(0);
-    setCombo(0);
-    setMaxCombo(0);
-    setPerfectHits(0);
-    setGoodHits(0);
-    setMisses(0);
-    setDistanceMeters(0);
-    lastElapsedSecondRef.current = 0;
-    setElapsedSeconds(0);
-    setCountdown(3);
-    setGameState('countdown');
-  };
 
   // ─────────────────────────────────────────────────────────────
   // Saída Unificada para o Hub (GameExitPayload)
@@ -2437,7 +2473,7 @@ export const TyperDashGame: React.FC<TyperDashGameProps> = ({
                 <div className="flex flex-col sm:flex-row gap-2.5 w-full">
                   <button
                     type="button"
-                    onClick={handleStartRun}
+                    onClick={handleRestart}
                     className="flex-1 py-3.5 px-5 rounded-xl bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 hover:from-emerald-300 hover:to-cyan-300 text-black font-black text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-[0_4px_0_#065f46] active:translate-y-0.5 active:shadow-none transition-all cursor-pointer"
                   >
                     <RotateCcw className="w-4 h-4 stroke-[3]" />

@@ -198,11 +198,13 @@ export const SheetQuestGame: React.FC<SheetQuestGameProps> = ({
 
   // Célula selecionada na grade
   const [selectedCoord, setSelectedCoord] = useState<string>(() => {
+    if (isTutorialActive && tutorialStep === 1) return 'A1';
     return activeLevelDef.targets[0]?.coord || 'A1';
   });
 
   // Texto na barra de fórmulas fx
   const [formulaInput, setFormulaInput] = useState<string>(() => {
+    if (isTutorialActive && tutorialStep === 1) return '';
     if (gameMode === 'bug_hunter') {
       return bugLevel.initialBuggyFormula;
     }
@@ -218,9 +220,40 @@ export const SheetQuestGame: React.FC<SheetQuestGameProps> = ({
     text: string;
     type: 'neutral' | 'success' | 'error' | 'hint';
   }>({
-    text: activeLevelDef.briefing,
+    text: '',
     type: 'neutral'
   });
+
+  // Modal de Briefing Inicial da Missão
+  const [isMissionModalOpen, setIsMissionModalOpen] = useState<boolean>(!isTutorialActive);
+
+  // Listener de Teclado Global para o Modal de Missão
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignora se estiver digitando em campos de input ou textarea
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      if (isMissionModalOpen) {
+        if (e.key === ' ' || e.key === 'Enter' || e.key === 'Escape') {
+          e.preventDefault();
+          setIsMissionModalOpen(false);
+          sheetAudio.playStarChime(0);
+        }
+        return;
+      }
+
+      // Se modal estiver fechado e o jogador apertar M (e não estiver no tutorial)
+      if ((e.key === 'm' || e.key === 'M') && !isTutorialActive) {
+        e.preventDefault();
+        setIsMissionModalOpen(true);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isMissionModalOpen, isTutorialActive]);
 
   // Modal de Vitória
   const [victoryModal, setVictoryModal] = useState<{
@@ -268,22 +301,27 @@ export const SheetQuestGame: React.FC<SheetQuestGameProps> = ({
   const resetLevelState = useCallback((level: SheetLevel, isBugMode: boolean = false) => {
     setGrid({ ...level.initialGrid });
     const firstTarget = level.targets[0]?.coord || 'A1';
-    setSelectedCoord(firstTarget);
+    const initialCoord = isTutorialActive && tutorialStep === 1 ? 'A1' : firstTarget;
+    setSelectedCoord(initialCoord);
 
     if (isBugMode && 'initialBuggyFormula' in level) {
       setFormulaInput((level as any).initialBuggyFormula);
     } else {
-      const cell = level.initialGrid[firstTarget];
-      setFormulaInput(cell?.raw ? String(cell.raw) : '=');
+      const cell = level.initialGrid[initialCoord];
+      setFormulaInput(cell?.raw ? String(cell.raw) : '');
     }
 
     setSolvedCoords([]);
+    // Deixa a barra de feedback limpa até que o aluno execute uma fórmula
     setByteFeedback({
-      text: level.briefing,
+      text: '',
       type: 'neutral'
     });
     setVictoryModal((prev) => ({ ...prev, isOpen: false }));
-  }, []);
+    if (!isTutorialActive) {
+      setIsMissionModalOpen(true);
+    }
+  }, [isTutorialActive, tutorialStep]);
 
   // Recarregar quando muda de nível, modo ou etapa do tutorial
   useEffect(() => {
@@ -328,8 +366,18 @@ export const SheetQuestGame: React.FC<SheetQuestGameProps> = ({
 
   const handleNextTutorialStep = () => {
     if (tutorialStep < 5) {
-      setTutorialStep((prev) => prev + 1);
+      const nextStep = tutorialStep + 1;
+      setTutorialStep(nextStep);
       sheetAudio.playStarChime(tutorialStep % 3);
+
+      if (nextStep === 2) {
+        setFormulaInput('');
+      } else if (nextStep === 3) {
+        setSelectedCoord('B4');
+        if (!formulaInput.startsWith('=')) {
+          setFormulaInput('=');
+        }
+      }
     } else {
       // Concluiu o tutorial
       setIsTutorialActive(false);
@@ -672,6 +720,9 @@ export const SheetQuestGame: React.FC<SheetQuestGameProps> = ({
                 onClick={() => {
                   setIsTutorialActive(true);
                   setTutorialStep(1);
+                  setSelectedCoord('A1');
+                  setFormulaInput('');
+                  setSolvedCoords([]);
                 }}
                 className={`px-2.5 py-1 rounded transition-all cursor-pointer ${
                   isTutorialActive
@@ -793,21 +844,35 @@ export const SheetQuestGame: React.FC<SheetQuestGameProps> = ({
         )}
 
         {/* ─── FAIXA INTEGRADA DE OBJETIVO E METAS (ACIMA DA PLANILHA) ─── */}
-        {!isTutorialActive && (
-          <div className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 shadow-md">
-            {/* Lado Esquerdo: Objetivo do Chamado */}
+        {!isTutorialActive && !isMissionModalOpen && (
+          <motion.div
+            layoutId="sheetquest-mission-card"
+            transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+            className="bg-slate-900/95 border border-slate-800 rounded-2xl p-3 sm:px-4 sm:py-3 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 shadow-md"
+          >
+            {/* Lado Esquerdo: Objetivo e Ação de Expandir */}
             <div className="flex items-center gap-3 min-w-0 flex-1">
-              <span className="text-xs font-bold text-emerald-400 uppercase tracking-wide flex items-center gap-1.5 flex-shrink-0">
-                <Target className="w-4 h-4 text-amber-400" />
-                Objetivo:
-              </span>
-              <p className="text-xs text-slate-200 truncate" title={activeLevelDef.briefing}>
+              <button
+                type="button"
+                onClick={() => setIsMissionModalOpen(true)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/25 text-xs font-bold uppercase tracking-wider transition-all flex-shrink-0 cursor-pointer shadow-sm group"
+                title="Ver a missão completa ampliada [M]"
+              >
+                <Target className="w-3.5 h-3.5 text-amber-400 group-hover:scale-110 transition-transform" />
+                <span>Missão</span>
+                <Maximize2 className="w-3 h-3 text-emerald-400/70" />
+              </button>
+              <p
+                onClick={() => setIsMissionModalOpen(true)}
+                className="text-xs sm:text-sm text-slate-200 font-medium leading-snug cursor-pointer hover:text-white transition-colors"
+                title="Clique para ver a missão completa ampliada [M]"
+              >
                 {activeLevelDef.briefing}
               </p>
             </div>
 
-            {/* Centro: Pílulas de Metas Clicáveis */}
-            <div className="flex items-center gap-2 flex-wrap">
+            {/* Lado Direito: Pílulas de Metas e Ações */}
+            <div className="flex items-center gap-2 flex-wrap flex-shrink-0">
               {activeLevelDef.targets.map((tgt) => {
                 const isSolved = solvedCoords.includes(tgt.coord);
                 const isSelected = selectedCoord === tgt.coord;
@@ -836,7 +901,7 @@ export const SheetQuestGame: React.FC<SheetQuestGameProps> = ({
                     >
                       {tgt.coord}
                     </span>
-                    <span className="truncate max-w-[140px]">{tgt.label}</span>
+                    <span className="truncate max-w-[130px]">{tgt.label}</span>
                     {isSolved ? (
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                     ) : (
@@ -845,25 +910,23 @@ export const SheetQuestGame: React.FC<SheetQuestGameProps> = ({
                   </button>
                 );
               })}
-            </div>
 
-            {/* Lado Direito: Ações Úteis */}
-            <div className="flex items-center gap-3">
               {activeLevelDef.cheatSheetFormula && activeLevelDef.id <= 15 && (
-                <span className="text-[11px] font-mono text-slate-400 bg-slate-950/80 px-2 py-1 rounded border border-slate-800 hidden lg:inline">
+                <span className="text-[11px] font-mono text-slate-400 bg-slate-950/80 px-2 py-1 rounded border border-slate-800 hidden xl:inline">
                   Ref: {activeLevelDef.cheatSheetFormula}
                 </span>
               )}
+
               <button
                 onClick={() => resetLevelState(activeLevelDef, gameMode === 'bug_hunter')}
                 className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 hover:text-white border border-slate-700 transition-all cursor-pointer"
                 title="Restaurar a planilha para o estado inicial da fase"
               >
                 <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
-                <span>Restaurar</span>
+                <span className="hidden sm:inline">Restaurar</span>
               </button>
             </div>
-          </div>
+          </motion.div>
         )}
 
         {/* ─── PLANILHA EXPANDIDA (LARGURA TOTAL) ─── */}
@@ -909,6 +972,141 @@ export const SheetQuestGame: React.FC<SheetQuestGameProps> = ({
           </div>
         )}
       </main>
+
+      {/* ─── MODAL CENTRALIZADO DE BRIEFING DA MISSÃO (INÍCIO DA FASE) ─── */}
+      <AnimatePresence>
+        {isMissionModalOpen && !isTutorialActive && (
+          <motion.div
+            key="sheetquest-mission-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-950/80 backdrop-blur-md overflow-y-auto"
+            onClick={() => {
+              setIsMissionModalOpen(false);
+              sheetAudio.playStarChime(0);
+            }}
+          >
+            <motion.div
+              layoutId="sheetquest-mission-card"
+              transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+              className="w-full max-w-2xl bg-gradient-to-b from-slate-900 to-slate-950 border-2 border-emerald-500/60 rounded-3xl p-6 sm:p-8 shadow-[0_0_60px_rgba(16,185,129,0.25)] flex flex-col gap-5 text-slate-100 relative overflow-hidden my-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Iluminação decorativa de fundo */}
+              <div className="absolute -top-24 -left-24 w-52 h-52 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none" />
+              <div className="absolute -bottom-24 -right-24 w-52 h-52 bg-cyan-500/15 rounded-full blur-3xl pointer-events-none" />
+
+              {/* Cabeçalho do Modal: Mundo/Fase e Fechar */}
+              <div className="flex items-center justify-between gap-2 border-b border-slate-800/80 pb-3 relative z-10">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 font-mono text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
+                    <Target className="w-3.5 h-3.5 text-amber-400" />
+                    {gameMode === 'campaign'
+                      ? `Mundo ${activeLevelDef.world} • Demanda ${currentLevelIndex + 1}/${SHEET_CAMPAIGN_LEVELS.length}`
+                      : gameMode === 'bug_hunter'
+                      ? `Auditoria ${currentBugLevelIndex + 1}/${SHEET_BUG_HUNTER_LEVELS.length}`
+                      : 'Modo Infinito'}
+                  </span>
+                  <span className="text-xs text-slate-400 font-medium">
+                    {activeLevelDef.worldName}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMissionModalOpen(false);
+                    sheetAudio.playStarChime(0);
+                  }}
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                  title="Fechar e ir para a planilha [ESC]"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Solicitante / Cliente e Título */}
+              <div className="flex items-center gap-3.5 relative z-10">
+                <div className="w-13 h-13 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-3xl flex-shrink-0 shadow-inner">
+                  {activeLevelDef.clientAvatar || '📊'}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs text-slate-400 font-semibold flex items-center gap-1.5">
+                    <span>{activeLevelDef.clientName}</span>
+                    <span className="text-slate-600">•</span>
+                    <span className="text-emerald-400/90">{activeLevelDef.clientRole}</span>
+                  </div>
+                  <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                    {activeLevelDef.title}
+                  </h2>
+                </div>
+              </div>
+
+              {/* Cenário Corporativo (se houver) */}
+              {activeLevelDef.scenario && (
+                <p className="text-xs sm:text-sm text-slate-300 italic bg-slate-950/50 border border-slate-800/80 rounded-xl px-4 py-2.5 relative z-10">
+                  "{activeLevelDef.scenario}"
+                </p>
+              )}
+
+              {/* Missão em Destaque (Fontes Grandes e Alto Contraste) */}
+              <div className="bg-slate-950/80 border-2 border-emerald-500/40 rounded-2xl p-5 sm:p-6 shadow-inner relative z-10">
+                <div className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-2.5 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  <span>Sua Missão na Planilha:</span>
+                </div>
+                <p className="text-base sm:text-lg text-slate-100 font-medium leading-relaxed">
+                  {activeLevelDef.briefing}
+                </p>
+              </div>
+
+              {/* Metas da Missão (Células a Calcular) */}
+              {activeLevelDef.targets && activeLevelDef.targets.length > 0 && (
+                <div className="flex flex-col gap-2 relative z-10">
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                    Células a Resolver:
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {activeLevelDef.targets.map((tgt) => (
+                      <div
+                        key={tgt.coord}
+                        className="bg-slate-900 border border-slate-800 rounded-xl p-3 flex items-start gap-2.5"
+                      >
+                        <span className="font-mono font-bold text-xs bg-amber-400 text-slate-950 px-2 py-0.5 rounded shadow-sm">
+                          {tgt.coord}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-bold text-white truncate">{tgt.label}</div>
+                          {tgt.hint && (
+                            <div className="text-[11px] text-slate-400 leading-tight mt-0.5">
+                              {tgt.hint}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Botão Gigante de Começar */}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMissionModalOpen(false);
+                  sheetAudio.playStarChime(0);
+                }}
+                className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 hover:from-emerald-300 hover:to-cyan-300 text-slate-950 font-black text-base sm:text-lg uppercase tracking-wider flex items-center justify-center gap-3 shadow-[0_4px_0_#065f46] active:translate-y-0.5 active:shadow-none transition-all cursor-pointer hover:scale-[1.01] relative z-10"
+              >
+                <Sparkles className="w-5 h-5 fill-slate-950" />
+                <span>COMEÇAR MISSÃO [ESPAÇO]</span>
+                <ArrowRight className="w-5 h-5 stroke-[3]" />
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ─── MODAL DE VITÓRIA (LEVEL COMPLETE) ────────────────────── */}
       {victoryModal.isOpen && (

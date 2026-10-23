@@ -254,7 +254,21 @@ export const SheetGridCanvas: React.FC<SheetGridCanvasProps> = ({
    * Ponto-e-Clique / Injeção de Coordenada ou Intervalo na Barra de Fórmulas
    */
   const handleCellMouseDown = (coord: string, e: React.MouseEvent) => {
-    if (formulaInput.startsWith('=') && !readOnly && !disabled) {
+    const trimmedFormula = formulaInput.trimEnd();
+    // A fórmula só aguarda injeção de referência se terminar em operador aritmético, abertura de fórmula ou parênteses/separador
+    const isExpectingReference = /[=+\-*/(;,:]$/.test(trimmedFormula);
+    const isEditingTarget = targetCoords.includes(selectedCoord) || (!grid[selectedCoord]?.readOnly);
+    // Se o tutorial estiver especificamente orientando clicar nesta célula para selecioná-la, prioriza seleção
+    const isTutorialSelectStep = tutorialHighlightCoord === coord && selectedCoord !== coord && !formulaInput.endsWith('(');
+
+    if (
+      isExpectingReference &&
+      isEditingTarget &&
+      !readOnly &&
+      !disabled &&
+      !isTutorialSelectStep &&
+      coord !== selectedCoord
+    ) {
       e.preventDefault(); // Não perde o foco da barra de fórmulas
       setIsDragging(true);
       setDragStartCoord(coord);
