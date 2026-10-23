@@ -23,13 +23,18 @@ import {
 import { RpgClassType } from '../../../types/rpgClass';
 import { getStarterLoadout, forgeWeightedRandomItem, getItemDismantleValue } from '../../../data/byteQuestItems';
 import { ByteQuestSimulation, EngineStats } from './byteQuestEngine';
+import { ByteQuestPvPSimulation } from './byteQuestPvPEngine';
 import { ByteQuestArenaCanvas } from './ByteQuestArenaCanvas';
 import { ByteQuestHUD } from './ByteQuestHUD';
 import { ByteQuestUpgradeModal } from './ByteQuestUpgradeModal';
 import { ByteQuestRewardModal } from './ByteQuestRewardModal';
 import { ByteQuestLobby } from './ByteQuestLobby';
+import { ByteQuestPvPLobby } from './ByteQuestPvPLobby';
 import { byteQuestAudio } from './byteQuestAudio';
 import { isAccentKey, resolveDeadKey, combineAccent } from '../../../utils/keyboardAccents';
+import { ByteQuestPvPRoom } from '../../../types/byteQuestPvP';
+import { connectByteQuestPvPBroadcast, finishByteQuestPvPMatch } from '../../../services/byteQuestPvPService';
+import { auth } from '../../../services/firebaseService';
 
 const SAVE_KEY = 'bytequest_progress_v1';
 
@@ -61,11 +66,17 @@ export const ByteQuestGame: React.FC<BaseGameProps> = ({
   onExitToHub
 }) => {
   const [selectedClass, setSelectedClass] = useState<RpgClassType>(studentClass || 'warrior');
-  const [screen, setScreen] = useState<'lobby' | 'playing' | 'reward'>('lobby');
+  const [screen, setScreen] = useState<'lobby' | 'pvp_lobby' | 'playing' | 'reward'>('lobby');
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [pendingAccent, setPendingAccent] = useState<string | null>(null);
   const pendingAccentRef = useRef<string | null>(null);
+
+  // Estados & Referências de Rede PvP
+  const [pvpRoom, setPvpRoom] = useState<ByteQuestPvPRoom | null>(null);
+  const [pvpPlayerNum, setPvpPlayerNum] = useState<1 | 2>(1);
+  const pvpBroadcastRef = useRef<{ send: (ev: string, payload: any) => void; disconnect: () => void } | null>(null);
+  const pvpSyncIntervalRef = useRef<number | null>(null);
 
   const [playerData, setPlayerData] = useState<ByteQuestSavedData>(() => {
     const starter = getStarterLoadout(studentClass || 'warrior');
@@ -233,6 +244,12 @@ export const ByteQuestGame: React.FC<BaseGameProps> = ({
   useEffect(() => {
     return () => {
       byteQuestAudio.destroy();
+      if (pvpSyncIntervalRef.current) {
+        clearInterval(pvpSyncIntervalRef.current);
+      }
+      if (pvpBroadcastRef.current) {
+        pvpBroadcastRef.current.disconnect();
+      }
     };
   }, []);
 
@@ -244,6 +261,11 @@ export const ByteQuestGame: React.FC<BaseGameProps> = ({
       corruptionTier: playerData.corruptionTier ?? 0,
       startingBiome: playerData.startingBiome || 'crypt'
     });
+
+    const savedMousePref = typeof window !== 'undefined' ? localStorage.getItem('bytequest_mouse_control') : null;
+    if (savedMousePref !== null) {
+      sim.setMouseMoveEnabled(savedMousePref === 'true');
+    }
 
     sim.onLevelUp = () => {
       setIsPaused(true);
@@ -332,6 +354,136 @@ export const ByteQuestGame: React.FC<BaseGameProps> = ({
     });
     setScreen('reward');
   };
+
+  const finishPvPRun = useCallback(
+    (isVictory: boolean, winnerUid: string, sim: ByteQuestPvPSimulation, roomId?: string) => {
+      byteQuestAudio.stopBgm();
+      setIsPaused(true);
+
+      if (pvpSyncIntervalRef.current) {
+        clearInterval(pvpSyncIntervalRef.current);
+        pvpSyncIntervalRef.current = null;
+      }
+      if (pvpBroadcastRef.current) {
+        pvpBroadcastRef.current.disconnect();
+        pvpBroadcastRef.current = null;
+      }
+
+      if (roomId) {
+        finishByteQuestPvPMatch(roomId, winnerUid);
+      }
+
+      const earned = isVictory ? 750 : 200;
+      setPlayerData((prev) => ({
+        ...prev,
+        bytesBalance: (prev.bytesBalance ?? 1200) + earned
+      }));
+
+      setRewardData({
+        isVictory,
+        stats: sim.stats,
+        bytesEarned: earned
+      });
+      setScreen('reward');
+    },
+    []
+  );
+
+  const handleStartPvPMatch = useCallback(
+    (room: ByteQuestPvPRoom, playerNum: 1 | 2) => {
+      setPvpRoom(room);
+      setPvpPlayerNum(playerNum);
+
+      const userUid =
+        auth.currentUser?.uid ||
+        (playerNum === 1 ? room.player1.uid : room.player2?.uid || 'guest');
+      const isHost = playerNum === 1;
+
+      // Instanciação 100% Neutra com a classe espelho sorteada
+      const pvpSim = new ByteQuestPvPSimulation(room.sharedClass, userUid, isHost);
+
+      const savedMousePref =
+        typeof window !== 'undefined' ? localStorage.getItem('bytequest_mouse_control') : null;
+      if (savedMousePref !== null) {
+        pvpSim.setMouseMoveEnabled(savedMousePref === 'true');
+      }
+
+      pvpSim.onLevelUp = () => {
+        pvpSim.stats.level++;
+        pvpSim.upgrades.damageBonus += 8;
+        pvpSim.upgrades.speedBonus += 1.5;
+        pvpSim.stats.maxHp += 15;
+        pvpSim.stats.hp = Math.min(pvpSim.stats.maxHp, pvpSim.stats.hp + 20);
+        pvpSim.addFloatingText(pvpSim.heroX, pvpSim.heroY - 50, '⚡ NÍVEL UP! (+DANO & +VIDA)', '#FACC15', true);
+        byteQuestAudio.playLevelUp();
+      };
+
+      // Conexão Broadcast em tempo real
+      const broadcast = connectByteQuestPvPBroadcast(room.id, (event, payload) => {
+        const activeSim = simRef.current as ByteQuestPvPSimulation | null;
+        if (!activeSim) return;
+
+        if (event === 'sync_pos') {
+          if (payload.uid !== activeSim.localUid) {
+            activeSim.handleRemoteSync(payload);
+          }
+        } else if (event === 'pvp_hit') {
+          if (payload.targetUid === activeSim.localUid) {
+            activeSim.receivePvPHit(payload.damage, payload.isCrit, payload.isWordBreak);
+          }
+        } else if (event === 'gem_collected') {
+          activeSim.gems = activeSim.gems.filter((g) => g.id !== payload.gemId);
+        }
+      });
+
+      pvpBroadcastRef.current = broadcast;
+      pvpSim.onBroadcastSend = (ev, payload) => {
+        broadcast.send(ev, payload);
+      };
+
+      pvpSim.onPvPVictory = (winnerUid) => {
+        finishPvPRun(true, winnerUid, pvpSim, room.id);
+      };
+
+      pvpSim.onPvPDefeat = () => {
+        const winnerUid = isHost ? room.player2?.uid || 'rival' : room.player1.uid;
+        finishPvPRun(false, winnerUid, pvpSim, room.id);
+      };
+
+      // Loop de sincronização periódica a 20Hz (50ms)
+      if (pvpSyncIntervalRef.current) clearInterval(pvpSyncIntervalRef.current);
+      pvpSyncIntervalRef.current = window.setInterval(() => {
+        const s = simRef.current as ByteQuestPvPSimulation | null;
+        if (!s || s.stats.hp <= 0) return;
+        broadcast.send('sync_pos', {
+          uid: s.localUid,
+          x: s.heroX,
+          y: s.heroY,
+          vx: s.heroVx,
+          vy: s.heroVy,
+          facing: s.heroFacing,
+          hp: s.stats.hp,
+          maxHp: s.stats.maxHp,
+          shieldHp: s.stats.shieldHp,
+          level: s.stats.level,
+          currentXp: s.stats.currentXp,
+          nextLevelXp: s.stats.nextLevelXp,
+          isAttacking: s.heroAttackTimer > 0,
+          attackAngle: s.heroAttackAngle,
+          isDashing: s.isDashing,
+          wordToHack: s.opponentWord
+        });
+      }, 50);
+
+      simRef.current = pvpSim;
+      setSelectedClass(room.sharedClass);
+      setScreen('playing');
+      setIsPaused(false);
+      setRewardData(null);
+      byteQuestAudio.startBgm();
+    },
+    [finishPvPRun]
+  );
 
   useEffect(() => {
     if (screen !== 'playing') return;
@@ -422,6 +574,13 @@ export const ByteQuestGame: React.FC<BaseGameProps> = ({
           setPendingAccent(null);
           pendingAccentRef.current = null;
         }
+
+        // Se for modo PvP e estiver na fase de Duelo, tenta hackear a palavra do oponente primeiro
+        if ('handlePvPTypingKey' in sim && (sim as any).pvpPhase === 'pvp') {
+          const handled = (sim as any).handlePvPTypingKey(charToProcess);
+          if (handled) return;
+        }
+
         sim.handleKeyPress(charToProcess);
       }
     };
@@ -616,7 +775,22 @@ export const ByteQuestGame: React.FC<BaseGameProps> = ({
           onForgeItem={handleForgeItem}
           onDismantleItem={handleDismantleItem}
           onStartRun={handleStartRun}
+          onStartPvP={() => setScreen('pvp_lobby')}
           onExitToHub={() => handleExitToHub()}
+        />
+      )}
+
+      {/* ─── LOBBY MULTIPLAYER 1V1 BATTLE ROYALE ─── */}
+      {screen === 'pvp_lobby' && (
+        <ByteQuestPvPLobby
+          currentUser={{
+            uid: auth.currentUser?.uid || 'player_guest',
+            name: auth.currentUser?.displayName || 'Jogador Conectado',
+            nickname: auth.currentUser?.displayName?.split(' ')[0] || 'Guerreiro',
+            avatar: '🤖'
+          }}
+          onBackToMenu={() => setScreen('lobby')}
+          onStartMatch={handleStartPvPMatch}
         />
       )}
 

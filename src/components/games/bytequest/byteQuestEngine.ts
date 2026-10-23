@@ -182,6 +182,11 @@ export class ByteQuestSimulation {
   public worldSpeed: number = 100;
   public keysPressed: Record<string, boolean> = {};
 
+  // ─── CONTROLE HÍBRIDO (MOUSE / SETAS) ───
+  public mouseMoveEnabled: boolean = true;
+  public mouseWorldX: number | null = null;
+  public mouseWorldY: number | null = null;
+
   // ─── CÂMERA LENTA TÁTICA (BULLET TIME), OVERCLOCK & FRENESI ───
   public focusTimeScale: number = 1.0;
   public focusStamina: number = 4.5;
@@ -267,9 +272,9 @@ export class ByteQuestSimulation {
   public fireTrails: FireTrailPatch[] = [];
   public fireAuraAngle: number = 0;
   private fireAuraTickTimer: number = 0;
-  private boomerangCooldown: number = 1.2;
-  private turretDeployCooldown: number = 2.0;
-  private homingMissileCooldown: number = 1.5;
+  private boomerangCooldown: number = 1.6;
+  private turretDeployCooldown: number = 2.8;
+  private homingMissileCooldown: number = 2.0;
 
   // ─── PILAR 3: SUBCLASSE, TALENTOS PERMANENTES & CHIPS DE IA ───
   public subclass: HeroSubclassId;
@@ -303,7 +308,7 @@ export class ByteQuestSimulation {
 
   private autoAttackCooldown: number = 0;
   private enemySpawnTimer: number = 0;
-  private invulnerabilityTimer: number = 0;
+  public invulnerabilityTimer: number = 0;
   public orbitalAngle: number = 0;
 
   public isBossSpawned: boolean = false;
@@ -385,7 +390,7 @@ export class ByteQuestSimulation {
       maxEnergy,
       level: 1,
       currentXp: 0,
-      nextLevelXp: 14,
+      nextLevelXp: 24,
       timeSurvivedSeconds: 0,
       enemiesDefeated: 0,
       wordsTypedCount: 0,
@@ -876,20 +881,40 @@ export class ByteQuestSimulation {
       }
     }
 
-    // Movimentação normal do herói EXCLUSIVAMENTE com as Setas do Teclado (Arrow Keys)
+    // Movimentação do herói: Híbrida (Mouse Seguir Cursor com retorno imediato às Setas)
     let targetVx = 0;
     let targetVy = 0;
     const moveSpeed = this.getHeroMoveSpeed();
 
-    if (this.keysPressed['ArrowUp']) targetVy -= moveSpeed;
-    if (this.keysPressed['ArrowDown']) targetVy += moveSpeed;
-    if (this.keysPressed['ArrowLeft']) {
-      targetVx -= moveSpeed;
-      this.heroFacing = 'left';
-    }
-    if (this.keysPressed['ArrowRight']) {
-      targetVx += moveSpeed;
-      this.heroFacing = 'right';
+    const hasArrowInput =
+      !!this.keysPressed['ArrowUp'] ||
+      !!this.keysPressed['ArrowDown'] ||
+      !!this.keysPressed['ArrowLeft'] ||
+      !!this.keysPressed['ArrowRight'];
+
+    if (hasArrowInput) {
+      if (this.keysPressed['ArrowUp']) targetVy -= moveSpeed;
+      if (this.keysPressed['ArrowDown']) targetVy += moveSpeed;
+      if (this.keysPressed['ArrowLeft']) {
+        targetVx -= moveSpeed;
+        this.heroFacing = 'left';
+      }
+      if (this.keysPressed['ArrowRight']) {
+        targetVx += moveSpeed;
+        this.heroFacing = 'right';
+      }
+    } else if (this.mouseMoveEnabled && this.mouseWorldX !== null && this.mouseWorldY !== null) {
+      const dx = this.mouseWorldX - this.heroX;
+      const dy = this.mouseWorldY - this.heroY;
+      const dist = Math.hypot(dx, dy);
+      const deadzone = 42; // Raio confortável ao redor do herói para evitar trepidação
+
+      if (dist > deadzone) {
+        const ramp = Math.min(1.0, (dist - deadzone) / 70);
+        targetVx = (dx / dist) * moveSpeed * ramp;
+        targetVy = (dy / dist) * moveSpeed * ramp;
+        this.heroFacing = dx >= 0 ? 'right' : 'left';
+      }
     }
 
     this.heroVx += (targetVx - this.heroVx) * 14 * dt;
@@ -1014,16 +1039,20 @@ export class ByteQuestSimulation {
     this.autoAttackCooldown -= dt;
     if (this.autoAttackCooldown <= 0) {
       this.performArchetypeAttack();
-      let rate = 0.55 - this.upgrades.speedBonus * 0.035;
-      if (this.rpgClass === 'archer') rate = 0.35 - this.upgrades.speedBonus * 0.025; // Arqueiro atira mais rápido
+      let rate = 0.65 - this.upgrades.speedBonus * 0.025;
+      if (this.rpgClass === 'archer') {
+        rate = 0.46 - this.upgrades.speedBonus * 0.02; // Arqueiro atira mais rápido
+      } else if (this.rpgClass === 'mage') {
+        rate = 0.58 - this.upgrades.speedBonus * 0.02;
+      }
       if (this.subclass === 'warrior_berserker') {
         const missingHpRatio = Math.max(0, 1 - this.stats.hp / Math.max(1, this.stats.maxHp));
         rate *= 1 - missingHpRatio * 0.45;
       }
-      if (this.upgrades.rageBuffTimer > 0) rate *= 0.5; // Fúria dobra a velocidade
-      if (this.overclockTimer > 0) rate *= 0.68; // Overclock acelera em +35%
-      if (this.frenzyTimer > 0) rate *= 0.5; // Frenesi de Combate dobra a velocidade
-      this.autoAttackCooldown = Math.max(0.1, rate);
+      if (this.upgrades.rageBuffTimer > 0) rate *= 0.55; // Fúria acelera
+      if (this.overclockTimer > 0) rate *= 0.72; // Overclock acelera em +28%
+      if (this.frenzyTimer > 0) rate *= 0.55; // Frenesi de Combate
+      this.autoAttackCooldown = Math.max(0.24, rate);
     }
 
     // ─── PILAR 1 & 3: ARMAS AUTÔNOMAS, PASSIVAS DE SUBCLASSE E CHIPS DE IA ───
@@ -1057,6 +1086,9 @@ export class ByteQuestSimulation {
       }
       if (enemy.wordErrorShakeTimer && enemy.wordErrorShakeTimer > 0) {
         enemy.wordErrorShakeTimer = Math.max(0, enemy.wordErrorShakeTimer - dt);
+      }
+      if (enemy.enrageTimer && enemy.enrageTimer > 0) {
+        enemy.enrageTimer = Math.max(0, enemy.enrageTimer - worldDt);
       }
       if (enemy.firewallActiveTimer && enemy.firewallActiveTimer > 0) {
         enemy.firewallActiveTimer = Math.max(0, enemy.firewallActiveTimer - dt);
@@ -1097,10 +1129,11 @@ export class ByteQuestSimulation {
         const dy = this.heroY - enemy.y;
         const dist = Math.hypot(dx, dy);
 
-        // Perseguição ativa em 360 graus (desacelerada pelo Bullet Time)
+        // Perseguição ativa em 360 graus (+35% de velocidade se enfurecido por erro de digitação)
         if (dist > 5) {
-          enemy.x += (dx / dist) * enemy.speed * worldDt;
-          enemy.y += (dy / dist) * enemy.speed * worldDt;
+          const effectiveSpeed = enemy.speed * (enemy.enrageTimer && enemy.enrageTimer > 0 ? 1.35 : 1.0);
+          enemy.x += (dx / dist) * effectiveSpeed * worldDt;
+          enemy.y += (dy / dist) * effectiveSpeed * worldDt;
         }
 
         // Colisão de inimigos com obstáculos
@@ -2340,13 +2373,18 @@ export class ByteQuestSimulation {
     }
 
     if (this.enemySpawnTimer <= 0) {
-      const siegeExtra = this.siegeEventTimer > 0 ? 6 : 0;
-      const maxEnemies = Math.min(34, Math.round((8 + phase * 4 + siegeExtra) * corruptionCfg.spawnRateMult));
+      const siegeExtra = this.siegeEventTimer > 0 ? 12 : 0;
+      const maxEnemies = Math.min(68, Math.round((16 + phase * 8 + siegeExtra) * corruptionCfg.spawnRateMult));
       if (this.enemies.length < maxEnemies) {
-        this.spawnRandomEnemy(phase, arenaWidth, arenaHeight);
+        const spawnCount = phase >= 3 && Math.random() < 0.45 ? 2 : 1;
+        for (let s = 0; s < spawnCount; s++) {
+          if (this.enemies.length < maxEnemies) {
+            this.spawnRandomEnemy(phase, arenaWidth, arenaHeight);
+          }
+        }
       }
-      const baseInterval = Math.max(0.32, (1.6 - phase * 0.22) / corruptionCfg.spawnRateMult);
-      this.enemySpawnTimer = this.siegeEventTimer > 0 ? baseInterval * 0.6 : baseInterval;
+      const baseInterval = Math.max(0.18, (0.85 - phase * 0.11) / corruptionCfg.spawnRateMult);
+      this.enemySpawnTimer = this.siegeEventTimer > 0 ? baseInterval * 0.55 : baseInterval;
     }
   }
 
@@ -2451,9 +2489,9 @@ export class ByteQuestSimulation {
         eliteGlow = 'rgba(192, 132, 252, 0.8)';
       }
 
-      const hp = Math.round((280 + phase * 45) * hpMult);
-      const speed = Math.round((isRanged ? 65 : 85) * spdMult);
-      const damage = Math.round((18 + phase * 3) * endlessScale);
+      const hp = Math.round((480 + phase * 70) * hpMult);
+      const speed = Math.round((isRanged ? 95 : 125) * spdMult);
+      const damage = Math.round((24 + phase * 4) * endlessScale);
       const word = getWordForDifficulty(Math.min(4, phase + 1));
 
       this.enemies.push({
@@ -2476,8 +2514,8 @@ export class ByteQuestSimulation {
         color: eliteColor,
         glowColor: eliteGlow,
         specialPower: isRanged ? 'shoot' : 'dash',
-        shootTimer: 2.2,
-        hazardCooldownTimer: 3.5 + Math.random() * 2.5
+        shootTimer: 1.6,
+        hazardCooldownTimer: 3.0 + Math.random() * 2.0
       });
       return;
     }
@@ -2485,9 +2523,9 @@ export class ByteQuestSimulation {
     // ─── MINIONS COMUNS TEMÁTICOS DO BIOMA ATIVO ───
     let type: EnemyType = 'slime';
     let name = 'Slime de Dados';
-    let hp = 45 + phase * 16;
-    let speed = 65 + Math.random() * 20;
-    let damage = 9 + phase * 2;
+    let hp = 75 + phase * 22;
+    let speed = 115 + Math.random() * 25;
+    let damage = 16 + phase * 3;
     let width = 36;
     let height = 36;
     let color = '#34D399';
@@ -2497,9 +2535,9 @@ export class ByteQuestSimulation {
       const isFire = Math.random() < 0.6;
       type = isFire ? 'fire_elemental' : 'magma_golem';
       name = isFire ? 'Elemental de Fogo' : 'Golem de Sucata';
-      hp = 65 + phase * 18;
-      speed = isFire ? 85 : 55;
-      damage = 13 + phase * 2;
+      hp = isFire ? 95 + phase * 24 : 140 + phase * 30;
+      speed = isFire ? 135 : 95;
+      damage = isFire ? 20 + phase * 3 : 26 + phase * 4;
       width = isFire ? 38 : 44;
       height = isFire ? 38 : 44;
       color = isFire ? '#EF4444' : '#F97316';
@@ -2508,9 +2546,9 @@ export class ByteQuestSimulation {
       const isOrb = Math.random() < 0.55;
       type = isOrb ? 'quantum_orb' : 'void_wraith';
       name = isOrb ? 'Orbe Quântico' : 'Espectro do Vazio';
-      hp = 85 + phase * 20;
-      speed = isOrb ? 95 : 70;
-      damage = 16 + phase * 3;
+      hp = isOrb ? 120 + phase * 26 : 155 + phase * 30;
+      speed = isOrb ? 150 : 120;
+      damage = isOrb ? 24 + phase * 4 : 28 + phase * 5;
       width = 40;
       height = 40;
       color = isOrb ? '#A855F7' : '#EC4899';
@@ -2520,9 +2558,9 @@ export class ByteQuestSimulation {
       if (phase >= 3 && Math.random() < 0.35) {
         type = 'gargoyle';
         name = 'Gárgula Minion';
-        hp = 75 + phase * 18;
-        speed = 90 + Math.random() * 25;
-        damage = 14 + phase * 3;
+        hp = 110 + phase * 25;
+        speed = 145 + Math.random() * 25;
+        damage = 22 + phase * 4;
         width = 40;
         height = 40;
         color = '#C084FC';
@@ -2530,9 +2568,9 @@ export class ByteQuestSimulation {
       } else if (phase >= 2 && Math.random() < 0.45) {
         type = 'skeleton';
         name = 'Esqueleto Minion';
-        hp = 60 + phase * 16;
-        speed = 60 + Math.random() * 15;
-        damage = 11 + phase * 2;
+        hp = 90 + phase * 22;
+        speed = 110 + Math.random() * 20;
+        damage = 18 + phase * 3;
         width = 38;
         height = 38;
         color = '#38BDF8';
@@ -2569,7 +2607,7 @@ export class ByteQuestSimulation {
   private spawnMiniBoss(arenaWidth: number, arenaHeight: number) {
     const corruptionCfg = CORRUPTION_TIERS[this.corruptionTier] || CORRUPTION_TIERS[0];
     const word = getWordForDifficulty(3);
-    const hp = Math.round((950 + this.getCurrentPhase() * 150) * corruptionCfg.enemyHpMult);
+    const hp = Math.round((1450 + this.getCurrentPhase() * 220) * corruptionCfg.enemyHpMult);
     const spawnX = Math.min(this.worldWidth - 60, this.cameraX + arenaWidth + 80);
     const spawnY = Math.min(this.worldHeight - 60, Math.max(60, this.cameraY + arenaHeight / 2));
 
@@ -2581,10 +2619,10 @@ export class ByteQuestSimulation {
       y: spawnY,
       width: 66,
       height: 66,
-      speed: 48,
+      speed: 72,
       maxHp: hp,
       hp,
-      damage: 28,
+      damage: 36,
       xpValue: 30,
       word,
       wordTyped: '',
@@ -2593,8 +2631,8 @@ export class ByteQuestSimulation {
       color: '#EC4899',
       glowColor: 'rgba(236, 72, 153, 0.75)',
       specialPower: 'shoot',
-      shootTimer: 1.8,
-      hazardCooldownTimer: 3.0
+      shootTimer: 1.4,
+      hazardCooldownTimer: 2.8
     });
     this.addFloatingText(this.heroX, this.heroY - 60, '⚠️ MINI-CHEFE SURGIU!', '#EC4899', true);
   }
@@ -2603,7 +2641,7 @@ export class ByteQuestSimulation {
     const corruptionCfg = CORRUPTION_TIERS[this.corruptionTier] || CORRUPTION_TIERS[0];
     const endlessScale = 1 + this.endlessLoopCount * 0.45;
     const word = getWordForDifficulty(4);
-    const hp = Math.round(5500 * corruptionCfg.enemyHpMult * endlessScale);
+    const hp = Math.round(7800 * corruptionCfg.enemyHpMult * endlessScale);
     const centerX = this.worldWidth / 2; // 2500
     const centerY = this.worldHeight / 2; // 1800
 
@@ -2641,10 +2679,10 @@ export class ByteQuestSimulation {
       y: spawnY,
       width: 92,
       height: 92,
-      speed: 42,
+      speed: 58,
       maxHp: hp,
       hp,
-      damage: Math.round(44 * endlessScale),
+      damage: Math.round(56 * endlessScale),
       xpValue: 120,
       word,
       wordTyped: '',
@@ -2653,11 +2691,11 @@ export class ByteQuestSimulation {
       color: '#F59E0B',
       glowColor: 'rgba(245, 158, 11, 0.85)',
       specialPower: 'shoot',
-      shootTimer: 2.0,
-      hazardCooldownTimer: 3.5,
+      shootTimer: 1.8,
+      hazardCooldownTimer: 3.0,
       bossPhase: 1,
-      bossHomingCooldown: 3.5,
-      bossLaserCooldown: 6.5,
+      bossHomingCooldown: 2.8,
+      bossLaserCooldown: 5.0,
       bossMeteorCooldown: 5.5
     });
 
@@ -2816,6 +2854,25 @@ export class ByteQuestSimulation {
   }
 
   /**
+   * Define a coordenada de destino no mundo do jogo guiada pelo mouse
+   */
+  public setMouseWorldTarget(x: number | null, y: number | null) {
+    this.mouseWorldX = x;
+    this.mouseWorldY = y;
+  }
+
+  /**
+   * Ativa ou desativa a movimentação por cursor do mouse
+   */
+  public setMouseMoveEnabled(enabled: boolean) {
+    this.mouseMoveEnabled = enabled;
+    if (!enabled) {
+      this.mouseWorldX = null;
+      this.mouseWorldY = null;
+    }
+  }
+
+  /**
    * Registra um acerto no Combo de Digitação e ativa Overclock a cada 15 acertos
    */
   private registerTypingComboHit() {
@@ -2846,7 +2903,9 @@ export class ByteQuestSimulation {
 
     if (targetEnemy) {
       targetEnemy.wordErrorShakeTimer = 0.28;
-      this.spawnHitParticles(targetEnemy.x, targetEnemy.y - 30, '#EF4444', 6, 120);
+      targetEnemy.enrageTimer = 1.4; // Monstro enfurecido por 1.4s (+35% velocidade de perseguição)
+      this.addFloatingText(targetEnemy.x, targetEnemy.y - 45, '⚠️ MONSTRO ENFURECIDO!', '#EF4444', true);
+      this.spawnHitParticles(targetEnemy.x, targetEnemy.y - 30, '#EF4444', 8, 140);
     } else {
       this.spawnHitParticles(this.heroX, this.heroY - 25, '#EF4444', 5, 100);
     }
@@ -3080,10 +3139,10 @@ export class ByteQuestSimulation {
       this.overclockTimer = Math.max(this.overclockTimer, dur);
       this.addFloatingText(shrine.x, shrine.y - 45, `⚡ SANTUÁRIO DE OVERCLOCK ATIVADO! (${dur}s)`, '#F59E0B', true);
     } else if (shrine.shrineType === 'restore') {
-      const heal = Math.round(this.stats.maxHp * 0.5 * durationMult);
+      const heal = Math.round(this.stats.maxHp * 0.35 * durationMult);
       this.stats.hp = Math.min(this.stats.maxHp, this.stats.hp + heal);
-      this.stats.energy = this.stats.maxEnergy;
-      this.addFloatingText(shrine.x, shrine.y - 45, `💚 +${heal} HP & ENERGIA MÁXIMA!`, '#10B981', true);
+      this.stats.energy = Math.min(this.stats.maxEnergy, this.stats.energy + 50);
+      this.addFloatingText(shrine.x, shrine.y - 45, `💚 +${heal} HP & +50 ENERGIA!`, '#10B981', true);
     } else if (shrine.shrineType === 'fortune') {
       const bonus = Math.round(150 * durationMult);
       this.stats.bonusBytesEarned += bonus;
@@ -3151,8 +3210,8 @@ export class ByteQuestSimulation {
       this.enemyProjectiles = this.enemyProjectiles.filter((ep) => !ep.isHoming);
       this.bossLaserTelegraphs = [];
 
-      enemy.stunTimer = 3.5; // Atordoa o Boss por 3.5s
-      const staggerDmg = Math.round(enemy.maxHp * 0.14 + (240 + this.upgrades.damageBonus * 6) * this.upgrades.typingCritMultiplier * overclockBoost);
+      enemy.stunTimer = 1.8; // Atordoa o Boss por 1.8s
+      const staggerDmg = Math.round(enemy.maxHp * 0.08 + (180 + this.upgrades.damageBonus * 4) * this.upgrades.typingCritMultiplier * overclockBoost);
       this.hitstopTimer = 0.12;
       this.addScreenShake(9.0, 0.35);
       this.addShockwave(enemy.x, enemy.y, 220, '#38BDF8', 6);
@@ -3171,8 +3230,8 @@ export class ByteQuestSimulation {
     // Se um Elite comum estava com Firewall Criptográfico ativo
     if (enemy.firewallActiveTimer && enemy.firewallActiveTimer > 0) {
       enemy.firewallActiveTimer = 0;
-      enemy.stunTimer = 3.5;
-      const firewallBreakDmg = Math.round(enemy.maxHp * 0.22);
+      enemy.stunTimer = 1.8;
+      const firewallBreakDmg = Math.round(enemy.maxHp * 0.16);
       this.hitstopTimer = 0.12;
       this.addScreenShake(9.5, 0.35);
       this.addShockwave(enemy.x, enemy.y, 190, '#38BDF8', 6);
@@ -3250,6 +3309,34 @@ export class ByteQuestSimulation {
       enemy.wordTyped = '';
       this.addShockwave(enemy.x, enemy.y, 160, '#38BDF8', 5);
       this.addFloatingText(enemy.x, enemy.y - 55, '🛡️ FIREWALL CRIPTOGRÁFICO ATIVO!', '#38BDF8', true);
+
+      // Invoca 3 Sentinelas de Firewall protegendo o Chefe
+      for (let s = 0; s < 3; s++) {
+        const sAngle = ((Math.PI * 2) / 3) * s + Math.random() * 0.4;
+        const sx = enemy.x + Math.cos(sAngle) * 90;
+        const sy = enemy.y + Math.sin(sAngle) * 90;
+        this.enemies.push({
+          id: `sentinel_${Date.now()}_${s}`,
+          type: 'gargoyle',
+          name: 'Sentinela do Firewall',
+          x: Math.max(90, Math.min(this.worldWidth - 90, sx)),
+          y: Math.max(90, Math.min(this.worldHeight - 90, sy)),
+          width: 48,
+          height: 48,
+          speed: 130,
+          maxHp: 180 + this.getCurrentPhase() * 35,
+          hp: 180 + this.getCurrentPhase() * 35,
+          damage: 22,
+          xpValue: 8,
+          word: getWordForDifficulty(2),
+          wordTyped: '',
+          isBoss: false,
+          isElite: true,
+          color: '#38BDF8',
+          glowColor: 'rgba(56, 189, 248, 0.85)'
+        });
+        this.addShockwave(sx, sy, 50, '#38BDF8', 2);
+      }
     }
 
     // Partículas dinâmicas de impacto correspondentes à classe
@@ -3603,9 +3690,21 @@ export class ByteQuestSimulation {
     if (this.keysPressed['ArrowLeft']) dirX -= 1;
     if (this.keysPressed['ArrowRight']) dirX += 1;
 
-    // Se nenhuma tecla direcional estiver pressionada, usa a orientação visual do herói
+    // Se nenhuma tecla direcional estiver pressionada, usa o cursor do mouse ou a orientação do herói
     if (dirX === 0 && dirY === 0) {
-      dirX = this.heroFacing === 'right' ? 1 : -1;
+      if (this.mouseMoveEnabled && this.mouseWorldX !== null && this.mouseWorldY !== null) {
+        const mdx = this.mouseWorldX - this.heroX;
+        const mdy = this.mouseWorldY - this.heroY;
+        const mdist = Math.hypot(mdx, mdy);
+        if (mdist > 30) {
+          dirX = mdx / mdist;
+          dirY = mdy / mdist;
+        } else {
+          dirX = this.heroFacing === 'right' ? 1 : -1;
+        }
+      } else {
+        dirX = this.heroFacing === 'right' ? 1 : -1;
+      }
     } else {
       const len = Math.hypot(dirX, dirY);
       dirX /= len;
@@ -3950,7 +4049,7 @@ export class ByteQuestSimulation {
     if (this.stats.currentXp >= this.stats.nextLevelXp) {
       this.stats.currentXp -= this.stats.nextLevelXp;
       this.stats.level++;
-      this.stats.nextLevelXp = Math.round(14 + this.stats.level * 10);
+      this.stats.nextLevelXp = Math.round(24 + Math.pow(this.stats.level, 1.35) * 12);
       byteQuestAudio.playLevelUp();
       this.onLevelUp?.();
     }
@@ -4571,7 +4670,7 @@ export class ByteQuestSimulation {
     }
   }
 
-  private addFloatingText(x: number, y: number, text: string, color: string, isCrit: boolean = false) {
+  public addFloatingText(x: number, y: number, text: string, color: string, isCrit: boolean = false) {
     this.damageTexts.push({
       id: `text_${Date.now()}_${Math.random()}`,
       x,

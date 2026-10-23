@@ -4,7 +4,7 @@
 // ─────────────────────────────────────────────────────────────
 
 import React, { useState, useEffect } from 'react';
-import { Shield, Zap, Sparkles, Volume2, VolumeX, LogOut, Flame, Snowflake, Skull, Crosshair, Wind, Feather, Disc, Pause, Play, Cpu, Sun, Rocket, Orbit } from 'lucide-react';
+import { Shield, Zap, Sparkles, Volume2, VolumeX, LogOut, Flame, Snowflake, Skull, Crosshair, Wind, Feather, Disc, Pause, Play, Cpu, Sun, Rocket, Orbit, MousePointer } from 'lucide-react';
 import { ByteQuestSimulation } from './byteQuestEngine';
 import { BYTE_QUEST_SPELLS } from '../../../types/byteQuest';
 import { CapsLockWarning } from '../../common/CapsLockWarning';
@@ -219,41 +219,69 @@ export const ByteQuestHUD: React.FC<ByteQuestHUDProps> = ({
           )}
         </div>
 
-        {/* Cronômetro Central, Bioma Ativo & Indicador de Câmara (1 a 4) */}
+        {/* Cronômetro Central, Bioma Ativo & Indicador de Modo (Solo / PvP 1v1) */}
         <div className="flex flex-col items-center bg-zinc-950/85 backdrop-blur-md px-4 py-1.5 rounded-xl border border-violet-900/40 shadow-lg">
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-lg sm:text-xl font-black text-amber-300 tracking-wider">
-              {formattedTime}
-            </span>
-            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-violet-950/60 border border-violet-500/40 text-[10px] font-mono font-bold text-violet-200">
-              <span>CÂMARA {simulation.chamberNumber}/4</span>
-              {simulation.chamberIsPurged ? (
-                <span className="text-emerald-400 font-black animate-pulse">✓ PURGADA</span>
-              ) : simulation.chamberType === 'boss' ? (
-                <span className="text-rose-400 font-black animate-pulse">🔥 CHEFE</span>
-              ) : (
-                <span className="text-amber-400 font-mono text-[9px]">
-                  {Math.max(0, Math.ceil(simulation.chamberTargetDuration - simulation.chamberTimeSurvived))}s
+          {'pvpPhase' in simulation ? (
+            <div className="flex flex-col items-center gap-1">
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-lg sm:text-xl font-black text-amber-300 tracking-wider">
+                  {(simulation as any).pvpPhase === 'farm'
+                    ? `${Math.max(0, Math.ceil(120 - (simulation as any).matchTimer))}s`
+                    : 'DUELO PVP'}
                 </span>
-              )}
-            </div>
-          </div>
-          <span className="text-[10px] font-mono uppercase tracking-wider flex items-center gap-1 font-bold">
-            {simulation.currentBiome === 'forge' ? (
-              <span className="text-orange-400">🔥 FORJA DE SILÍCIO</span>
-            ) : simulation.currentBiome === 'quantum_core' ? (
-              <span className="text-purple-400">🌌 NÚCLEO QUÂNTICO</span>
-            ) : (
-              <span className="text-cyan-400">🏛️ CRIPTA DE DADOS</span>
-            )}
-            <span className="text-zinc-600">•</span>
-            <span className="text-violet-300">{simulation.getChamberTitle(simulation.chamberType)}</span>
-            {simulation.corruptionTier > 0 && (
-              <span className="ml-1 px-1.5 py-0.2 rounded bg-rose-950/80 border border-rose-500/50 text-rose-300 text-[9px]">
-                ☠️ TORMENTO {simulation.corruptionTier}
+                <span
+                  className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider ${
+                    (simulation as any).pvpPhase === 'farm'
+                      ? 'bg-amber-950/60 border border-amber-500/40 text-amber-300'
+                      : 'bg-rose-950/80 border border-rose-500/60 text-rose-300 animate-pulse'
+                  }`}
+                >
+                  {(simulation as any).pvpPhase === 'farm' ? '🌾 FASE DE FARM' : '⚔️ LOCKDOWN ATIVO'}
+                </span>
+              </div>
+              <span className="text-[9px] font-mono uppercase tracking-wider text-zinc-400">
+                {(simulation as any).pvpPhase === 'farm'
+                  ? `Tempestade: Raio ${Math.round((simulation as any).stormRadius)}m`
+                  : 'Fogo Amigo Liberado! Digite o código do Rival!'}
               </span>
-            )}
-          </span>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-lg sm:text-xl font-black text-amber-300 tracking-wider">
+                  {formattedTime}
+                </span>
+                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-violet-950/60 border border-violet-500/40 text-[10px] font-mono font-bold text-violet-200">
+                  <span>CÂMARA {simulation.chamberNumber}/4</span>
+                  {simulation.chamberIsPurged ? (
+                    <span className="text-emerald-400 font-black animate-pulse">✓ PURGADA</span>
+                  ) : simulation.chamberType === 'boss' ? (
+                    <span className="text-rose-400 font-black animate-pulse">🔥 CHEFE</span>
+                  ) : (
+                    <span className="text-amber-400 font-mono text-[9px]">
+                      {Math.max(0, Math.ceil(simulation.chamberTargetDuration - simulation.chamberTimeSurvived))}s
+                    </span>
+                  )}
+                </div>
+              </div>
+              <span className="text-[10px] font-mono uppercase tracking-wider flex items-center gap-1 font-bold">
+                {simulation.currentBiome === 'forge' ? (
+                  <span className="text-orange-400">🔥 FORJA DE SILÍCIO</span>
+                ) : simulation.currentBiome === 'quantum_core' ? (
+                  <span className="text-purple-400">🌌 NÚCLEO QUÂNTICO</span>
+                ) : (
+                  <span className="text-cyan-400">🏛️ CRIPTA DE DADOS</span>
+                )}
+                <span className="text-zinc-600">•</span>
+                <span className="text-violet-300">{simulation.getChamberTitle(simulation.chamberType)}</span>
+                {simulation.corruptionTier > 0 && (
+                  <span className="ml-1 px-1.5 py-0.2 rounded bg-rose-950/80 border border-rose-500/50 text-rose-300 text-[9px]">
+                    ☠️ TORMENTO {simulation.corruptionTier}
+                  </span>
+                )}
+              </span>
+            </>
+          )}
         </div>
 
         {/* Nível da Corrida & Controles */}
@@ -276,6 +304,32 @@ export const ByteQuestHUD: React.FC<ByteQuestHUDProps> = ({
               </div>
             </div>
           </div>
+
+          {/* Alternador de Esquema de Movimento: Mouse Guia + Setas vs Apenas Setas */}
+          <button
+            onClick={() => {
+              const nextState = !simulation.mouseMoveEnabled;
+              simulation.setMouseMoveEnabled(nextState);
+              try {
+                localStorage.setItem('bytequest_mouse_control', nextState ? 'true' : 'false');
+              } catch (_) {}
+            }}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border font-mono text-xs font-bold transition-all cursor-pointer shadow-md ${
+              simulation.mouseMoveEnabled
+                ? 'bg-cyan-950/70 border-cyan-500/70 text-cyan-200 hover:bg-cyan-900/60 shadow-cyan-950/50 ring-1 ring-cyan-500/40'
+                : 'bg-zinc-900/80 border-zinc-700/60 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
+            }`}
+            title={
+              simulation.mouseMoveEnabled
+                ? 'Movimento: Mouse Guia + Setas ativas (Clique para usar Apenas Setas)'
+                : 'Movimento: Apenas Setas do Teclado (Clique para ativar Guia por Mouse)'
+            }
+          >
+            <MousePointer className={`w-3.5 h-3.5 ${simulation.mouseMoveEnabled ? 'text-cyan-400 animate-pulse' : 'text-zinc-500'}`} />
+            <span className="hidden sm:inline text-[10px]">
+              {simulation.mouseMoveEnabled ? 'Mouse + Setas' : 'Apenas Setas'}
+            </span>
+          </button>
 
           {/* Botão Pausar / Continuar */}
           <button

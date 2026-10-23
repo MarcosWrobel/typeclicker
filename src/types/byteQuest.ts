@@ -240,6 +240,7 @@ export interface CombatEnemy {
   specialPower?: 'shoot' | 'dash' | 'shield';
   shootTimer?: number;
   wordErrorShakeTimer?: number; // tremor visual ao errar uma letra
+  enrageTimer?: number; // segundos restantes de frenesi/enfurecimento ao jogador errar uma letra
   hazardCooldownTimer?: number; // recarga para ataque telegrafado no chão
   firewallTriggered?: boolean; // se o Boss já ativou o escudo de criptografia em 50% HP
   firewallActiveTimer?: number; // segundos restantes do escudo invulnerável do Boss

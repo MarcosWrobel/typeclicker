@@ -92,6 +92,11 @@ export const ByteQuestArenaCanvas: React.FC<ByteQuestArenaCanvasProps> = ({
         drawBossArenaBarrier(ctx, simulation.bossArenaBarrier);
       }
 
+      // 1.9. Anel de Tempestade Digital (Battle Royale / PvP)
+      if ('stormRadius' in simulation) {
+        drawStormRing(ctx, simulation);
+      }
+
       // 2. Shockwaves expansivas no chão do mundo
       drawShockwaves(ctx, simulation.shockwaves);
 
@@ -107,6 +112,9 @@ export const ByteQuestArenaCanvas: React.FC<ByteQuestArenaCanvasProps> = ({
       if (simulation.upgrades.weaponFireAuraLevel > 0) {
         drawFireAura(ctx, simulation);
       }
+
+      // 2.4. Retículo Tático Holográfico do Cursor do Mouse (Guia de Movimento)
+      drawMouseTarget(ctx, simulation);
 
       // 2.5. Obstáculos procedurais do Bioma (Pilares e Monólitos)
       drawObstacles(ctx, simulation.obstacles);
@@ -257,6 +265,11 @@ export const ByteQuestArenaCanvas: React.FC<ByteQuestArenaCanvasProps> = ({
 
       drawHero(ctx, simulation, rpgClass, loadout);
 
+      // 7.1. Oponente Remoto em Tempo Real (Modo PvP Battle Royale)
+      if ('remoteOpponent' in simulation && (simulation as any).remoteOpponent) {
+        drawRemoteOpponent(ctx, simulation, rpgClass);
+      }
+
       // 7.2. Drones Aliados Especialistas orbitando o Herói
       if (simulation.allyDrones && simulation.allyDrones.length > 0) {
         drawAllyDrones(ctx, simulation.allyDrones, simulation.heroX, simulation.heroY);
@@ -319,9 +332,33 @@ export const ByteQuestArenaCanvas: React.FC<ByteQuestArenaCanvasProps> = ({
     };
   }, [simulation, isPaused, rpgClass, loadout]);
 
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas || !simulation || !simulation.mouseMoveEnabled || isPaused) return;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = (canvas.width / (window.devicePixelRatio || 1)) / rect.width;
+    const scaleY = (canvas.height / (window.devicePixelRatio || 1)) / rect.height;
+    const screenX = (e.clientX - rect.left) * scaleX;
+    const screenY = (e.clientY - rect.top) * scaleY;
+    const worldX = screenX + simulation.cameraX;
+    const worldY = screenY + simulation.cameraY;
+    simulation.setMouseWorldTarget(worldX, worldY);
+  };
+
+  const handleMouseLeave = () => {
+    if (simulation) {
+      simulation.setMouseWorldTarget(null, null);
+    }
+  };
+
   return (
     <div className="relative w-full h-full bg-[#090b10] overflow-hidden rounded-xl border border-violet-900/40 shadow-2xl">
-      <canvas ref={canvasRef} className="w-full h-full block" />
+      <canvas
+        ref={canvasRef}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        className="w-full h-full block cursor-crosshair"
+      />
     </div>
   );
 };
@@ -329,6 +366,50 @@ export const ByteQuestArenaCanvas: React.FC<ByteQuestArenaCanvasProps> = ({
 // ─────────────────────────────────────────────────────────────
 // Sub-rotinas procedurais de renderização Canvas 2D
 // ─────────────────────────────────────────────────────────────
+
+function drawMouseTarget(ctx: CanvasRenderingContext2D, sim: ByteQuestSimulation) {
+  if (!sim.mouseMoveEnabled || sim.mouseWorldX === null || sim.mouseWorldY === null) return;
+
+  const tx = sim.mouseWorldX;
+  const ty = sim.mouseWorldY;
+  const dist = Math.hypot(tx - sim.heroX, ty - sim.heroY);
+  if (dist < 22) return; // Não desenha sobreposto ao pé do herói
+
+  const time = performance.now() * 0.003;
+  const pulse = Math.sin(time * 3) * 2;
+  const radius = 13 + pulse;
+
+  ctx.save();
+  ctx.translate(tx, ty);
+
+  // Anel holográfico externo
+  ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(0, 0, radius, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // 4 retículos de mira rotativos
+  ctx.rotate(time);
+  ctx.strokeStyle = '#38BDF8';
+  ctx.lineWidth = 2;
+  const markLen = 4;
+  for (let i = 0; i < 4; i++) {
+    ctx.rotate(Math.PI / 2);
+    ctx.beginPath();
+    ctx.moveTo(radius - 2, 0);
+    ctx.lineTo(radius + markLen, 0);
+    ctx.stroke();
+  }
+
+  // Ponto central da mira
+  ctx.fillStyle = '#38BDF8';
+  ctx.beginPath();
+  ctx.arc(0, 0, 2.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
+}
 
 function drawBiomeWorld(ctx: CanvasRenderingContext2D, sim: ByteQuestSimulation) {
   const biome = BIOMES_DATA[sim.currentBiome];
@@ -3860,4 +3941,119 @@ function drawDynamicLighting(ctx: CanvasRenderingContext2D, sim: ByteQuestSimula
   }
 
   ctx.restore();
+}
+
+function drawStormRing(ctx: CanvasRenderingContext2D, pvpSim: any) {
+  const cx = pvpSim.stormCenterX || 2500;
+  const cy = pvpSim.stormCenterY || 1800;
+  const r = pvpSim.stormRadius || 1600;
+
+  ctx.save();
+  const time = performance.now() * 0.003;
+  const pulse = Math.sin(time * 3) * 3;
+  const effectiveRadius = Math.max(10, r + pulse);
+
+  // Anel de laser da barreira
+  const isPvp = pvpSim.pvpPhase === 'pvp';
+  ctx.strokeStyle = isPvp ? 'rgba(239, 68, 68, 0.85)' : 'rgba(168, 85, 247, 0.75)';
+  ctx.lineWidth = 4;
+  ctx.shadowColor = isPvp ? '#EF4444' : '#C084FC';
+  ctx.shadowBlur = 18;
+  ctx.setLineDash([16, 10]);
+  ctx.lineDashOffset = -time * 25;
+  ctx.beginPath();
+  ctx.arc(cx, cy, effectiveRadius, 0, Math.PI * 2);
+  ctx.stroke();
+
+  if (pvpSim.isOutsideStorm) {
+    ctx.setLineDash([]);
+    ctx.strokeStyle = 'rgba(239, 68, 68, 0.5)';
+    ctx.lineWidth = 10;
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+function drawRemoteOpponent(ctx: CanvasRenderingContext2D, pvpSim: any, rpgClass: RpgClassType) {
+  const opp = pvpSim.remoteOpponent;
+  if (!opp || opp.hp <= 0) return;
+
+  const oppSim = {
+    heroX: opp.x,
+    heroY: opp.y,
+    heroFacing: opp.facing,
+    heroVx: opp.vx,
+    heroVy: opp.vy,
+    runCycle: Date.now() * 0.01,
+    heroAttackTimer: opp.isAttacking ? 0.16 : 0,
+    heroAttackAngle: opp.attackAngle,
+    heroAttackDuration: 0.16,
+    subclass: pvpSim.subclass,
+    rpgClass: rpgClass,
+    stats: {
+      shieldHp: opp.shieldHp,
+      hp: opp.hp,
+      maxHp: opp.maxHp
+    }
+  } as any;
+
+  // Aura avermelhada sob o oponente
+  ctx.save();
+  ctx.translate(opp.x, opp.y);
+  ctx.strokeStyle = '#EF4444';
+  ctx.lineWidth = 2;
+  ctx.shadowColor = '#EF4444';
+  ctx.shadowBlur = 10;
+  ctx.beginPath();
+  ctx.arc(0, 0, 26, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Barra de HP sobre a cabeça do oponente
+  const barW = 44;
+  const barH = 5;
+  const barY = -48;
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+  ctx.fillRect(-barW / 2, barY, barW, barH);
+  const hpRatio = Math.max(0, Math.min(1, opp.hp / opp.maxHp));
+  ctx.fillStyle = hpRatio > 0.4 ? '#EF4444' : '#DC2626';
+  ctx.fillRect(-barW / 2, barY, barW * hpRatio, barH);
+  ctx.strokeStyle = '#FFFFFF';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(-barW / 2, barY, barW, barH);
+
+  // Nome e Nível do Oponente
+  ctx.fillStyle = '#FCA5A5';
+  ctx.font = 'bold 9px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(`RIVAL Nv.${opp.level}`, 0, barY - 4);
+
+  // Palavra de Hack de Digitação (na fase PvP)
+  if (pvpSim.pvpPhase === 'pvp' && pvpSim.opponentWord) {
+    const wordY = barY - 14;
+    const typed = pvpSim.opponentWordTyped || '';
+    const remaining = pvpSim.opponentWord.slice(typed.length);
+
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+    ctx.fillRect(-35, wordY - 11, 70, 15);
+    ctx.strokeStyle = '#38BDF8';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(-35, wordY - 11, 70, 15);
+
+    ctx.font = 'bold 11px monospace';
+    const totalW = ctx.measureText(pvpSim.opponentWord).width;
+    let startX = -totalW / 2;
+
+    if (typed.length > 0) {
+      ctx.fillStyle = '#4ADE80';
+      ctx.fillText(typed, startX, wordY);
+      startX += ctx.measureText(typed).width;
+    }
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillText(remaining, startX, wordY);
+  }
+
+  ctx.restore();
+
+  drawHero(ctx, oppSim, rpgClass, {});
 }

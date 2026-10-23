@@ -72,6 +72,7 @@ export interface ByteQuestLobbyProps {
   onForgeItem: (cost: number) => { success: boolean; item?: RpgItem; rarity?: string };
   onDismantleItem: (item: RpgItem) => void;
   onStartRun: () => void;
+  onStartPvP?: () => void;
   onExitToHub: () => void;
 }
 
@@ -110,6 +111,7 @@ export const ByteQuestLobby: React.FC<ByteQuestLobbyProps> = ({
   onForgeItem,
   onDismantleItem,
   onStartRun,
+  onStartPvP,
   onExitToHub
 }) => {
   const [activeModal, setActiveModal] = useState<ActiveModal>('none');
@@ -531,14 +533,28 @@ export const ByteQuestLobby: React.FC<ByteQuestLobbyProps> = ({
           </div>
         </div>
 
-        {/* Botão de Destaque Máximo */}
-        <button
-          onClick={onStartRun}
-          className="flex items-center gap-3 px-8 py-3.5 rounded-xl bg-gradient-to-r from-violet-600 via-indigo-600 to-cyan-600 hover:from-violet-500 hover:to-cyan-500 text-white font-black text-sm shadow-xl shadow-violet-950/80 hover:scale-105 active:scale-95 transition-all cursor-pointer ring-2 ring-violet-400/50"
-        >
-          <Play className="w-5 h-5 fill-current" />
-          <span className="tracking-wider">ENTRAR NA MASMORRA</span>
-        </button>
+        <div className="flex items-center gap-3">
+          {/* Botão Duelo 1v1 Battle Royale */}
+          {onStartPvP && (
+            <button
+              onClick={onStartPvP}
+              className="flex items-center gap-2 px-5 py-3.5 rounded-xl bg-gradient-to-r from-amber-600 via-orange-600 to-rose-600 hover:from-amber-500 hover:to-rose-500 text-white font-black text-xs font-mono uppercase tracking-wider shadow-xl shadow-amber-950/70 hover:scale-105 active:scale-95 transition-all cursor-pointer ring-2 ring-amber-400/50"
+              title="Duelo 1v1 Battle Royale por Recursos com Classes Espelho e Arena Encolhendo"
+            >
+              <Swords className="w-4 h-4" />
+              <span>DUELO 1V1 (PVP)</span>
+            </button>
+          )}
+
+          {/* Botão de Destaque Máximo (Solo) */}
+          <button
+            onClick={onStartRun}
+            className="flex items-center gap-3 px-8 py-3.5 rounded-xl bg-gradient-to-r from-violet-600 via-indigo-600 to-cyan-600 hover:from-violet-500 hover:to-cyan-500 text-white font-black text-sm shadow-xl shadow-violet-950/80 hover:scale-105 active:scale-95 transition-all cursor-pointer ring-2 ring-violet-400/50"
+          >
+            <Play className="w-5 h-5 fill-current" />
+            <span className="tracking-wider">ENTRAR NA MASMORRA</span>
+          </button>
+        </div>
       </div>
 
       {/* ─────────────────────────────────────────────────────────────
