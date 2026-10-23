@@ -86,6 +86,7 @@ const ProgPlayGame = React.lazy(() => import('./plugins/progplay/ProgPlayGame'))
 const ScratchBotGame = React.lazy(() => import('./components/games/scratchbot/ScratchBotGame'));
 const ByteQuestGame = React.lazy(() => import('./components/games/bytequest/ByteQuestGame'));
 const SheetQuestGame = React.lazy(() => import('./components/games/sheetquest/SheetQuestGame'));
+const MathStormGame = React.lazy(() => import('./components/games/mathstorm/MathStormGame'));
 
 export default function App() {
   const suppressLevelUpRef = useRef<boolean>(true);
@@ -2706,6 +2707,8 @@ export default function App() {
               setSelectedGame('bytequest');
             } else if (gameId === 'sheetquest') {
               setSelectedGame('sheetquest');
+            } else if (gameId === 'math_storm') {
+              setSelectedGame('math_storm');
             } else if (gameId === 'time_attack') {
               modalSourceRef.current = 'hub';
               setSelectedGame('typeclicker');
@@ -2984,6 +2987,26 @@ export default function App() {
           onExitToHub={(payload) => handleGamePluginExit('sheetquest', payload)}
           isAdmin={isAdmin || checkIsSuperAdmin(user)}
           initialLevelIndex={sheetQuestInitialLevelIndex}
+        />
+      </React.Suspense>
+    );
+  }
+
+  // Jogo Standalone: Math Storm (Balança Quântica & Álgebra BNCC)
+  if (selectedGame === 'math_storm') {
+    return (
+      <React.Suspense
+        fallback={
+          <div className="min-h-screen bg-[#02110c] flex flex-col items-center justify-center text-white gap-3">
+            <Loader2 className="w-8 h-8 animate-spin text-emerald-400" />
+            <span className="font-mono text-xs text-neutral-400">Carregando Math Storm: Balança Quântica...</span>
+          </div>
+        }
+      >
+        <MathStormGame
+          studentClass={state.rpgClass}
+          difficultyMultiplier={1.0}
+          onExitToHub={(payload) => handleGamePluginExit('math_storm', payload)}
         />
       </React.Suspense>
     );

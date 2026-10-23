@@ -219,11 +219,11 @@ export const INITIAL_GAME_CATALOG: GameMetadata[] = [
     coverGradient: 'from-emerald-500/20 via-green-500/10 to-transparent',
     borderColor: 'border-emerald-500/40 hover:border-emerald-400',
     glowColor: 'bg-emerald-500/10 group-hover:bg-emerald-500/20',
-    badgeTag: 'EM BREVE',
+    badgeTag: 'NOVO • MATEMÁTICA',
     icon: 'Calculator',
     isNew: true,
-    status: 'coming_soon',
-    tags: ['Cálculo Rápido', 'Multiplicadores', 'Equações']
+    status: 'playable',
+    tags: ['Balança Quântica', 'Álgebra BNCC', 'Manipulativos', 'Equações']
   },
   {
     id: 'syntax_maze',
